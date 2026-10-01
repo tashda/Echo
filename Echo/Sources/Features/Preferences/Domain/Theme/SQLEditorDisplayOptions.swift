@@ -21,6 +21,8 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
     var gutterStyle: EditorGutterStyle
     /// Round 28.3: the selection's corner radius (0 is square).
     var selectionCornerRadius: CGFloat
+    /// Round 28.5: the corner radius of marks on the text.
+    var highlightCornerRadius: CGFloat
     /// Settings › Appearance › Card Corners; the EchoSense popup follows it (capped).
     var cardCornerRadius: CGFloat
 
@@ -39,6 +41,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         ghostTextEnabled: Bool = false,
         gutterStyle: EditorGutterStyle = .subtle,
         selectionCornerRadius: CGFloat = CGFloat(EditorSelectionCorners.three.rawValue),
+        highlightCornerRadius: CGFloat = CGFloat(EditorSelectionCorners.three.rawValue),
         cardCornerRadius: CGFloat = LayoutTokens.Workspace.cardCornerRadius
     ) {
         self.showLineNumbers = showLineNumbers
@@ -55,6 +58,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         self.ghostTextEnabled = ghostTextEnabled
         self.gutterStyle = gutterStyle
         self.selectionCornerRadius = selectionCornerRadius
+        self.highlightCornerRadius = highlightCornerRadius
         self.cardCornerRadius = cardCornerRadius
     }
 
@@ -73,6 +77,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         case ghostTextEnabled
         case gutterStyle
         case selectionCornerRadius
+        case highlightCornerRadius
         case cardCornerRadius
     }
 
@@ -92,6 +97,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         ghostTextEnabled = try container.decodeIfPresent(Bool.self, forKey: .ghostTextEnabled) ?? false
         gutterStyle = (try? container.decodeIfPresent(EditorGutterStyle.self, forKey: .gutterStyle)) ?? .subtle
         selectionCornerRadius = try container.decodeIfPresent(CGFloat.self, forKey: .selectionCornerRadius) ?? CGFloat(EditorSelectionCorners.three.rawValue)
+        highlightCornerRadius = try container.decodeIfPresent(CGFloat.self, forKey: .highlightCornerRadius) ?? CGFloat(EditorSelectionCorners.three.rawValue)
         cardCornerRadius = try container.decodeIfPresent(CGFloat.self, forKey: .cardCornerRadius) ?? LayoutTokens.Workspace.cardCornerRadius
     }
 
@@ -111,6 +117,7 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         try container.encode(ghostTextEnabled, forKey: .ghostTextEnabled)
         try container.encode(gutterStyle, forKey: .gutterStyle)
         try container.encode(selectionCornerRadius, forKey: .selectionCornerRadius)
+        try container.encode(highlightCornerRadius, forKey: .highlightCornerRadius)
         try container.encode(cardCornerRadius, forKey: .cardCornerRadius)
     }
 }

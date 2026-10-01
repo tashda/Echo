@@ -30,14 +30,6 @@ struct EchoSenseSettingsView: View {
                 )
             }
 
-            Section("Validation") {
-                EchoSenseToggleRow(
-                    title: "Live query validation",
-                    isOn: liveValidationBinding,
-                    topic: .liveValidation
-                )
-            }
-
             Section("Shortcuts") {
                 PropertyRow(title: "Trigger shortcuts") {
                     Button {

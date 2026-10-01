@@ -190,6 +190,8 @@ struct GlobalSettings: Codable, Hashable {
     var editorGutterStyle: EditorGutterStyle = .subtle
     /// Round 28.3: the selection's corner radius, in points (0 is square).
     var editorSelectionCornerRadius: Double = EditorSelectionCorners.three.rawValue
+    /// Round 28.5: the corner radius of marks on the text (the word at the caret), in points.
+    var editorHighlightCornerRadius: Double = EditorSelectionCorners.three.rawValue
     /// 1 once the editor moved to 13pt with 1.55 line spacing (design board, 2026-09-30); 2 once
     /// line heights became named and the default font SF Mono (round 28.1).
     var editorTypographyRevision = 2
@@ -288,6 +290,7 @@ struct GlobalSettings: Codable, Hashable {
         case sidebarDockSections
         case editorGutterStyle
         case editorSelectionCornerRadius
+        case editorHighlightCornerRadius
         case editorTypographyRevision
         case resultsMonospacedCells
         case sidebarColoredIcons
@@ -314,6 +317,9 @@ struct GlobalSettings: Codable, Hashable {
         let fallbackID = legacyPaletteID ?? SQLEditorPalette.aurora.id
         defaultEditorPaletteIDLight = decodedLightID ?? fallbackID
         defaultEditorPaletteIDDark = decodedDarkID ?? fallbackID
+        // Round 28.11: palettes that were removed go back to Aurora and Midnight.
+        if SQLEditorPalette.removedIDs.contains(defaultEditorPaletteIDLight) { defaultEditorPaletteIDLight = SQLEditorPalette.aurora.id }
+        if SQLEditorPalette.removedIDs.contains(defaultEditorPaletteIDDark) { defaultEditorPaletteIDDark = SQLEditorPalette.midnight.id }
         defaultEditorLineHeight = try container.decodeIfPresent(Double.self, forKey: .defaultEditorLineHeight) ?? Double(SQLEditorTheme.defaultLineHeight)
         editorShowLineNumbers = try container.decodeIfPresent(Bool.self, forKey: .editorShowLineNumbers) ?? true
         editorHighlightSelectedSymbol = try container.decodeIfPresent(Bool.self, forKey: .editorHighlightSelectedSymbol) ?? true
@@ -409,6 +415,7 @@ struct GlobalSettings: Codable, Hashable {
         sidebarDockSections = (try? container.decodeIfPresent([String: [String]].self, forKey: .sidebarDockSections)) ?? [:]
         editorGutterStyle = (try? container.decodeIfPresent(EditorGutterStyle.self, forKey: .editorGutterStyle)) ?? .subtle
         editorSelectionCornerRadius = try container.decodeIfPresent(Double.self, forKey: .editorSelectionCornerRadius) ?? EditorSelectionCorners.three.rawValue
+        editorHighlightCornerRadius = try container.decodeIfPresent(Double.self, forKey: .editorHighlightCornerRadius) ?? EditorSelectionCorners.three.rawValue
         let typographyRevision = try container.decodeIfPresent(Int.self, forKey: .editorTypographyRevision) ?? 0
         // Settings still on the old defaults (12pt, single spacing) move to the new ones once.
         if typographyRevision < 1 {
@@ -509,6 +516,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(sidebarDockSections, forKey: .sidebarDockSections)
         try container.encode(editorGutterStyle, forKey: .editorGutterStyle)
         try container.encode(editorSelectionCornerRadius, forKey: .editorSelectionCornerRadius)
+        try container.encode(editorHighlightCornerRadius, forKey: .editorHighlightCornerRadius)
         try container.encode(editorTypographyRevision, forKey: .editorTypographyRevision)
         try container.encode(resultsMonospacedCells, forKey: .resultsMonospacedCells)
         try container.encode(activityMonitorRefreshInterval, forKey: .activityMonitorRefreshInterval)

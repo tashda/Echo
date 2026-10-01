@@ -130,52 +130,6 @@ struct AppearanceSettingsView: View {
                     }
                 }
             }
-
-            Section("Editor") {
-                PropertyRow(
-                    title: "Outline Edge",
-                    subtitle: "A strip on the editor's right edge marks statements and errors; click it to jump."
-                ) {
-                    Toggle("", isOn: projectStore.globalSettingBinding(\.editorOutlineEdge))
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                }
-
-                PropertyRow(
-                    title: "Statement Focus",
-                    subtitle: "Shade the statement at the cursor and show a Run arrow beside it."
-                ) {
-                    Toggle("", isOn: projectStore.globalSettingBinding(\.editorStatementFocus))
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                }
-
-                PropertyRow(
-                    title: "Line Number Gutter",
-                    subtitle: "Subtle shows numbers only; Column adds a faint full-height column; Lane adds a rounded, inset lane; Hairline adds only a thin edge."
-                ) {
-                    Picker("", selection: projectStore.globalSettingBinding(\.editorGutterStyle)) {
-                        ForEach(EditorGutterStyle.allCases, id: \.self) { Text($0.displayName).tag($0) }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .fixedSize()
-                }
-
-                selectionCornersRow
-            }
-
-            editorFontSection
-
-            Section {
-                EditorFontPreview(
-                    fontName: projectStore.globalSettings.defaultEditorFontFamily,
-                    fontSize: projectStore.globalSettings.defaultEditorFontSize,
-                    ligatures: projectStore.globalSettings.fontLigatureOverrides[projectStore.globalSettings.defaultEditorFontFamily] ?? true
-                )
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-            }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)

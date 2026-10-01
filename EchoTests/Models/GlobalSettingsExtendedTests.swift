@@ -417,11 +417,12 @@ struct GlobalSettingsExtendedTests {
 
     // MARK: - ligaturesEnabled(for:)
 
-    @Test func ligaturesEnabledDefaultsToTrue() {
+    /// Round 28.1: ligatures are off unless turned on for a font.
+    @Test func ligaturesEnabledDefaultsToFalse() {
         let settings = GlobalSettings()
-        #expect(settings.ligaturesEnabled(for: "JetBrainsMono-Regular") == true)
-        #expect(settings.ligaturesEnabled(for: "Fira Code") == true)
-        #expect(settings.ligaturesEnabled(for: "UnknownFont") == true)
+        #expect(settings.ligaturesEnabled(for: "JetBrainsMono-Regular") == false)
+        #expect(settings.ligaturesEnabled(for: "Fira Code") == false)
+        #expect(settings.ligaturesEnabled(for: "UnknownFont") == false)
     }
 
     @Test func ligaturesEnabledRespectsOverride() {
@@ -433,7 +434,7 @@ struct GlobalSettingsExtendedTests {
 
         #expect(settings.ligaturesEnabled(for: "JetBrainsMono-Regular") == false)
         #expect(settings.ligaturesEnabled(for: "Fira Code") == true)
-        #expect(settings.ligaturesEnabled(for: "Other") == true) // not in overrides
+        #expect(settings.ligaturesEnabled(for: "Other") == false) // not in overrides
     }
 
     // MARK: - defaultPalette(for:)

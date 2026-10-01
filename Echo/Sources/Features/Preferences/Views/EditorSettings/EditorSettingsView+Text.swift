@@ -1,8 +1,8 @@
 import SwiftUI
 
-extension AppearanceSettingsView {
-    var editorFontSection: some View {
-        Section("Editor Font") {
+extension EditorSettingsView {
+    var textSection: some View {
+        Section("Text") {
             MonospacedFontPicker(
                 selectedFamily: Binding(
                     get: { projectStore.globalSettings.defaultEditorFontFamily },
@@ -15,9 +15,9 @@ extension AppearanceSettingsView {
                 fontSize: projectStore.globalSettings.defaultEditorFontSize
             )
 
-            PropertyRow(title: "Font Size") {
+            PropertyRow(title: "Size") {
                 Picker("", selection: Binding(
-                    get: { projectStore.globalSettings.defaultEditorFontSize },
+                    get: { projectStore.globalSettings.defaultEditorFontSize.rounded() },
                     set: { newValue in
                         var settings = projectStore.globalSettings
                         settings.defaultEditorFontSize = newValue
@@ -49,7 +49,7 @@ extension AppearanceSettingsView {
                 .pickerStyle(.menu)
             }
 
-            PropertyRow(title: "Enable Ligatures") {
+            PropertyRow(title: "Ligatures") {
                 Toggle("", isOn: Binding(
                     get: { projectStore.globalSettings.ligaturesEnabled(for: projectStore.globalSettings.defaultEditorFontFamily) },
                     set: { newValue in
@@ -64,12 +64,11 @@ extension AppearanceSettingsView {
         }
     }
 
-    static let fontSizeOptions: [Double] = stride(from: 8.0, through: 24.0, by: 0.5).map { $0 }
+    /// Round 28.11 (FS1): whole sizes, “13 pt”.
+    static let fontSizeOptions: [Double] = Array(stride(from: 8.0, through: 24.0, by: 1.0))
 
     static func fontSizeLabel(_ size: Double) -> String {
-        size.truncatingRemainder(dividingBy: 1) == 0
-            ? "\(Int(size)),0 pt"
-            : String(format: "%.1f pt", size).replacingOccurrences(of: ".", with: ",")
+        "\(Int(size)) pt"
     }
 
 }

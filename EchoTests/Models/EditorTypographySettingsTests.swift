@@ -71,6 +71,28 @@ struct EditorTypographySettingsTests {
         #expect(try decode { $0["editorSelectionCornerRadius"] = 6.0 }.editorSelectionCornerRadius == 6)
     }
 
+    /// Round 28.11 (TH1): only Aurora and Midnight are left; a removed palette falls back to them.
+    @Test func removedPalettesFallBackToAuroraAndMidnight() throws {
+        #expect(SQLEditorPalette.builtIn.map(\.id) == [SQLEditorPalette.aurora.id, SQLEditorPalette.midnight.id])
+        let settings = try decode { json in
+            json["defaultEditorPaletteIDLight"] = "solstice"
+            json["defaultEditorPaletteIDDark"] = "dracula"
+        }
+        #expect(settings.defaultEditorPaletteIDLight == SQLEditorPalette.aurora.id)
+        #expect(settings.defaultEditorPaletteIDDark == SQLEditorPalette.midnight.id)
+    }
+
+    @Test func highlightCornersDecodeAndDefault() throws {
+        #expect(GlobalSettings().editorHighlightCornerRadius == 3)
+        #expect(try decode { $0["editorHighlightCornerRadius"] = 0.0 }.editorHighlightCornerRadius == 0)
+    }
+
+    /// Round 28.11 (FS1): whole sizes, “13 pt”.
+    @MainActor @Test func fontSizesAreWholePoints() {
+        #expect(EditorSettingsView.fontSizeOptions.allSatisfy { $0.rounded() == $0 })
+        #expect(EditorSettingsView.fontSizeLabel(13) == "13 pt")
+    }
+
     @Test func aLineIsTheMultipleOfTheSizeNeverLessThanTheFont() {
         #expect(SQLLayoutManager.lineHeight(fontSize: 13, multiple: 1.55, naturalHeight: 16) == 20)
         #expect(SQLLayoutManager.lineHeight(fontSize: 13, multiple: 1.75, naturalHeight: 16) == 23)
