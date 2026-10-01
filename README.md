@@ -8,12 +8,7 @@ Echo is a native macOS app for working with databases. It is written in Swift wi
 
 It connects to PostgreSQL, MySQL, Microsoft SQL Server and SQLite. You can browse a database's objects in a sidebar tree, write and run SQL in query tabs, view results in a grid, and use the administration tools for each database type, such as maintenance, security and server activity. EchoSense provides SQL autocomplete based on the connected database's schema.
 
-Database access goes through our own Swift packages rather than a generic driver layer:
-
-- [postgres-wire](https://github.com/tashda/postgres-wire) for PostgreSQL
-- [mysql-wire](https://github.com/tashda/mysql-wire) for MySQL
-- [sqlserver-nio](https://github.com/tashda/sqlserver-nio) for Microsoft SQL Server
-- [EchoSense](https://github.com/tashda/EchoSense) for SQL autocomplete
+SQL Server connections use our own Swift package, [sqlserver-nio](https://github.com/tashda/sqlserver-nio). [EchoSense](https://github.com/tashda/EchoSense) provides the SQL autocomplete.
 
 ## Download
 
