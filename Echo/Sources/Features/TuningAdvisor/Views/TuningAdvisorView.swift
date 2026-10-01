@@ -7,12 +7,12 @@ struct TuningAdvisorView: View {
 
     var body: some View {
         // TT1: recommendations and their detail are two cards; the pages are in the tab (36.2)
-        // and the actions on the header line (37.2).
+        // and Refresh in the window toolbar (37.5).
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .adaptiveWorkspaceCard()
             .tabContentFrame()
-            .toolTabHeaderControls { toolbarControls }
+            .tabToolbar(groups: [[.refresh(isBusy: viewModel.isRefreshing) { [viewModel] in viewModel.refreshSelectedTab() }]])
         .onAppear {
             viewModel.refresh()
         }
@@ -27,11 +27,7 @@ struct TuningAdvisorView: View {
         }
     }
 
-    private var toolbarControls: some View {
-        ToolTabActionGroup {
-            ToolTabRefreshButton(isRefreshing: viewModel.isRefreshing) { viewModel.refreshSelectedTab() }
-        }
-    }
+
 
     @ViewBuilder
     private var content: some View {

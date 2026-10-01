@@ -7,8 +7,8 @@ struct PostgresExtensionsView: View {
     @Environment(EnvironmentState.self) var environmentState
     
     var body: some View {
-        // Installed and Marketplace are pages in the tab (round 36.2); search and Refresh sit on
-        // the tool's header line (37.2, 37.3).
+        // Installed and Marketplace are pages in the tab (round 36.2); search on the header line
+        // (37.2), Refresh in the window toolbar (37.5).
         VStack(spacing: 0) {
             if viewModel.isLoading {
                 VStack {
@@ -37,10 +37,8 @@ struct PostgresExtensionsView: View {
         .background(ColorTokens.Background.primary)
         .toolTabHeaderControls {
             ToolTabSearchField(prompt: "Search extensions", text: $viewModel.searchText)
-            ToolTabActionGroup {
-                ToolTabRefreshButton(isRefreshing: viewModel.isLoading) { Task { await viewModel.reload() } }
-            }
         }
+        .tabToolbar(groups: [[.refresh(isBusy: viewModel.isLoading) { [viewModel] in Task { await viewModel.reload() } }]])
         .task {
             await viewModel.reload()
         }

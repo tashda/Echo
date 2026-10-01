@@ -7,8 +7,8 @@ struct ErrorLogView: View {
     @Environment(AppState.self) private var appState
 
     var body: some View {
-        // The products are pages in the tab (round 36.2); the archive, search and actions sit on
-        // the header line (37.2), Cycle Log among them instead of in the window toolbar (45).
+        // The products are pages in the tab (round 36.2); the archive and search sit on the header
+        // line (37.2), Cycle Log and Refresh in the window toolbar (37.5).
         Group {
             if !viewModel.isInitialized {
                 TabInitializingPlaceholder(
@@ -28,6 +28,12 @@ struct ErrorLogView: View {
             Task { await viewModel.loadEntries() }
         }
         .toolTabHeaderControls { headerControls }
+        // Round 37.5: Cycle Log and Refresh in the window toolbar.
+        .tabToolbar(groups: [[
+            TabToolbarItem(id: "cycleLog", title: "Cycle Log: archive the current error log and start a new one",
+                           symbol: "arrow.triangle.2.circlepath") { [viewModel] in Task { await viewModel.cycleLog() } },
+            .refresh(isBusy: viewModel.isLoading) { [viewModel] in Task { await viewModel.refresh() } },
+        ]])
     }
 
     // MARK: - Header line
@@ -37,15 +43,6 @@ struct ErrorLogView: View {
             ToolTabPickerPill(title: "Log", systemImage: "archivebox", selection: $viewModel.selectedArchive,
                               options: archiveNumbers, label: archiveLabel)
             ToolTabSearchField(prompt: "Search log", text: $viewModel.searchText)
-            ToolTabActionGroup {
-                ToolTabActionButton(title: "Cycle Log: archive the current error log and start a new one",
-                                    systemImage: "arrow.triangle.2.circlepath") {
-                    Task { await viewModel.cycleLog() }
-                }
-                ToolTabRefreshButton(isRefreshing: viewModel.isLoading) {
-                    Task { await viewModel.refresh() }
-                }
-            }
         }
     }
 

@@ -31,9 +31,8 @@ struct TableStructureEditorView: View {
     }
 
     var body: some View {
-        // Properties (round 37.4): its sections are pages in the tab (36.2), Add on the header line
-        // (37.2), and the changes wait in an Apply bar at the bottom (PR0), not in the window
-        // toolbar (round 45).
+        // Properties (round 37.4): its sections are pages in the tab (36.2), Add is the special
+        // button in the window toolbar (37.5), and the changes wait in an Apply bar (PR0).
         VStack(spacing: 0) {
             content
             if viewModel.hasPendingChanges {
@@ -42,7 +41,7 @@ struct TableStructureEditorView: View {
         }
         .animation(.default, value: viewModel.hasPendingChanges)
         .background(ColorTokens.Background.primary)
-        .toolTabHeaderControls { sectionAddButton }
+        .tabToolbar(special: sectionAddItem)
         .onAppear {
             if let requested = viewModel.requestedSection {
                 selectedSection = requested

@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct PostgresExtensionStructureView: View {
     @Bindable var tab: WorkspaceTab
@@ -7,9 +8,9 @@ struct PostgresExtensionStructureView: View {
     @Environment(EnvironmentState.self) private var environmentState
     
     var body: some View {
+        // One theme (round 37.1): the shared header names it, with its version after the server;
+        // Update, Homepage, Documentation and Refresh are in the window toolbar (round 37.5).
         VStack(spacing: 0) {
-            header
-            
             if viewModel.isLoading {
                 VStack {
                     Spacer()
@@ -33,7 +34,10 @@ struct PostgresExtensionStructureView: View {
                 content
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ColorTokens.Background.primary)
+        .toolTabHeaderDetail(viewModel.currentVersion.map { "v\($0)" })
+        .tabToolbar(special: updateItem, groups: [linkItems + [.refresh(isBusy: viewModel.isLoading) { [viewModel] in Task { await viewModel.reload() } }]])
         .task {
             if viewModel.objects.isEmpty {
                 await viewModel.reload()
@@ -41,93 +45,38 @@ struct PostgresExtensionStructureView: View {
         }
     }
     
-    private var header: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-            HStack(alignment: .center, spacing: SpacingTokens.sm) {
-                Image(systemName: "puzzlepiece.fill")
-                    .font(TypographyTokens.hero)
-                    .foregroundStyle(ColorTokens.Status.success)
-                
-                VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
-                    Text(viewModel.extensionName)
-                        .font(TypographyTokens.standard.weight(.bold))
-                    
-                    HStack(spacing: SpacingTokens.xxs) {
-                        Text("PostgreSQL Extension")
-                        if let current = viewModel.currentVersion {
-                            Text("• v\(current)")
-                        }
-                    }
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-                    
-                    if let desc = viewModel.description {
-                        Text(desc)
-                            .font(TypographyTokens.caption2)
-                            .foregroundStyle(ColorTokens.Text.tertiary)
-                            .lineLimit(2)
-                            .padding(.top, SpacingTokens.xxxs)
-                    }
-                }
-                
-                Spacer()
-                
-                HStack(spacing: SpacingTokens.sm) {
-                    if let home = viewModel.homepageURL, let url = URL(string: home) {
-                        Button(action: { NSWorkspace.shared.open(url) }) {
-                            Image(systemName: "safari")
-                        }
-                        .buttonStyle(.plain)
-                        .help("Visit Homepage")
-                    }
-                    
-                    if let docs = viewModel.documentationURL, let url = URL(string: docs) {
-                        Button(action: { NSWorkspace.shared.open(url) }) {
-                            Image(systemName: "doc.text")
-                        }
-                        .buttonStyle(.plain)
-                        .help("View Documentation")
-                    }
-                }
-                .font(TypographyTokens.prominent)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .padding(.trailing, SpacingTokens.xs)
-                
-                if viewModel.canUpdate {
-                    Button(action: { Task { await viewModel.update() } }) {
-                        if viewModel.isUpdating {
-                            ProgressView().controlSize(.small)
-                        } else {
-                            Label("Update to v\(viewModel.latestVersion ?? "?")", systemImage: "arrow.up.circle.fill")
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, SpacingTokens.xs)
-                                .padding(.vertical, SpacingTokens.xxs)
-                                .background(ColorTokens.Status.info)
-                                .clipShape(RoundedRectangle(cornerRadius: ShapeTokens.CornerRadius.small))
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(viewModel.isUpdating)
-                }
-                
-                Button(action: { Task { await viewModel.reload() } }) {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                .buttonStyle(.plain)
-                .font(TypographyTokens.detail)
-            }
+    /// Update to the newest version, when there is one.
+    private var updateItem: TabToolbarItem? {
+        guard viewModel.canUpdate else { return nil }
+        return TabToolbarItem(id: "update", title: "Update to v\(viewModel.latestVersion ?? "?")", symbol: "arrow.up.circle",
+                              isDisabled: viewModel.isUpdating, isRunning: viewModel.isUpdating, runningTitle: "Updating") { [viewModel] in
+            Task { await viewModel.update() }
         }
-        .padding(SpacingTokens.lg)
-        .background(ColorTokens.Background.secondary.opacity(0.5))
     }
-    
+
+    /// The extension's homepage and documentation, when it has them.
+    private var linkItems: [TabToolbarItem] {
+        var items: [TabToolbarItem] = []
+        if let home = viewModel.homepageURL, let url = URL(string: home) {
+            items.append(TabToolbarItem(id: "homepage", title: "Visit Homepage", symbol: "safari") { NSWorkspace.shared.open(url) })
+        }
+        if let docs = viewModel.documentationURL, let url = URL(string: docs) {
+            items.append(TabToolbarItem(id: "documentation", title: "View Documentation", symbol: "doc.text") { NSWorkspace.shared.open(url) })
+        }
+        return items
+    }
+
     private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Owned Objects (\(viewModel.objects.count))")
-                .font(TypographyTokens.standard.weight(.semibold))
-                .padding(.horizontal, SpacingTokens.lg)
-                .padding(.vertical, SpacingTokens.md)
-            
+            PaneHeader("Owned Objects", count: viewModel.objects.count)
+            if let description = viewModel.description {
+                Text(description)
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .lineLimit(2)
+                    .padding(.horizontal, SpacingTokens.sm)
+                    .padding(.bottom, SpacingTokens.xs)
+            }
             Divider()
             
             if viewModel.objects.isEmpty {

@@ -22,7 +22,7 @@ struct ProfilerView: View {
 
     var body: some View {
         // A Monitor (round 37.4): the figures as tiles, then the live table on its card; the
-        // controls on the header line (37.2, 37.3).
+        // picker and filter on the header line (37.2), the buttons in the window toolbar (37.5).
         VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
             ActivityMonitorSparklineStrip(metrics: ProfilerFigures.metrics(for: viewModel.events))
             eventContent
@@ -32,6 +32,19 @@ struct ProfilerView: View {
         }
         .tabContentFrame()
         .toolTabHeaderControls { headerControls }
+        // Round 37.5: Start Trace is the special button; Events, Clear and Export the group.
+        .tabToolbar(
+            special: TabToolbarItem(id: "trace", title: "Start Trace", symbol: "play.fill", isRunning: viewModel.isRunning,
+                                    runningTitle: "Stop Trace") { [viewModel] in viewModel.toggleTracing() },
+            groups: [[
+                TabToolbarItem(id: "events", title: "Choose trace events (\(viewModel.selectedTraceEvents.count))", symbol: "list.bullet",
+                               isDisabled: viewModel.isRunning) { showTemplateSheet = true },
+                TabToolbarItem(id: "clear", title: "Clear captured trace events", symbol: "trash",
+                               isDisabled: viewModel.events.isEmpty) { [viewModel] in viewModel.clear() },
+                TabToolbarItem(id: "export", title: "Export captured trace events", symbol: "square.and.arrow.up",
+                               isDisabled: viewModel.events.isEmpty) { exportTrace() },
+            ]]
+        )
         .toolTabHeaderDetail(viewModel.events.isEmpty ? nil : "\(viewModel.events.count.formatted()) events")
         .task { await viewModel.loadDatabases() }
         .sheet(isPresented: $showTemplateSheet) {
@@ -53,16 +66,6 @@ struct ProfilerView: View {
             )
             .disabled(viewModel.isRunning)
             ToolTabSearchField(prompt: "Filter events", text: $searchText)
-            ToolTabActionGroup {
-                ToolTabActionButton(title: "Choose trace events (\(viewModel.selectedTraceEvents.count))", systemImage: "list.bullet",
-                                    isDisabled: viewModel.isRunning) { showTemplateSheet = true }
-                ToolTabActionButton(title: "Clear captured trace events", systemImage: "trash",
-                                    isDisabled: viewModel.events.isEmpty) { viewModel.clear() }
-                ToolTabActionButton(title: "Export captured trace events", systemImage: "square.and.arrow.up",
-                                    isDisabled: viewModel.events.isEmpty) { exportTrace() }
-            }
-            ToolTabPrimaryButton(title: "Start Trace", systemImage: "play.fill", isRunning: viewModel.isRunning,
-                                 runningTitle: "Stop Trace") { viewModel.toggleTracing() }
         }
     }
 

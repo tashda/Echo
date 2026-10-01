@@ -40,6 +40,14 @@ struct ActivityMonitorTabFrame<Sparklines: View, SectionContent: View>: View {
             }
         }
         .tabContentFrame()
+        // Round 37.5: Pause or Resume is the special button, Refresh Now in the group.
+        .tabToolbar(
+            special: TabToolbarItem(id: "pause", title: viewModel.isRunning ? "Pause" : "Resume",
+                                    symbol: viewModel.isRunning ? "pause.fill" : "play.fill") { [viewModel] in
+                if viewModel.isRunning { viewModel.stopStreaming() } else { viewModel.startStreaming() }
+            },
+            groups: [[TabToolbarItem(id: "refreshNow", title: "Refresh Now", symbol: "arrow.clockwise") { [viewModel] in viewModel.refresh() }]]
+        )
         .sheet(item: $selectedSQLContext) { context in
             SQLInspectorSheet(context: context) { sql, database in
                 onOpenInQueryWindow(sql, database)
@@ -47,8 +55,8 @@ struct ActivityMonitorTabFrame<Sparklines: View, SectionContent: View>: View {
         }
     }
 
-    /// How often it samples, Refresh, and Pause or Resume on the header line (round 37.2, 37.3);
-    /// Pause was an eye in the window toolbar before round 45.
+    /// How often it samples, on the header line (round 37.2); Pause and Refresh are in the window
+    /// toolbar (round 37.5).
     @ViewBuilder
     private var headerControls: some View {
         ToolTabPickerPill(
@@ -60,13 +68,6 @@ struct ActivityMonitorTabFrame<Sparklines: View, SectionContent: View>: View {
             options: Self.intervals,
             label: { "Every \(Int($0)) s" }
         )
-        ToolTabActionGroup {
-            ToolTabActionButton(title: "Refresh Now", systemImage: "arrow.clockwise") { viewModel.refresh() }
-        }
-        ToolTabPrimaryButton(title: viewModel.isRunning ? "Pause" : "Resume",
-                             systemImage: viewModel.isRunning ? "pause.fill" : "play.fill") {
-            if viewModel.isRunning { viewModel.stopStreaming() } else { viewModel.startStreaming() }
-        }
     }
 
     private static var intervals: [TimeInterval] { [1, 2, 5, 10, 30] }

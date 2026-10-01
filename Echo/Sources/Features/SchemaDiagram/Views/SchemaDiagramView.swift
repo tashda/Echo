@@ -147,6 +147,7 @@ struct SchemaDiagramView: View {
             }
         }
         .toolTabHeaderControls { headerControls }
+        .tabToolbar(groups: toolbarGroups)
         .toolTabHeaderDetail(loadSourceDetail)
         .navigationTitle(viewModel.title)
     }

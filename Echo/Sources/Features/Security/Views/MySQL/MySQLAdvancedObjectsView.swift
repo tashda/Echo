@@ -21,21 +21,20 @@ struct MySQLAdvancedObjectsView: View {
                           options: MySQLDatabaseSecurityViewModel.AdvancedObjectSection.allCases, label: \.rawValue)
         ToolTabPickerPill(title: "Database", systemImage: "cylinder", selection: $viewModel.advancedObjectSchemaFilter,
                           options: viewModel.availableObjectSchemas, label: { $0 })
-        ToolTabActionGroup {
-            ToolTabRefreshButton(isRefreshing: viewModel.isLoadingAdvancedObjects) {
-                Task { await viewModel.loadCurrentSection() }
-            }
-        }
-        ToolTabPrimaryButton(title: newButtonTitle, systemImage: "plus") { draftKind = draftKindForCurrentSection }
     }
 
     var body: some View {
-        // Its object type, database and New sit on the tool's header line (round 37.2, 37.3).
+        // Its object type and database sit on the header line (37.2), New in the toolbar (37.5).
         VStack(spacing: SpacingTokens.none) {
             MySQLAdvancedObjectsContent(viewModel: viewModel)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .toolTabHeaderControls { headerControls }
+        // Round 37.5: New Function, Procedure, Trigger or Event is the page's special button.
+        .tabToolbar(
+            special: TabToolbarItem(id: "newObject", title: newButtonTitle, symbol: "plus") { draftKind = draftKindForCurrentSection },
+            groups: [[.refresh(isBusy: viewModel.isLoadingAdvancedObjects) { [viewModel] in Task { await viewModel.loadCurrentSection() } }]]
+        )
         .task {
             guard !viewModel.isInitialized else { return }
             await viewModel.initialize()

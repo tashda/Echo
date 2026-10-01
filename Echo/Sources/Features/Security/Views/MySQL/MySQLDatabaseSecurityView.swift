@@ -17,7 +17,7 @@ struct MySQLDatabaseSecurityView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {
-            // Its pages are in the tab (round 36.2); its main action on the header line (37.2).
+            // Its pages are in the tab (round 36.2); its special button in the window toolbar (37.5).
             VStack(spacing: 0) {
                 switch viewModel.selectedSection {
                 case .users:
@@ -42,7 +42,7 @@ struct MySQLDatabaseSecurityView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .toolTabHeaderControls { primaryAction }
+        .tabToolbar(special: primaryAction)
         .task {
             await viewModel.initialize()
         }
@@ -81,20 +81,16 @@ struct MySQLDatabaseSecurityView: View {
     }
 
 
-    /// The page's main action (round 37.3, PA1): what you make on this page.
-    @ViewBuilder
-    private var primaryAction: some View {
+    /// The page's special button in the window toolbar (round 37.5): what you make on this page.
+    private var primaryAction: TabToolbarItem? {
         switch viewModel.selectedSection {
-        case .users:
-            ToolTabPrimaryButton(title: "New User", systemImage: "person.badge.plus") { showNewUserSheet = true }
-        case .roles:
-            ToolTabPrimaryButton(title: "New Role", systemImage: "person.2.badge.plus") { showNewRoleSheet = true }
-        case .privileges:
-            ToolTabPrimaryButton(title: "Grant", systemImage: "key.fill") { showGrantPrivilegesSheet = true }
-        case .advancedObjects, .passwordPolicies, .dataMasking, .encryption, .audit, .firewall:
-            EmptyView()
+        case .users: TabToolbarItem(id: "newUser", title: "New User", symbol: "person.badge.plus") { showNewUserSheet = true }
+        case .roles: TabToolbarItem(id: "newRole", title: "New Role", symbol: "person.2.badge.plus") { showNewRoleSheet = true }
+        case .privileges: TabToolbarItem(id: "grant", title: "Grant", symbol: "key.fill") { showGrantPrivilegesSheet = true }
+        case .advancedObjects, .passwordPolicies, .dataMasking, .encryption, .audit, .firewall: nil
         }
     }
+
     private var connectionText: String {
         let connText = hostTab?.connection.connectionName ?? "Server"
         let db = hostTab?.activeDatabaseName

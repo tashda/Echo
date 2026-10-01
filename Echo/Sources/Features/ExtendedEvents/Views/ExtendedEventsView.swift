@@ -48,7 +48,7 @@ struct ExtendedEventsView: View {
                 panelContentView
             }
         }
-        .toolTabHeaderControls { if hasSessionsLoaded { headerControls } }
+        .tabToolbar(special: hasSessionsLoaded ? newSessionItem : nil, groups: hasSessionsLoaded ? [[watchLiveDataItem]] : [])
         .toolTabHeaderDetail(viewModel.sessions.isEmpty ? nil : "\(viewModel.sessions.count) sessions")
         .task {
             await viewModel.loadSessions()
@@ -98,22 +98,17 @@ struct ExtendedEventsView: View {
         }
     }
 
-    private var headerControls: some View {
-        Group {
-            ToolTabActionGroup { watchLiveDataButton }
-            ToolTabPrimaryButton(title: "New Session", systemImage: "waveform.badge.plus") { viewModel.showCreateSheet = true }
-        }
+    /// Round 37.5: New Session is the special button, Watch Live Data the group.
+    private var newSessionItem: TabToolbarItem {
+        TabToolbarItem(id: "newSession", title: "New Session", symbol: "waveform.badge.plus") { [viewModel] in viewModel.showCreateSheet = true }
     }
 
-    private var watchLiveDataButton: some View {
+    private var watchLiveDataItem: TabToolbarItem {
         let canWatch = viewModel.sessions.first(where: { $0.name == viewModel.selectedSessionName })?.isRunning == true
-        return ToolTabActionButton(
-            title: canWatch || isWatchingLiveData ? "Watch Live Data" : "Select a running session to watch live data",
-            systemImage: "waveform.path.ecg",
-            isDisabled: !canWatch && !isWatchingLiveData,
-            isOn: isWatchingLiveData
-        ) {
-            if isWatchingLiveData {
+        return TabToolbarItem(id: "watchLiveData",
+                              title: canWatch || isWatchingLiveData ? "Watch Live Data" : "Select a running session to watch live data",
+                              symbol: "waveform.path.ecg", isDisabled: !canWatch && !isWatchingLiveData, isOn: isWatchingLiveData) { [viewModel, panelState] in
+            if panelState.isOpen && panelState.selectedSegment == .liveData {
                 panelState.isOpen = false
             } else {
                 panelState.selectedSegment = .liveData

@@ -5,23 +5,30 @@ extension JobListView {
         viewModel.jobs.first { $0.id == viewModel.selectedJobID }
     }
 
-    /// JA1: New Job and Start/Stop on the Jobs header; everything else in ⋯ and the right-click menu.
+    /// Round 37.5 (the owner's answer): New Job is the tab's special button in the window toolbar;
+    /// Start or Stop for the selected job and Refresh are its group. The Jobs header keeps ⋯.
+    var toolbarSpecial: TabToolbarItem {
+        TabToolbarItem(id: "newJob", title: "New Job", symbol: "plus", isDisabled: !canManage) { onNewJob?() }
+    }
+
+    var toolbarGroups: [[TabToolbarItem]] {
+        let isRunning = selectedJob.map { viewModel.listStatus(for: $0).isRunning } ?? false
+        let startStop = isRunning
+            ? TabToolbarItem(id: "stopJob", title: selectedJob.map { "Stop \($0.name)" } ?? "Stop Job", symbol: "stop.fill",
+                             isDisabled: !canManage) { stopSelected() }
+            : TabToolbarItem(id: "startJob", title: selectedJob.map { "Start \($0.name)" } ?? "Start Job", symbol: "play.fill",
+                             isDisabled: !canManage || selectedJob == nil) { startSelected() }
+        // Open in New Window is its own toolbar group (the owner, 2026-10-01), not in this one.
+        return [[startStop], [.refresh { Task { await viewModel.reloadJobs() } }]]
+    }
+
+    /// Reads the selection when pressed, so the toolbar never acts on a job selected earlier.
+    private func startSelected() { if let id = viewModel.selectedJobID { start(jobID: id) } }
+    private func stopSelected() { if let id = viewModel.selectedJobID { stop(jobID: id) } }
+
+    /// JA1's other actions in ⋯; New Job and Start/Stop are in the window toolbar (round 37.5).
     @ViewBuilder
     var headerActions: some View {
-        Button { onNewJob?() } label: { Image(systemName: "plus") }
-            .help("New Job")
-            .disabled(!canManage)
-
-        if let job = selectedJob, viewModel.listStatus(for: job).isRunning {
-            Button { stop(jobID: job.id) } label: { Image(systemName: "stop.fill") }
-                .help("Stop \(job.name)")
-                .disabled(!canManage)
-        } else {
-            Button { if let id = selectedJob?.id { start(jobID: id) } } label: { Image(systemName: "play.fill") }
-                .help(selectedJob.map { "Start \($0.name)" } ?? "Start Job")
-                .disabled(!canManage || selectedJob == nil)
-        }
-
         Menu {
             if let id = selectedJob?.id {
                 Button { setEnabled(true, jobID: id) } label: { Label("Enable Job", systemImage: "checkmark.circle") }

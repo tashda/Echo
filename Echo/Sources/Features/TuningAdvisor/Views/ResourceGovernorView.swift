@@ -11,13 +11,13 @@ struct ResourceGovernorView: View {
     @State private var poolsFraction: CGFloat = 0.5
 
     var body: some View {
-        // TT1: pools and workload groups as two cards; the state after the server and the
-        // controls on the header line (round 37.2, 37.3).
+        // TT1: pools and workload groups as two cards; the state after the server (round 37.2),
+        // the buttons in the window toolbar (37.5).
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .adaptiveWorkspaceCard()
             .tabContentFrame()
-            .toolTabHeaderControls { headerControls }
+            .tabToolbar(special: applyChangesItem, groups: [toolbarGroup])
             .toolTabHeaderDetail(configurationDetail)
         .onAppear {
             viewModel.refresh()
@@ -66,22 +66,25 @@ struct ResourceGovernorView: View {
         return parts.joined(separator: " · ")
     }
 
-    @ViewBuilder
-    private var headerControls: some View {
-        ToolTabActionGroup {
-            if let config = viewModel.configuration {
-                ToolTabActionButton(title: config.isEnabled ? "Disable Resource Governor" : "Enable Resource Governor",
-                                    systemImage: "power", isDisabled: viewModel.isToggling, isOn: config.isEnabled) {
-                    Task { await viewModel.toggleEnabled() }
-                }
-            }
-            ToolTabRefreshButton(isRefreshing: viewModel.isRefreshing) { viewModel.refresh() }
+    /// Round 37.5: Apply Changes is the special button while a reconfigure is pending.
+    private var applyChangesItem: TabToolbarItem? {
+        guard viewModel.configuration?.isReconfigurationPending == true else { return nil }
+        return TabToolbarItem(id: "applyChanges", title: "Apply Changes", symbol: "checkmark.circle") { [viewModel] in
+            Task { await viewModel.reconfigure() }
         }
-        if viewModel.configuration?.isReconfigurationPending == true {
-            ToolTabPrimaryButton(title: "Apply Changes", systemImage: "checkmark.circle") {
-                Task { await viewModel.reconfigure() }
-            }
+    }
+
+    /// Enable or Disable, and Refresh.
+    private var toolbarGroup: [TabToolbarItem] {
+        var items: [TabToolbarItem] = []
+        if let config = viewModel.configuration {
+            items.append(TabToolbarItem(id: "enable", title: config.isEnabled ? "Disable Resource Governor" : "Enable Resource Governor",
+                                        symbol: "power", isDisabled: viewModel.isToggling, isOn: config.isEnabled) { [viewModel] in
+                Task { await viewModel.toggleEnabled() }
+            })
         }
+        items.append(.refresh(isBusy: viewModel.isRefreshing) { [viewModel] in viewModel.refresh() })
+        return items
     }
 
     @ViewBuilder

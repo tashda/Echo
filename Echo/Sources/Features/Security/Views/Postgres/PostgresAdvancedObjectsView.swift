@@ -38,6 +38,11 @@ struct PostgresAdvancedObjectsView: View {
             .adaptiveWorkspaceCard()
         }
         .toolTabHeaderControls { headerControls }
+        // Round 37.5: Add is the special button, Refresh the group.
+        .tabToolbar(
+            special: TabToolbarItem(id: "add", title: "Add", symbol: "plus") { presentNewSheet() },
+            groups: [[.refresh(isBusy: viewModel.isLoadingCurrentSection) { [viewModel] in Task { await viewModel.loadCurrentSection() } }]]
+        )
         .task { await viewModel.initialize() }
         .onChange(of: viewModel.selectedSection) { _, _ in
             guard viewModel.isInitialized else { return }
@@ -70,12 +75,6 @@ struct PostgresAdvancedObjectsView: View {
             ToolTabPickerPill(title: "Schema", systemImage: "folder", selection: $viewModel.schemaFilter,
                               options: viewModel.availableSchemas, label: { $0 })
         }
-        ToolTabActionGroup {
-            ToolTabRefreshButton(isRefreshing: viewModel.isLoadingCurrentSection) {
-                Task { await viewModel.loadCurrentSection() }
-            }
-        }
-        ToolTabPrimaryButton(title: "Add", systemImage: "plus") { presentNewSheet() }
     }
 
     // MARK: - Content

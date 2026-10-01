@@ -103,6 +103,8 @@ final class WorkspaceTab: Identifiable {
     /// Display-only subtitle shown in the tab strip (e.g. server name for server-level tabs).
     /// Falls back to `activeDatabaseName` when nil.
     var tabSubtitle: String?
+    /// The buttons the tab's content puts in the window toolbar (round 37.5).
+    var toolbarSection: TabToolbarSection?
     /// The bookmark the tab came from, or was last saved to; Save writes back to it.
     @ObservationIgnored var bookmarkContext: BookmarkTabContext?
 

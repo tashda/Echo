@@ -22,6 +22,7 @@ struct AvailabilityGroupsView: View {
         .background(ColorTokens.Background.primary)
         .tabContentFrame()
         .toolTabHeaderControls { AvailabilityGroupsHeaderControls(viewModel: viewModel) }
+        .tabToolbar(groups: AvailabilityGroupsHeaderControls.toolbarGroups(viewModel))
         .toolTabHeaderDetail(viewModel.loadingState == .loaded ? (viewModel.isHadrEnabled ? "Always On enabled" : "Always On disabled") : nil)
         .task {
             await viewModel.loadAll()

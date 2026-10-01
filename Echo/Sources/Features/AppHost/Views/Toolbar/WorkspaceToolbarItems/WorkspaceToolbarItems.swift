@@ -55,9 +55,9 @@ struct WorkspaceToolbarItems: ToolbarContent {
 
     // MARK: - Right Side (plan K2)
 
-    /// [Run] [Format · Validate · Help · Plan] [MSSQL toggles], each one system glass capsule,
-    /// hidden when the active tab has no use for it. Only the query editor has anything here: a
-    /// tool's actions live in its own tab (round 45).
+    /// The front tab's own buttons (round 37.5): its symbol, its special button (Run, Start Trace,
+    /// New Backup…) and one capsule of its other buttons, before the window's icons. One custom
+    /// item that draws its own glass, so the glass can reshape from one tab's buttons to the next.
     @ToolbarContentBuilder
     private var contextActionItems: some ToolbarContent {
         // The owner, 2026-10-01: Open in New Window is its own group at the start of the right-hand
@@ -69,27 +69,10 @@ struct WorkspaceToolbarItems: ToolbarContent {
 
         ToolbarSpacer(.fixed, placement: .primaryAction)
 
-        ToolbarItem(id: "workspace.primary.queryrun", placement: .primaryAction) {
-            QueryRunToolbarItem()
+        ToolbarItem(id: "workspace.primary.tabsection", placement: .primaryAction) {
+            TabToolbarSectionView()
         }
-        .hidden(!toolbarContext.isQuery)
-        // Run draws its own glass so it can turn red without swapping buttons (round 24).
         .sharedBackgroundVisibility(.hidden)
-        .keptOutOfOverflow()
-
-        ToolbarSpacer(.fixed, placement: .primaryAction)
-
-        ToolbarItem(id: "workspace.primary.queryenhance", placement: .primaryAction) {
-            QueryEditorEnhanceToolbarControls()
-        }
-        .hidden(!toolbarContext.isQuery)
-
-        ToolbarSpacer(.fixed, placement: .primaryAction)
-
-        ToolbarItem(id: "workspace.primary.querydb", placement: .primaryAction) {
-            QueryEditorDatabaseToolbarControls()
-        }
-        .hidden(!toolbarContext.hasDatabaseToggles)
 
         ToolbarSpacer(.fixed, placement: .primaryAction)
     }
@@ -97,7 +80,8 @@ struct WorkspaceToolbarItems: ToolbarContent {
     // MARK: - Right Side: Workspace Actions
 
     /// [Search · Overview · Refresh · Bell · Inspector] share one capsule; Inspector stays last.
-    /// Refresh is there only while the front tab can reload (round 34, RL1).
+    /// Refresh is there only while the front tab can reload (round 34, RL1). In a narrow window
+    /// these stay and the tab's buttons give way first (round 37.5, NW1).
     @ToolbarContentBuilder
     private var workspaceActionItems: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
@@ -109,6 +93,7 @@ struct WorkspaceToolbarItems: ToolbarContent {
             NotificationBellToolbarButton()
             InspectorToolbarButton()
         }
+        .keptOutOfOverflow()
     }
 
     /// Changes only when the active tab needs other groups, so the toolbar content isn't rebuilt on

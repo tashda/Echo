@@ -13,26 +13,30 @@ extension TableStructureEditorView {
         }
     }
     
-    @ViewBuilder
-    internal var sectionAddButton: some View {
+    /// The page's Add as the tab's special button in the window toolbar (round 37.5).
+    internal var sectionAddItem: TabToolbarItem? {
         switch selectedSection {
         case .columns:
-            ToolTabPrimaryButton(title: "Add Column", systemImage: "plus") { presentNewColumn() }
+            TabToolbarItem(id: "addColumn", title: "Add Column", symbol: "plus") { presentNewColumn() }
         case .indexes:
-            ToolTabPrimaryButton(title: "Add Index", systemImage: "plus") { presentNewIndex() }
+            TabToolbarItem(id: "addIndex", title: "Add Index", symbol: "plus") { presentNewIndex() }
         case .constraints:
-            ToolTabPrimaryMenu(title: "Add", systemImage: "plus") {
-                if viewModel.primaryKey == nil {
-                    Button("Primary Key") { presentPrimaryKeyEditor(isNew: true) }
-                }
-                Button("Unique Constraint") { presentNewUniqueConstraint() }
-                Button("Check Constraint") { presentNewCheckConstraint() }
-            }
+            TabToolbarItem(id: "addConstraint", title: "Add", symbol: "plus", menu: constraintItems)
         case .relations:
-            ToolTabPrimaryButton(title: "Add Foreign Key", systemImage: "plus") { presentNewForeignKey() }
+            TabToolbarItem(id: "addForeignKey", title: "Add Foreign Key", symbol: "plus") { presentNewForeignKey() }
         case .partitions, .inheritance:
-            EmptyView()
+            nil
         }
+    }
+
+    private var constraintItems: [TabToolbarItem] {
+        var items: [TabToolbarItem] = []
+        if viewModel.primaryKey == nil {
+            items.append(TabToolbarItem(id: "primaryKey", title: "Primary Key", symbol: "key") { presentPrimaryKeyEditor(isNew: true) })
+        }
+        items.append(TabToolbarItem(id: "unique", title: "Unique Constraint", symbol: "checkmark.shield") { presentNewUniqueConstraint() })
+        items.append(TabToolbarItem(id: "check", title: "Check Constraint", symbol: "checkmark.rectangle.stack") { presentNewCheckConstraint() })
+        return items
     }
 
     internal var content: some View {

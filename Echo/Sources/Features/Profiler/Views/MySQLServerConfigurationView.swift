@@ -24,23 +24,24 @@ struct MySQLServerConfigurationView: View {
                 }
             }
         }
-        .toolTabHeaderControls { headerControls }
+        .tabToolbar(groups: [toolbarGroup])
         .toolTabHeaderDetail(viewModel.selectedConfigFile?.path)
     }
 
-    /// The file's actions on the tool's header line (round 37.2, 37.3).
-    private var headerControls: some View {
+    /// The file's actions in the window toolbar (round 37.5); Save is in the Apply bar.
+    private var toolbarGroup: [TabToolbarItem] {
         let exists = viewModel.selectedConfigFile?.exists == true
-        return ToolTabActionGroup {
-            ToolTabActionButton(title: "Choose File", systemImage: "doc.badge.ellipsis") { viewModel.chooseConfigFile() }
-            ToolTabActionButton(title: "Open", systemImage: "arrow.up.forward.app", isDisabled: !exists) { viewModel.openSelectedConfigFile() }
-            ToolTabActionButton(title: "Reveal in Finder", systemImage: "folder", isDisabled: !exists) { viewModel.revealSelectedConfigFile() }
-            ToolTabActionButton(title: "Reload from Disk", systemImage: "arrow.uturn.backward", isDisabled: viewModel.selectedConfigFile == nil) {
+        return [
+            TabToolbarItem(id: "chooseFile", title: "Choose File", symbol: "doc.badge.ellipsis") { [viewModel] in viewModel.chooseConfigFile() },
+            TabToolbarItem(id: "open", title: "Open", symbol: "arrow.up.forward.app", isDisabled: !exists) { [viewModel] in viewModel.openSelectedConfigFile() },
+            TabToolbarItem(id: "reveal", title: "Reveal in Finder", symbol: "folder", isDisabled: !exists) { [viewModel] in viewModel.revealSelectedConfigFile() },
+            TabToolbarItem(id: "reload", title: "Reload from Disk", symbol: "arrow.uturn.backward", isDisabled: viewModel.selectedConfigFile == nil) { [viewModel] in
                 do { try viewModel.reloadSelectedConfigFile() } catch { viewModel.configStatusMessage = error.localizedDescription }
-            }
-            ToolTabRefreshButton(isRefreshing: false) { Task { await viewModel.loadCurrentSection() } }
-        }
+            },
+            .refresh { [viewModel] in Task { await viewModel.loadCurrentSection() } },
+        ]
     }
+
 
     private var canSave: Bool {
         guard let selected = viewModel.selectedConfigFile else { return false }

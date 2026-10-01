@@ -134,6 +134,13 @@ struct WorkspaceTabContainerView: View {
             gridStateProvider: { tab.resultsGridState }
         )
         .id(tab.id)
+        // Round 37.5: what the tab's content sets for the window toolbar is kept on the tab, so
+        // the toolbar draws the front tab's buttons.
+        .onPreferenceChange(TabToolbarSectionKey.self) { [tab] section in
+            MainActor.assumeIsolated {
+                if tab.toolbarSection != section { tab.toolbarSection = section }
+            }
+        }
         // Round 30.1, CO2: the footer's server pill carries a dot of the server's colour.
         .environment(\.serverPillColor, projectStore.globalSettings.serverHeaderColorSource == .server
             ? connectionStore.currentColor(of: tab.connection) : nil)

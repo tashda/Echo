@@ -20,6 +20,7 @@ struct SchemaDiffView: View {
             diffContent
         }
         .toolTabHeaderControls { headerControls }
+        .tabToolbar(special: compareItem, groups: viewModel.diffs.isEmpty ? [] : [[migrationMenu]])
         .toolTabHeaderDetail(viewModel.diffs.isEmpty ? nil : viewModel.statusSummary)
         .task { await viewModel.initialize() }
     }
@@ -39,40 +40,42 @@ struct SchemaDiffView: View {
 
     // MARK: - Header line
 
-    /// Source → target and Compare on the tool's header line, with the filters and the migration
-    /// script's actions once there is a comparison (round 37.2, 37.3).
+    /// Source → target on the tool's header line, with the filters once there is a comparison
+    /// (round 37.2); Compare and the migration script are in the window toolbar (37.5).
     @ViewBuilder
     private var headerControls: some View {
         if !viewModel.diffs.isEmpty {
             ToolTabSearchField(prompt: "Filter objects", text: $viewModel.searchText)
             objectTypePicker
             filterPicker
-            ToolTabActionGroup {
-                let hasSQL = !viewModel.generateMigrationSQLForFilteredDiffs().isEmpty
-                ToolTabActionMenu(title: "Migration SQL and Report", systemImage: "square.and.arrow.up") {
-                    Button("Open Migration SQL") { openMigrationSQLInQueryTab() }.disabled(!hasSQL)
-                    Button("Copy Migration SQL") {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(viewModel.generateMigrationSQLForFilteredDiffs(), forType: .string)
-                    }
-                    .disabled(!hasSQL)
-                    Button("Export Migration SQL") { exportMigrationSQL() }.disabled(!hasSQL)
-                    Divider()
-                    Button("Export Report as HTML") { exportComparisonReport(as: .html) }
-                    Button("Export Report as Markdown") { exportComparisonReport(as: .markdown) }
-                    Button("Export Report as Text") { exportComparisonReport(as: .text) }
-                }
-            }
         }
         ToolTabPickerPill(title: "Source", systemImage: "square.stack.3d.up", selection: $viewModel.sourceSchema,
                           options: viewModel.availableSchemas, label: { $0 })
         Image(systemName: "arrow.right").foregroundStyle(ColorTokens.Text.secondary).accessibilityHidden(true)
         ToolTabPickerPill(title: "Target", systemImage: "square.stack.3d.down.right", selection: $viewModel.targetSchema,
                           options: viewModel.availableSchemas, label: { $0 })
-        ToolTabPrimaryButton(title: viewModel.isComparing ? "Comparing" : "Compare", systemImage: "arrow.left.arrow.right",
-                             isDisabled: !viewModel.canCompare || viewModel.isComparing) {
-            Task { await viewModel.compare() }
-        }
+    }
+
+    /// Round 37.5: Compare is the special button; the migration script and report in the group.
+    private var compareItem: TabToolbarItem {
+        TabToolbarItem(id: "compare", title: viewModel.isComparing ? "Comparing" : "Compare", symbol: "arrow.left.arrow.right",
+                       isDisabled: !viewModel.canCompare || viewModel.isComparing) { [viewModel] in Task { await viewModel.compare() } }
+    }
+
+    private var migrationMenu: TabToolbarItem {
+        let hasSQL = !viewModel.generateMigrationSQLForFilteredDiffs().isEmpty
+        return TabToolbarItem(id: "migration", title: "Migration SQL and Report", symbol: "square.and.arrow.up", menu: [
+            TabToolbarItem(id: "open", title: "Open Migration SQL", symbol: "doc.badge.plus", isDisabled: !hasSQL) { openMigrationSQLInQueryTab() },
+            TabToolbarItem(id: "copy", title: "Copy Migration SQL", symbol: "doc.on.doc", isDisabled: !hasSQL) { [viewModel] in
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(viewModel.generateMigrationSQLForFilteredDiffs(), forType: .string)
+            },
+            TabToolbarItem(id: "export", title: "Export Migration SQL", symbol: "square.and.arrow.up", isDisabled: !hasSQL) { exportMigrationSQL() },
+            TabToolbarItem(id: "—", title: "—", symbol: ""),
+            TabToolbarItem(id: "html", title: "Export Report as HTML", symbol: "doc.richtext") { exportComparisonReport(as: .html) },
+            TabToolbarItem(id: "md", title: "Export Report as Markdown", symbol: "doc.plaintext") { exportComparisonReport(as: .markdown) },
+            TabToolbarItem(id: "txt", title: "Export Report as Text", symbol: "doc.text") { exportComparisonReport(as: .text) },
+        ])
     }
 
     private var filterPicker: some View {

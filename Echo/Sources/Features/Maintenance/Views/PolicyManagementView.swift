@@ -6,22 +6,18 @@ struct PolicyManagementView: View {
     @State private var listFraction: CGFloat = 0.64
     
     var body: some View {
-        // Its pages are in the tab (round 36.2); its actions on the header line (37.2).
+        // Its pages are in the tab (round 36.2); Refresh in the window toolbar (37.5).
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(ColorTokens.Background.primary)
-            .toolTabHeaderControls { toolbarControls }
+            .tabToolbar(groups: [[.refresh(isBusy: viewModel.isRefreshing) { [viewModel] in viewModel.refresh() }]])
         .tabContentFrame()
         .onAppear {
             viewModel.refresh()
         }
     }
 
-    private var toolbarControls: some View {
-        ToolTabActionGroup {
-            ToolTabRefreshButton(isRefreshing: viewModel.isRefreshing) { viewModel.refresh() }
-        }
-    }
+
     
     @ViewBuilder
     private var content: some View {

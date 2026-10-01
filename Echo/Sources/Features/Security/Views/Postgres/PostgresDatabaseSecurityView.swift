@@ -23,12 +23,10 @@ struct PostgresDatabaseSecurityView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {
-            // Its pages are in the tab (round 36.2); Grant Wizard on the header line (37.2).
+            // Its pages are in the tab (round 36.2); Grant Wizard in the window toolbar (37.5).
             sectionContent
         }
-        .toolTabHeaderControls {
-            ToolTabPrimaryButton(title: "Grant Wizard", systemImage: "key.fill") { showGrantWizard = true }
-        }
+        .tabToolbar(special: TabToolbarItem(id: "grantWizard", title: "Grant Wizard", symbol: "key.fill") { showGrantWizard = true })
         .task {
             await viewModel.initialize()
         }

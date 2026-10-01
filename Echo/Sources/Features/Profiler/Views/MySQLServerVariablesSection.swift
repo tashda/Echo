@@ -19,29 +19,35 @@ struct MySQLServerVariablesSection: View {
             variableDetailPanel
         }
         .toolTabHeaderControls { headerControls }
+        .tabToolbar(special: editItem, groups: [toolbarGroup])
     }
 
-    /// Category, search and the variable's actions on the tool's header line (round 37.2, 37.3).
+    /// Category and search on the tool's header line (round 37.2).
     @ViewBuilder
     private var headerControls: some View {
         ToolTabPickerPill(title: "Category", systemImage: "line.3.horizontal.decrease", selection: $selectedCategory,
                           options: ["All"] + viewModel.variableCategories, label: { $0 })
         ToolTabSearchField(prompt: "Filter variables", text: $viewModel.searchText)
-        ToolTabActionGroup {
-            ToolTabActionButton(title: "Script SET", systemImage: "doc.text", isDisabled: selectedVariable == nil) {
+    }
+
+    /// Round 37.5: Edit is the special button; the scripts, Reset and Refresh the group.
+    private var editItem: TabToolbarItem {
+        TabToolbarItem(id: "edit", title: "Edit", symbol: "pencil", isDisabled: viewModel.selectedVariable == nil) { showVariableEditor = true }
+    }
+
+    private var toolbarGroup: [TabToolbarItem] {
+        [
+            TabToolbarItem(id: "scriptSet", title: "Script SET", symbol: "doc.text", isDisabled: selectedVariable == nil) {
                 if let sql = selectedVariable.map(setSQL(for:)) { openQueryTab(sql) }
-            }
-            ToolTabActionButton(title: "Script RESET", systemImage: "doc.text.below.ecg", isDisabled: selectedVariable == nil) {
+            },
+            TabToolbarItem(id: "scriptReset", title: "Script RESET", symbol: "doc.text.below.ecg", isDisabled: selectedVariable == nil) {
                 if let sql = selectedVariable.map(resetSQL(for:)) { openQueryTab(sql) }
-            }
-            ToolTabActionButton(title: "Reset to Default", systemImage: "arrow.uturn.backward", isDisabled: viewModel.selectedVariable == nil) {
+            },
+            TabToolbarItem(id: "reset", title: "Reset to Default", symbol: "arrow.uturn.backward", isDisabled: viewModel.selectedVariable == nil) { [viewModel] in
                 Task { await viewModel.resetSelectedVariable() }
-            }
-            ToolTabRefreshButton(isRefreshing: false) { Task { await viewModel.loadCurrentSection() } }
-        }
-        ToolTabPrimaryButton(title: "Edit", systemImage: "pencil", isDisabled: viewModel.selectedVariable == nil) {
-            showVariableEditor = true
-        }
+            },
+            .refresh { [viewModel] in Task { await viewModel.loadCurrentSection() } },
+        ]
     }
 
     private var filteredVariables: [ServerPropertiesViewModel.PropertyItem] {

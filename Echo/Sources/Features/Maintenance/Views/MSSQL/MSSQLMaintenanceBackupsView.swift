@@ -22,10 +22,10 @@ struct MSSQLMaintenanceBackupsView: View {
                     Text(permissionError)
                 }
             } else {
-                // New Backup and Restore on the tool's header line (round 37.2, 37.3).
+                // New Backup is the page's special button, Restore its group (round 37.5).
                 historyContent
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .toolTabHeaderControls { headerControls }
+                    .tabToolbar(special: newBackupItem, groups: [[restoreItem]])
                 .sheet(isPresented: $showBackupSheet) {
                     if let vm = viewModel.backupsVM {
                         MSSQLBackupSidebarSheet(viewModel: vm) {
@@ -47,19 +47,19 @@ struct MSSQLMaintenanceBackupsView: View {
         .tabContentFrame()
     }
 
-    private var headerControls: some View {
-        let allowed = session?.permissions?.canBackupRestore ?? true
-        return Group {
-            ToolTabActionGroup {
-                ToolTabActionButton(title: "Restore", systemImage: "arrow.counterclockwise", isDisabled: !allowed) {
-                    viewModel.backupsVM?.resetRestoreState()
-                    showRestoreSheet = true
-                }
-            }
-            ToolTabPrimaryButton(title: "New Backup", systemImage: "plus", isDisabled: !allowed) {
-                viewModel.backupsVM?.resetBackupState()
-                showBackupSheet = true
-            }
+    private var canBackupRestore: Bool { session?.permissions?.canBackupRestore ?? true }
+
+    private var newBackupItem: TabToolbarItem {
+        TabToolbarItem(id: "newBackup", title: "New Backup", symbol: "plus", isDisabled: !canBackupRestore) {
+            viewModel.backupsVM?.resetBackupState()
+            showBackupSheet = true
+        }
+    }
+
+    private var restoreItem: TabToolbarItem {
+        TabToolbarItem(id: "restore", title: "Restore", symbol: "arrow.counterclockwise", isDisabled: !canBackupRestore) {
+            viewModel.backupsVM?.resetRestoreState()
+            showRestoreSheet = true
         }
     }
 

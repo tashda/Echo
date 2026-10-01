@@ -5,7 +5,8 @@ struct MSSQLDatabaseSecurityView: View {
     @Bindable var panelState: BottomPanelState
     @Environment(TabStore.self) private var tabStore
     @Environment(\.workspaceTab) private var hostTab
-    @Environment(EnvironmentState.self) private var environmentState
+    @Environment(EnvironmentState.self) var environmentState
+    @Environment(\.openWindow) var openWindow
 
     @State var showNewRoleSheet = false
     @State var showNewSchemaSheet = false
@@ -27,9 +28,13 @@ struct MSSQLDatabaseSecurityView: View {
             isInitialized: viewModel.isInitialized,
             statusBubble: statusBubble
         ) {
-            // Its pages are in the tab (round 36.2).
+            // Its pages are in the tab (round 36.2); each page's New is the special button in the
+            // window toolbar (round 37.5, the owner's answer).
             sectionContent
         }
+        .tabToolbar(special: newItem, groups: [[.refresh(isBusy: statusBubble != nil) { [viewModel] in
+            Task { await viewModel.loadCurrentSection() }
+        }]])
         .task {
             await viewModel.loadDatabases()
         }

@@ -1,8 +1,8 @@
 import SwiftUI
 import SQLServerKit
 
-/// Availability Groups' controls on the tool's header line (round 37.2, 37.3): the selected
-/// group's backup preference, then Failover and Refresh.
+/// Availability Groups' header line (round 37.2): the selected group's backup preference. Failover
+/// and Refresh are in the window toolbar (round 37.5, `toolbarGroups`).
 struct AvailabilityGroupsHeaderControls: View {
     @Bindable var viewModel: AvailabilityGroupsViewModel
 
@@ -23,17 +23,20 @@ struct AvailabilityGroupsHeaderControls: View {
                 label: Self.preferenceTitle
             )
         }
-        ToolTabActionGroup {
-            if let group = viewModel.selectedGroup {
-                ToolTabActionButton(title: "Fail over the selected availability group", systemImage: "arrow.triangle.2.circlepath",
-                                    isDisabled: viewModel.isFailoverInProgress) {
-                    viewModel.requestFailover(groupName: group.name)
-                }
-            }
-            ToolTabRefreshButton(isRefreshing: viewModel.loadingState == .loading) {
-                Task { await viewModel.refresh() }
-            }
+    }
+
+    /// Failover (for the selected group) and Refresh.
+    @MainActor
+    static func toolbarGroups(_ viewModel: AvailabilityGroupsViewModel) -> [[TabToolbarItem]] {
+        var items: [TabToolbarItem] = []
+        if viewModel.selectedGroup != nil {
+            items.append(TabToolbarItem(id: "failover", title: "Fail over the selected availability group", symbol: "arrow.triangle.2.circlepath",
+                                        isDisabled: viewModel.isFailoverInProgress) {
+                if let name = viewModel.selectedGroup?.name { viewModel.requestFailover(groupName: name) }
+            })
         }
+        items.append(.refresh(isBusy: viewModel.loadingState == .loading) { Task { await viewModel.refresh() } })
+        return [items]
     }
 
     static func preferenceTitle(_ value: String) -> String {

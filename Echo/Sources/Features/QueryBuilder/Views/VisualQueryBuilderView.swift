@@ -25,7 +25,19 @@ struct VisualQueryBuilderView: View {
                 sqlPreview
             }
         }
-        .toolTabHeaderControls { headerControls }
+        .toolTabHeaderControls { limitField }
+        // Round 37.5: Add Join is the special button; DISTINCT and Add Filter the group.
+        .tabToolbar(
+            special: TabToolbarItem(id: "addJoin", title: "Add Join", symbol: "arrow.triangle.swap",
+                                    isDisabled: viewModel.tables.count < 2) { showAddJoinSheet = true },
+            groups: [[
+                TabToolbarItem(id: "distinct", title: "DISTINCT", symbol: "square.on.square.dashed", isOn: viewModel.distinct) { [viewModel] in
+                    viewModel.distinct.toggle()
+                },
+                TabToolbarItem(id: "addFilter", title: "Add Filter", symbol: "line.3.horizontal.decrease",
+                               isDisabled: viewModel.tables.isEmpty) { showAddWhereSheet = true },
+            ]]
+        )
         .task {
             await viewModel.loadSchemas()
         }
@@ -181,9 +193,8 @@ struct VisualQueryBuilderView: View {
         }
     }
 
-    /// DISTINCT, the limit, Add Filter and Add Join on the tool's header line (round 37.2, 37.3).
-    @ViewBuilder
-    private var headerControls: some View {
+    /// The limit on the tool's header line (round 37.2); the buttons are in the window toolbar.
+    private var limitField: some View {
         HStack(spacing: SpacingTokens.xxs2) {
             Text("Limit").foregroundStyle(ColorTokens.Text.secondary)
             TextField("Limit", value: $viewModel.limit, format: .number, prompt: Text("None"))
@@ -194,17 +205,6 @@ struct VisualQueryBuilderView: View {
         .padding(.horizontal, SpacingTokens.sm)
         .frame(height: LayoutTokens.ToolTab.controlHeight)
         .glassEffect(.regular, in: .capsule)
-        ToolTabActionGroup {
-            ToolTabActionButton(title: "DISTINCT", systemImage: "square.on.square.dashed", isOn: viewModel.distinct) {
-                viewModel.distinct.toggle()
-            }
-            ToolTabActionButton(title: "Add Filter", systemImage: "line.3.horizontal.decrease", isDisabled: viewModel.tables.isEmpty) {
-                showAddWhereSheet = true
-            }
-        }
-        ToolTabPrimaryButton(title: "Add Join", systemImage: "arrow.triangle.swap", isDisabled: viewModel.tables.count < 2) {
-            showAddJoinSheet = true
-        }
     }
 
     // MARK: - SQL Preview

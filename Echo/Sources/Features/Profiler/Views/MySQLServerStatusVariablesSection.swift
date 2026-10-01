@@ -80,10 +80,8 @@ struct MySQLServerStatusVariablesSection: View {
             ToolTabPickerPill(title: "Category", systemImage: "line.3.horizontal.decrease", selection: $selectedCategory,
                               options: ["All"] + statusCategories, label: { $0 })
             ToolTabSearchField(prompt: "Filter status variables", text: $viewModel.searchText)
-            ToolTabActionGroup {
-                ToolTabRefreshButton(isRefreshing: false) { Task { await viewModel.loadCurrentSection() } }
-            }
         }
+        .tabToolbar(groups: [[.refresh { [viewModel] in Task { await viewModel.loadCurrentSection() } }]])
     }
 
 

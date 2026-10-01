@@ -2,26 +2,27 @@ import SwiftUI
 
 extension SchemaDiagramView {
 
-    /// The diagram's filter and Export on the tool's header line (round 37.2, 37.3); the view
-    /// controls float on the drawing (37.4, CA0).
-    @ViewBuilder
+    /// The diagram's filter on the tool's header line (round 37.2); the view controls float on
+    /// the drawing (37.4, CA0).
     var headerControls: some View {
         ToolTabSearchField(prompt: "Filter tables", text: $diagramSearchText)
-        ToolTabActionGroup {
-            ToolTabActionMenu(title: "Export Diagram", systemImage: "square.and.arrow.up") {
-                Button("Export as PNG") { exportDiagram(as: .png) }
-                Button("Export as PDF") { exportDiagram(as: .pdf) }
-                Divider()
-                Button("Export Diagram Model as JSON") { exportDiagram(as: .jsonModel) }
-                Button("Export Forward Engineering SQL") { exportDiagram(as: .sql) }
-                Divider()
-                Button("Export Documentation as HTML") { exportDiagram(as: .htmlDocumentation) }
-                Button("Export Documentation as Markdown") { exportDiagram(as: .markdownDocumentation) }
-                Button("Export Documentation as Text") { exportDiagram(as: .textDocumentation) }
-                Divider()
-                Button("Print") { printDiagram() }
-            }
+    }
+
+    /// Export ▾ in the window toolbar (round 37.5).
+    var toolbarGroups: [[TabToolbarItem]] {
+        func export(_ id: String, _ title: String, _ format: DiagramExportFormat) -> TabToolbarItem {
+            TabToolbarItem(id: id, title: title, symbol: "square.and.arrow.up") { exportDiagram(as: format) }
         }
+        let divider = TabToolbarItem(id: "—", title: "—", symbol: "")
+        return [[TabToolbarItem(id: "export", title: "Export Diagram", symbol: "square.and.arrow.up", menu: [
+            export("png", "Export as PNG", .png), export("pdf", "Export as PDF", .pdf), divider,
+            export("json", "Export Diagram Model as JSON", .jsonModel), export("sql", "Export Forward Engineering SQL", .sql),
+            TabToolbarItem(id: "—2", title: "—", symbol: ""),
+            export("html", "Export Documentation as HTML", .htmlDocumentation), export("md", "Export Documentation as Markdown", .markdownDocumentation),
+            export("txt", "Export Documentation as Text", .textDocumentation),
+            TabToolbarItem(id: "—3", title: "—", symbol: ""),
+            TabToolbarItem(id: "print", title: "Print", symbol: "printer") { printDiagram() },
+        ])]]
     }
 
     /// Where the diagram came from, after the server in the header: "Live · 2 min ago".

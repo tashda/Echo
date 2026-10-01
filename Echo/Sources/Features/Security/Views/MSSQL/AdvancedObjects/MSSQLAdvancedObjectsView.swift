@@ -11,7 +11,7 @@ struct MSSQLAdvancedObjectsView: View {
     @State private var showConfigureDistribution = false
 
     var body: some View {
-        // The sections are pages in the tab (round 36.2); the actions on the header line (37.2).
+        // The sections are pages in the tab (round 36.2); the buttons in the window toolbar (37.5).
         Group {
             if !viewModel.isInitialized {
                 TabInitializingPlaceholder(
@@ -25,7 +25,8 @@ struct MSSQLAdvancedObjectsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ColorTokens.Background.primary)
-        .toolTabHeaderControls { headerControls }
+        .tabToolbar(special: specialItem,
+                    groups: [[.refresh(isBusy: viewModel.isLoadingCurrentSection) { [viewModel] in Task { await viewModel.loadCurrentSection() } }]])
         .task { await viewModel.initialize() }
         .onChange(of: viewModel.selectedSection) { _, _ in
             guard viewModel.isInitialized else { return }
@@ -84,24 +85,17 @@ struct MSSQLAdvancedObjectsView: View {
 
     // MARK: - Toolbar
 
-    @ViewBuilder
-    private var headerControls: some View {
-        ToolTabActionGroup {
-            ToolTabRefreshButton(isRefreshing: viewModel.isLoadingCurrentSection) {
-                Task { await viewModel.loadCurrentSection() }
-            }
-        }
+    /// Round 37.5: the page's special button (New Catalog, New Publication or Configure Distribution).
+    private var specialItem: TabToolbarItem? {
         switch viewModel.selectedSection {
         case .changeTracking, .cdc:
-            EmptyView()
+            nil
         case .fullTextSearch:
-            ToolTabPrimaryButton(title: "New Catalog", systemImage: "plus") { showNewCatalogSheet = true }
+            TabToolbarItem(id: "newCatalog", title: "New Catalog", symbol: "plus") { showNewCatalogSheet = true }
         case .replication:
-            if viewModel.distributorConfigured {
-                ToolTabPrimaryButton(title: "New Publication", systemImage: "plus") { showNewPublicationSheet = true }
-            } else {
-                ToolTabPrimaryButton(title: "Configure Distribution", systemImage: "gearshape") { showConfigureDistribution = true }
-            }
+            viewModel.distributorConfigured
+                ? TabToolbarItem(id: "newPublication", title: "New Publication", symbol: "plus") { showNewPublicationSheet = true }
+                : TabToolbarItem(id: "configureDistribution", title: "Configure Distribution", symbol: "gearshape") { showConfigureDistribution = true }
         }
     }
 

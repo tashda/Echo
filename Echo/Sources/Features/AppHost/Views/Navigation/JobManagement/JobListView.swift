@@ -1,8 +1,9 @@
 import SwiftUI
 import SQLServerKit
 
-/// The Jobs pane (round 33): the full height of the tab's left side, one pane header with New Job
-/// and Start/Stop, and the columns Status, Name, Last run and Next run.
+/// The Jobs pane (round 33): the full height of the tab's left side, one pane header with ⋯, and
+/// the columns Status, Name, Last run and Next run. New Job and Start/Stop are in the window
+/// toolbar (round 37.5).
 struct JobListView: View {
     var viewModel: JobQueueViewModel
     let notificationEngine: NotificationEngine?
@@ -83,6 +84,7 @@ struct JobListView: View {
             }
             .background(alertSheets)
         }
+        .tabToolbar(special: toolbarSpecial, groups: toolbarGroups)
     }
 
     /// JR1: a running job shows how long it has been running, counting up, in Last Run.

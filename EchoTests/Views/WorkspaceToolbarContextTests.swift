@@ -13,9 +13,9 @@ struct WorkspaceToolbarContextTests {
         #expect(WorkspaceToolbarContext(kind: .query, databaseType: .microsoftSQL).hasDatabaseToggles)
     }
 
-    /// Round 45: a tool's actions live in its tab, so no tool tab adds Run, the editor actions or
-    /// the toggles to the window toolbar.
-    @Test func toolTabsAddNothingToTheToolbar() {
+    /// A tool tab's buttons come from its own toolbar section (round 37.5), never Run, the editor's
+    /// actions or the SQL Server toggles.
+    @Test func toolTabsGetNoneOfTheEditorsToolbar() {
         for kind in WorkspaceTab.Kind.allCases where kind != .query {
             let context = WorkspaceToolbarContext(kind: kind, databaseType: .microsoftSQL)
             #expect(!context.isQuery && !context.hasDatabaseToggles)
