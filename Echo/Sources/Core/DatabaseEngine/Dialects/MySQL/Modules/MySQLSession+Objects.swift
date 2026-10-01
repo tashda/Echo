@@ -1,6 +1,5 @@
 import Foundation
 import MySQLKit
-import MySQLWire
 
 extension MySQLSession {
     func makeActivityMonitor() throws -> any DatabaseActivityMonitoring {

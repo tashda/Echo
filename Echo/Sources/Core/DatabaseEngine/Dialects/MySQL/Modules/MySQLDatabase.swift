@@ -1,7 +1,6 @@
 import Foundation
 import Logging
 import MySQLKit
-import MySQLWire
 
 struct MySQLNIOFactory: DatabaseFactory {
     private let logger = Logger(label: "dev.echodb.echo.mysql")
@@ -32,10 +31,11 @@ struct MySQLNIOFactory: DatabaseFactory {
             username: authentication.username,
             password: authentication.password,
             database: database,
-            useTLS: tls && tlsMode != .disable,
-            connectTimeoutSeconds: connectTimeoutSeconds
+            tlsMode: Self.tlsMode(enabled: tls, mode: tlsMode, caPath: sslRootCertPath),
+            connectTimeoutSeconds: connectTimeoutSeconds,
+            clientCertificatePath: sslCertPath,
+            clientKeyPath: sslKeyPath
         )
-
         return MySQLSession(
             client: MySQLClient(configuration: configuration, logger: logger),
             configuration: configuration,
@@ -45,12 +45,29 @@ struct MySQLNIOFactory: DatabaseFactory {
     }
 }
 
+extension MySQLNIOFactory {
+    /// Echo's SSL mode in MySQL's terms. With TLS on and no mode chosen (MySQL's sheet has only a
+    /// toggle today), Preferred: TLS when the server offers it, as before (Phase 7.3; the sheet's
+    /// SSL Mode row and the default for new connections are Echo Labs round C).
+    static func tlsMode(enabled: Bool, mode: TLSMode, caPath: String?) -> MySQLTLSMode {
+        guard enabled else { return .disabled }
+        let ca = caPath.flatMap { $0.isEmpty ? nil : $0 }
+        switch mode {
+        case .disable: return .disabled
+        case .allow, .prefer: return .preferred
+        case .require: return .required
+        case .verifyCA: return ca.map { .verifyCA(caCertificatePath: $0) } ?? .verifyIdentity()
+        case .verifyFull: return .verifyIdentity(caCertificatePath: ca)
+        }
+    }
+}
+
 final class MySQLSession: DatabaseSession {
     internal let client: MySQLClient
     internal let configuration: MySQLConfiguration
     internal let logger: Logger
     internal let defaultDatabase: String?
-    internal nonisolated(unsafe) let formatter = MySQLCellFormatter()
+    internal let formatter = MySQLCellFormatter()
 
     init(
         client: MySQLClient,
@@ -68,38 +85,21 @@ final class MySQLSession: DatabaseSession {
         await client.close()
     }
 
-    internal func rawCellData(from buffer: ByteBuffer?) -> Data? {
-        guard var buffer else { return nil }
-        let readable = buffer.readableBytes
-        guard readable > 0 else { return Data() }
-        guard let bytes = buffer.readBytes(length: readable) else { return nil }
-        return Data(bytes)
-    }
-
-    internal func makeString(_ row: MySQLRow, index: Int) -> String? {
-        guard row.values.indices.contains(index) else { return nil }
-        let definition = row.columnDefinitions[index]
-        let data = MySQLData(
-            type: definition.columnType,
-            format: row.format,
-            buffer: row.values[index],
-            isUnsigned: definition.flags.contains(.COLUMN_UNSIGNED)
-        )
-        return formatter.stringValue(for: data)
-    }
-
     func sessionForDatabase(_ database: String) async throws -> DatabaseSession {
         let effectiveDatabase = database.isEmpty ? nil : database
-        let nextConfiguration = MySQLConfiguration(
+        var nextConfiguration = MySQLConfiguration(
             host: configuration.host,
             port: configuration.port,
             username: configuration.username,
             password: configuration.password,
             database: effectiveDatabase,
-            useTLS: configuration.useTLS,
+            tlsMode: configuration.tlsMode,
             connectTimeoutSeconds: configuration.connectTimeoutSeconds,
-            keepAliveInterval: configuration.keepAliveInterval
+            keepAliveInterval: configuration.keepAliveInterval,
+            clientCertificatePath: configuration.clientCertificatePath,
+            clientKeyPath: configuration.clientKeyPath
         )
+        nextConfiguration.clientKeyPassword = configuration.clientKeyPassword
 
         return MySQLSession(
             client: MySQLClient(configuration: nextConfiguration, logger: logger),

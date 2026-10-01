@@ -1,7 +1,6 @@
 import AppKit
 import Foundation
 import MySQLKit
-import MySQLWire
 
 extension ServerPropertiesViewModel {
     func loadConfiguration(mysql: MySQLSession) async {

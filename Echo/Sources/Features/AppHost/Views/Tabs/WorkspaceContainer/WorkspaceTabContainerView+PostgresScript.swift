@@ -7,7 +7,11 @@ extension WorkspaceTabContainerView {
         let ranges = ScriptResultEntry.editorRanges(for: statements, in: state.sql, within: state.lastRunRange)
         let entries = ScriptResultEntry.entries(for: run.results, statements: statements, editorRanges: ranges)
 
+        // Each statement's notices (RAISE NOTICE …, Echo #37), then its line.
         for entry in entries {
+            for notice in run.results.first(where: { $0.batchIndex == entry.id })?.messages ?? [] where notice.category != "Server Response" {
+                state.appendServerMessage(notice)
+            }
             state.appendMessage(message: entry.messageLine, severity: entry.isFailure ? .error : .info, category: "Script")
         }
         for line in PostgresScriptSummary.lines(results: run.results, transaction: run.transaction) {

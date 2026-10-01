@@ -1,123 +1,39 @@
 import Foundation
-import MySQLWire
-import NIOCore
+import MySQLKit
 
-internal struct MySQLCellFormatter {
-    private let dateFormatter: DateFormatter
-    private let dateTimeFormatter: ISO8601DateFormatter
-    private let timeFormatter: DateFormatter
-
-    init() {
-        let dateFormatter = DateFormatter()
-        dateFormatter.calendar = Calendar(identifier: .gregorian)
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        self.dateFormatter = dateFormatter
-
-        let dateTimeFormatter = ISO8601DateFormatter()
-        dateTimeFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        dateTimeFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-        self.dateTimeFormatter = dateTimeFormatter
-
-        let timeFormatter = DateFormatter()
-        timeFormatter.calendar = Calendar(identifier: .gregorian)
-        timeFormatter.locale = Locale(identifier: "en_US_POSIX")
-        timeFormatter.timeZone = TimeZone(secondsFromGMT: 0)
-        timeFormatter.dateFormat = "HH:mm:ss"
-        self.timeFormatter = timeFormatter
-    }
-
-    func stringValue(for data: MySQLData) -> String? {
-        guard data.buffer != nil else { return nil }
-
-        switch data.type {
-        case .null:
-            return nil
-        case .tiny, .short, .long, .longlong, .int24, .bit, .year:
-            if let int = data.int64 { return String(int) }
-            if let uint = data.uint64 { return String(uint) }
-        case .float:
-            if let value = data.float { return formatFloatingPoint(Double(value)) }
-        case .double:
-            if let value = data.double { return formatFloatingPoint(value) }
-        case .decimal, .newdecimal:
-            return textString(from: data)
-        case .timestamp, .timestamp2, .datetime, .datetime2:
-            if let date = data.date { return dateTimeFormatter.string(from: date) }
-        case .date, .newdate:
-            if let date = data.date { return dateFormatter.string(from: date) }
-        case .time, .time2:
-            if let time = data.time { return string(from: time) }
-        case .json:
-            return textString(from: data)
-        case .blob, .longBlob, .mediumBlob, .tinyBlob, .geometry:
-            if let text = textString(from: data) {
+/// Display text for MySQL and MariaDB values (Echo #40, decision D24: the server's own text, as
+/// round 21 decided for Postgres).
+///
+/// Values arrive as the server prints them (text protocol): DECIMAL, DATETIME(6), TIME and FLOAT
+/// exactly as MySQL shows them. Bytes that aren't text (BLOB, BINARY, GEOMETRY) show as `0x…`
+/// hex; BIT(1) shows `0`/`1`, longer BIT columns as `b'1010'`.
+internal struct MySQLCellFormatter: Sendable {
+    func stringValue(bytes: Data?, column: MySQLColumn) -> String? {
+        guard let bytes else { return nil }
+        if column.columnType == .bit { return Self.bits(bytes, length: column.columnLength) }
+        if column.columnType == .geometry { return Self.hex(bytes) }
+        if column.isBinary {
+            if let text = String(data: bytes, encoding: .utf8), text.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) || $0 == "\n" || $0 == "\t" }) {
                 return text
             }
-            return data.buffer.flatMap { hexString(from: $0) }
-        case .varchar, .varString, .string, .enum, .set:
-            return textString(from: data)
-        default:
-            break
+            return Self.hex(bytes)
         }
-
-        if let text = textString(from: data) {
-            return text
-        }
-
-        if let buffer = data.buffer {
-            return hexString(from: buffer)
-        }
-
-        return nil
+        return String(decoding: bytes, as: UTF8.self)
     }
 
-    private func textString(from data: MySQLData) -> String? {
-        if let string = data.string {
-            return string
-        }
-        guard var buffer = data.buffer else {
-            return nil
-        }
-        let length = buffer.readableBytes
-        if length == 0 {
-            return ""
-        }
-        return buffer.readString(length: length)
+    func stringValue(for value: MySQLData, column: MySQLColumn) -> String? {
+        stringValue(bytes: value.bytes, column: column)
     }
 
-    private func string(from time: MySQLTime) -> String? {
-        guard let date = time.date else {
-            guard
-                let hour = time.hour,
-                let minute = time.minute,
-                let second = time.second
-            else { return nil }
-            let fractional = time.microsecond ?? 0
-            let base = String(format: "%02d:%02d:%02d", hour, minute, second)
-            if fractional == 0 { return base }
-            var fractionalString = String(format: "%06d", fractional)
-            while fractionalString.last == "0" { fractionalString.removeLast() }
-            return base + "." + fractionalString
-        }
-        return timeFormatter.string(from: date)
+    static func hex(_ bytes: Data) -> String {
+        bytes.reduce(into: "0x") { $0 += String(format: "%02X", $1) }
     }
 
-    private func formatFloatingPoint(_ value: Double) -> String {
-        if value.isNaN { return "NaN" }
-        if value.isInfinite { return value > 0 ? "Infinity" : "-Infinity" }
-        let absValue = abs(value)
-        if (absValue >= 1e-4 && absValue < 1e6) || value == 0 {
-            return String(format: "%.15g", value)
-        }
-        return String(value)
-    }
-
-    private func hexString(from buffer: ByteBuffer) -> String {
-        guard let bytes = buffer.getBytes(at: buffer.readerIndex, length: buffer.readableBytes) else { return "0x" }
-        return bytes.reduce(into: "0x") { partial, byte in
-            partial.append(String(format: "%02X", byte))
-        }
+    /// BIT(1) as `0`/`1`; longer as `b'…'` with exactly the column's bits.
+    static func bits(_ bytes: Data, length: UInt64) -> String {
+        let all = bytes.map { byte in (0..<8).reversed().map { (byte >> $0) & 1 == 1 ? "1" : "0" }.joined() }.joined()
+        let width = Int(max(1, min(length, UInt64(all.count))))
+        let trimmed = String(all.suffix(width))
+        return length <= 1 ? trimmed : "b'\(trimmed)'"
     }
 }

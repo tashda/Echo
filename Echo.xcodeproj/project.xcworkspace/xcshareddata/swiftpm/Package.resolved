@@ -16,7 +16,7 @@
       "location" : "https://github.com/tashda/echo-server-lab",
       "state" : {
         "branch" : "official",
-        "revision" : "1d233d8c7cf0a4edc70c58a4ddeae306dce4688e"
+        "revision" : "04da591d0c5228d945623954410c96d5e455323e"
       }
     },
     {
@@ -29,21 +29,12 @@
       }
     },
     {
-      "identity" : "mysql-nio",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/vapor/mysql-nio.git",
-      "state" : {
-        "revision" : "7fa853040169b604a16b963f23b481772f4ac181",
-        "version" : "1.9.1"
-      }
-    },
-    {
       "identity" : "mysql-wire",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tashda/mysql-wire",
       "state" : {
-        "branch" : "dev",
-        "revision" : "6fd5039ec034729a377b7caca2891ff12e4f88da"
+        "branch" : "official",
+        "revision" : "4d9c66b25ea4ab7a39db15e6908e146fa4b3f4bf"
       }
     },
     {
@@ -52,7 +43,7 @@
       "location" : "https://github.com/tashda/postgres-wire",
       "state" : {
         "branch" : "official",
-        "revision" : "b66a2894cb0826ddf4a8146c89f8d12af75dc705"
+        "revision" : "6dded97d0706bf426c09231de917b6c651c646c4"
       }
     },
     {
@@ -98,15 +89,6 @@
       "state" : {
         "branch" : "dev",
         "revision" : "8f9754292332d026b6c25fd7712677bd1687278b"
-      }
-    },
-    {
-      "identity" : "swift-algorithms",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-algorithms.git",
-      "state" : {
-        "revision" : "87e50f483c54e6efd60e885f7f5aa946cee68023",
-        "version" : "1.2.1"
       }
     },
     {
@@ -224,15 +206,6 @@
       "state" : {
         "revision" : "322f3c2a4a21df31c84ca416bf65ee5e9059e440",
         "version" : "2.37.5"
-      }
-    },
-    {
-      "identity" : "swift-numerics",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-numerics.git",
-      "state" : {
-        "revision" : "0c0290ff6b24942dadb83a929ffaaa1481df04a2",
-        "version" : "1.1.1"
       }
     },
     {

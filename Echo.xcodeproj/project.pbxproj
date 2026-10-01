@@ -23,7 +23,6 @@
 		ELB001000000000000000001 /* CLibpq in Frameworks */ = {isa = PBXBuildFile; productRef = ELB002000000000000000001 /* CLibpq */; };
 		0A698A422F5F88AA0027641E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 0A698A412F5F88AA0027641E /* Sparkle */; };
 		0A79557E2E8F10A9002279AE /* MySQLKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A79557D2E8F10A9002279AE /* MySQLKit */; };
-		0A7955802E8F10A9002279AE /* MySQLWire in Frameworks */ = {isa = PBXBuildFile; productRef = 0A79557F2E8F10A9002279AE /* MySQLWire */; };
 		0AAD000300000000000000AD /* ActiveDirectory in Frameworks */ = {isa = PBXBuildFile; productRef = 0AAD000200000000000000AD /* ActiveDirectory */; };
 		0ADE5D00000000000000A003 /* EchoDesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 0ADE5D00000000000000A002 /* EchoDesignSystem */; };
 		EA74938A42BEA42306934B73 /* ServerLabClient in Frameworks */ = {isa = PBXBuildFile; productRef = FD3382FC2CB7A2B3917A4282 /* ServerLabClient */; };
@@ -121,7 +120,6 @@
 				0A41EC862F7C0B8500AD776A /* Realtime in Frameworks */,
 				0A41EC802F7C0B8500AD776A /* Auth in Frameworks */,
 				0A79557E2E8F10A9002279AE /* MySQLKit in Frameworks */,
-				0A7955802E8F10A9002279AE /* MySQLWire in Frameworks */,
 				0A41EC842F7C0B8500AD776A /* PostgREST in Frameworks */,
 				0A697AEE2F5EF8220027641E /* EchoSense in Frameworks */,
 				ELB001000000000000000001 /* CLibpq in Frameworks */,
@@ -218,7 +216,6 @@
 			name = Echo;
 			packageProductDependencies = (
 				0A79557D2E8F10A9002279AE /* MySQLKit */,
-				0A79557F2E8F10A9002279AE /* MySQLWire */,
 				0A6970C12F5EEF090027641E /* SQLiteNIO */,
 				0A6970C42F5EEF5E0027641E /* PostgresKit */,
 				0A6970C92F5EEFA40027641E /* SQLServerKit */,
@@ -838,7 +835,7 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/tashda/mysql-wire";
 			requirement = {
-				branch = dev;
+				branch = official;
 				kind = branch;
 			};
 		};
@@ -940,11 +937,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-wire" */;
 			productName = MySQLKit;
-		};
-		0A79557F2E8F10A9002279AE /* MySQLWire */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-wire" */;
-			productName = MySQLWire;
 		};
 		0AAD000200000000000000AD /* ActiveDirectory */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -35,18 +35,37 @@ extension PostgresSession {
             throw normalizeError(error, contextSQL: sanitizedSQL)
         }
         if let pinned {
-            return try await consumeStreamedRows(
+            var result = try await consumeStreamedRows(
                 sanitizedSQL: sanitizedSQL,
                 progressHandler: progressHandler,
                 makeRows: { try await pinned.query(sanitizedSQL) }
             )
+            result.serverMessages = Self.serverMessages(await pinned.takeNotices())
+            return result
         }
         return try await self.client.withConnection { connection in
-            try await self.consumeStreamedRows(
+            var result = try await self.consumeStreamedRows(
                 sanitizedSQL: sanitizedSQL,
                 progressHandler: progressHandler,
                 makeRows: { try await connection.simpleQuery(sanitizedSQL) }
             )
+            result.serverMessages = Self.serverMessages(await connection.takeNotices())
+            return result
+        }
+    }
+
+    /// `RAISE NOTICE` / `WARNING` / `INFO` for the Messages tab (Echo #37), in order, with the
+    /// server's level as the category. Shown when the statement finishes; showing them while it
+    /// runs is decision D14 (Echo Labs round B2).
+    nonisolated static func serverMessages(_ notices: [PostgresNotice]) -> [ServerMessage] {
+        notices.map { notice in
+            var text = notice.message
+            if let detail = notice.detail, !detail.isEmpty { text += "\n" + detail }
+            if let hint = notice.hint, !hint.isEmpty { text += "\nHint: " + hint }
+            var metadata: [String: String] = [:]
+            if let sqlState = notice.sqlState { metadata["sqlState"] = sqlState }
+            if let context = notice.context { metadata["context"] = context }
+            return ServerMessage(kind: .info, number: 0, message: text, state: 0, severity: 0, category: notice.severity, metadata: metadata)
         }
     }
 

@@ -1,6 +1,6 @@
 import Foundation
+import Logging
 import MySQLKit
-import MySQLWire
 
 extension MySQLSession {
     func simpleQuery(_ sql: String) async throws -> QueryResultSet {
@@ -24,8 +24,9 @@ extension MySQLSession {
         let streamingPreviewLimit = 512
         let maxFlushLatency: TimeInterval = 0.015
 
-        var columnMetadata: [MySQLProtocol.ColumnDefinition41] = []
+        var columns: [MySQLColumn] = []
         var columnInfo: [ColumnInfo] = []
+        var messages: [ServerMessage] = []
         var worker: ResultStreamBatchWorker?
         let bridgedHandler: QueryProgressHandler = { update in
             Task { @MainActor in
@@ -34,15 +35,16 @@ extension MySQLSession {
         }
 
         do {
-            let stream = try await client.stream(sql)
-            for try await row in stream {
+            // Rows are pulled from the server as the worker takes them (bounded memory); Cancel
+            // stops the statement on the server (KILL QUERY).
+            for try await event in try await client.events(sql) {
                 try Task.checkCancellation()
-
-                if columnMetadata.isEmpty {
-                    columnMetadata = row.columnDefinitions
-                }
-                if columnInfo.isEmpty, !columnMetadata.isEmpty {
-                    columnInfo = makeColumnInfo(from: columnMetadata)
+                switch event {
+                case .columns(let resultColumns):
+                    // The first result set fills the grid; later ones (multi-statement) only report.
+                    guard columns.isEmpty else { continue }
+                    columns = resultColumns
+                    columnInfo = Self.columnInfo(for: resultColumns)
                     worker = ResultStreamBatchWorker(
                         label: "dev.echodb.echo.mysql.streamWorker",
                         columns: columnInfo,
@@ -51,44 +53,34 @@ extension MySQLSession {
                         operationStart: operationStart,
                         progressHandler: bridgedHandler
                     )
-                }
-
-                let capturePreview = totalRowCount < streamingPreviewLimit
-                var previewValues: [String?]? = capturePreview ? [] : nil
-                previewValues?.reserveCapacity(columnMetadata.count)
-                var rawCells: [Data?] = []
-                rawCells.reserveCapacity(columnMetadata.count)
-
-                let decodeStart = CFAbsoluteTimeGetCurrent()
-                for (index, definition) in columnMetadata.enumerated() {
-                    let buffer = row.values[index]
-                    rawCells.append(rawCellData(from: buffer))
-                    if capturePreview {
-                        let data = MySQLData(
-                            type: definition.columnType,
-                            format: row.format,
-                            buffer: buffer,
-                            isUnsigned: definition.flags.contains(.COLUMN_UNSIGNED)
-                        )
-                        previewValues?.append(formatter.stringValue(for: data))
+                case .rows(let rows):
+                    guard let first = rows.first, first.columnDefinitions == columns else { continue }
+                    var payloads: [ResultStreamBatchWorker.Payload] = []
+                    payloads.reserveCapacity(rows.count)
+                    for row in rows {
+                        let decodeStart = CFAbsoluteTimeGetCurrent()
+                        let values = columns.indices.map { index in
+                            formatter.stringValue(bytes: row.value(at: index).bytes, column: columns[index])
+                        }
+                        totalRowCount += 1
+                        let capturePreview = totalRowCount <= streamingPreviewLimit
+                        if capturePreview { previewRows.append(values) }
+                        // The spool keeps the display text, so spooled rows read like the preview.
+                        let encodedRow = ResultBinaryRowCodec.encodeRaw(cells: values.map { $0.map { Data($0.utf8) } })
+                        payloads.append(ResultStreamBatchWorker.Payload(
+                            previewValues: capturePreview ? values : nil,
+                            storage: .encoded(encodedRow),
+                            totalRowCount: totalRowCount,
+                            decodeDuration: CFAbsoluteTimeGetCurrent() - decodeStart
+                        ))
                     }
+                    worker?.enqueueBatch(payloads)
+                case .done(let metadata, let returnedRows):
+                    messages.append(Self.serverMessage(Self.commandResponse(metadata, returnedRows: returnedRows)))
+                case .warnings(let warnings):
+                    // Echo #39: warnings and notes in Messages.
+                    messages.append(contentsOf: warnings.map(Self.serverMessage(for:)))
                 }
-                let decodeDuration = CFAbsoluteTimeGetCurrent() - decodeStart
-
-                totalRowCount += 1
-                if let previewRow = previewValues, previewRows.count < streamingPreviewLimit {
-                    previewRows.append(previewRow)
-                }
-
-                let encodedRow = ResultBinaryRowCodec.encodeRaw(cells: rawCells)
-                worker?.enqueue(
-                    ResultStreamBatchWorker.Payload(
-                        previewValues: previewValues,
-                        storage: .encoded(encodedRow),
-                        totalRowCount: totalRowCount,
-                        decodeDuration: decodeDuration
-                    )
-                )
             }
         } catch is CancellationError {
             worker?.finish(totalRowCount: totalRowCount)
@@ -98,9 +90,26 @@ extension MySQLSession {
             throw DatabaseError.queryError(error.localizedDescription)
         }
 
-        worker?.finish(totalRowCount: totalRowCount)
+        if let worker {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                worker.finish(totalRowCount: totalRowCount) {
+                    Task { @MainActor in continuation.resume() }
+                }
+            }
+        }
         let resolvedColumns = columnInfo.isEmpty ? [ColumnInfo(name: "result", dataType: "text")] : columnInfo
-        return QueryResultSet(columns: resolvedColumns, rows: previewRows, totalRowCount: totalRowCount)
+        return QueryResultSet(columns: resolvedColumns, rows: previewRows, totalRowCount: totalRowCount, serverMessages: messages)
+    }
+
+    /// Stops what this connection runs, on the server (Echo #33).
+    func cancelRunningQuery() async -> Bool {
+        do {
+            try await client.cancelRunningStatement()
+            return true
+        } catch {
+            logger.warning("MySQL cancel failed: \(error.localizedDescription)")
+            return false
+        }
     }
 
     func simpleQuery(
@@ -114,7 +123,7 @@ extension MySQLSession {
     private func executeSimpleQuery(_ sql: String) async throws -> QueryResultSet {
         do {
             let result = try await client.query(sql)
-            return makeResultSet(from: result.rows, metadata: result.metadata)
+            return makeResultSet(from: result)
         } catch {
             throw DatabaseError.queryError(error.localizedDescription)
         }
@@ -149,39 +158,47 @@ extension MySQLSession {
         return (result.rows, result.metadata)
     }
 
-    private func makeColumnInfo(from metadata: [MySQLProtocol.ColumnDefinition41]) -> [ColumnInfo] {
-        metadata.map { column in
-            let typeName = String(describing: column.columnType).lowercased()
-            let dataType: String
-            if typeName.hasPrefix("mysql_type_") {
-                dataType = String(typeName.dropFirst("mysql_type_".count))
-            } else {
-                dataType = typeName
-            }
-
-            return ColumnInfo(
+    /// Grid columns with MySQL's SQL type names (`BIGINT UNSIGNED`, `DECIMAL(10,2)`), so numbers
+    /// align and the header says what the column is (Echo #40).
+    static func columnInfo(for columns: [MySQLColumn]) -> [ColumnInfo] {
+        columns.map { column in
+            ColumnInfo(
                 name: column.name,
-                dataType: dataType,
-                isPrimaryKey: column.flags.contains(.PRIMARY_KEY),
-                isNullable: !column.flags.contains(.COLUMN_NOT_NULL),
+                dataType: column.sqlTypeName,
+                isPrimaryKey: column.flags.contains(.primaryKey),
+                isNullable: !column.flags.contains(.notNull),
                 maxLength: column.columnLength == 0 ? nil : Int(column.columnLength)
             )
         }
     }
 
-    private func makeResultSet(from rows: [MySQLRow], metadata: MySQLWireQueryMetadata? = nil) -> QueryResultSet {
-        let columns = rows.first.map { makeColumnInfo(from: $0.columnDefinitions) } ?? []
-        let previewRows = rows.map { row in
-            row.values.indices.map { index in
-                makeString(row, index: index)
-            }
-        }
+    static func serverMessage(_ text: String) -> ServerMessage {
+        ServerMessage(kind: .info, number: 0, message: text, state: 0, severity: 0, category: "Server Response")
+    }
 
+    static func serverMessage(for warning: MySQLWarning) -> ServerMessage {
+        ServerMessage(kind: warning.level.lowercased() == "error" ? .error : .info, number: Int32(clamping: warning.code),
+                      message: warning.message, state: 0, severity: 0, category: warning.level)
+    }
+
+    /// "3 rows affected" or "2 rows returned", with MySQL's info text when it has one.
+    static func commandResponse(_ metadata: MySQLWireQueryMetadata, returnedRows: Bool) -> String {
+        let count = metadata.affectedRows
+        var text = returnedRows ? "\(count) row\(count == 1 ? "" : "s") returned" : "\(count) row\(count == 1 ? "" : "s") affected"
+        if let info = metadata.info, !info.isEmpty { text += " (\(info))" }
+        return text
+    }
+
+    private func makeResultSet(from result: MySQLWireQueryResult) -> QueryResultSet {
+        let columns = result.columns
+        let previewRows = result.rows.map { row in
+            columns.indices.map { formatter.stringValue(bytes: row.value(at: $0).bytes, column: columns[$0]) }
+        }
         return QueryResultSet(
-            columns: columns,
+            columns: Self.columnInfo(for: columns),
             rows: previewRows,
-            totalRowCount: rows.count,
-            commandTag: metadata.map(commandResponse(from:))
+            totalRowCount: result.rows.count,
+            commandTag: result.metadata.map(commandResponse(from:))
         )
     }
 
