@@ -109,7 +109,30 @@ struct ViewMenuCommands: Commands {
             }
             .keyboardShortcut("o", modifiers: [.command, .shift])
             .disabled(!navigationStore.isWorkspaceWindowKey || !tabStore.hasTabs)
+
+            Divider()
+
+            // Round 28.8 (ZK0): the query editor's zoom, this tab only.
+            Button("Zoom In", systemImage: "plus.magnifyingglass") { zoomEditor(by: 1) }
+                .keyboardShortcut("+", modifiers: .command)
+                .disabled(editorQuery == nil)
+            Button("Zoom Out", systemImage: "minus.magnifyingglass") { zoomEditor(by: -1) }
+                .keyboardShortcut("-", modifiers: .command)
+                .disabled(editorQuery == nil)
+            Button("Actual Size", systemImage: "1.magnifyingglass") { editorQuery?.editorZoom = EditorZoom.actualSize }
+                .keyboardShortcut("0", modifiers: .command)
+                .disabled(editorQuery == nil)
         }
+    }
+
+    private var editorQuery: QueryEditorState? {
+        guard navigationStore.isWorkspaceWindowKey else { return nil }
+        return tabStore.activeTab?.query
+    }
+
+    private func zoomEditor(by direction: Int) {
+        guard let query = editorQuery else { return }
+        query.editorZoom = EditorZoom.step(query.editorZoom, by: direction)
     }
 }
 #endif

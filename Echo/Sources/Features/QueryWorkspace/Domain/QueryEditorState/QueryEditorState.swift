@@ -183,6 +183,8 @@ import OSLog
     /// What the last run covered, and the note shown at its end once it finishes (QE2).
     @ObservationIgnored var lastRunRange: NSRange?
     var runNote: QueryRunNote?
+    /// Round 28.8: this tab's editor zoom (1 is actual size); not saved.
+    var editorZoom: Double = EditorZoom.actualSize
     /// Where the last run's error is, marked in the editor (round 21 EM5, round 22 ED1). Cleared by
     /// an edit or the next run (EC3).
     var errorMark: QueryErrorMark?

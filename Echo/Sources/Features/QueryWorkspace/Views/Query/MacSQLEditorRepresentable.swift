@@ -23,6 +23,7 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
     var errorMark: QueryErrorMark?
     /// Round 21, SK2: the selected script result's statement, drawn as a band.
     var resultStatementRange: NSRange?
+    var onZoomStep: (Int) -> Void = { _ in }
     var completionContext: SQLEditorCompletionContext?
     var ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration?
     var onSchemaLoadNeeded: ((String) -> Void)?
@@ -72,6 +73,7 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
         if nsView.sqlTextView.runningRange != runningRange { nsView.sqlTextView.runningRange = runningRange }
         if nsView.sqlTextView.errorMark != errorMark { nsView.sqlTextView.errorMark = errorMark }
         if nsView.sqlTextView.resultStatementRange != resultStatementRange { nsView.sqlTextView.resultStatementRange = resultStatementRange }
+        nsView.sqlTextView.onZoomStep = onZoomStep
         // A kept-alive tab coming back takes the keyboard again (KeptAliveTabsView).
         if isActiveTab && !context.coordinator.wasActiveTab, let textView = context.coordinator.textView {
             Task { @MainActor [weak textView] in

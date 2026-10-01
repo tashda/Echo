@@ -13,15 +13,17 @@ struct QueryInputSection: View {
     let completionContext: SQLEditorCompletionContext?
     let onSchemaLoadNeeded: ((String) -> Void)?
     var onRunStatement: () -> Void = {}
-    /// The empty tab's recent tables (QE6), read only while the tab is empty.
 
     @Environment(AppState.self) var appState
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(AppearanceStore.self) private var appearanceStore
     private let sqlHelpProvider = SQLHelpInspectorContentProvider()
 
+    /// The editor's theme at this tab's zoom (round 28.8).
     private var editorTheme: SQLEditorTheme {
-        appState.sqlEditorTheme
+        var theme = appState.sqlEditorTheme
+        theme.fontSize *= query.editorZoom
+        return theme
     }
 
     private var editorBackground: Color {
@@ -68,13 +70,19 @@ struct QueryInputSection: View {
             runNotes: query.runNotes,
             runningRange: query.isExecuting ? query.lastRunRange : nil,
             errorMark: query.errorMark,
-            resultStatementRange: query.highlightedStatementRange
+            resultStatementRange: query.highlightedStatementRange,
+            onZoomStep: { query.editorZoom = EditorZoom.step(query.editorZoom, by: $0) }
         )
         .padding(.leading, leadingPadding)
         .padding(.trailing, trailingPadding)
         .padding(.top, topPadding)
         .padding(.bottom, bottomPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .overlay(alignment: .bottomLeading) {
+            EditorZoomControl(zoom: $query.editorZoom)
+                .padding(.leading, SpacingTokens.xs)
+                .padding(.bottom, bottomPadding + SpacingTokens.xs)
+        }
         .background(editorBackground)
     }
 

@@ -27,6 +27,8 @@ struct SQLEditorView: View {
     var runNotes: [QueryRunNote]
     /// Round 28.7: what is running now, for the gutter's breathing bracket.
     var runningRange: NSRange?
+    /// Round 28.8: a pinch asks for the next zoom step up (+1) or down (-1).
+    var onZoomStep: (Int) -> Void
     /// Where the last run's error is (round 21 EM5, round 22 ED1).
     var errorMark: QueryErrorMark?
     /// The statement of the result selected in a script's statement list (round 21, SK2).
@@ -55,7 +57,8 @@ struct SQLEditorView: View {
         runNotes: [QueryRunNote] = [],
         runningRange: NSRange? = nil,
         errorMark: QueryErrorMark? = nil,
-        resultStatementRange: NSRange? = nil
+        resultStatementRange: NSRange? = nil,
+        onZoomStep: @escaping (Int) -> Void = { _ in }
     ) {
         _text = text
         self.theme = theme
@@ -76,6 +79,7 @@ struct SQLEditorView: View {
         self.runningRange = runningRange
         self.errorMark = errorMark
         self.resultStatementRange = resultStatementRange
+        self.onZoomStep = onZoomStep
     }
 
     var body: some View {
@@ -96,6 +100,7 @@ struct SQLEditorView: View {
             runningRange: runningRange,
             errorMark: errorMark,
             resultStatementRange: resultStatementRange,
+            onZoomStep: onZoomStep,
             completionContext: completionContext,
             ruleTraceConfig: ruleTraceConfig,
             onSchemaLoadNeeded: onSchemaLoadNeeded,

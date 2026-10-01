@@ -151,6 +151,8 @@ public enum LayoutTokens {
         public static let runningBreathFloor: Float = 0.45
         public static let runningBreathDuration: Double = 1.5
         public static let ranFadeDuration: Double = 2
+        /// Round 28.8: how far a pinch has to go for one zoom step.
+        public static let pinchStepThreshold: CGFloat = 0.15
         /// Round 28.9 (GL1): the Go to Line field.
         public static let goToLineWidth: CGFloat = 220
         /// QE2: the gap between a statement's last character and its run note.

@@ -55,6 +55,9 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     /// Round 28.10: whether the empty prompt is drawn.
     var showsEmptyPrompt = true
     override var string: String { didSet { refreshEmptyPrompt() } }
+    /// Round 28.8: a pinch asks for the next zoom step; the magnification gathered so far.
+    var onZoomStep: ((Int) -> Void)?
+    var pinchAmount: CGFloat = 0
     /// Round 28.9: the Go to Line field while it is open.
     var goToLineField: NSView?
     static let maxValidationOverlays = 10
