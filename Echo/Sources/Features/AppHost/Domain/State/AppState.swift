@@ -14,12 +14,30 @@ import SwiftUI
     var showingError = false
     var activeSheet: ActiveSheet?
     var structureScriptData: StructureScriptPreviewData?
-    var showTabOverview = false
     /// The notification history, in the inspector's column (plan N3, round 15 option B). While
     /// it shows, the column shows it instead of the details.
     var isNotificationHistoryVisible = false
     /// The ⌘K palette (plan K4).
-    var isCommandPaletteVisible = false
+    var isCommandPaletteVisible = false {
+        didSet {
+            if !isCommandPaletteVisible { commandPaletteScope = .everything }
+        }
+    }
+    /// What the palette lists: everything, or this window's tabs (the tab overview, round 35.1).
+    var commandPaletteScope: CommandPaletteScope = .everything
+
+    /// The tab overview is the palette showing this window's tabs (round 35.1, TO6).
+    var isTabOverviewVisible: Bool { isCommandPaletteVisible && commandPaletteScope == .tabs }
+
+    /// ⇧⌘O, the toolbar button and a pinch: opens the palette on the tabs, or closes it.
+    func toggleTabOverview() {
+        if isTabOverviewVisible {
+            isCommandPaletteVisible = false
+        } else {
+            commandPaletteScope = .tabs
+            isCommandPaletteVisible = true
+        }
+    }
     /// The inspector's details. Showing them puts the notification history away, so any request
     /// for details (a double-click, JSON, a cell) lands on the details.
     var showInfoSidebar = false {
@@ -59,8 +77,6 @@ import SwiftUI
     }
     /// Whether the Explorer tree shows beside the rail (⌃⌘S). The rail always shows.
     var isWorkspaceTreeVisible = true
-    /// The server whose tree is peeking out over the cards while the tree is hidden.
-    var peekedServerID: UUID?
     var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
 
     // MARK: - Query State

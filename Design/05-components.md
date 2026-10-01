@@ -113,16 +113,9 @@ Each section lists the rules for one part of Echo. Items marked **Open** have a 
 
 ## Tab overview (open queries)
 
-- The tab overview is Echo's "open queries" view. *Decided.*
-- It opens from a toolbar button, with a trackpad pinch and ⇧⌘O. *Decided.*
-- Look:
-  - a slim header, then tabs grouped by server, active server first;
-  - calm cards with live running state (timer and stop);
-  - no gradient hero.
-
-  *Decided.*
-- Motion: the active tab zooms out into its card, and picking a card zooms back in. *Decided.*
-- Group by the tab's current database, not the connection's default. *Decided.*
+- **The tab overview is a scope of the ⌘K palette** (round 35.1, TO6, owner 2026-10-01): no full-window grid. Typing "Tab Overview" in ⌘K (a row that keeps the palette open), ⇧⌘O, the toolbar's overview button and a trackpad pinch in turn the palette to **this window's tabs** (OS0). *Decided.* Replaces the grouped card grid (O1 to O3) and its Comfortable/Compact style setting.
+- **What it is for (OR1):** seeing everything that's open and what state it's in. Each row: the kind's icon, the title (semibold for the front tab), the database (or the tool's name and database), a pin if pinned, and on the right a status dot and word, live: Running 0:12 (orange), Failed (red), N rows (green), Cancelled or Not run (grey). Tabs group under their server's name with a count, servers in strip order; rows keep strip order while you type. *Decided.*
+- **Keys (owner's note):** ↑↓ move, ↩ or a click goes to the tab and closes the palette; **⌫ closes the selected tab** (while nothing is typed; ⌘⌫ always), **⌘D duplicates it**, **⌥⌫ closes the others**; the palette stays open after these. ⎋ or a click outside closes it. The hint line lists them. *Decided.*
 
 ## Editor card
 

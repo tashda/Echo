@@ -265,7 +265,7 @@ struct AppStateTests {
         #expect(state.currentError == nil)
         #expect(state.showingError == false)
         #expect(state.activeSheet == nil)
-        #expect(state.showTabOverview == false)
+        #expect(state.isTabOverviewVisible == false)
         #expect(state.showInfoSidebar == false)
         #expect(state.isQueryRunning == false)
         #expect(state.isConnecting == false)

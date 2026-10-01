@@ -99,11 +99,12 @@ struct ViewMenuCommands: Commands {
 
             Divider()
 
+            // Round 35.1 (TO6): the tab overview is the ⌘K palette showing this window's tabs.
             Button {
-                appState.showTabOverview.toggle()
+                appState.toggleTabOverview()
             } label: {
                 Label(
-                    appState.showTabOverview ? "Hide Tab Overview" : "Show Tab Overview",
+                    appState.isTabOverviewVisible ? "Hide Tab Overview" : "Show Tab Overview",
                     systemImage: "square.grid.2x2"
                 )
             }

@@ -2775,6 +2775,10 @@
       {
         "date": "2026-10-01T14:34:20Z",
         "text": "Taken by tabs-agent"
+      },
+      {
+        "date": "2026-10-01T14:55:40Z",
+        "text": "Built into Echo: the tab overview is now the \u2318K palette turned to this window's tabs (a 'Tab Overview' row in \u2318K, \u21e7\u2318O, the toolbar button, a pinch in). Rows grouped by server with a live state (Running m:ss, Failed, N rows, Not run). \u232b closes the selected tab while nothing is typed (\u2318\u232b always), \u2318D duplicates, \u2325\u232b closes the others; the palette stays open. The full-window grid and its style setting are removed. Tabs As built: spec part 7 (TABS-7.1 to 7.4)."
       }
     ],
     "needsMore": [],
@@ -2789,12 +2793,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "tabs-agent",
-      "date": "2026-10-01T14:34:20Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.tree-tool-rows-r38": {

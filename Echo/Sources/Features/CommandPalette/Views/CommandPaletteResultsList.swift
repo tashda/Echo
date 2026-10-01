@@ -57,7 +57,7 @@ struct CommandPaletteResultsList: View {
     private func row(_ item: CommandPaletteItem, isSelected: Bool) -> some View {
         Button {
             item.perform()
-            onPerform()
+            if !item.keepsPaletteOpen { onPerform() }
         } label: {
             HStack(spacing: SpacingTokens.xs) {
                 Image(systemName: item.systemImage)

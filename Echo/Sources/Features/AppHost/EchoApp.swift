@@ -175,9 +175,6 @@ struct QueryCommands: Commands {
             Button(action: {
                 guard navigationStore.isWorkspaceWindowKey else { return }
                 tabStore.activateNextTab()
-                if appState.showTabOverview {
-                    appState.showTabOverview = false
-                }
             }) {
                 Label("Next Tab", systemImage: "chevron.right.square")
             }
@@ -186,9 +183,6 @@ struct QueryCommands: Commands {
             Button(action: {
                 guard navigationStore.isWorkspaceWindowKey else { return }
                 tabStore.activatePreviousTab()
-                if appState.showTabOverview {
-                    appState.showTabOverview = false
-                }
             }) {
                 Label("Previous Tab", systemImage: "chevron.left.square")
             }
@@ -196,11 +190,7 @@ struct QueryCommands: Commands {
 
             Button(action: {
                 guard navigationStore.isWorkspaceWindowKey else { return }
-                if tabStore.reopenLastClosedTab(activate: true) != nil {
-                    if appState.showTabOverview {
-                        appState.showTabOverview = false
-                    }
-                }
+                _ = tabStore.reopenLastClosedTab(activate: true)
             }) {
                 Label("Reopen Closed Tab", systemImage: "arrow.uturn.backward.square")
             }

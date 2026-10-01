@@ -216,6 +216,7 @@ Rules: `03-materials`, `05-components` › Notifications, Floating cards.
 | O1 | Toolbar button and trackpad pinch to open. | Toolbar, container | Both open it | ☑ built, 👁 pending |
 | O2 | Slim header; stable server order (active server first); grouped by the active database; live running timer and stop; implement or remove "Move to". | `TabOverview/*` | 👁 | ☑ built, 👁 pending. "Move to" became Switch Database on the tab's own server; a tab can't change server |
 | O3 | Zoom: the active tab shrinks into its card, and picking a card zooms back in. | Container | 👁 | ☑ built, 👁 pending. A scale-and-fade approximation, not a matched zoom into the card |
+| O4 | **Round 35.1 (TO6, OR1, OS0):** the overview becomes a scope of the ⌘K palette: a "Tab Overview" row, ⇧⌘O, the toolbar button and a pinch open it on this window's tabs, grouped by server with a live status; ⌫ / ⌘⌫ close, ⌘D duplicates, ⌥⌫ closes the others. The grid (`TabOverview/*`, `TabOverviewStyle`) is removed; O1 to O3 are superseded. | `CommandPalette/*` (`TabOverviewPaletteList`, `+TabOverview`, `TabOverviewEntry`, `TabOverviewStatus`), `AppState.toggleTabOverview` | Tabs and their states show; the keys act on the selected tab 👁 | ☑ built (`TabOverviewPaletteTests`), 👁 pending |
 
 ### Notes from building it (Phase 8)
 

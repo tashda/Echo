@@ -4,16 +4,17 @@ import SwiftUI
 /// Tabs" with a count and Collapse All / Expand All; each server in large bold with a tab-count
 /// capsule; a tinted band per database; UPPERCASE kind headings (QUERIES 2, JOBS 1); cards with the
 /// SQL on a blue gradient and status chips. The owner finds it hideous and wants many different
-/// ways of looking at it. Pages 35.2 to 35.4 decide the card, grouping and motion.
+/// ways of looking at it. Accepted 2026-10-01: TO6, the palette, built as a scope of ⌘K; the page
+/// is trimmed to it.
 @MainActor
 enum TabOverviewDirectionRound {
     static let spec = RoundSpec(
         controls: [
             .of("thumbnail", "Card picture", LabTOThumbnail.self, default: .snapshot),
         ],
-        exhibits: LabTODirection.allCases.map { direction in
+        exhibits: [LabTODirection.palette].map { direction in
             RoundSpec.Exhibit(id: "\(direction)", title: direction.rawValue, summary: direction.summary,
-                              isEchoToday: direction == .today, isWide: true, designWidth: 760, designHeight: 470) { values in
+                              isEchoToday: true, isWide: true, designWidth: 760, designHeight: 470) { values in
                 LabTODirectionView(direction: direction, thumbnail: LabTOThumbnail(rawValue: values["thumbnail"]) ?? .snapshot)
             }
         },
@@ -36,8 +37,8 @@ enum TabOverviewDirectionRound {
                   recommended: "window",
                   why: "Tabs live in a window's strip; showing another window's tabs and then moving you there is surprising. Revisit when Echo has more than one window in daily use."),
         ],
-        exhibitTopic: ("Which direction?", "Look at each direction with the same nine tabs. Which should the overview become?", "\(LabTODirection.grid)",
-                       "Safari's grid is the one people already know on the Mac: big snapshots you recognise by shape, one quiet heading per server, nothing to expand or collapse. It drops the three levels of grouping (server, database, kind) that make today's view busy, and still reads at 30 tabs. The list (TO3) is the runner-up if you mostly have many similar query tabs."),
+        exhibitTopic: ("Which direction?", "Accepted: the palette (TO6), built into Echo as the ⌘K palette's tab scope with ⌫, ⌘D and ⌥⌫.", "\(LabTODirection.palette)",
+                       "The owner's pick. It joins the ⌘K palette instead of taking a shortcut of its own, so search, actions and the tabs stay one place to learn."),
         presets: [
             .init(id: "recommended", name: "My recommendation", summary: "Snapshots of the whole tab.",
                   values: ["thumbnail": LabTOThumbnail.snapshot.rawValue], isRecommended: true),

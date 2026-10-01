@@ -66,7 +66,7 @@ struct WorkspaceTabContainerView: View {
         let stripInset = (WorkspaceChromeMetrics.tabStripTotalHeight - WorkspaceChromeMetrics.chromeBackgroundHeight) / 2
         // Cards are for content: with no tab open, the welcome (or the active server's page) sits
         // straight on the canvas, and the strip and card grow in once a tab opens.
-        let showsCanvasPage = tabStore.tabs.isEmpty && !appState.showTabOverview
+        let showsCanvasPage = tabStore.tabs.isEmpty
         let activeSession = environmentState.sessionGroup.activeSession
 
         Group {
@@ -91,35 +91,14 @@ struct WorkspaceTabContainerView: View {
 
                     // Tab content sits on an opaque card below the strip (Design/02-layout.md › Cards);
                     // query tabs draw two, editor over results.
-                    Group {
-                        if appState.showTabOverview {
-                            TabOverviewView(
-                                tabs: tabStore.tabs,
-                                activeTabId: tabStore.activeTabId,
-                                onSelectTab: { tabId in
-                                    tabStore.activeTabId = tabId
-                                    appState.showTabOverview = false
-                                },
-                                onCloseTab: { tabId in
-                                    tabStore.closeTab(id: tabId)
-                                }
-                            )
-                            .workspaceCard()
-                            // The overview zooms in from the tab, and the tab zooms back out of it (plan O3).
-                            .transition(.scale(scale: 1.04).combined(with: .opacity))
-                        } else {
-                            activeTabContainer
-                                .transition(.scale(scale: 0.94).combined(with: .opacity))
-                        }
-                    }
-                    .animation(motion.standard, value: appState.showTabOverview)
-                    .simultaneousGesture(overviewPinch)
-                    // A zero minimum keeps tall content (a long list, a big dashboard) from pushing
-                    // the window past its own edges; the card clips it instead.
-                    .frame(minWidth: SpacingTokens.none, maxWidth: .infinity, minHeight: SpacingTokens.none, maxHeight: .infinity)
-                    // Toasts sit in the top-right corner of the tab's first card, below the tab
-                    // bar: inside the editor card on a query tab (round 15).
-                    .toastOverlay()
+                    activeTabContainer
+                        .simultaneousGesture(overviewPinch)
+                        // A zero minimum keeps tall content (a long list, a big dashboard) from pushing
+                        // the window past its own edges; the card clips it instead.
+                        .frame(minWidth: SpacingTokens.none, maxWidth: .infinity, minHeight: SpacingTokens.none, maxHeight: .infinity)
+                        // Toasts sit in the top-right corner of the tab's first card, below the tab
+                        // bar: inside the editor card on a query tab (round 15).
+                        .toastOverlay()
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
@@ -127,17 +106,8 @@ struct WorkspaceTabContainerView: View {
         .frame(minWidth: SpacingTokens.none, maxWidth: .infinity, minHeight: SpacingTokens.none, maxHeight: .infinity)
         .toastOverlay(isActive: showsCanvasPage)
         .animation(motion.standard, value: showsCanvasPage)
-        .animation(.easeInOut(duration: 0.2), value: appState.showTabOverview)
-        .onChange(of: appState.showTabOverview) { _, _ in
-            WindowDragPause.pauseWorkspace(for: motion.settleDuration + 0.15)
-        }
         .onChange(of: showsCanvasPage) { _, _ in
             WindowDragPause.pauseWorkspace(for: motion.settleDuration + 0.15)
-        }
-        .onChange(of: tabStore.activeTabId) { _, _ in
-            if appState.showTabOverview {
-                appState.showTabOverview = false
-            }
         }
     }
 

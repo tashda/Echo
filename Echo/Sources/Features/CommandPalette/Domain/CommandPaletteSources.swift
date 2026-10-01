@@ -10,6 +10,8 @@ struct CommandPaletteSources {
     let connectionStore: ConnectionStore
     let navigationStore: NavigationStore
     let clipboardHistory: ClipboardHistoryStore
+    /// Turns the palette to this window's tabs (round 35.1).
+    let showTabOverview: @MainActor () -> Void
 
     /// Rows are built when the palette opens; history is capped so matching stays instant.
     static let historyLimit = 50
@@ -45,6 +47,15 @@ struct CommandPaletteSources {
     private func actionItems() -> [CommandPaletteItem] {
         var items: [CommandPaletteItem] = []
         let environmentState = environmentState
+
+        // Round 35.1 (TO6): the tab overview lives in the palette; this row turns it to the tabs.
+        if tabStore.hasTabs {
+            items.append(CommandPaletteItem(
+                id: "tabOverview", section: .actions, title: "Tab Overview", subtitle: "⇧⌘O",
+                systemImage: "square.grid.2x2", keywords: "show all open tabs", keepsPaletteOpen: true,
+                perform: showTabOverview
+            ))
+        }
 
         if let tab = tabStore.activeTab, tab.query != nil {
             for mode in QueryRunMode.allCases where tab.canRun(mode) {

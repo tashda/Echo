@@ -2,6 +2,16 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 35.1 accepted: the tab overview becomes the ⌘K palette
+
+Echo Labs › Tabs › Tab overview: the direction · round 35.1. Asked: the overview looked hideous. The owner picked TO6 over the recommended TO1 (Safari's grid), and took OR1 and OS0. Follow-up in chat: ⌘K stays the Command Palette; the overview is a feature inside it.
+
+- **Direction (TO6):** no full-window view. The tab overview is **the ⌘K palette turned to this window's tabs**: a "Tab Overview" row in ⌘K, ⇧⌘O, the toolbar's overview button and a pinch open it there. The grouped grid, its pinch-out, and the Tab Overview style setting are removed (owner: "Remove it"). → `05-components` › Tab overview, plan O4
+- **For (OR1):** each row shows the tab's state live (Running 0:12, Failed, N rows, Not run), grouped by server.
+- **Keys (owner's note):** ⌫ closes the selected tab while nothing is typed (⌘⌫ always), ⌘D duplicates, ⌥⌫ closes the others; the palette stays open. Run/stop from the palette was offered and not taken.
+- **Which tabs (OS0):** this window's only.
+- Pages 35.2 to 35.4 (card, grouping and order, opening and closing) were written for a full-window overview; see their status in Echo Labs.
+
 ## 2026-10-01 · Round 30.1 accepted: the server header in the server's colour
 
 Echo Labs › Explorer tree › Server card: the header · round 30.1, revision 2. The owner's picks where they differ from the recommendation are marked. Built in 5be677fc.

@@ -24,21 +24,22 @@ struct InspectorToolbarButton: View {
     }
 }
 
-/// Opens and closes the tab overview (plan O1); ⇧⌘O and a trackpad pinch do the same.
+/// Opens and closes the tab overview, the ⌘K palette on this window's tabs (round 35.1); ⇧⌘O and
+/// a trackpad pinch do the same.
 struct TabOverviewToolbarButton: View {
     @Environment(AppState.self) private var appState
     @Environment(TabStore.self) private var tabStore
 
     var body: some View {
         Button {
-            appState.showTabOverview.toggle()
+            appState.toggleTabOverview()
         } label: {
-            Label(appState.showTabOverview ? "Hide Tab Overview" : "Show Tab Overview", systemImage: "square.grid.2x2")
-                .symbolVariant(appState.showTabOverview ? .fill : .none)
+            Label(appState.isTabOverviewVisible ? "Hide Tab Overview" : "Show Tab Overview", systemImage: "square.grid.2x2")
+                .symbolVariant(appState.isTabOverviewVisible ? .fill : .none)
         }
         .labelStyle(.iconOnly)
-        .disabled(!tabStore.hasTabs && !appState.showTabOverview)
-        .help(appState.showTabOverview ? "Hide Tab Overview (⇧⌘O)" : "Show Tab Overview (⇧⌘O)")
+        .disabled(!tabStore.hasTabs && !appState.isTabOverviewVisible)
+        .help(appState.isTabOverviewVisible ? "Hide Tab Overview (⇧⌘O)" : "Show Tab Overview (⇧⌘O)")
     }
 }
 

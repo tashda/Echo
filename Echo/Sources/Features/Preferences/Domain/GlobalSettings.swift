@@ -129,7 +129,6 @@ struct GlobalSettings: Codable, Hashable {
     var accentColorSource: AccentColorSource
     var customAccentColorHex: String?
     var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
-    var tabOverviewStyle: TabOverviewStyle = .comfortable
     var resultsAlternateRowShading: Bool = false
     var resultsShowRowNumbers: Bool = true
     var resultGridColorOverrides: ResultGridColorOverrides = .init()
@@ -257,7 +256,7 @@ struct GlobalSettings: Codable, Hashable {
         case editorOutlineEdge
         case editorGhostTextCompletion
         case useServerColorAsAccent, accentColorSource, customAccentColorHex
-        case workspaceTabBarStyle, tabOverviewStyle
+        case workspaceTabBarStyle
         case resultsAlternateRowShading, resultsShowRowNumbers, resultGridColorOverrides
         case showForeignKeysInInspector, showJsonInInspector
         case resultsInitialRowLimit
@@ -344,7 +343,6 @@ struct GlobalSettings: Codable, Hashable {
         }
         customAccentColorHex = try container.decodeIfPresent(String.self, forKey: .customAccentColorHex)
         workspaceTabBarStyle = try container.decodeIfPresent(WorkspaceTabBarStyle.self, forKey: .workspaceTabBarStyle) ?? .floating
-        tabOverviewStyle = try container.decodeIfPresent(TabOverviewStyle.self, forKey: .tabOverviewStyle) ?? .comfortable
         resultsAlternateRowShading = try container.decodeIfPresent(Bool.self, forKey: .resultsAlternateRowShading) ?? false
         resultsShowRowNumbers = try container.decodeIfPresent(Bool.self, forKey: .resultsShowRowNumbers) ?? true
         resultGridColorOverrides = try container.decodeIfPresent(ResultGridColorOverrides.self, forKey: .resultGridColorOverrides) ?? .init()
@@ -467,7 +465,6 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(accentColorSource, forKey: .accentColorSource)
         try container.encodeIfPresent(customAccentColorHex, forKey: .customAccentColorHex)
         try container.encode(workspaceTabBarStyle, forKey: .workspaceTabBarStyle)
-        try container.encode(tabOverviewStyle, forKey: .tabOverviewStyle)
         try container.encode(resultsAlternateRowShading, forKey: .resultsAlternateRowShading)
         try container.encode(resultsShowRowNumbers, forKey: .resultsShowRowNumbers)
         try container.encode(resultGridColorOverrides, forKey: .resultGridColorOverrides)

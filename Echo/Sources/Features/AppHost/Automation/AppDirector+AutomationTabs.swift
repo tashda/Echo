@@ -40,7 +40,7 @@ extension AppDirector {
             switch step.target {
             case "sidebar": appState.isWorkspaceTreeVisible.toggle()
             case "inspector": appState.showInfoSidebar.toggle()
-            case "overview": appState.showTabOverview.toggle()
+            case "overview": appState.toggleTabOverview()
             default: break
             }
         default:

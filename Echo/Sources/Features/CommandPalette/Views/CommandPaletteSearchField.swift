@@ -3,13 +3,21 @@ import SwiftUI
 
 /// The ⌘K palette's field (plan K4): an AppKit text field, so it takes the keyboard the moment the
 /// palette opens, whatever had focus, and so ↑ ↓ (and ⌃P ⌃N, ⇥ ⇧⇥) move the selection while
-/// Return performs it and Esc closes.
+/// Return performs it and Esc closes. In the tab overview, ⌫ ⌘⌫ ⌥⌫ and ⌘D act on the selected tab
+/// (round 35.1) when `onKeyCommand` takes them.
 struct CommandPaletteSearchField: NSViewRepresentable {
+    /// Keys the field offers before acting on the text.
+    enum KeyCommand: Equatable {
+        case deleteBackward, deleteToLineStart, deleteWordBackward, duplicate
+    }
+
     @Binding var text: String
     let placeholder: String
     let onMove: (Int) -> Void
     let onSubmit: () -> Void
     let onCancel: () -> Void
+    /// Returns whether it handled the key; if not, the field edits the text as usual.
+    var onKeyCommand: (KeyCommand) -> Bool = { _ in false }
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
@@ -24,12 +32,16 @@ struct CommandPaletteSearchField: NSViewRepresentable {
         field.cell?.lineBreakMode = .byTruncatingTail
         field.delegate = context.coordinator
         field.stringValue = text
+        field.onDuplicate = { [weak coordinator = context.coordinator] in
+            coordinator?.parent.onKeyCommand(.duplicate) ?? false
+        }
         return field
     }
 
     func updateNSView(_ field: FocusingTextField, context: Context) {
         context.coordinator.parent = self
         if field.stringValue != text { field.stringValue = text }
+        if field.placeholderString != placeholder { field.placeholderString = placeholder }
     }
 
     @MainActor
@@ -53,6 +65,12 @@ struct CommandPaletteSearchField: NSViewRepresentable {
                 parent.onSubmit()
             case #selector(NSResponder.cancelOperation(_:)):
                 parent.onCancel()
+            case #selector(NSResponder.deleteBackward(_:)):
+                return parent.onKeyCommand(.deleteBackward)
+            case #selector(NSResponder.deleteToBeginningOfLine(_:)):
+                return parent.onKeyCommand(.deleteToLineStart)
+            case #selector(NSResponder.deleteWordBackward(_:)):
+                return parent.onKeyCommand(.deleteWordBackward)
             default:
                 return false
             }
@@ -63,6 +81,17 @@ struct CommandPaletteSearchField: NSViewRepresentable {
 
 /// Becomes first responder as soon as it's in a window.
 final class FocusingTextField: NSTextField {
+    /// ⌘D, offered before the menus see it; returns whether it was handled.
+    var onDuplicate: () -> Bool = { false }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+           event.charactersIgnoringModifiers == "d", onDuplicate() {
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         guard let window else { return }

@@ -19,7 +19,7 @@ enum LabTODirection: String, CaseIterable {
         case .list: "One row per tab with its first line of SQL, status and when; a search field on top. Fastest with many tabs."
         case .stacks: "A database's tabs fan out like a stack of papers; click a stack to spread it."
         case .timeline: "Now, Earlier today, Older: cards in rows by when you last looked at them, whatever their server."
-        case .palette: "No full-screen view: a glass panel with a search field and the tabs, over the dimmed tab (⇧⌘O)."
+        case .palette: "No full-screen view: the ⌘K palette turned to this window's tabs (\"Tab Overview\", ⇧⌘O), over the dimmed tab. ⌫ closes, ⌘D duplicates, ⌥⌫ closes the others."
         case .sidebar: "Like Mail: servers and databases with counts on the left, the selected one's cards on the right."
         }
     }
@@ -131,15 +131,19 @@ struct LabTODirectionView: View {
             ColorTokens.Workspace.canvas.opacity(0.4)
             VStack(spacing: SpacingTokens.none) {
                 HStack {
-                    Image(systemName: "magnifyingglass").foregroundStyle(ColorTokens.Text.secondary)
-                    Text("Go to tab").foregroundStyle(ColorTokens.Text.tertiary)
+                    Image(systemName: "square.grid.2x2").foregroundStyle(ColorTokens.Text.secondary)
+                    Text("Tab Overview: search this window's tabs").foregroundStyle(ColorTokens.Text.tertiary)
                     Spacer()
-                    Text("⇧⌘O").font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
                 }
                 .font(TypographyTokens.prominent)
                 .padding(SpacingTokens.sm)
-                Divider()
                 LabTOList(tabs: tabs, compact: true, showsSearch: false)
+                HStack(spacing: SpacingTokens.sm) {
+                    Text("↩ Go to Tab"); Text("⌫ Close Tab"); Text("⌘D Duplicate"); Text("⌥⌫ Close Others"); Text("⎋ Done")
+                    Spacer()
+                }
+                .font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
+                .padding(SpacingTokens.sm)
             }
             .frame(width: 440, height: 360)
             .glassEffect(.regular, in: .rect(cornerRadius: SpacingTokens.md2))

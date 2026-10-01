@@ -6,6 +6,7 @@ import SwiftUI
 enum TabsArea {
     private static let model = TabsSpecimenModel()
     private static let files = "Echo/Sources/Features/AppHost/Views/Tabs/TabStrip/"
+    private static let palette = "Echo/Sources/Features/CommandPalette/"
 
     static let area = LabArea(
         id: "tabs",
@@ -14,7 +15,7 @@ enum TabsArea {
         summary: "Safari-style tabs on one line: a grey plate with a raised white active tab, a glass + at the end, and a tool's pages unfolding inside its own tab.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "ef1c3bba", date: "2026-10-01",
+                level: .code, commit: "6061e5e5", date: "2026-10-01",
                 note: "Read from QueryTabStrip, QueryTabButton (+Title, +CloseButton, +Appearance), TabPageChips and the tab tokens. The specimen is drawn with the same tokens and metrics."),
             stageHeight: 150,
             behaviours: [
@@ -27,6 +28,7 @@ enum TabsArea {
                 .init(trigger: "Click +", result: "Opens a new query tab."),
                 .init(trigger: "Open a tool with pages", result: "The active tool tab widens and shows its pages as chips after its title; the other tabs share what is left."),
                 .init(trigger: "Drag a tab", result: "It follows the pointer; the others make room; separators next to it hide."),
+                .init(trigger: "⇧⌘O, the overview button, a pinch in, or \"Tab Overview\" in ⌘K", result: "The ⌘K palette turns to this window's tabs, grouped by server, each with its live state (round 35.1). ↩ goes to the tab; ⌫ closes it, ⌘D duplicates it, ⌥⌫ closes the others, and the palette stays open."),
             ],
             motions: [
                 .init(name: "Unfold pages", curve: "snappy, extra bounce 0.06", duration: "0.32s", note: "QueryTabStrip.unfoldAnimation; only when the unfolded tab changes, not on a plain switch"),
@@ -60,7 +62,8 @@ enum TabsArea {
                       why: "Replaces the segmented control at the top of tool tabs.",
                       rounds: ["ported.Round 14 · tab bar and pages"]),
             ],
-            code: [files, files + "QueryTabButton*.swift", files + "TabPageChips.swift", "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Tokens/ColorToken.swift"]
+            code: [files, files + "QueryTabButton*.swift", files + "TabPageChips.swift", "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Tokens/ColorToken.swift",
+                   palette + "Views/TabOverviewPaletteList.swift", palette + "Views/TabOverviewPaletteRow.swift", palette + "Views/CommandPaletteCard+TabOverview.swift"]
         ) {
             TabsSpecimen(model: model)
         },
@@ -191,6 +194,27 @@ enum TabsArea {
         ]),
         SpecPart(number: "6", name: "Not built", summary: "Things the plan mentioned that Echo does not do (yet).", elements: [
             SpecElement(number: "6.1", name: "Collapse inactive tabs to icons", summary: "Plan B3: a minimum tab width, then inactive tabs shrink to their icon. Not in the code; tabs only get narrower.", isRetired: true),
+        ]),
+        SpecPart(number: "7", name: "Tab overview", summary: "The ⌘K palette turned to this window's tabs (round 35.1, TO6). The full-window grid is gone.", elements: [
+            SpecElement(number: "7.1", name: "Opening", summary: "A \"Tab Overview\" row in ⌘K (it keeps the palette open), ⇧⌘O, the toolbar's overview button and a trackpad pinch in (below 0.8). Esc or a click outside closes it.", groups: [
+                .behaviour(.row("Which tabs", "this window's (OS0)"), .row("Placeholder", "Tab Overview: search this window's tabs"),
+                           .row("Field symbol", "square.grid.2x2")),
+            ], rounds: ["ongoing.tab-overview-direction-r35"], files: [palette + "Views/CommandPaletteCard.swift", "Echo/Sources/Features/AppHost/Domain/State/AppState.swift"]),
+            SpecElement(number: "7.2", name: "Tab row", summary: "The kind's icon, the title (semibold for the front tab), the database or the tool's name, a pin, and the state on the right.", groups: [
+                .layout(.row("Row height", "28pt", token: "LayoutTokens.FloatingSurface.rowHeight"),
+                        .row("Selected fill", "the tree's selection, 10pt corners", token: "ColorTokens.Sidebar.selectedFill / FloatingSurface.rowCornerRadius"),
+                        .row("Status dot", "6pt", token: "SpacingTokens.xxs2")),
+                .type(.row("Title", "13pt", token: "TypographyTokens.standard"), .row("Database and state", "11pt", token: "TypographyTokens.detail")),
+                .states(.row("Running", "orange, Running m:ss", token: "Status.warning"), .row("Failed", "red", token: "Status.error"),
+                        .row("Rows", "green, N rows", token: "Status.success"), .row("Not run, Cancelled", "grey", token: "Text.tertiary")),
+            ], rounds: ["ongoing.tab-overview-direction-r35"], files: [palette + "Views/TabOverviewPaletteRow.swift", palette + "Domain/TabOverviewStatus.swift"]),
+            SpecElement(number: "7.3", name: "Grouping and search", summary: "Under each server's name with a count, servers in strip order; typing filters by title, server, database and the SQL's first line, keeping strip order.", groups: [
+                .layout(.row("Server heading", "11pt semibold, 22pt high", token: "LayoutTokens.CommandPalette.sectionHeaderHeight"),
+                        .row("List", "up to 360pt, then scrolls", token: "LayoutTokens.CommandPalette.listMaxHeight")),
+            ], rounds: ["ongoing.tab-overview-direction-r35"], files: [palette + "Views/TabOverviewPaletteList.swift", palette + "Domain/TabOverviewEntry.swift"]),
+            SpecElement(number: "7.4", name: "Keys", summary: "↑↓ move; ↩ or a click goes to the tab. ⌫ closes the selected tab while nothing is typed, ⌘⌫ always; ⌘D duplicates; ⌥⌫ closes the others. The selection moves to the next row; the hint line lists the keys.", groups: [
+                .behaviour(.row("After a key", "the palette stays open"), .row("Closing refused", "unsaved work keeps the tab and the selection")),
+            ], rounds: ["ongoing.tab-overview-direction-r35"], files: [palette + "Views/CommandPaletteCard+TabOverview.swift", palette + "Views/CommandPaletteSearchField.swift"]),
         ]),
     ]
 }

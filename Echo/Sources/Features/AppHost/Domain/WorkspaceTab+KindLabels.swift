@@ -1,24 +1,6 @@
-import SwiftUI
+import Foundation
 
-struct ServerGroup: Identifiable {
-    let connection: SavedConnection
-    let databaseGroups: [String: DatabaseGroup]
-    let totalTabCount: Int
-    var id: UUID { connection.id }
-}
-
-struct DatabaseGroup: Identifiable {
-    let databaseName: String
-    let sections: [SectionGroup]
-    var id: String { databaseName }
-}
-
-struct SectionGroup: Identifiable {
-    let kind: WorkspaceTab.Kind
-    let tabs: [WorkspaceTab]
-    var id: String { kind.displayName }
-}
-
+/// What a tab kind is called and its symbol, in the tab strip and the tab overview (round 35.1).
 extension WorkspaceTab.Kind {
     var displayName: String {
         switch self {

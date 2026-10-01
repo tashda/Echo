@@ -62,13 +62,14 @@ final class CommandPaletteModel {
         selectedID = id
     }
 
-    /// Performs the selected row; returns whether there was one.
+    /// Performs the selected row; returns whether the palette should close.
     @discardableResult
     func performSelected() -> Bool {
         let rows = results
         guard !rows.isEmpty else { return false }
-        rows[selectedIndex(in: rows)].perform()
-        return true
+        let item = rows[selectedIndex(in: rows)]
+        item.perform()
+        return !item.keepsPaletteOpen
     }
 
     func reset() {
