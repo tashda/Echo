@@ -50,6 +50,10 @@ struct ScenarioExpectationEditor: View {
 
     @ViewBuilder
     private var suggests: some View {
+        if scenario.popup != nil {
+            Label("This scenario's popup is judged by its block rule, not by the titles below. Change the rule in Test › Popup Referee.", systemImage: "flag.checkered")
+                .font(TypographyTokens.detail).foregroundStyle(ColorTokens.Status.warning)
+        }
         Picker("Order", selection: order) {
             Text("These first, in this order").tag(EchoSenseExpectation.Order.leading)
             Text("Exactly these, in this order").tag(EchoSenseExpectation.Order.exact)

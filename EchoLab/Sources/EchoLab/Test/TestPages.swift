@@ -37,6 +37,15 @@ enum TestPages {
             ownsHeader: true
         ) { ScenariosTestPage() },
         LabPage(
+            id: "test.referee",
+            section: .test,
+            group: "EchoSense",
+            title: "Popup Referee",
+            symbol: "flag.checkered",
+            summary: "The scenarios as a game against the live engine: set the rule from blocks, see the real popup with every row's kind, and call whether it follows the rule.",
+            ownsHeader: true
+        ) { RefereePage() },
+        LabPage(
             id: "test.tryquery",
             section: .test,
             group: "EchoSense",
