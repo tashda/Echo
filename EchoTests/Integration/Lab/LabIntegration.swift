@@ -14,9 +14,15 @@ enum LabRecipes {
 
     /// The SQL Server version the SQL Server suites run on: `ECHO_LAB_SQLSERVER_VERSION` (2017,
     /// 2019, 2022 or 2025; the SQLServerVersions plan sets it per configuration), else 2022.
+    /// The AdventureWorks server follows the version only.
     static let sqlServerVersion = ProcessInfo.processInfo.environment["ECHO_LAB_SQLSERVER_VERSION"] ?? "2022"
-    /// SQL Server with Agent on and nothing added.
-    static var sqlServer: String { "mssql-\(sqlServerVersion)-agent" }
+    /// An older database compatibility level for that server (100, 110, 120 or 130, only with
+    /// 2017): `ECHO_LAB_SQLSERVER_COMPAT`, set by the SQLServerVersions plan.
+    static let sqlServerCompatibilityLevel = ProcessInfo.processInfo.environment["ECHO_LAB_SQLSERVER_COMPAT"]
+    /// SQL Server with Agent on and nothing added (at the compatibility level, when one is set).
+    static var sqlServer: String {
+        "mssql-\(sqlServerVersion)-agent" + (sqlServerCompatibilityLevel.map { "-compat-\($0)" } ?? "")
+    }
     /// SQL Server with AdventureWorks, AdventureWorksLT and AdventureWorksDW.
     static var sqlServerSamples: String { "mssql-\(sqlServerVersion)-adventureworks" }
 }

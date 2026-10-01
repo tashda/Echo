@@ -63,6 +63,86 @@
           }
         ]
       }
+    },
+    {
+      "id" : "50FDE967-C44F-459B-BFB8-8570D8439A12",
+      "name" : "SQL Server 2017 at level 100 (2008)",
+      "options" : {
+        "environmentVariableEntries" : [
+          {
+            "key" : "SERVERLAB_INTEGRATION",
+            "value" : "1"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_VERSION",
+            "value" : "2017"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_COMPAT",
+            "value" : "100"
+          }
+        ]
+      }
+    },
+    {
+      "id" : "1D32DDE0-FB71-42A2-890B-62BE45705FBC",
+      "name" : "SQL Server 2017 at level 110 (2012)",
+      "options" : {
+        "environmentVariableEntries" : [
+          {
+            "key" : "SERVERLAB_INTEGRATION",
+            "value" : "1"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_VERSION",
+            "value" : "2017"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_COMPAT",
+            "value" : "110"
+          }
+        ]
+      }
+    },
+    {
+      "id" : "0813DFBC-6822-443B-ABE7-46224FF94004",
+      "name" : "SQL Server 2017 at level 120 (2014)",
+      "options" : {
+        "environmentVariableEntries" : [
+          {
+            "key" : "SERVERLAB_INTEGRATION",
+            "value" : "1"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_VERSION",
+            "value" : "2017"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_COMPAT",
+            "value" : "120"
+          }
+        ]
+      }
+    },
+    {
+      "id" : "44955D54-A826-429B-B145-FDFDD3D0DE94",
+      "name" : "SQL Server 2017 at level 130 (2016)",
+      "options" : {
+        "environmentVariableEntries" : [
+          {
+            "key" : "SERVERLAB_INTEGRATION",
+            "value" : "1"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_VERSION",
+            "value" : "2017"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_COMPAT",
+            "value" : "130"
+          }
+        ]
+      }
     }
   ],
   "defaultOptions" : {
