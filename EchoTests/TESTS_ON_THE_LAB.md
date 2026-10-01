@@ -41,12 +41,12 @@ below were made by the owner (2026-10-01). Failures the lab suites found are in
   `EchoTests/Integration/Postgres/` and `PostgresDockerTestCase`, which still use
   `EchoDockerManager`; the Postgres version matrix; `PostgresStreamingBenchmarkTests` (needs a
   recipe with a large table).
-- **Raw SQL setup** in the SQL Server suites (about 500 statements) moves to recipes or typed
-  sqlserver-nio APIs file by file.
-- **Still to remove:** the old plans (IntegrationTests, MSSQLCompatibilityTests,
-  PostgresCompatibilityTests, SQLiteIntegrationTests), the self-hosted runner's workflows and
-  scripts (runner-health, bootstrap-db-fixtures, setup-test-server, run-full-local-ci), once CI
-  (Full) is green with the lab job.
+- **SQL Server content** is made through sqlserver-nio in each suite's scratch database; the SQL
+  text left is what a user types in a query tab, plus two driver gaps (GS-03 compressed tables,
+  tashda/sqlserver-nio#15; GS-41 finishing a restore, tashda/sqlserver-nio#16).
+- **Removed:** the old plans (IntegrationTests, MSSQLCompatibilityTests,
+  PostgresCompatibilityTests, SQLiteIntegrationTests) and the self-hosted runner's workflow and
+  scripts. `EchoDockerManager` and `.ci-fixtures` stay until the disabled Postgres files move.
 
 ## Decisions
 
