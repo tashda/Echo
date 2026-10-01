@@ -18,6 +18,7 @@ struct QueryInputSection: View {
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(AppearanceStore.self) private var appearanceStore
     @Environment(\.cardFooterRestsInCard) private var footerRestsInCard
+    @Environment(\.cardFooterOverlayHeight) private var footerOverlayHeight
     @Environment(\.cardHiddenBottom) private var cardHiddenBottom
     @Environment(\.echoMotion) private var motion
     private let sqlHelpProvider = SQLHelpInspectorContentProvider()
@@ -45,7 +46,10 @@ struct QueryInputSection: View {
     private let leadingPadding: CGFloat = SpacingTokens.none
     private let trailingPadding: CGFloat = SpacingTokens.md1
     private let topPadding: CGFloat = 0
-    private let bottomPadding: CGFloat = SpacingTokens.md2
+    /// The text runs to the card's edge, under the bottom's material (owner, after round 44);
+    /// the footer's room keeps the last line above the pills, as in the results grid.
+    private let bottomPadding: CGFloat = SpacingTokens.none
+    private let footerRoom = LayoutTokens.Footer.height + LayoutTokens.Footer.bottomLift
 
     var body: some View {
         let resolvedTheme = editorTheme
@@ -78,11 +82,20 @@ struct QueryInputSection: View {
             resultStatementRange: query.highlightedStatementRange,
             onZoomStep: { query.editorZoom = EditorZoom.step(query.editorZoom, by: $0) }
         )
+        .environment(\.cardFooterOverlayHeight, footerRoom)
         .padding(.leading, leadingPadding)
         .padding(.trailing, trailingPadding)
         .padding(.top, topPadding)
         .padding(.bottom, bottomPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .overlay(alignment: .bottom) {
+            // With the results in their own card, the editor's bottom softens as theirs does
+            // (owner, after round 44); without them the footer brings its own.
+            if footerOverlayHeight == 0 {
+                FooterMaterialBlur()
+                    .padding(.bottom, cardHiddenBottom)
+            }
+        }
         .overlay(alignment: .bottomLeading) {
             EditorZoomControl(zoom: $query.editorZoom)
                 .padding(.leading, EditorZoomControl.leadingInset)

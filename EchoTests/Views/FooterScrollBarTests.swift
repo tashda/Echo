@@ -133,4 +133,10 @@ struct FooterMaterialBlurTests {
         let reach = LayoutTokens.Footer.height + LayoutTokens.Footer.bottomLift + LayoutTokens.EdgeBlur.materialReach
         #expect(reach > LayoutTokens.Footer.scrollBarBottom + LayoutTokens.Footer.overlayThumbMaxHeight)
     }
+
+    /// Every card's bottom gets the same material, with a footer or without.
+    @Test func everyCardBottomIsTheSameHeight() {
+        #expect(FooterMaterialBlur.cardBottomHeight
+                == LayoutTokens.Footer.height + LayoutTokens.Footer.bottomLift + LayoutTokens.EdgeBlur.materialReach)
+    }
 }

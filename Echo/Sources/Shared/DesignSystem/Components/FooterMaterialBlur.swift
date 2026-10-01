@@ -5,7 +5,13 @@ import SwiftUI
 /// card's edge along an exponential curve, so the rows soften the way the eye sees blur grow
 /// rather than meeting a band. It reaches the footer's height plus `EdgeBlur.materialReach`.
 struct FooterMaterialBlur: View {
-    let height: CGFloat
+    /// The footer's room and the material's reach above it: the same at the bottom of every card,
+    /// with a footer or without (the editor's card with results below it).
+    nonisolated static var cardBottomHeight: CGFloat {
+        LayoutTokens.Footer.height + LayoutTokens.Footer.bottomLift + LayoutTokens.EdgeBlur.materialReach
+    }
+
+    var height: CGFloat = cardBottomHeight
 
     var body: some View {
         ZStack {

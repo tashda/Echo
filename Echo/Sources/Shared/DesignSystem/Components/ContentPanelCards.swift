@@ -220,7 +220,7 @@ struct ContentPanelCards<Content: View, Panel: View, Footer: View>: View {
         footer()
             .padding(.bottom, LayoutTokens.Footer.bottomLift)
             .background(alignment: .bottom) {
-                FooterMaterialBlur(height: footerZone + LayoutTokens.EdgeBlur.materialReach)
+                FooterMaterialBlur()
             }
     }
 
