@@ -203,6 +203,20 @@ extension ConnectionEditorView {
                         .foregroundStyle(ColorTokens.Text.tertiary)
                 }
             }
+
+            PropertyRow(
+                title: "Confirm Unguarded Writes",
+                info: "Asks before an UPDATE or DELETE without a WHERE runs on this connection. Settings › Databases sets the default for every connection."
+            ) {
+                Picker("", selection: $confirmUnguardedWrites) {
+                    Text("Default").tag(Bool?.none)
+                    Text("Always").tag(Bool?.some(true))
+                    Text("Never").tag(Bool?.some(false))
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .fixedSize()
+            }
         }
     }
 

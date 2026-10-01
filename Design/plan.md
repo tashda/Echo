@@ -412,8 +412,8 @@ Rules: `decisions.md` › 2026-10-01 round 28; `05-components` › Editor card.
 | SE2 | **Editor page:** a live editor preview of every setting, pictures for gutter, corners and strength, a size stepper, short lines and ⓘ. | `EditorSettings/*` | Every setting changes the preview 👁 | ☑ built, 👁 pending |
 | SE3 | **Results and Sidebar previews:** the grid; a narrow server card (owner's note). Appearance has none: the app is the preview. | `ResultsSettingsPreview`, `SidebarSettingsPreview` | Matches the lab's Proposal 👁 | ☑ built, 👁 pending |
 | SE4 | **Search and reset:** a search field lists settings across pages; Reset This Page confirms first. | `SettingsSearchIndex`, `SettingsSearchResults`, `SettingsWindow` | Typing "gutter" finds Line Numbers and Gutter Style 👁 | ☑ built, 👁 pending |
-| SE5 | **Per connection (PC0):** a few chosen settings (row limit, confirm before UPDATE) with the connection's colour dot beside the row. | Connection properties, Settings | Not started: choose which settings first | ☐ |
-| SE6 | **Settings sync (SY0):** everything except window sizes and this Mac's paths. | Cloud sync | Not started | ☐ |
+| SE5 | **Per connection (PC0):** two deliberate ones: the query time limit (round 21) and Confirm Unguarded Writes (an UPDATE or DELETE without WHERE asks first; Default, Always or Never per connection, synced). Settings › Databases lists the connections that chose, each with its colour dot. | `SavedConnection.confirmUnguardedWrites`, `UnguardedWriteDetector`, `WorkspaceTabContainerView+UnguardedWrites`, `ConfirmUnguardedWritesRows`, connection editor | A production connection set to Always asks before `delete from t` 👁 | ☑ built, 👁 pending |
+| SE6 | **Settings sync (SY0):** settings already synced as one blob; now this Mac's paths (spool folder, pg and MySQL tool paths) are left out going up and kept coming down. Window sizes were never in settings. | `GlobalSettings+Sync`, `SyncAdapter` | A path set on one Mac stays on it 👁 | ☑ built, 👁 pending |
 
 ## Phase 10 · Finish
 

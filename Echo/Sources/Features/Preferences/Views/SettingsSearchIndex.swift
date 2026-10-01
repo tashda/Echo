@@ -38,6 +38,9 @@ enum SettingsSearchIndex {
         .init(title: "Show scroll bar", section: .sidebar, group: "Object Browser"),
         .init(title: "Hide offline databases by default", section: .sidebar, group: "Databases"),
         .init(title: "Customize per database type", section: .sidebar, group: "General"),
+        .init(title: "Confirm Unguarded Writes", section: .databases, group: "Execution & Ingestion"),
+        .init(title: "Query time limit", section: .databases, group: "Execution & Ingestion"),
+        .init(title: "Initial rows to display", section: .databases, group: "Execution & Ingestion"),
     ]
 
     /// Entries whose title, page or group contains every word of the query.

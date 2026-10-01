@@ -162,6 +162,8 @@ struct GlobalSettings: Codable, Hashable {
     var queryTimeLimitSeconds: Int = 0
     /// Whether the one-time note that query time limits now work was shown (M3).
     var queryTimeLimitNoticeShown: Bool = false
+    /// Round 43.5 (PC0): ask before running an UPDATE or DELETE that has no WHERE; a connection can override it.
+    var confirmUnguardedWrites: Bool = false
     /// RN1 (round 21, owner's note): the run note of a failed statement shows the whole message
     /// instead of `! Error`.
     var editorErrorRunNoteShowsMessage: Bool = false
@@ -272,6 +274,7 @@ struct GlobalSettings: Codable, Hashable {
         case postgresScriptsContinueAfterError
         case queryTimeLimitSeconds
         case queryTimeLimitNoticeShown
+        case confirmUnguardedWrites
         case editorErrorRunNoteShowsMessage
         case pgToolCustomPath
         case mysqlToolCustomPath
@@ -371,6 +374,7 @@ struct GlobalSettings: Codable, Hashable {
         postgresScriptsContinueAfterError = try container.decodeIfPresent(Bool.self, forKey: .postgresScriptsContinueAfterError) ?? false
         queryTimeLimitSeconds = try container.decodeIfPresent(Int.self, forKey: .queryTimeLimitSeconds) ?? 0
         queryTimeLimitNoticeShown = try container.decodeIfPresent(Bool.self, forKey: .queryTimeLimitNoticeShown) ?? false
+        confirmUnguardedWrites = try container.decodeIfPresent(Bool.self, forKey: .confirmUnguardedWrites) ?? false
         editorErrorRunNoteShowsMessage = try container.decodeIfPresent(Bool.self, forKey: .editorErrorRunNoteShowsMessage) ?? false
         pgToolCustomPath = try container.decodeIfPresent(String.self, forKey: .pgToolCustomPath)
         mysqlToolCustomPath = try container.decodeIfPresent(String.self, forKey: .mysqlToolCustomPath)
@@ -496,6 +500,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(postgresScriptsContinueAfterError, forKey: .postgresScriptsContinueAfterError)
         try container.encode(queryTimeLimitSeconds, forKey: .queryTimeLimitSeconds)
         try container.encode(queryTimeLimitNoticeShown, forKey: .queryTimeLimitNoticeShown)
+        try container.encode(confirmUnguardedWrites, forKey: .confirmUnguardedWrites)
         try container.encode(editorErrorRunNoteShowsMessage, forKey: .editorErrorRunNoteShowsMessage)
         try container.encodeIfPresent(pgToolCustomPath, forKey: .pgToolCustomPath)
         try container.encodeIfPresent(mysqlToolCustomPath, forKey: .mysqlToolCustomPath)

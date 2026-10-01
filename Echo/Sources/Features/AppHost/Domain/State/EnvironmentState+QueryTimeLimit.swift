@@ -29,3 +29,11 @@ extension EnvironmentState {
         )
     }
 }
+
+/// Round 43.5 (PC0): whether a connection asks before an UPDATE or DELETE without WHERE runs: its own
+/// choice if it has one, otherwise Settings › Databases.
+extension EnvironmentState {
+    func confirmsUnguardedWrites(for connection: SavedConnection) -> Bool {
+        connection.confirmUnguardedWrites ?? projectStore.globalSettings.confirmUnguardedWrites
+    }
+}
