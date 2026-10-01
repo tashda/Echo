@@ -10,7 +10,7 @@ enum FooterResultsArea {
         summary: "The results grow up out of the footer. The footer floats on a soft blur with a glass pill per entry; the database switcher is a card above its chip.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "d359a536", date: "2026-09-30",
+                level: .code, commit: "86d17abd", date: "2026-10-01",
                 note: "Read from BottomPanelStatusBar (+Metrics), DatabaseSwitcherCard, BackdropEdgeBlur, ContentPanelCards, ResultsGridMetrics, ResultTableRowView, ResultTableHeaderCell, ResultCellPresentation and the Footer and EdgeBlur tokens. The specimen uses Echo's real BottomPanelStatusBar over a sample grid."),
             stageHeight: 480,
             behaviours: [
