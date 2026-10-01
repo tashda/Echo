@@ -36,6 +36,7 @@ final class TabStore {
     /// toolbar's content isn't rebuilt on every tab switch (rebuilding it re-creates the window's
     /// toolbar items, about 60 ms).
     private(set) var activeTabToolbarContext = WorkspaceToolbarContext(kind: nil, databaseType: nil)
+    @ObservationIgnored private var toolbarContextTask: Task<Void, Never>?
 
     /// Alert state for confirming close of tabs with pending changes.
     var showPendingChangesAlert = false
@@ -148,7 +149,15 @@ final class TabStore {
     private func refreshToolbarContext() {
         let tab = activeTab
         let context = WorkspaceToolbarContext(kind: tab?.kind, databaseType: tab?.connection.databaseType)
-        if context != activeTabToolbarContext { activeTabToolbarContext = context }
+        guard context != activeTabToolbarContext else { return }
+        // A frame later: re-creating the toolbar's items takes ~50 ms, and done in the same update
+        // it held back the new tab itself. The tab shows first, the toolbar follows.
+        toolbarContextTask?.cancel()
+        toolbarContextTask = Task { @MainActor [weak self] in
+            guard let self, !Task.isCancelled else { return }
+            let current = WorkspaceToolbarContext(kind: self.activeTab?.kind, databaseType: self.activeTab?.connection.databaseType)
+            if current != self.activeTabToolbarContext { self.activeTabToolbarContext = current }
+        }
     }
 }
 

@@ -21,19 +21,23 @@ struct TabStoreToolbarContextTests {
         return tab
     }
 
-    @Test func followsTheActiveTab() {
+    @Test func followsTheActiveTabAFrameLater() async {
         let store = TabStore()
         #expect(!store.activeTabToolbarContext.isQuery)
         _ = makeQueryTab(in: store)
+        await Task.yield()
+        await Task.yield()
         #expect(store.activeTabToolbarContext.isQuery)
     }
 
     /// Switching between tabs that need the same toolbar must not touch the context, or the
     /// toolbar's content is rebuilt on every switch.
-    @Test func switchingBetweenAlikeTabsLeavesTheContextAlone() {
+    @Test func switchingBetweenAlikeTabsLeavesTheContextAlone() async {
         let store = TabStore()
         let first = makeQueryTab(in: store)
         _ = makeQueryTab(in: store)
+        await Task.yield()
+        await Task.yield()
         let changed = Mutex(false)
         withObservationTracking {
             _ = store.activeTabToolbarContext
@@ -41,6 +45,8 @@ struct TabStoreToolbarContextTests {
             changed.withLock { $0 = true }
         }
         store.selectTab(first)
+        await Task.yield()
+        await Task.yield()
         #expect(store.activeTabId == first.id)
         #expect(!changed.withLock { $0 })
     }
