@@ -53,7 +53,7 @@ jobs:
         deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
 
     - name: Resolve packages
-      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo -scmProvider system
+      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
 
     - name: Run Unit Tests
       run: |

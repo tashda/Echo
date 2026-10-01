@@ -51,24 +51,8 @@ jobs:
       with:
         deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
 
-    - name: Experiment - fetch echo-server-lab over SSH
-      run: |
-        sed -i '' 's#https://github.com/tashda/echo-server-lab#git@github-echo-server-lab:tashda/echo-server-lab.git#' Echo.xcodeproj/project.pbxproj Echo.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
-        grep -n "echo-server-lab" Echo.xcodeproj/project.pbxproj | head -3
-
     - name: Resolve packages
-      env:
-        GIT_TRACE: /tmp/git-trace.log
-        GIT_SSH_COMMAND: "ssh -v -E /tmp/ssh-trace.log"
-      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo -scmProvider system
-
-    - name: Show git trace
-      if: always()
-      run: |
-        echo "== git"; cat /tmp/git-trace.log 2>/dev/null | head -60 || echo "no git trace"
-        echo "== ssh"; grep -E "debug1: (Reading|Connecting|Authenticat|Offering|Server accepts|Will attempt)|denied" /tmp/ssh-trace.log 2>/dev/null | head -30 || echo "no ssh trace"
-        echo "== gitconfig"; git config --global --list
-        echo "== xcode default"; defaults read com.apple.dt.Xcode IDEPackageSupportUseBuiltinSCM || true
+      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
 
     - name: Run Unit Tests
       run: |
@@ -160,7 +144,7 @@ jobs:
       run: swift build -c release --product serverlab --package-path echo-server-lab
 
     - name: Resolve packages
-      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo -scmProvider system
+      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
 
     - name: Run the EchoTests plan against the lab
       env:
@@ -252,7 +236,7 @@ jobs:
         deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
 
     - name: Resolve packages
-      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo -scmProvider system
+      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
 
     - name: Determine version
       id: version
