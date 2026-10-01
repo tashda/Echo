@@ -19,6 +19,14 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r33", label: "Round 33", title: "SQL Server Agent Jobs: New Step", date: "1 Oct 2026",
+             asked: "The New Step sheet doesn't look good.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.agent-job-step-sheet-r33"]),
+        Info(id: "r33", label: "Round 33", title: "SQL Server Agent Jobs: the tab", date: "1 Oct 2026",
+             asked: "The Agent Jobs tab feels 80% done: headers sit in different places and the panes don't line up. I like the general idea; finish it.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.agent-jobs-tab-r33"]),
         Info(id: "r32", label: "Round 32", title: "Panels in dark mode", date: "1 Oct 2026",
              asked: "In dark mode the panels and the background are too similar; it is hard to see what is what.",
              outcome: "Being judged.",

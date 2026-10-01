@@ -109,6 +109,8 @@ enum LabAreas {
         "ongoing.zoom-pill-footer-r31": "editor",
         "ongoing.panel-fills-light-r32": "window",
         "ongoing.panel-fills-dark-r32": "window",
+        "ongoing.agent-jobs-tab-r33": "tool-tabs",
+        "ongoing.agent-job-step-sheet-r33": "tool-tabs",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 
