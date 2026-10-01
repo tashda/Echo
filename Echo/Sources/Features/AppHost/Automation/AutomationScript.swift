@@ -21,7 +21,8 @@ import Foundation
 /// timestamped line on stdout.
 nonisolated struct AutomationScript: Codable, Sendable {
     struct Step: Codable, Sendable {
-        /// `section`, `folder`, `collapse`, `expand` or `reveal`; nil for a pure wait.
+        /// `section`, `folder`, `collapse`, `expand` or `reveal`; `connect` connects `server` now;
+        /// nil for a pure wait.
         var action: String?
         var server: String?
         /// The section's or folder's title.

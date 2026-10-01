@@ -14,16 +14,24 @@ extension ObjectBrowserSidebarView {
     /// Closing:
     /// 1. the veil fades over the rows (the switch's fade out); every card is marked as folding,
     ///    so the dock leaves with the fold's transition (a leaving row keeps the one it last had);
-    /// 2. the server closes on `expand`: the rows go at once under the veil, the edge glides up and
-    ///    the dock shrinks back into the header.
+    /// 2. if the view is scrolled into the card, it moves so the pinned header is at its own place
+    ///    (nothing visible changes: the rows are covered);
+    /// 3. the server closes on `expand`: the rows go at once under the veil, the edge glides up and
+    ///    the dock shrinks back into the header; if the tree is now shorter than the view, the
+    ///    view glides back with it until the tree fills it (ObjectBrowserOutlineView+Fold).
     ///
-    /// Every server is marked, since opening one can close the others (one server at a time).
+    /// The cards marked are those that open or close: this one, and with one server at a time any
+    /// other open one. The others' rows move with their cards.
     func foldServerCard(of session: ConnectionSession, isExpanded: Bool) {
         let connectionID = session.connection.id
         viewModel.foldGeneration += 1
         let generation = viewModel.foldGeneration
         let timing = ExplorerDockSwitchTiming(motion: motion)
-        let everyCard = Set(sessions.map(\.connection.id))
+        let collapseOthers = isExpanded && projectStore.globalSettings.sidebarExpandOneConnectionAtATime
+        // The cards that open or close: this one, and with one server at a time, any other open one.
+        let changing = Set(sessions.map(\.connection.id).filter { id in
+            id == connectionID || (collapseOthers && viewModel.expandedNodeIDs.contains(ObjectBrowserSidebarViewModel.serverNodeID(connectionID: id)))
+        })
         WindowDragPause.pauseWorkspace(for: timing.totalDuration + 0.15)
 
         let toggle = {
@@ -45,7 +53,7 @@ extension ObjectBrowserSidebarView {
 
         if isExpanded {
             withAnimation(.linear(duration: 0)) {
-                viewModel.foldingConnectionIDs = everyCard
+                viewModel.foldingConnectionIDs = changing
                 _ = viewModel.dockSwitchingConnectionIDs.insert(connectionID)
                 _ = viewModel.dockFadingConnectionIDs.insert(connectionID)
                 _ = viewModel.dockHiddenRowsConnectionIDs.insert(connectionID)
@@ -57,11 +65,17 @@ extension ObjectBrowserSidebarView {
             }
         } else {
             withAnimation(timing.fadeOut) {
-                viewModel.foldingConnectionIDs = everyCard
+                viewModel.foldingConnectionIDs = changing
                 _ = viewModel.dockSwitchingConnectionIDs.insert(connectionID)
                 _ = viewModel.dockFadingConnectionIDs.insert(connectionID)
             } completion: {
-                withAnimation(motion.expand) { toggle() } completion: { finish() }
+                // The rows are covered: if the view is inside this card, bring its header to its
+                // own place, then fold.
+                withAnimation(.linear(duration: 0)) {
+                    viewModel.foldAnchor = ExplorerFoldAnchor(connectionID: connectionID, request: generation)
+                } completion: {
+                    withAnimation(motion.expand) { toggle() } completion: { finish() }
+                }
             }
         }
     }

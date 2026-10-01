@@ -28,7 +28,10 @@ extension AppDirector {
                 try? await Task.sleep(for: .milliseconds(16))
                 continue
             }
-            origin.y += distance / CGFloat(frames)
+            // Within the document, as a trackpad settles: past either end the clip view would be
+            // left overscrolled, which no person can hold.
+            let maxY = max((scrollView.documentView?.frame.height ?? 0) - clip.bounds.height, 0)
+            origin.y = min(max(origin.y + distance / CGFloat(frames), 0), maxY)
             clip.scroll(to: origin)
             scrollView.reflectScrolledClipView(clip)
             try? await Task.sleep(for: .milliseconds(16))

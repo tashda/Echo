@@ -117,6 +117,7 @@ struct ObjectBrowserSidebarView: View {
                     switchingConnectionIDs: viewModel.dockSwitchingConnectionIDs,
                     hiddenRowsConnectionIDs: viewModel.dockHiddenRowsConnectionIDs,
                     foldingConnectionIDs: viewModel.foldingConnectionIDs,
+                    foldAnchor: viewModel.foldAnchor,
                     contextMenu: { contextMenu(for: $0) },
                     doubleClick: { doubleClickAction(for: $0) },
                     emptySpaceMenu: { emptySpaceMenu() },

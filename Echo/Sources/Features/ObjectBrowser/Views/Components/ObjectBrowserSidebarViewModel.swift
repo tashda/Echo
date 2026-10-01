@@ -30,6 +30,8 @@ final class ObjectBrowserSidebarViewModel {
     var foldingConnectionIDs: Set<UUID> = []
     /// Counts folds, so one that ends while a newer one runs leaves the newer one's cards alone.
     @ObservationIgnored var foldGeneration = 0
+    /// The card about to close, so the tree first brings its header to its own place.
+    var foldAnchor: ExplorerFoldAnchor?
     var highlightedNodeID: String?
     var highlightPulse = false
     /// Everything loaded for folders beyond the schema (logins, jobs, queues…), by source.
