@@ -2,6 +2,10 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 42 built into Echo
+
+Every pick of round 42 is in the running app except a database's Diagram (Echo draws only tables). Where a pick needed a choice: **Rename** opens the ALTER in a query tab to read and run, as Drop does, instead of running it from the tree; **Advanced Objects** are four flat items in Open Tool (one level of submenus); **New Connection** in the empty space opens Manage Connections. The Object menu in the menu bar is the selected row's context menu, built by the same code.
+
 ## 2026-10-01 · Round 43 accepted: Settings › Editor is the template for every settings page
 
 Echo Labs › Foundations › Settings (43.1 to 43.5). Accepted: **one live preview pinned above the settings** (PV1) that follows every setting on the page (PS0); **no preview on pages with nothing to show** (PN0); **small pictures for choices that change a look** (CH1, PC0), the preview just changing, no ring (FB0); **a short line only where the title isn't enough, the rest in ⓘ** (DS1); **a ↺ beside a setting that isn't the default** (RS1); **switches** (TG0); **a stepper with its unit, typing allowed** (NU0); **sections named by what they change** (SN0); the template for every page with something to show (TP0) as **one `SettingsPage(preview:sections:)`** in the design system (TC0); **a search field listing matching settings across pages** (SE2); **Reset This Page at the bottom with a confirmation** (RP0); **a few settings per connection, chosen deliberately** (PC0); **sync everything except window sizes and this Mac's paths** (SY0). Not wanted: a dot beside pages with changes (MD1).
