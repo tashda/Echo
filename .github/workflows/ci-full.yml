@@ -53,9 +53,17 @@ jobs:
 
     - name: Resolve packages
       env:
-        GIT_TRACE: "1"
-        GIT_SSH_COMMAND: "ssh -v"
+        GIT_TRACE: /tmp/git-trace.log
+        GIT_SSH_COMMAND: "ssh -v -E /tmp/ssh-trace.log"
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo -scmProvider system
+
+    - name: Show git trace
+      if: always()
+      run: |
+        echo "== git"; cat /tmp/git-trace.log 2>/dev/null | head -60 || echo "no git trace"
+        echo "== ssh"; grep -E "debug1: (Reading|Connecting|Authenticat|Offering|Server accepts|Will attempt)|denied" /tmp/ssh-trace.log 2>/dev/null | head -30 || echo "no ssh trace"
+        echo "== gitconfig"; git config --global --list
+        echo "== xcode default"; defaults read com.apple.dt.Xcode IDEPackageSupportUseBuiltinSCM || true
 
     - name: Run Unit Tests
       run: |
