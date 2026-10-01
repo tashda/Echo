@@ -10,11 +10,11 @@ final class FactoryConnectionTests: XCTestCase {
     // MARK: - Helpers
 
     private func sqlServer() async throws -> LabServer {
-        try await LabSharedServers.serverForSuite(MSSQLLabTestCase.recipe)
+        try await labServer(MSSQLLabTestCase.recipe)
     }
 
     private func postgres() async throws -> LabServer {
-        try await LabSharedServers.serverForSuite(LabRecipes.postgres)
+        try await labServer(LabRecipes.postgres)
     }
 
     private func defaultAuth(

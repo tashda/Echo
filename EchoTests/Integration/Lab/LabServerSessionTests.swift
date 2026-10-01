@@ -4,7 +4,7 @@ import Testing
 @testable import Echo
 
 /// Echo's own sessions against fresh echo-server-lab servers.
-@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote), .server("mssql-2022-column-types"))
+@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote), .server("mssql-2022-column-types"), .timeLimit(.minutes(10)))
 @MainActor
 struct LabSQLServerSessionTests {
     @Test func sessionListsEveryColumnTypeIncludingCLRTypes() async throws {
@@ -23,7 +23,7 @@ struct LabSQLServerSessionTests {
     }
 }
 
-@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote), .server("pg-17-column-types"))
+@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote), .server("pg-17-column-types"), .timeLimit(.minutes(10)))
 @MainActor
 struct LabPostgresSessionTests {
     @Test func sessionListsJsonAndEveryType() async throws {

@@ -1,28 +1,39 @@
 {
   "configurations" : [
     {
-      "id" : "8F7AF6EC-B7AD-4184-B267-710C31F7126D",
-      "name" : "Unit Tests",
+      "id" : "A5F024CB-A93D-4180-8CED-646CB0383E0E",
+      "name" : "Lab Tests",
       "options" : {
 
       }
     }
   ],
   "defaultOptions" : {
-    "performanceAntipatternCheckerEnabled" : true
+    "defaultTestExecutionTimeAllowance" : 300,
+    "environmentVariableEntries" : [
+      {
+        "key" : "SERVERLAB_INTEGRATION",
+        "value" : "1"
+      }
+    ],
+    "maximumTestExecutionTimeAllowance" : 900,
+    "performanceAntipatternCheckerEnabled" : true,
+    "testTimeoutsEnabled" : true
   },
   "testTargets" : [
     {
       "parallelizable" : false,
-      "skippedTests" : [
+      "selectedTests" : [
+        "FactoryConnectionTests",
         "LabPostgresSessionTests",
-        "LabSQLServerSessionTests",
-        "LabSQLServerImportTests",
         "LabSQLServerAlwaysEncryptedTests",
-        "EchoSenseIntegrationTests",
+        "LabSQLServerImportTests",
+        "LabSQLServerSessionTests",
         "MSSQLActivityMonitorTests",
         "MSSQLAgentManagementTests",
         "MSSQLAgentTests",
+        "MSSQLBackupRestoreTests",
+        "MSSQLBulkImportTests",
         "MSSQLColumnTests",
         "MSSQLConnectionTests",
         "MSSQLConstraintTests",
@@ -31,16 +42,19 @@
         "MSSQLDataTypeNumericTests",
         "MSSQLDataTypeStringTests",
         "MSSQLDatabaseAdminTests",
+        "MSSQLDedicatedSessionCancelTests",
+        "MSSQLDedicatedSessionConnectionLossTests",
+        "MSSQLDedicatedSessionErrorTests",
+        "MSSQLDedicatedSessionResultSetTests",
         "MSSQLFunctionTests",
         "MSSQLIndexTests",
-        "MSSQLBackupRestoreTests",
-        "MSSQLBulkImportTests",
         "MSSQLIntegrationTests",
         "MSSQLMaintenanceTests",
+        "MSSQLMetadataLoadingTests",
         "MSSQLMetadataTests",
         "MSSQLProcedureTests",
-        "MSSQLQueryTests",
         "MSSQLQueryTabIsolationTests",
+        "MSSQLQueryTests",
         "MSSQLSchemaDiscoveryTests",
         "MSSQLSecurityTests",
         "MSSQLStreamingSpoolTests",
@@ -49,41 +63,20 @@
         "MSSQLTableDesignerTests",
         "MSSQLTableOperationsTests",
         "MSSQLTransactionTests",
-        "MSSQLDedicatedSessionCancelTests",
-        "MSSQLDedicatedSessionErrorTests",
-        "MSSQLDedicatedSessionConnectionLossTests",
-        "MSSQLDedicatedSessionResultSetTests",
         "MSSQLTriggerTests",
         "MSSQLViewTests",
         "MySQLIntegrationTests",
-        "PGBulkImportTests",
-        "PGActivityMonitorTests",
-        "PGColumnTests",
-        "PGConnectionTests",
-        "PGConstraintTests",
-        "PGDataTypeDateTimeTests",
-        "PGDataTypeNumericTests",
-        "PGDataTypeSpecialTests",
-        "PGDataTypeStringTests",
-        "PGExtensionTests",
-        "PGFunctionTests",
-        "PGIndexTests",
-        "PGMetadataTests",
-        "PGAdvancedObjectAlterTests",
-        "PGNewObjectTypesTests",
-        "PGQueryTests",
-        "PGSchemaDiscoveryTests",
-        "PGSecurityTests",
-        "PGSequenceTests",
-        "PGStreamingSpoolTests",
-        "PGStreamingTests",
-        "PGTableDesignerTests",
-        "PGTableOperationsTests",
-        "PGTransactionTests",
-        "PGTriggerTests",
-        "PGViewTests",
         "PostgresBackupRestoreIntegrationTests",
-        "PostgresIntegrationTests"
+        "PostgresCancelTests",
+        "PostgresConnectionLossTests",
+        "PostgresFailoverTests",
+        "PostgresIntegrationTests",
+        "PostgresOpenTransactionGuardTests",
+        "PostgresQueryTabSessionTests",
+        "PostgresQueryTimeLimitTests",
+        "PostgresScriptRunTests",
+        "PostgresTransactionStateTests",
+        "SessionProtocolComplianceTests"
       ],
       "target" : {
         "containerPath" : "container:Echo.xcodeproj",

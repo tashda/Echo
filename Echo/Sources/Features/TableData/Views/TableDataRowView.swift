@@ -43,7 +43,10 @@ struct TableDataRowView: View {
         let value = colIndex < row.count ? row[colIndex] : nil
         let isEdited = pendingEdits.contains { $0.rowIndex == rowIndex && $0.columnIndex == colIndex }
 
-        if isEditMode && canEdit {
+        if let encryption = column.encryption, value != nil {
+            // Round 29 (EV1, ED1): never editable; a double-click says why.
+            TableDataEncryptedCell(columnName: column.name, encryption: encryption, explainsOnDoubleClick: isEditMode && canEdit)
+        } else if isEditMode && canEdit && column.encryption == nil {
             editableCell(colIndex: colIndex, value: value, isEdited: isEdited)
         } else {
             readOnlyCell(value: value, isEdited: isEdited)

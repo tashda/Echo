@@ -12,6 +12,7 @@ struct QueryResultsGridView: View {
     var onSort: (Int, ResultGridSortAction) -> Void
     var onClearColumnHighlight: () -> Void
     var gridState: QueryResultsGridState?
+    var databaseType: DatabaseType?
 
     @Environment(AppearanceStore.self) private var appearanceStore
     @Environment(ProjectStore.self) private var projectStore
@@ -51,7 +52,8 @@ struct QueryResultsGridView: View {
             gutterStyle: projectStore.globalSettings.resultsGutterStyle,
             colorOverrides: projectStore.globalSettings.resultGridColorOverrides,
             isDarkMode: appearanceStore.effectiveColorScheme == .dark,
-            monospacedCells: projectStore.globalSettings.resultsMonospacedCells
+            monospacedCells: projectStore.globalSettings.resultsMonospacedCells,
+            databaseType: databaseType
         )
     }
 }

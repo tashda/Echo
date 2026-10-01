@@ -5,6 +5,7 @@ import AppKit
 /// with its own sorting (plan R6).
 struct AdditionalResultSetGrid: View {
     @Bindable var state: QueryEditorState
+    var databaseType: DatabaseType?
 
     @State private var sort: SortCriteria?
     @State private var highlightedColumnIndex: Int?
@@ -20,7 +21,8 @@ struct AdditionalResultSetGrid: View {
                 highlightedColumnIndex = highlightedColumnIndex == index ? nil : index
             },
             onSort: applySort,
-            onClearColumnHighlight: { highlightedColumnIndex = nil }
+            onClearColumnHighlight: { highlightedColumnIndex = nil },
+            databaseType: databaseType
         )
     }
 

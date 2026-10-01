@@ -39,6 +39,15 @@ extension QueryResultsTableView.Coordinator {
         return columnsChanged
     }
 
+    /// Round 29: "Always Encrypted · nvarchar(11) · deterministic", the algorithm and the key.
+    nonisolated static func encryptionToolTip(_ encryption: ColumnInfo.Encryption) -> String {
+        var lines = ["Always Encrypted · " + ([encryption.typeName] + [encryption.kind].compactMap { $0 }).joined(separator: " · "),
+                     encryption.algorithm]
+        if let key = encryption.keyDescription { lines.append("Key: \(key)") }
+        lines.append("Echo cannot decrypt these values without the column master key.")
+        return lines.joined(separator: "\n")
+    }
+
     func addDataColumns(to tableView: NSTableView) {
         let hidden = persistedState?.hiddenColumnIndices ?? []
         let classification = parent.dataClassification
@@ -53,13 +62,20 @@ extension QueryResultsTableView.Coordinator {
             tableColumn.resizingMask = [.userResizingMask]
             let headerCell = ResultTableHeaderCell(textCell: column.name)
             headerCell.columnSensitivity = classification?.classification(forColumnAt: index)
-            headerCell.typeName = column.dataType
+            // Round 29 (EH1): an encrypted column shows its real type and a lock; the details on hover.
+            headerCell.typeName = column.headerTypeName(on: parent.databaseType)
+            headerCell.isEncrypted = column.encryption != nil
             tableColumn.headerCell = headerCell
             tableColumn.headerCell.controlSize = .regular; tableColumn.headerCell.alignment = .left
             tableColumn.headerCell.font = ResultTableHeaderCell.nameFont
+            var toolTips: [String] = []
             if let sensitivity = headerCell.columnSensitivity {
-                tableColumn.headerToolTip = sensitivity.summary + " (\(sensitivity.effectiveRank.displayName))"
+                toolTips.append(sensitivity.summary + " (\(sensitivity.effectiveRank.displayName))")
             }
+            if let encryption = column.encryption {
+                toolTips.append(Self.encryptionToolTip(encryption))
+            }
+            if !toolTips.isEmpty { tableColumn.headerToolTip = toolTips.joined(separator: "\n\n") }
             tableView.addTableColumn(tableColumn)
             // Use persisted width from a previous tab visit when available,
             // skipping the expensive idealWidth() measurement entirely.
@@ -211,7 +227,7 @@ extension QueryResultsTableView.Coordinator {
             let dataIndex = visibleDataIndex(for: offset)
             if let headerCell = column.headerCell as? ResultTableHeaderCell,
                dataIndex >= 0, dataIndex < parent.displayedColumns.count {
-                headerCell.typeName = parent.displayedColumns[dataIndex].dataType
+                headerCell.typeName = parent.displayedColumns[dataIndex].headerTypeName(on: parent.databaseType)
             }
         }
         updateHeaderIndicators()

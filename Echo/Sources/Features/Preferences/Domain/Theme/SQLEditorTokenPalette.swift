@@ -193,7 +193,8 @@ extension SQLEditorTokenPalette {
             return resultGrid.boolean
         case .temporal:
             return resultGrid.temporal
-        case .binary:
+        case .binary, .encrypted:
+            // An encrypted cell (round 29) uses the binary font; the grid dims its colour.
             return resultGrid.binary
         case .identifier:
             return resultGrid.identifier
@@ -216,7 +217,7 @@ extension SQLEditorTokenPalette.ResultGridColors {
         case .numeric: return numeric
         case .boolean: return boolean
         case .temporal: return temporal
-        case .binary: return binary
+        case .binary, .encrypted: return binary
         case .identifier: return identifier
         case .json: return json
         case .text:

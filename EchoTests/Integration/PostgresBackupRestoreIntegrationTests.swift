@@ -12,7 +12,7 @@ import ServerLabClient
 /// uses the same tables (bk_parent, …) in the same database.
 @Suite("PostgreSQL Backup & Restore", .enabled(if: labIntegrationEnabled, labIntegrationNote),
        .enabled(if: bundledPostgresToolsStart, "The bundled pg_dump does not start: tashda/Echo#29"),
-       .server(LabRecipes.postgres), .serialized)
+       .server(LabRecipes.postgres), .serialized, .timeLimit(.minutes(10)))
 struct PostgresBackupRestoreIntegrationTests {
 
     // MARK: - Config & Helpers

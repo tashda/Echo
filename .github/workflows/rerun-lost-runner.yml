@@ -1,0 +1,41 @@
+name: Rerun after a lost runner
+
+# GitHub's macOS runners sometimes stop talking to GitHub in the middle of a job ("The hosted
+# runner lost communication with the server"); the job fails with no log although no test did.
+# When a first attempt of CI (Full) or Nightly Tests fails that way, rerun its failed jobs once.
+# Any other failure, or a second lost runner, stays red. Each lost runner's record of when GitHub
+# stopped answering is on testlab in ~/ci-watch (watch-runner.sh).
+#
+# GitHub starts workflow_run workflows only from the default branch (main).
+on:
+  workflow_run:
+    workflows: ["CI (Full)", "Nightly Tests"]
+    types: [completed]
+
+permissions:
+  actions: write
+  checks: read
+
+jobs:
+  rerun:
+    if: github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.run_attempt == 1
+    runs-on: ubuntu-latest
+    steps:
+    - name: Rerun the failed jobs if a runner was lost
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+        RUN_ID: ${{ github.event.workflow_run.id }}
+      run: |
+        lost=""
+        for job in $(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" --jq '.jobs[] | select(.conclusion == "failure") | .id'); do
+          if gh api "repos/$REPO/check-runs/$job/annotations" --jq '.[].message' | grep -q "lost communication with the server"; then
+            lost="$lost $job"
+          fi
+        done
+        if [ -z "$lost" ]; then
+          echo "Run $RUN_ID failed for another reason; not rerunning."
+          exit 0
+        fi
+        echo "::notice::Run $RUN_ID lost its runner (jobs$lost); rerunning its failed jobs once."
+        gh run rerun "$RUN_ID" --failed --repo "$REPO"

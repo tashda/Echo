@@ -35,10 +35,8 @@ class MSSQLLabTestCase: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-        // Prevent hanging tests from blocking the entire CI suite.
-        executionTimeAllowance = 60
-        guard labIntegrationEnabled else { throw XCTSkip("\(labIntegrationNote)") }
-        server = try await LabSharedServers.shared.server(for: Self.recipe)
+        // Waits for the shared server (time for its start does not count; see labServer(_:)).
+        server = try await labServer(Self.recipe)
         scratchDatabase = try await makeScratchDatabaseIfNeeded()
         session = try await createSession()
     }

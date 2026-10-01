@@ -1358,6 +1358,10 @@
       {
         "date": "2026-10-01T11:46:44Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T12:20:00Z",
+        "text": "Built into Echo (c25d5be9): encrypted cells read \ud83d\udd12 Encrypted, dimmed, in the query grid and Table Data; a lock after the header name with type, kind, algorithm and key path on hover; read-only, and editing says which key is needed; Copy gives the ciphertext; always asked for. The driver also now shows binary values in Table Data as one hex literal (sqlserver-nio e8f975a)"
       }
     ],
     "needsMore": [],
@@ -1373,7 +1377,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.mssql-encryption-r22": {

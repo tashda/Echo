@@ -166,7 +166,8 @@ extension MSSQLDedicatedQuerySession {
                     dataType: column.typeName,
                     isPrimaryKey: false,
                     isNullable: true,
-                    maxLength: column.normalizedLength
+                    maxLength: column.normalizedLength,
+                    encryption: ColumnInfo.Encryption(column.encryption)
                 )
             }
 

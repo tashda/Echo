@@ -56,14 +56,7 @@ jobs:
         TEST_RUNNER_SERVERLAB_CLI: ${{ steps.lab.outputs.serverlab }}
         TEST_RUNNER_SERVERLAB_PASSWORD: ${{ secrets.SERVERLAB_PASSWORD }}
         TEST_RUNNER_SERVERLAB_OWNER_PREFIX: nightly-${{ github.run_id }}-${{ github.run_attempt }}
-      run: |
-        find . -maxdepth 1 -name "TestResults-sqlserver*" -exec rm -rf {} + 2>/dev/null || true
-        xcodebuild test -project Echo.xcodeproj \
-          -scheme Echo -testPlan SQLServerVersions \
-          -destination 'platform=macOS' \
-          -resultBundlePath TestResults-sqlserver-versions \
-          -disable-concurrent-testing \
-          CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=NO ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
+      run: .github/scripts/run-test-plan.sh SQLServerVersions TestResults-sqlserver-versions
 
     - name: Remove servers this run left behind
       if: always()
@@ -73,14 +66,15 @@ jobs:
         "${{ steps.lab.outputs.serverlab }}" down --all --owner-prefix "nightly-${{ github.run_id }}-${{ github.run_attempt }}" || true
         "${{ steps.lab.outputs.serverlab }}" reap || true
 
-    # The results upload talks to GitHub, which failed to resolve while the runner was on the tailnet.
-    - name: Leave the tailnet
-      if: always()
-      run: sudo "$(command -v tailscale)" down || true
-
+    # The results go up while the runner is still on the tailnet: leaving it (`tailscale down`) broke
+    # the runner's name lookups for minutes, and every upload after it failed. The Tailscale action
+    # logs out when the job ends.
     - name: Upload SQL Server Version Results
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: test-results-sqlserver-versions
-        path: TestResults-sqlserver-versions.xcresult
+        path: |
+          TestResults-sqlserver-versions.xcresult
+          TestResults-sqlserver-versions.log
+          diagnostics/

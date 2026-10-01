@@ -10,7 +10,7 @@ enum FooterResultsArea {
         summary: "The results grow up out of the footer. The footer floats on a soft blur with a glass pill per entry; the database switcher is a card above its chip.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "6e4a0e60", date: "2026-10-01",
+                level: .code, commit: "0eb8696c", date: "2026-10-01",
                 note: "Read from BottomPanelStatusBar (+Metrics), DatabaseSwitcherCard, BackdropEdgeBlur, ContentPanelCards, ResultsGridMetrics, ResultTableRowView, ResultTableHeaderCell/View, ResultCellPresentation, the results Section (state banner, footer popovers), ExecutionConsoleView and the Footer and EdgeBlur tokens. The specimen uses Echo Labs' copy of BottomPanelStatusBar over a sample grid (its pills don't open popovers)."),
             stageHeight: 480,
             behaviours: [
@@ -21,7 +21,7 @@ enum FooterResultsArea {
                 .init(trigger: "Click a pill on the right", result: "Its own popover rises above it (round 41.5): the selection's exact figures (with Settings › Results › Selection summary the pill can add the sum and/or average) with Copy and Copy All; the rows (what and how many); where the time went; the status with Cancel, Commit or Roll Back and Show in Editor. Export and copy are in the grid's right-click menu."),
                 .init(trigger: "A query fails, or returns no rows", result: "A banner at the top left of the card: symbol, title, the message, SQL Server's numbers as chips, and Show in Editor, Messages, Copy Error (round 41.3). Running, No rows and Cancelled use the same banner."),
                 .init(trigger: "Open Messages", result: "The counts at the top filter (\"1 error · 2 messages\"), copy and clear are in ⋯; each statement is a heading with its messages under it; errors are a red symbol and semibold text; the symbol of a server message opens what the server returned (round 41.4)."),
-                .init(trigger: "Click the server · database chip", result: "A system popover rises above the chip with a filter field (prompt \"Filter N databases\") and the databases; type to narrow, ↑ ↓ and Return, or click; Esc or a click away closes it. The chip is disabled, with the name as its tooltip, when the tab can't switch database."),
+                .init(trigger: "Click the server · database chip", result: "A system popover rises above the chip with a filter field (prompt \"Filter N databases\") and the databases; type to narrow, ↑ ↓ and Return, or click; hovering highlights a row but never scrolls the list (only the wheel, the keys and filtering do); Esc or a click away closes it. The chip is disabled, with the name as its tooltip, when the tab can't switch database."),
                 .init(trigger: "Hover a result row", result: "A faint rounded tint on the row and its row number turns accent."),
                 .init(trigger: "Hover a column header", result: "The sort arrow appears at its trailing edge (it also stays while the column is sorted); clicking the arrow sorts, clicking elsewhere selects the column."),
                 .init(trigger: "Select cells", result: "One rounded outline around the whole selected range, a stronger ring on the active cell, and the row numbers of the selected rows in accent."),

@@ -15,7 +15,7 @@ final class MSSQLIntegrationTests: XCTestCase {
 
     /// The lab server with the AdventureWorks samples, shared by the suites of the run.
     private func loadConfig() async throws -> MSSQLConfig {
-        let server = try await LabSharedServers.serverForSuite(LabRecipes.sqlServerSamples)
+        let server = try await labServer(LabRecipes.sqlServerSamples)
         return MSSQLConfig(host: server.host, port: server.port, database: "master",
                            username: server.username, password: server.password, useTLS: false)
     }
