@@ -21,10 +21,10 @@ extension ObjectBrowserSidebarView {
         case .object(let session, let databaseName, let object):
             objectMenu(for: object, databaseName: databaseName, session: session)
         case .item(let row):
-            itemMenu(row)
+            itemMenu(row)?.insertingCopyName(row.item.name)
         case .column(let column, let owner):
             columnMenu(for: column, owner: owner)
-        case .topSpacer, .action, .placeholder, .loading, .message, .dock:
+        case .topSpacer, .action, .placeholder, .loading, .message, .filter, .dock:
             nil
         }
     }

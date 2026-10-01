@@ -48,6 +48,24 @@ extension NSMenu {
         }
     }
 
+    /// Adds Copy Name to a menu that has none, in its own group before Drop and Properties.
+    func insertingCopyName(_ name: String) -> NSMenu {
+        let endIndex = items.firstIndex { $0.title.hasPrefix("Drop") || $0.title.hasPrefix("Delete") || $0.title == "Properties" } ?? items.count
+        let copy = ClosureMenuItem(title: "Copy Name") {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(name, forType: .string)
+        }
+        copy.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "Copy Name")
+        // Before the separator that opens the Drop group, if there is one.
+        var index = endIndex
+        while index > 0, items[index - 1].isSeparatorItem { index -= 1 }
+        // Separators on both sides; `applyingExplorerRules` removes doubled and edge ones.
+        insertItem(.separator(), at: index)
+        insertItem(copy, at: index + 1)
+        insertItem(.separator(), at: index + 2)
+        return self
+    }
+
     /// Copy Name: puts the object's name on the pasteboard.
     @discardableResult
     func addCopyName(_ name: String) -> NSMenuItem {

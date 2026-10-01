@@ -5,6 +5,15 @@ final class ObjectBrowserSidebarViewModel {
     var expandedNodeIDs: Set<String> = []
     var selectedNodeID: String?
     var hideOfflineDatabasesBySession: [UUID: Bool] = [:]
+    /// The column row being renamed in place, and what to do with the new name.
+    var renamingColumnNodeID: String?
+    @ObservationIgnored var onColumnRename: ((ExplorerColumnOwner, ColumnInfo, String) -> Void)?
+    /// Folders whose filter field is open, with what it says (round 42.6). Not kept between launches.
+    var folderFilters: [String: String] = [:]
+    /// Show the rarer object folders even when empty (round 42.6, Show Empty Folders).
+    var showsEmptyFolders = ExplorerStateStore.bool(forKey: "echo.sidebar.showsEmptyFolders") ?? false {
+        didSet { ExplorerStateStore.set(showsEmptyFolders, forKey: "echo.sidebar.showsEmptyFolders") }
+    }
     var revealedNodeID: String?
     var revealRequestID = 0
     /// False makes the next reveal a jump (a dock switch returning to its place, round 19).

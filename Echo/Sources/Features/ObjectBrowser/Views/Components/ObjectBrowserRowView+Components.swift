@@ -118,7 +118,14 @@ extension ObjectBrowserRowView {
     }
 
     @ViewBuilder
-    func columnRow(column: ColumnInfo) -> some View {
+    func columnRow(column: ColumnInfo, databaseType: DatabaseType) -> some View {
+        // Dragging it into the editor inserts the quoted name, as Insert in Query does.
+        columnRowContent(column: column)
+            .draggable(ColumnNameQuoting.quoted(column.name, databaseType: databaseType))
+    }
+
+    @ViewBuilder
+    private func columnRowContent(column: ColumnInfo) -> some View {
         let typeLabel = trailingDetail(EchoFormatters.abbreviatedSQLType(column.dataType))
         if column.isPrimaryKey {
             SidebarRow(depth: depth, icon: .system("key.fill"), label: column.name, iconColor: Color.orange) {

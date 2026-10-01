@@ -5,6 +5,8 @@ import SwiftUI
 struct ExplorerTreeContextTarget {
     let nodeID: String
     let menu: () -> NSMenu?
+    /// What a double-click on the row does, if anything (a table opens its data).
+    var doubleClick: (() -> Void)?
 }
 
 /// One AppKit view for the whole tree's context menus. Each row used to carry its own, and with
@@ -37,12 +39,30 @@ final class ExplorerTreeContextMenuView: NSView, NSMenuDelegate {
     override var isFlipped: Bool { true }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
-        guard let event = window?.currentEvent,
-              event.type == .rightMouseDown || (event.type == .leftMouseDown && event.modifierFlags.contains(.control))
-        else { return nil }
+        guard let event = window?.currentEvent else { return nil }
         let local = convert(point, from: superview)
+        switch event.type {
+        case .rightMouseDown:
+            break
+        case .leftMouseDown where event.modifierFlags.contains(.control):
+            break
+        case .leftMouseDown where event.clickCount == 2:
+            // Only a row with a double-click action takes the click; others pass it through.
+            guard bounds.contains(local), target?(local)?.doubleClick != nil else { return nil }
+            return self
+        default:
+            return nil
+        }
         guard bounds.contains(local), target?(local) != nil else { return nil }
         return self
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        if event.clickCount == 2, let doubleClick = target?(convert(event.locationInWindow, from: nil))?.doubleClick {
+            doubleClick()
+        } else {
+            super.mouseDown(with: event)
+        }
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {

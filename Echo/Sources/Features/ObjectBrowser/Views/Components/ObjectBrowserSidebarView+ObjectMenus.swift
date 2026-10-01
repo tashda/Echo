@@ -44,6 +44,10 @@ extension ObjectBrowserSidebarView {
             }
         }
 
+        menu.addActionItem("Filter \(type.pluralDisplayName)", systemImage: "line.3.horizontal.decrease") {
+            startFilter(of: type, databaseName: databaseName, session: session)
+        }
+
         menu.addDivider()
         menu.addActionItem("Refresh", systemImage: "arrow.clockwise") {
             Task {

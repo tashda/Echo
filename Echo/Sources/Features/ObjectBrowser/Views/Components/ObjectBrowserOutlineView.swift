@@ -39,6 +39,10 @@ struct ObjectBrowserOutlineView: View {
     var foldingConnectionIDs: Set<UUID> = []
     /// A row's context menu; the tree has one menu host for all rows (ExplorerTreeContextMenuHost).
     var contextMenu: (ObjectBrowserNode) -> NSMenu? = { _ in nil }
+    /// What a double-click on a row does (round 42.4: a table or view opens its data).
+    var doubleClick: (ObjectBrowserNode) -> (() -> Void)? = { _ in nil }
+    /// The menu for the empty space around and below the cards (round 42.6).
+    var emptySpaceMenu: () -> NSMenu? = { nil }
     /// False makes the next reveal a jump, as a dock switch returning to its place (round 19).
     var revealAnimated = true
 
@@ -229,13 +233,15 @@ struct ObjectBrowserOutlineView: View {
     /// The row under a point in the tree's view (a pinned header covers the top), unless it is
     /// the dock, whose icons have menus of their own.
     private func contextTarget(at point: CGPoint, in layout: ObjectBrowserTreeLayout) -> ExplorerTreeContextTarget? {
-        guard let row = row(at: point.y, in: layout) else { return nil }
+        guard let row = row(at: point.y, in: layout) else {
+            return ExplorerTreeContextTarget(nodeID: "", menu: emptySpaceMenu)
+        }
         switch row.node.row {
         case .dock, .topSpacer: return nil
         default: break
         }
         let node = row.node
-        return ExplorerTreeContextTarget(nodeID: node.id, menu: { contextMenu(node) })
+        return ExplorerTreeContextTarget(nodeID: node.id, menu: { contextMenu(node) }, doubleClick: doubleClick(node))
     }
 
     private func row(at y: CGFloat, in layout: ObjectBrowserTreeLayout) -> ObjectBrowserTreeLayout.Row? {

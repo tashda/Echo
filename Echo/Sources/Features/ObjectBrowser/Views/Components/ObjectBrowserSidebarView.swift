@@ -118,6 +118,8 @@ struct ObjectBrowserSidebarView: View {
                     hiddenRowsConnectionIDs: viewModel.dockHiddenRowsConnectionIDs,
                     foldingConnectionIDs: viewModel.foldingConnectionIDs,
                     contextMenu: { contextMenu(for: $0) },
+                    doubleClick: { doubleClickAction(for: $0) },
+                    emptySpaceMenu: { emptySpaceMenu() },
                     revealAnimated: viewModel.revealAnimated
                 )
                 .background(Color.clear)
@@ -265,6 +267,8 @@ struct ObjectBrowserSidebarView: View {
     private func handleSelectionChange(_ node: ObjectBrowserNode?) {
         guard let node else { return }
         viewModel.selectedNodeID = node.id
+        ExplorerSelectionMenu.shared.update(menu: contextMenu(for: node))
+        viewModel.onColumnRename = { owner, column, name in showRename(of: column, in: owner, to: name) }
         guard let session = node.row.session else { return }
         selectedConnectionID = session.connection.id
         environmentState.sessionGroup.setActiveSession(session.id)

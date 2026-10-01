@@ -16,7 +16,7 @@ extension ObjectBrowserNode.Row {
             return folder.session
         case .item(let row):
             return row.session
-        case .topSpacer, .pendingConnection, .column, .placeholder, .loading, .message:
+        case .topSpacer, .pendingConnection, .column, .placeholder, .loading, .message, .filter:
             return nil
         }
     }

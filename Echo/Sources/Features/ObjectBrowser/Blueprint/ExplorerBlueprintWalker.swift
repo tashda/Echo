@@ -209,34 +209,62 @@ struct ExplorerBlueprintWalker {
     private func objectFolderNodes(_ kinds: [ExplorerNodeKind], database: DatabaseInfo) -> [ObjectBrowserNode] {
         let types = kinds.compactMap(\.objectType)
         let grouped = ObjectBrowserSnapshotBuilder.groupedObjects(for: database, supportedTypes: types)
-        let visibleTypes = types.filter { Self.alwaysShownObjectTypes.contains($0) || !(grouped[$0] ?? []).isEmpty }
+        let visibleTypes = types.filter { viewModel.showsEmptyFolders || Self.alwaysShownObjectTypes.contains($0) || !(grouped[$0] ?? []).isEmpty }
 
         return visibleTypes.map { type in
-            let objects = grouped[type] ?? []
+            let allObjects = grouped[type] ?? []
+            let kind = ExplorerNodeKind(objectFolderFor: type)
+            let folderID = ObjectBrowserSidebarViewModel.objectGroupNodeID(connectionID: connectionID, databaseName: database.name, objectType: type)
+            let filterText = viewModel.folderFilters[folderID]
+            let objects = allObjects.filter { Self.matches($0.name, filter: filterText) }
             let showsColumns = type == .table || type == .view || type == .materializedView
             let objectNodes = objects.map { object -> ObjectBrowserNode in
                 let objectID = ExplorerSidebarIdentity.object(connectionID: connectionID, databaseName: database.name, objectID: object.id)
                 let columns = showsColumns
-                    ? object.columns.map { ObjectBrowserNode(id: "\(objectID)#col#\($0.name)", row: .column($0, ExplorerColumnOwner(session: session, databaseName: database.name, object: object))) }
+                    ? object.columns.map { column -> ObjectBrowserNode in
+                        let columnID = "\(objectID)#col#\(column.name)"
+                        var owner = ExplorerColumnOwner(session: session, databaseName: database.name, object: object)
+                        owner.isRenaming = viewModel.renamingColumnNodeID == columnID
+                        let viewModel = viewModel
+                        let ownerForCommit = owner
+                        owner.commitRename = { newName in
+                            viewModel.renamingColumnNodeID = nil
+                            viewModel.onColumnRename?(ownerForCommit, column, newName)
+                        }
+                        owner.cancelRename = { viewModel.renamingColumnNodeID = nil }
+                        return ObjectBrowserNode(id: columnID, row: .column(column, owner))
+                    }
                     : []
                 return ObjectBrowserNode(id: objectID, row: .object(session, database.name, object), children: columns)
             }
-            let kind = ExplorerNodeKind(objectFolderFor: type)
-            let folderID = ObjectBrowserSidebarViewModel.objectGroupNodeID(connectionID: connectionID, databaseName: database.name, objectType: type)
             let folder = ExplorerFolder(
                 kind: kind,
                 session: session,
                 databaseName: database.name,
-                count: objects.count,
+                count: allObjects.count,
                 isLoading: false,
                 source: nil
             )
-            return ObjectBrowserNode(
-                id: folderID,
-                row: .folder(folder),
-                children: objectNodes.isEmpty ? [Self.emptyFolderRow(kind, folderID: folderID)] : objectNodes
-            )
+            var children = objectNodes.isEmpty ? [Self.emptyFolderRow(kind, folderID: folderID)] : objectNodes
+            if filterText != nil {
+                let viewModel = viewModel
+                let field = ExplorerFolderFilter(
+                    folderID: folderID,
+                    prompt: "Filter \(type.pluralDisplayName.lowercased())",
+                    text: { viewModel.folderFilters[folderID] ?? "" },
+                    setText: { viewModel.folderFilters[folderID] = $0 },
+                    close: { viewModel.folderFilters[folderID] = nil }
+                )
+                children.insert(ObjectBrowserNode(id: "\(folderID)#filter", row: .filter(field)), at: 0)
+            }
+            return ObjectBrowserNode(id: folderID, row: .folder(folder), children: children)
         }
+    }
+
+    /// Whether a name passes a folder's filter; no filter, or an empty one, passes everything.
+    static func matches(_ name: String, filter: String?) -> Bool {
+        guard let filter = filter?.trimmingCharacters(in: .whitespaces), !filter.isEmpty else { return true }
+        return name.localizedCaseInsensitiveContains(filter)
     }
 
     /// What an empty folder opens to: "No views", grey, at the child indent, as an empty item

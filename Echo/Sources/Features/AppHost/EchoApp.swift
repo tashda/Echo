@@ -82,6 +82,7 @@ struct EchoApp: App {
                 projectStore: coordinator.projectStore
             )
 #endif
+            ObjectMenuCommands(selection: .shared)
             AboutCommands()
             AppSettingsCommands()
             SparkleCommands()

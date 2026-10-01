@@ -76,4 +76,29 @@ struct ExplorerMenuRulesTests {
         #expect(ColumnNameQuoting.quoted("a\"b", databaseType: .postgresql) == "\"a\"\"b\"")
         #expect(ColumnNameQuoting.quoted("a`b", databaseType: .mysql) == "`a``b`")
     }
+
+    @Test func copyNameGoesBeforeDropAndProperties() {
+        let result = menu { menu in
+            menu.addActionItem("Script as") {}
+            menu.addDivider()
+            menu.addActionItem("Drop Login") {}
+            menu.addDivider()
+            menu.addActionItem("Properties") {}
+        }.insertingCopyName("sa").applyingExplorerRules()
+        #expect(result.items.map(\.title) == ["Script as", "", "Copy Name", "", "Drop Login", "", "Properties"])
+    }
+
+    @Test func filterMatchesNamesLoosely() {
+        #expect(ExplorerBlueprintWalker.matches("Orders", filter: "ord"))
+        #expect(ExplorerBlueprintWalker.matches("Orders", filter: nil))
+        #expect(ExplorerBlueprintWalker.matches("Orders", filter: "  "))
+        #expect(!ExplorerBlueprintWalker.matches("Orders", filter: "cust"))
+    }
+
+    @Test func columnRenameStatementPerDialect() {
+        #expect(ColumnRenameStatement.sql(table: "[dbo].[t]", oldName: "a", newName: "b", databaseType: .microsoftSQL)
+                == "EXEC sp_rename N'[dbo].[t].[a]', N'b', N'COLUMN';")
+        #expect(ColumnRenameStatement.sql(table: "\"public\".\"t\"", oldName: "a", newName: "b", databaseType: .postgresql)
+                == "ALTER TABLE \"public\".\"t\" RENAME COLUMN \"a\" TO \"b\";")
+    }
 }
