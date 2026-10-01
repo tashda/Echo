@@ -19,6 +19,10 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r44", label: "Round 44", title: "The blur under the footer", date: "1 Oct 2026",
+             asked: "The blur under the results footer still doesn't look smooth: test every way to blur the rows away under the footer and make it look perfect.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.footer-blur-r44"]),
         Info(id: "r46", label: "Round 46", title: "Server card: opening and closing", date: "1 Oct 2026",
              asked: "Expanding and collapsing a server card is barebones: the card's edge moves, but the dock and the tree just appear. Look at how switching sections animates and find a proper way to bring in the dock.",
              outcome: "Being judged.",
