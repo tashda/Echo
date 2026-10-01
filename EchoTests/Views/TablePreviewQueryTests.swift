@@ -21,8 +21,8 @@ struct TablePreviewQueryTests {
         #expect(TablePreviewQuery.qualifiedName(schema: "a`b", table: "c", databaseType: DatabaseType.mysql) == "`a``b`.`c`")
     }
 
-    @Test func promptMentionsTablesOnlyWhenThereAreSome() {
-        #expect(EmptyQueryHints.prompt(hasTables: true).contains("recent table"))
-        #expect(!EmptyQueryHints.prompt(hasTables: false).contains("table"))
+    /// Round 28.10 (EC2): an empty tab shows the prompt only, with no tables or snippets to offer.
+    @Test func emptyTabPromptOffersNothingElse() {
+        #expect(SQLTextView.emptyPrompt == "Start typing a query")
     }
 }

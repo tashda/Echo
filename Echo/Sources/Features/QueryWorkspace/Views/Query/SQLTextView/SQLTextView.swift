@@ -50,6 +50,9 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     /// Round 21 EM5 / round 22 ED1: the last run's error, as a squiggle with a bubble on hover.
     var errorMark: QueryErrorMark? { didSet { showErrorMark() } }
     var errorMarkView: QueryErrorMarkView?
+    /// Round 28.10: whether the empty prompt is drawn.
+    var showsEmptyPrompt = true
+    override var string: String { didSet { refreshEmptyPrompt() } }
     static let maxValidationOverlays = 10
     let completionEngine = SQLAutoCompletionEngine()
     let ruleEngine = SQLAutocompleteRuleEngine()
@@ -247,6 +250,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
     override func didChangeText() {
         super.didChangeText(); sqlDelegate?.sqlTextView(self, didUpdateText: string); lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
+        refreshEmptyPrompt()
         notifySelectionChanged(); scheduleHighlighting()
         if !isApplyingCompletion { deactivateManualCompletionSuppression() }
         updateCompletionIndicator(); scheduleValidation()
