@@ -2754,6 +2754,10 @@
       {
         "date": "2026-10-01T21:09:58Z",
         "text": "Built into Echo: the row numbers follow Settings \u203a Editor \u203a Gutter \u203a Style, and Hairline is now the default for both; the Hairline's edge starts below the header; the gutter fits the digits (3 at least) with 8pt either side; the # selects every cell (hover tint, tooltip Select All); selected rows' numbers are accent on the selection's tint; column names stay left, shaded rows stop at the gutter. The system's own 1pt header lines are hidden so one line remains. Please check: one line under the header, no vertical line in the header row, and clicking the #. A stored Subtle choice stays until you change it in Settings."
+      },
+      {
+        "date": "2026-10-01T22:19:50Z",
+        "text": "Revised after the owner's notes and agreed suggestions: the gutter's tint is a rounded block like the grid's selection, the hover and the shaded rows share one rounded shape (a hovered row is no wider than its shade), the results have their own Row Number Style, and the exhibits now draw this."
       }
     ],
     "needsMore": [],

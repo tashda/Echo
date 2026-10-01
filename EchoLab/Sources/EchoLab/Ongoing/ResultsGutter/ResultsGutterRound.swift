@@ -122,11 +122,11 @@ enum ResultsGutterRound {
             .of("stripes", "Alternate row shading", LabRGStripes.self, default: .on),
         ],
         exhibits: [
-            .init(id: "today", title: "Echo today", summary: "The gutter and header as they are, with the second line under the header the owner's screenshot shows.",
+            .init(id: "today", title: "Echo today", summary: "The gutter and header as they were: a second line under the header, a hover wider than its shaded row, a square tint in the gutter.",
                   isEchoToday: true, designWidth: LabRGCard.width, designHeight: LabRGCard.height) { values in
                 LabRGCard(look: .today(values))
             },
-            .init(id: "proposal", title: "Proposal", summary: "Built from the controls; one line under the header, across the gutter too.",
+            .init(id: "proposal", title: "Proposal", summary: "Built from the controls, as Echo draws it now: one line under the header, and one rounded shape for the shaded rows, the hover and the selection, in the grid and the gutter.",
                   designWidth: LabRGCard.width, designHeight: LabRGCard.height) { values in
                 LabRGCard(look: .proposal(values))
             },

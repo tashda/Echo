@@ -16,6 +16,9 @@ struct LabRGLook {
     var stripes: Bool
     /// Echo today draws the system's line 4pt above the gutter's (the owner's screenshot).
     var doubledRule = false
+    /// The one rounded shape of shaded rows, hover and selection, in the grid and the gutter, as Echo
+    /// draws them since round 47 (Echo today is square in the gutter, and its hover was wider than its shade).
+    var rounded = false
 
     private init(values: RoundValues, style: R.Style, align: R.Align, width: R.Width, headers: R.Headers, corner: R.Corner,
                  selected: R.Selected, cross: R.StripeCross, doubledRule: Bool) {
@@ -31,10 +34,12 @@ struct LabRGLook {
     }
 
     static func proposal(_ v: RoundValues) -> LabRGLook {
-        LabRGLook(values: v, style: R.Style(rawValue: v["style"]) ?? .subtle, align: R.Align(rawValue: v["align"]) ?? .right,
+        var look = LabRGLook(values: v, style: R.Style(rawValue: v["style"]) ?? .subtle, align: R.Align(rawValue: v["align"]) ?? .right,
                   width: R.Width(rawValue: v["width"]) ?? .fits, headers: R.Headers(rawValue: v["headers"]) ?? .data,
                   corner: R.Corner(rawValue: v["corner"]) ?? .selectAll, selected: R.Selected(rawValue: v["selected"]) ?? .tint,
                   cross: R.StripeCross(rawValue: v["cross"]) ?? .cross, doubledRule: false)
+        look.rounded = true
+        return look
     }
 
     func with(style: R.Style) -> LabRGLook {
@@ -122,6 +127,7 @@ struct LabRGCard: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             gutterBackground
+            gutterTints
             VStack(alignment: .leading, spacing: SpacingTokens.none) {
                 headerRow
                 ForEach(0..<rowLimit, id: \.self) { index in row(index) }
@@ -187,7 +193,7 @@ struct LabRGCard: View {
         let isSelected = selectedRows.contains(index)
         let isHot = isSelected || hoveredRow == index
         return ZStack(alignment: .trailing) {
-            if isSelected, look.selected == .tint {
+            if isSelected, look.selected == .tint, !look.rounded {
                 Rectangle().fill(ColorTokens.accent.opacity(0.18))
                     .padding(.horizontal, look.style == .lane ? laneInset : 0)
             }
@@ -256,16 +262,33 @@ struct LabRGCard: View {
         let crossesGutter = look.cross == .cross && (look.style == .today || look.style == .subtle || look.style == .hairline)
         return HStack(spacing: SpacingTokens.none) {
             numberCell(index)
-                .background(isStriped && crossesGutter ? ColorTokens.Sidebar.hoverFill : .clear)
+                .background { if isStriped && crossesGutter { shade } }
             HStack(spacing: SpacingTokens.none) {
                 ForEach(Array(columns.enumerated()), id: \.offset) { position, column in
                     cell(Self.data[index][position], column: column)
                 }
             }
-            .background(isSelected ? ColorTokens.accent.opacity(0.18) : (isStriped ? ColorTokens.Sidebar.hoverFill : .clear))
+            .background {
+                if look.rounded {
+                    if isStriped { shade }
+                } else {
+                    (isSelected ? ColorTokens.accent.opacity(0.18) : (isStriped ? ColorTokens.Sidebar.hoverFill : .clear))
+                }
+            }
         }
         .frame(height: rowHeight)
         .onHover { hoveredRow = $0 ? index : (hoveredRow == index ? nil : hoveredRow) }
+    }
+
+    /// A shaded row: the rounded shape when rounded (8pt by 1pt in, 6pt corners), else a plain band.
+    @ViewBuilder
+    private var shade: some View {
+        if look.rounded {
+            RoundedRectangle(cornerRadius: 6, style: .continuous).fill(ColorTokens.Sidebar.hoverFill)
+                .padding(.horizontal, SpacingTokens.xs).padding(.vertical, 1)
+        } else {
+            ColorTokens.Sidebar.hoverFill
+        }
     }
 
     private func cell(_ text: String, column: Column) -> some View {
@@ -284,11 +307,46 @@ struct LabRGCard: View {
     private var selectionOutline: some View {
         if let first = selectedRows.min(), let last = selectedRows.max() {
             let total = columns.reduce(CGFloat.zero) { $0 + $1.width }
-            RoundedRectangle(cornerRadius: SpacingTokens.xxs, style: .continuous)
-                .stroke(ColorTokens.accent.opacity(0.65), lineWidth: 1)
-                .frame(width: total, height: CGFloat(last - first + 1) * rowHeight)
-                .offset(x: gutterWidth, y: headerHeight + CGFloat(first) * rowHeight)
+            if look.rounded {
+                // As Echo: the range's block inset 2pt at its ends, 6pt corners, a fill and one outline.
+                let block = RoundedRectangle(cornerRadius: 6, style: .continuous)
+                ZStack {
+                    block.fill(ColorTokens.accent.opacity(0.18))
+                    block.stroke(ColorTokens.accent.opacity(0.65), lineWidth: 1)
+                }
+                .frame(width: total, height: CGFloat(last - first + 1) * rowHeight - 4)
+                .offset(x: gutterWidth, y: headerHeight + CGFloat(first) * rowHeight + 2)
                 .allowsHitTesting(false)
+            } else {
+                RoundedRectangle(cornerRadius: SpacingTokens.xxs, style: .continuous)
+                    .stroke(ColorTokens.accent.opacity(0.65), lineWidth: 1)
+                    .frame(width: total, height: CGFloat(last - first + 1) * rowHeight)
+                    .offset(x: gutterWidth, y: headerHeight + CGFloat(first) * rowHeight)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
+    /// The gutter's own tints in the rounded shape: one block for the selected rows, and the hovered
+    /// row's hover tint, each inset 4pt from the gutter's sides.
+    @ViewBuilder
+    private var gutterTints: some View {
+        if look.rounded {
+            let inset = (look.style == .lane ? laneInset : 0) + SpacingTokens.xxs
+            let width = max(gutterWidth - 2 * inset, 0)
+            ZStack(alignment: .topLeading) {
+                if look.selected == .tint, let first = selectedRows.min(), let last = selectedRows.max() {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous).fill(ColorTokens.accent.opacity(0.18))
+                        .frame(width: width, height: CGFloat(last - first + 1) * rowHeight - 4)
+                        .offset(x: inset, y: headerHeight + CGFloat(first) * rowHeight + 2)
+                }
+                if let hovered = hoveredRow, !selectedRows.contains(hovered) {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous).fill(ColorTokens.Sidebar.hoverFill)
+                        .frame(width: width, height: rowHeight - 2)
+                        .offset(x: inset, y: headerHeight + CGFloat(hovered) * rowHeight + 1)
+                }
+            }
+            .allowsHitTesting(false)
         }
     }
 }
