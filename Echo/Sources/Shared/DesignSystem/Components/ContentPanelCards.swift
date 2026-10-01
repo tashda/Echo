@@ -1,12 +1,5 @@
 import SwiftUI
 
-extension EnvironmentValues {
-    /// How tall the footer floating over the bottom of a card is, so the content under it
-    /// (the results grid, the editor, a message list) can scroll clear of it and blur beneath it
-    /// (round 9, FB1).
-    @Entry var cardFooterOverlayHeight: CGFloat = 0
-}
-
 /// A tab's content card with its panel card below, one gutter apart on the canvas: the query
 /// tab's editor and results (Design/02-layout.md, 05-components.md › Editor card), and every tool
 /// tab's content and bottom panel (TT1).
@@ -71,7 +64,7 @@ struct ContentPanelCards<Content: View, Panel: View, Footer: View>: View {
                 // Laid out at the size it starts or ends at; the clip does the moving.
                 let contentLayoutHeight = showsPanel && !isAnimating ? split : closed
                 ZStack(alignment: .top) {
-                    contentCard(visibleHeight: closed + (split - closed) * progress)
+                    contentCard(visibleHeight: closed + (split - closed) * progress, layoutHeight: contentLayoutHeight)
                         .frame(height: contentLayoutHeight, alignment: .top)
                     if hasMountedPanel {
                         VStack(spacing: SpacingTokens.none) {
@@ -173,11 +166,13 @@ struct ContentPanelCards<Content: View, Panel: View, Footer: View>: View {
 
     private var footerInContentCard: Bool { !showsPanel && !contentHasCards }
 
-    private func contentCard(visibleHeight: CGFloat) -> some View {
+    private func contentCard(visibleHeight: CGFloat, layoutHeight: CGFloat) -> some View {
         ZStack(alignment: .bottom) {
             content()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .environment(\.cardFooterOverlayHeight, footerInContentCard ? footerZone : 0)
+                .environment(\.cardHiddenBottom, max(layoutHeight - visibleHeight, 0))
+                .environment(\.cardFooterRestsInCard, !contentHasCards && (!showsPanel || openProgress == 0))
                 .onPreferenceChange(ContainsWorkspaceCardKey.self) { contentHasCards = $0 }
             if footerInContentCard {
                 footerOverlay

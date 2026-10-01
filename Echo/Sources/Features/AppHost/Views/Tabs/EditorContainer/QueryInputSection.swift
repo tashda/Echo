@@ -17,7 +17,9 @@ struct QueryInputSection: View {
     @Environment(AppState.self) var appState
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(AppearanceStore.self) private var appearanceStore
-    @Environment(\.cardFooterOverlayHeight) private var footerOverlayHeight
+    @Environment(\.cardFooterRestsInCard) private var footerRestsInCard
+    @Environment(\.cardHiddenBottom) private var cardHiddenBottom
+    @Environment(\.echoMotion) private var motion
     private let sqlHelpProvider = SQLHelpInspectorContentProvider()
 
     /// The editor's theme at this tab's zoom (round 28.8).
@@ -84,7 +86,9 @@ struct QueryInputSection: View {
         .overlay(alignment: .bottomLeading) {
             EditorZoomControl(zoom: $query.editorZoom)
                 .padding(.leading, EditorZoomControl.leadingInset)
-                .padding(.bottom, EditorZoomControl.bottomInset(footerOverlayHeight: footerOverlayHeight))
+                .padding(.bottom, zoomBottomInset)
+                // It chases the results card's edge a moment later and lands with a small bounce.
+                .animation(motion.liquidTrail, value: zoomBottomInset)
         }
         .background(alignment: .leading) {
             if appState.sqlEditorDisplay.showLineNumbers {
@@ -93,6 +97,10 @@ struct QueryInputSection: View {
             }
         }
         .background(editorBackground)
+    }
+
+    private var zoomBottomInset: CGFloat {
+        EditorZoomControl.bottomInset(footerInCard: footerRestsInCard, hiddenBelow: cardHiddenBottom)
     }
 
     /// The editor's padding plus the gutter, sized as LineNumberRulerView sizes itself.

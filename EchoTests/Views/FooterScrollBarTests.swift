@@ -67,6 +67,34 @@ struct ScrollBarBlurTests {
         #expect(BackdropEdgeBlurLayerView.locations(reach: 50, of: 0, share: 1).allSatisfy { $0 == 0 })
     }
 
+    /// The steps stack, so the blur's strength at a height is the root of the summed squared
+    /// radii, each weighted by its mask there. It must grow evenly from sharp to strongest: no
+    /// jump within a row reads as a line (owner, after round 27).
+    @Test func theBlurGrowsEvenlyFromSharpToTheEdge() {
+        let reach: CGFloat = LayoutTokens.Footer.height + LayoutTokens.Footer.bottomLift + LayoutTokens.EdgeBlur.fade
+        let radii = LayoutTokens.EdgeBlur.radii
+        let alphas = BackdropEdgeBlurLayerView.fadeAlphas
+        func mask(_ stops: [CGFloat], at share: CGFloat) -> CGFloat {
+            guard share > stops[0] else { return alphas[0] }
+            for index in 1..<stops.count where share <= stops[index] {
+                let span = stops[index] - stops[index - 1]
+                let t = span > 0 ? (share - stops[index - 1]) / span : 1
+                return alphas[index - 1] + (alphas[index] - alphas[index - 1]) * t
+            }
+            return 0
+        }
+        let steps = radii.indices.map { index in
+            BackdropEdgeBlurLayerView.locations(reach: reach, of: reach, share: 1 - CGFloat(index) / CGFloat(radii.count))
+        }
+        let strength = stride(from: CGFloat(0), through: reach, by: 1).map { height in
+            zip(radii, steps).reduce(CGFloat(0)) { $0 + $1.0 * $1.0 * mask($1.1, at: height / reach) }.squareRoot()
+        }
+        #expect(strength.first ?? 0 > 10)
+        #expect(strength.last == 0)
+        let steepest = zip(strength, strength.dropFirst()).map { abs($0 - $1) }.max() ?? 0
+        #expect(steepest < 0.6, "the blur changes by \(steepest)pt of radius in one point of height")
+    }
+
     @Test func theFadeIsAnSCurve() {
         let alphas = BackdropEdgeBlurLayerView.fadeAlphas
         #expect(alphas.first == 1 && alphas.last == 0)

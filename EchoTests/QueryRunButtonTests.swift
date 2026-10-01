@@ -52,3 +52,18 @@ struct QueryRunButtonTests {
         #expect(LongQueryNotice.body(tabTitle: "Query 2", succeeded: false, duration: 45) == "Query 2 failed after 45 s")
     }
 }
+
+/// Run widens for the time only once a query has run 3 s (owner, after round 31).
+@Suite("Run button time reveal")
+struct QueryRunTimeRevealTests {
+    @Test func theTimeWaitsThreeSecondsFromTheStart() {
+        let start = Date(timeIntervalSinceReferenceDate: 0)
+        #expect(QueryRunTimeReveal.wait(since: start, now: start) == 3)
+        #expect(QueryRunTimeReveal.wait(since: start, now: start.addingTimeInterval(1)) == 2)
+        #expect(QueryRunTimeReveal.wait(since: start, now: start.addingTimeInterval(5)) == 0)
+    }
+
+    @Test func anUnknownStartWaitsTheWholeTime() {
+        #expect(QueryRunTimeReveal.wait(since: nil) == 3)
+    }
+}

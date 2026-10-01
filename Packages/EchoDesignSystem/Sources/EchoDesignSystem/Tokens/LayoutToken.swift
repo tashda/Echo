@@ -108,11 +108,13 @@ public enum LayoutTokens {
         /// How far the blur keeps fading beyond the control it sits under (round 27: longer, so
         /// the blur meets the sharp rows gradually instead of at a line).
         public static let fade: CGFloat = SpacingTokens.lg
-        /// Blur radii from where it meets the sharp content to the edge: more, smaller steps at
-        /// the top, so no single step reads as an edge (round 27; was 1 · 3 · 6 · 10).
-        public static let radii: [CGFloat] = [0.75, 1.5, 3, 5, 7.5, 10]
+        /// Blur radii from where it meets the sharp content to the edge. The steps stack, so
+        /// near-equal radii with long, overlapping fades make the blur grow evenly from sharp to
+        /// strongest (about 12pt) over the whole fade, instead of jumping within one row (owner,
+        /// after round 27: it read as a line; was 0.75 · 1.5 · 3 · 5 · 7.5 · 10 with 0.45 fades).
+        public static let radii: [CGFloat] = [4, 4.25, 4.5, 5, 5.25, 5.5]
         /// Share of each step's reach over which it fades out, along a smooth S curve.
-        public static let step: CGFloat = 0.45
+        public static let step: CGFloat = 0.9
         /// The blur rising past a horizontal scroll bar while it shows, and settling back after
         /// (round 27, U5).
         public static let raiseDuration: Double = 0.32

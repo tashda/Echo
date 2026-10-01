@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Run for query tabs (plan K1, rounds 15, 20 and 24): one button in a glass capsule of its own
 /// that never swaps for another. At rest a plain ▶ like its neighbours, accent with a selection.
-/// Running, ▶ is replaced by ■ in place while the capsule fades to red; then its edge moves out and
-/// the time (“5 s”, then “1:05”) fades in. A click or ⌘↩ stops it; while the server is still
+/// Running, ▶ is replaced by ■ in place while the capsule fades to red; once the query has run 3 s
+/// its edge moves out and the time (“5 s”, then “1:05”) fades in (`QueryRunTimeReveal`). A click or ⌘↩ stops it; while the server is still
 /// stopping it says so. When the query ends the red drains as a ✓ draws itself (or ! shows).
 /// The tooltip says where it runs, or why it can't. Right-click for the other run modes.
 ///
@@ -17,7 +17,7 @@ struct QueryRunToolbarControl: View {
     @State private var task: Task<Void, Never>?
     @Environment(\.echoMotion) var motion
 
-    /// K2, staged: the icon and colour change first, the width just after.
+    /// K2, staged: the icon and colour change first, the width once the time is due.
     enum Stage { case rest, red, grown }
     enum RunResult { case succeeded, failed }
 
@@ -112,17 +112,23 @@ struct QueryRunToolbarControl: View {
         still.disablesAnimations = true
         withTransaction(still) {
             result = nil
-            stage = state.isRunning ? .grown : .rest
+            stage = !state.isRunning ? .rest : (QueryRunTimeReveal.wait(since: query?.executionStartTime) == 0 ? .grown : .red)
         }
+        if stage == .red { growWhenTimeIsDue() }
     }
 
-    /// ■ and the red at once, then the width and the time.
+    /// ■ and the red at once, then the width and the time once the query has run 3 s.
     private func begin() {
         task?.cancel()
         result = nil
         stage = .red
-        task = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(motion.settleDuration * 0.55))
+        growWhenTimeIsDue()
+    }
+
+    private func growWhenTimeIsDue() {
+        let wait = max(QueryRunTimeReveal.wait(since: query?.executionStartTime), motion.settleDuration * 0.55)
+        task = Task(name: "run-button-time-reveal") { @MainActor in
+            try? await Task.sleep(for: .seconds(wait))
             guard !Task.isCancelled, isRunning else { return }
             stage = .grown
         }

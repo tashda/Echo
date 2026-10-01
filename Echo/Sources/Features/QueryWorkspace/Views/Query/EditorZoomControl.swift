@@ -29,12 +29,13 @@ struct EditorZoomControl: View {
         .accessibilityLabel("Zoom \(EditorZoom.label(zoom))")
     }
 
-    /// Round 31: from the editor card's bottom edge to the pill's bottom. With results (no footer
-    /// in the card) the pill sits where the footer's pills sit in theirs (ZW1); with the footer
-    /// floating in the editor's card it stacks above the server pill, the same 9pt apart (ZN2).
-    static func bottomInset(footerOverlayHeight: CGFloat) -> CGFloat {
+    /// Round 31: from the editor card's laid-out bottom to the pill's bottom. With results (no
+    /// footer in the card) the pill sits where the footer's pills sit in theirs (ZW1); with the
+    /// footer in the editor's card it stacks above the server pill, the same 9pt apart (ZN2).
+    /// `hiddenBelow` keeps it on the card's visible edge while the results grow or fold.
+    static func bottomInset(footerInCard: Bool, hiddenBelow: CGFloat = 0) -> CGFloat {
         let inset = LayoutTokens.Footer.pillInset
-        return footerOverlayHeight > 0 ? inset + LayoutTokens.Footer.chipHeight + inset : inset
+        return hiddenBelow + (footerInCard ? inset + LayoutTokens.Footer.chipHeight + inset : inset)
     }
 
     /// Round 31: in from the card's leading edge as far as the footer's pills (12pt).
