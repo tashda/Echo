@@ -1,11 +1,12 @@
+import PostgresKit
 import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
 
 struct PgBackupServerSheet: View {
     let connection: SavedConnection
-    let password: String?
-    let resolvedUsername: String?
+    /// The connection's sign-in (username, password, client-key password).
+    let authentication: DatabaseAuthenticationConfiguration?
     let customToolPath: String?
     let onDismiss: () -> Void
 
@@ -110,13 +111,14 @@ struct PgBackupServerSheet: View {
         }
     }
 
-    private func buildCommand() -> [String] {
+    /// `connectionArguments` replaces the readable host, port and user shown before a run.
+    private func buildCommand(connectionArguments: [String]? = nil) -> [String] {
         var args: [String] = ["pg_dumpall"]
         if cleanBeforeRestore { args.append("--clean") }
         if ifExists { args.append("--if-exists") }
         if noOwner { args.append("--no-owner") }
         args.append(contentsOf: ["--file", outputPath])
-        args.append(contentsOf: buildConnectionArgs())
+        args.append(contentsOf: connectionArguments ?? buildConnectionArgs())
         return args
     }
 
@@ -124,7 +126,7 @@ struct PgBackupServerSheet: View {
         var args: [String] = []
         args.append(contentsOf: ["--host", connection.host])
         args.append(contentsOf: ["--port", String(connection.port)])
-        let user = resolvedUsername ?? connection.username
+        let user = authentication?.username ?? connection.username
         if !user.isEmpty { args.append(contentsOf: ["--username", user]) }
         args.append("--no-password")
         return args
@@ -142,15 +144,27 @@ struct PgBackupServerSheet: View {
         isError = false
         statusMessage = "Running\u{2026}"
 
-        var args = buildCommand()
+        // The connection's hosts, TLS and certificates, the password only in the environment (#34).
+        let tool: PostgresToolConnection
+        do {
+            tool = try await PostgresToolConnection.make(
+                for: connection, database: connection.database,
+                authentication: authentication ?? DatabaseAuthenticationConfiguration(username: connection.username, password: nil)
+            )
+        } catch {
+            statusMessage = error.localizedDescription
+            isError = true
+            isRunning = false
+            return
+        }
+        var args = buildCommand(connectionArguments: ["--dbname", tool.connectionString, "--no-password"])
         args.removeFirst() // Remove "pg_dumpall" since we pass the executable URL
-
-        var env: [String: String] = [:]
-        if let pw = password, !pw.isEmpty { env["PGPASSWORD"] = pw }
+        let env = tool.environment
 
         let runner = PostgresProcessRunner()
         do {
             let result = try await runner.run(executable: pgDumpAll, arguments: Array(args), environment: env)
+            withExtendedLifetime(tool) {}
             if result.exitCode == 0 {
                 statusMessage = "Backup completed successfully"
                 isError = false

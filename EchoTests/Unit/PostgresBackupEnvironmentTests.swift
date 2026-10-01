@@ -2,47 +2,50 @@ import Testing
 import Foundation
 @testable import Echo
 
+/// pg_dump, pg_restore and psql connect as the connection does (#34): its TLS mode and CA,
+/// Kerberos encryption only for Kerberos sign-ins, and the password never on the command line.
 @MainActor
-@Suite("PostgresBackupRestoreViewModel - tool environment")
+@Suite("PostgresBackupRestoreViewModel - tool connection")
 struct PostgresBackupEnvironmentTests {
     private func viewModel(
         authenticationMethod: DatabaseAuthenticationMethod,
-        useTLS: Bool = true,
-        password: String? = "secret"
+        password: String? = "secret",
+        change: (inout SavedConnection) -> Void = { _ in }
     ) -> PostgresBackupRestoreViewModel {
-        let connection = SavedConnection(
+        var connection = SavedConnection(
             connectionName: "Test", host: "localhost", port: 5432,
             database: "db", username: "user",
             authenticationMethod: authenticationMethod,
-            useTLS: useTLS,
+            useTLS: false,
             databaseType: .postgresql
         )
+        change(&connection)
         return PostgresBackupRestoreViewModel(
             connection: connection, session: MockDatabaseSession(),
             databaseName: "db", password: password
         )
     }
 
-    @Test func passwordSignInDisablesGSSEncryption() {
-        let env = viewModel(authenticationMethod: .sqlPassword).buildEnvironment()
-        #expect(env["PGGSSENCMODE"] == "disable")
-        #expect(env["PGPASSWORD"] == "secret")
+    @Test func passwordSignInKeepsThePasswordOffTheCommandLine() async throws {
+        let tool = try await viewModel(authenticationMethod: .sqlPassword).toolConnection(database: "other")
+        #expect(tool.environment == ["PGPASSWORD": "secret"])
+        #expect(!tool.connectionString.contains("secret"))
+        #expect(tool.connectionString.contains("dbname='other'"))
+        #expect(tool.connectionString.contains("gssencmode='disable'"))
     }
 
-    @Test func kerberosSignInPrefersGSSEncryption() {
-        let env = viewModel(authenticationMethod: .kerberos, password: nil).buildEnvironment()
-        #expect(env["PGGSSENCMODE"] == "prefer")
-        #expect(env["PGPASSWORD"] == nil)
+    @Test func kerberosSignInPrefersGSSEncryption() async throws {
+        let tool = try await viewModel(authenticationMethod: .kerberos, password: nil).toolConnection(database: "db")
+        #expect(tool.environment.isEmpty)
+        #expect(tool.connectionString.contains("gssencmode='prefer'"))
     }
 
-    @Test func toolsGetNoDynamicLibraryPaths() {
-        let env = viewModel(authenticationMethod: .sqlPassword).buildEnvironment()
-        #expect(env["DYLD_LIBRARY_PATH"] == nil)
-        #expect(env["DYLD_FALLBACK_LIBRARY_PATH"] == nil)
-    }
-
-    @Test func tlsSettingSetsSSLMode() {
-        #expect(viewModel(authenticationMethod: .sqlPassword, useTLS: true).buildEnvironment()["PGSSLMODE"] == "require")
-        #expect(viewModel(authenticationMethod: .sqlPassword, useTLS: false).buildEnvironment()["PGSSLMODE"] == "disable")
+    @Test func toolsGetTheConnectionsTLSSettings() async throws {
+        let tool = try await viewModel(authenticationMethod: .sqlPassword) {
+            $0.tlsMode = .verifyFull
+            $0.sslRootCertPath = "/certs/ca.pem"
+        }.toolConnection(database: "db")
+        #expect(tool.connectionString.contains("sslmode='verify-full'"))
+        #expect(tool.connectionString.contains("sslrootcert='/certs/ca.pem'"))
     }
 }

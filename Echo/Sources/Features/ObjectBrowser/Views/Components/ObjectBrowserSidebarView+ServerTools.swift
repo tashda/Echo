@@ -143,10 +143,10 @@ struct PgServerBackupSheetContainer: View {
     var body: some View {
         let auth = AppDirector.shared.identityRepository.resolveAuthenticationConfiguration(for: connection, overridePassword: nil)
         if globalsOnly {
-            PgBackupGlobalsSheet(connection: connection, password: auth?.password, resolvedUsername: auth?.username,
+            PgBackupGlobalsSheet(connection: connection, authentication: auth,
                                  customToolPath: projectStore.globalSettings.pgToolCustomPath, onDismiss: onDismiss)
         } else {
-            PgBackupServerSheet(connection: connection, password: auth?.password, resolvedUsername: auth?.username,
+            PgBackupServerSheet(connection: connection, authentication: auth,
                                 customToolPath: projectStore.globalSettings.pgToolCustomPath, onDismiss: onDismiss)
         }
     }

@@ -1,4 +1,5 @@
 import Foundation
+import PostgresKit
 
 extension PostgresBackupRestoreViewModel {
     func splitPatterns(_ input: String) -> [String] {
@@ -8,32 +9,19 @@ extension PostgresBackupRestoreViewModel {
             .filter { !$0.isEmpty }
     }
 
-    func buildConnectionURI(database: String) -> String {
-        let sslmode = "prefer"
-        let host = connection.host.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? connection.host
-        let effectiveUsername = resolvedUsername ?? connection.username
-        let user = effectiveUsername.addingPercentEncoding(withAllowedCharacters: .urlUserAllowed) ?? effectiveUsername
-        let db = database.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? database
-
-        var userInfo = user
-        if let password = connectionPassword, !password.isEmpty {
-            let encodedPassword = password.addingPercentEncoding(withAllowedCharacters: .urlPasswordAllowed) ?? password
-            userInfo = "\(user):\(encodedPassword)"
+    /// How the tools reach the server for `database`, as this session's connection does: hosts,
+    /// TLS mode and files, Kerberos, the password only in the environment (#34). Keep it until the
+    /// tool has finished.
+    func toolConnection(database: String) async throws -> PostgresToolConnection {
+        if let postgres = session as? PostgresSession {
+            return try await postgres.client.toolConnection(database: database)
         }
-
-        return "postgresql://\(userInfo)@\(host):\(connection.port)/\(db)?sslmode=\(sslmode)"
-    }
-
-    func buildEnvironment() -> [String: String] {
-        var env: [String: String] = [:]
-        if let password = connectionPassword, !password.isEmpty {
-            env["PGPASSWORD"] = password
-        }
-        env["PGSSLMODE"] = connection.useTLS ? "require" : "disable"
-        // libpq tries GSS encryption first whenever a Kerberos ticket exists; only Kerberos
-        // sign-ins should. The bundled tools find libpq through their rpath, no DYLD_ needed.
-        env["PGGSSENCMODE"] = connection.authenticationMethod == .kerberos ? "prefer" : "disable"
-        return env
+        return try await PostgresToolConnection.make(
+            for: connection, database: database,
+            authentication: DatabaseAuthenticationConfiguration(
+                method: connection.authenticationMethod, username: resolvedUsername ?? connection.username, password: connectionPassword
+            )
+        )
     }
 
     func detectFormat() {

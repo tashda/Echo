@@ -38,7 +38,7 @@ struct PostgresBackupRestoreIntegrationTests {
     private let runner = PostgresProcessRunner()
 
     /// What Echo's backup sheet passes for a password sign-in without TLS
-    /// (`PostgresBackupRestoreViewModel.buildEnvironment`). GSS encryption stays off: libpq would
+    /// (`PostgresToolConnection`). GSS encryption stays off: libpq would
     /// otherwise probe Apple's GSS.framework, and pg_dump/pg_restore's parallel workers (fork) die.
     private func toolEnvironment(_ config: PGConfig) -> [String: String] {
         ["PGPASSWORD": config.password, "PGSSLMODE": "disable", "PGGSSENCMODE": "disable"]

@@ -34,7 +34,7 @@
       "location" : "https://github.com/tashda/mysql-wire",
       "state" : {
         "branch" : "official",
-        "revision" : "80a1259afea8834eed45734e960129eea33015d7"
+        "revision" : "c5902abba1b2102c7a8339bc647e95bc58b60715"
       }
     },
     {
@@ -43,7 +43,7 @@
       "location" : "https://github.com/tashda/postgres-wire",
       "state" : {
         "branch" : "official",
-        "revision" : "6dded97d0706bf426c09231de917b6c651c646c4"
+        "revision" : "6b3c7c300af9dfec195b4a9c67fff7b9d6ac86b6"
       }
     },
     {

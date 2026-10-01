@@ -1,4 +1,5 @@
 import Foundation
+import PostgresKit
 
 extension PostgresBackupRestoreViewModel {
     func executeBackup(customToolPath: String?) async {
@@ -12,8 +13,16 @@ extension PostgresBackupRestoreViewModel {
         backupStderrOutput = []
         let handle = activityEngine?.begin("Backup \(databaseName)", connectionSessionID: connectionSessionID)
 
+        let tool: PostgresToolConnection
+        do {
+            tool = try await toolConnection(database: databaseName)
+        } catch {
+            backupPhase = .failed(message: error.localizedDescription)
+            handle?.fail(error.localizedDescription)
+            return
+        }
         var args: [String] = []
-        args.append(contentsOf: ["--dbname", buildConnectionURI(database: databaseName)])
+        args.append(contentsOf: ["--dbname", tool.connectionString])
         args.append(contentsOf: ["--format", outputFormat.pgDumpFlag])
         args.append(contentsOf: ["--file", outputURL.path])
 
@@ -78,7 +87,7 @@ extension PostgresBackupRestoreViewModel {
             args.append(contentsOf: extraArgs.split(separator: " ").map(String.init))
         }
 
-        let env = buildEnvironment()
+        let env = tool.environment
 
         log("Starting backup of \(databaseName)\u{2026}", severity: .info, category: "Backup")
         nonisolated(unsafe) let panel = panelState
@@ -94,6 +103,7 @@ extension PostgresBackupRestoreViewModel {
                 }
             }
 
+            withExtendedLifetime(tool) {}
             backupStderrOutput = result.stderrLines
             if result.exitCode == 0 {
                 backupPhase = .completed(messages: [])
