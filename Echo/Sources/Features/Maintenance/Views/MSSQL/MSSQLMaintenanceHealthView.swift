@@ -4,13 +4,17 @@ import SQLServerKit
 struct MSSQLMaintenanceHealthView: View {
     @Bindable var viewModel: MSSQLMaintenanceViewModel
     @Environment(EnvironmentState.self) private var environmentState
+    /// The finding whose fix is running.
+    @State var fixing: HealthFinding.Fix?
 
     private var session: ConnectionSession? {
         environmentState.sessionGroup.sessionForConnection(viewModel.connectionID)
     }
 
     var body: some View {
+        // Health (round 37.4, HE0): what is wrong first, each with its fix; the operations below.
         Form {
+            findingsSection
             informationSection
             integritySection
             shrinkDatabaseSection

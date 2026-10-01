@@ -54,6 +54,8 @@ final class MSSQLMaintenanceViewModel {
 
     // Backup State
     var backupHistory: [SQLServerBackupHistoryEntry] = []
+    /// The history has been read for this database, so an empty one means no backups (Health).
+    var hasLoadedBackups = false
     var backupPermissionError: String?
     var isRefreshingBackups = false
     var backupsActiveForm: MSSQLBackupRestoreViewModel.ActiveForm?
@@ -199,8 +201,10 @@ final class MSSQLMaintenanceViewModel {
             let dbSession = try await resolveSession()
             backupHistory = try await dbSession.getBackupHistory(limit: 50)
             backupPermissionError = nil
+            hasLoadedBackups = true
         } catch {
             backupHistory = []
+            hasLoadedBackups = false
             let msg = "\(error)"
             if msg.contains("permission was denied") || msg.contains("not have permission") {
                 backupPermissionError = "Backup history requires access to the msdb database."

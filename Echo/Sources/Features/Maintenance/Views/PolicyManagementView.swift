@@ -3,6 +3,7 @@ import SQLServerKit
 
 struct PolicyManagementView: View {
     @Bindable var viewModel: PolicyManagementViewModel
+    @State private var listFraction: CGFloat = 0.64
     
     var body: some View {
         // Its pages are in the tab (round 36.2); its actions on the header line (37.2).
@@ -32,7 +33,12 @@ struct PolicyManagementView: View {
                 if viewModel.policies.isEmpty {
                     emptyState("No Policies", systemImage: "checklist", description: "No Policy-Based Management policies are configured on this server.")
                 } else {
-                    policiesTable
+                    // Manage (round 37.4, MA0): the selected policy's details on a card beside the list.
+                    CardSplitView(axis: .horizontal, fraction: $listFraction, minFraction: 0.4, maxFraction: 0.8) {
+                        policiesTable
+                    } second: {
+                        PolicyDetailsPane(viewModel: viewModel)
+                    }
                 }
             case .conditions:
                 if viewModel.conditions.isEmpty {
