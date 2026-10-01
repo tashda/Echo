@@ -26,11 +26,17 @@ extension ObjectBrowserSidebarView {
         return menu
     }
 
-    /// A table or view opens its data on double-click (the first item in its menu).
+    /// A table or view opens its data on double-click (the first item in its menu); a job opens the Jobs view on it.
     func doubleClickAction(for node: ObjectBrowserNode) -> (() -> Void)? {
-        guard case .object(let session, let databaseName, let object) = node.row,
-              object.type == .table || object.type == .view || object.type == .materializedView else { return nil }
-        return { openObjectData(object, databaseName: databaseName, session: session) }
+        switch node.row {
+        case .object(let session, let databaseName, let object)
+            where object.type == .table || object.type == .view || object.type == .materializedView:
+            return { openObjectData(object, databaseName: databaseName, session: session) }
+        case .item(let row) where row.kind == .agentJob:
+            return { environmentState.openJobQueueTab(for: row.session, selectJobID: row.item.id) }
+        default:
+            return nil
+        }
     }
 
     /// Opens a folder's filter field (Filter Tables, Filter Views…).

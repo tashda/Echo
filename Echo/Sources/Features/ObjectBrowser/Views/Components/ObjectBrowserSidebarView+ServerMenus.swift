@@ -370,13 +370,14 @@ extension ObjectBrowserSidebarView {
         return menu
     }
 
-    func agentJobMenu(for session: ConnectionSession) -> NSMenu {
+    /// A job's menu opens the Jobs view with that job selected.
+    func agentJobMenu(for session: ConnectionSession, jobID: String? = nil) -> NSMenu {
         let menu = NSMenu()
         menu.addActionItem("Open in Tab", systemImage: "list.bullet.rectangle") {
-            environmentState.openJobQueueTab(for: session)
+            environmentState.openJobQueueTab(for: session, selectJobID: jobID)
         }
         menu.addActionItem("Open in New Window", systemImage: "rectangle.portrait.and.arrow.right") {
-            let sessionID = environmentState.prepareJobQueueWindow(for: session)
+            let sessionID = environmentState.prepareJobQueueWindow(for: session, selectJobID: jobID)
             openWindow(id: JobQueueWindow.sceneID, value: sessionID)
         }
         return menu

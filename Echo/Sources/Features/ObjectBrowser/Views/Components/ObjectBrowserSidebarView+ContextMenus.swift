@@ -70,7 +70,7 @@ extension ObjectBrowserSidebarView {
         case .serverTrigger:
             return serverTriggerMenu(trigger: row.item, session: session)
         case .ssisFolder, .plain:
-            return row.kind == .agentJob ? agentJobMenu(for: session) : nil
+            return row.kind == .agentJob ? agentJobMenu(for: session, jobID: row.item.id) : nil
         }
     }
 
