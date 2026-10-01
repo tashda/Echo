@@ -18,6 +18,7 @@
         "LabPostgresSessionTests",
         "LabSQLServerSessionTests",
         "LabSQLServerImportTests",
+        "LabSQLServerAlwaysEncryptedTests",
         "EchoSenseIntegrationTests",
         "MSSQLActivityMonitorTests",
         "MSSQLAgentManagementTests",

@@ -245,7 +245,7 @@ extension QueryResultsTableView.Coordinator {
         }
         let content = CellValueInspectorContent(
             columnName: columnInfo.name,
-            dataType: columnInfo.dataType,
+            dataType: columnInfo.encryption?.typeName ?? columnInfo.dataType,
             rawValue: rawValue,
             valueKind: kind,
             rowNumber: cell.row + 1,
@@ -265,6 +265,7 @@ extension QueryResultsTableView.Coordinator {
         case .identifier: return overrides.identifierHex
         case .json: return overrides.jsonHex
         case .text: return overrides.textHex
+        case .encrypted: return nil // always dimmed (round 29)
         }
     }
 }

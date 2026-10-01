@@ -22,8 +22,13 @@ nonisolated enum ResultCellPresentation {
     static let falseSymbol = "✗"
 
     /// The text a cell shows for `raw`. Booleans become ✓ or ✗; anything unrecognised stays as is.
+    /// What an Always Encrypted cell shows (round 29, EV1); its raw value, the ciphertext, is what
+    /// Copy gives (CP1).
+    static let encryptedText = "Encrypted"
+
     static func displayText(_ raw: String?, kind: ResultGridValueKind) -> String {
         guard let raw else { return kind == .null ? "NULL" : "" }
+        if kind == .encrypted { return encryptedText }
         guard kind == .boolean else { return raw }
         switch raw.trimmingCharacters(in: .whitespaces).lowercased() {
         case "true", "t", "1", "yes", "y", "on": return trueSymbol

@@ -13,6 +13,8 @@ final class ResultTableHeaderCell: NSTableHeaderCell {
     var typeName: String?
     var sortState: SortState = .none
     var isHovered = false
+    /// Always Encrypted (round 29, EH1): a lock after the name.
+    var isEncrypted = false
 
     static let nameFont = NSFont.systemFont(ofSize: 12, weight: .semibold)
     static let typeFont = NSFont.monospacedSystemFont(ofSize: 10, weight: .regular)
@@ -70,11 +72,21 @@ final class ResultTableHeaderCell: NSTableHeaderCell {
         let paragraph = NSMutableParagraphStyle()
         paragraph.alignment = .left
         paragraph.lineBreakMode = .byTruncatingTail
-        let name = NSAttributedString(string: title, attributes: [
+        let nameAttributes: [NSAttributedString.Key: Any] = [
             .font: Self.nameFont,
             .foregroundColor: NSColor.labelColor,
             .paragraphStyle: paragraph
-        ])
+        ]
+        let name = NSMutableAttributedString(string: title, attributes: nameAttributes)
+        if isEncrypted, let lock = NSImage(systemSymbolName: "lock.fill", accessibilityDescription: "Always Encrypted")?
+            .withSymbolConfiguration(.init(pointSize: Self.nameFont.pointSize * 0.8, weight: .regular)) {
+            let attachment = NSTextAttachment()
+            attachment.image = lock
+            let symbol = NSMutableAttributedString(attachment: attachment)
+            symbol.addAttributes([.foregroundColor: NSColor.tertiaryLabelColor], range: NSRange(location: 0, length: symbol.length))
+            name.append(NSAttributedString(string: " ", attributes: nameAttributes))
+            name.append(symbol)
+        }
         let type = typeName.flatMap { $0.isEmpty ? nil : $0 }.map {
             NSAttributedString(string: $0, attributes: [
                 .font: Self.typeFont,
