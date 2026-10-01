@@ -1,4 +1,5 @@
 import EchoDesignSystem
+import ServerLabCatalog
 import ServerLabKit
 import SwiftUI
 
@@ -21,6 +22,11 @@ struct ServerRecipeList: View {
     var body: some View {
         VSplitView {
             List(selection: $selectedRecipe) {
+                Section("SQLite files") {
+                    ForEach(LabSQLiteFixture.allCases, id: \.self) { fixture in
+                        Label(fixture.rawValue, systemImage: "doc").font(TypographyTokens.standard).tag("sqlite:\(fixture.rawValue)")
+                    }
+                }
                 ForEach(EngineKind.allCases, id: \.self) { engine in
                     let recipes = filtered.filter { $0.engine == engine }
                     if !recipes.isEmpty {
@@ -37,6 +43,8 @@ struct ServerRecipeList: View {
 
             if let selected {
                 detail(selected).frame(minHeight: 220)
+            } else if let fixture = selectedRecipe.flatMap({ $0.hasPrefix("sqlite:") ? LabSQLiteFixture(rawValue: String($0.dropFirst(7))) : nil }) {
+                SQLiteFixtureDetail(model: model, fixture: fixture).frame(minHeight: 220)
             }
         }
     }

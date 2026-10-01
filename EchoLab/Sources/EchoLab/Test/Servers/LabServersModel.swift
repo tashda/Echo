@@ -28,6 +28,8 @@ final class LabServersModel {
     private(set) var wireServer: String?
     /// The capture explained field by field by the lab's decoders (TDS or PostgreSQL).
     private(set) var explained: [ExplainedMessage] = []
+    /// Fresh SQLite fixture copies made on this page.
+    private(set) var sqliteCopies: [LabSQLiteFixture: URL] = [:]
     private(set) var explainedServer: String?
 
     /// Echo Labs marks the servers it starts with this owner.
@@ -118,6 +120,15 @@ final class LabServersModel {
     }
 
     func clearLog() { log.removeAll() }
+
+    func makeSQLiteCopy(_ fixture: LabSQLiteFixture) async {
+        do {
+            sqliteCopies[fixture] = try await LabSQLite.freshCopy(fixture, log: { line in Task { @MainActor in LabServersModel.shared.append(line) } })
+            append("SQLite \(fixture.rawValue): \(sqliteCopies[fixture]?.path ?? "")")
+        } catch {
+            append("SQLite \(fixture.rawValue) failed: \(error)")
+        }
+    }
 
     /// Replaces a started server after a change to its parts (a fault proxy was added).
     func replaceStarted(_ server: LabDatabaseServer) {
