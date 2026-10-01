@@ -20,7 +20,7 @@ enum ToolTabsArea {
         summary: "Every tab but the editors belongs to a family and starts with one header line holding the tool's glass controls; its pages are in the tab, its panes cards a gutter apart, and each family has its layout.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "b6c8b5d5", date: "2026-10-01",
+                level: .code, commit: "bb0a4b41", date: "2026-10-01",
                 note: "Read from ToolTabHeader, ToolTabContainer, CardSplitView, ActivityMonitorSparklineStrip and Design/05-components. The specimen is a stand-in Activity Monitor; not compared with the running app."),
             stageHeight: 380,
             behaviours: [
