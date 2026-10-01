@@ -48,4 +48,11 @@ struct PostgresBackupEnvironmentTests {
         #expect(tool.connectionString.contains("sslmode='verify-full'"))
         #expect(tool.connectionString.contains("sslrootcert='/certs/ca.pem'"))
     }
+
+    /// #43: the tools' forked workers can't use Apple's Kerberos, so a Kerberos sign-in runs one job.
+    @Test func kerberosSignInRunsOneJob() {
+        #expect(viewModel(authenticationMethod: .kerberos, password: nil).effectiveJobs(4, category: "Backup") == 1)
+        #expect(viewModel(authenticationMethod: .sqlPassword).effectiveJobs(4, category: "Backup") == 4)
+        #expect(viewModel(authenticationMethod: .kerberos, password: nil).effectiveJobs(1, category: "Backup") == 1)
+    }
 }

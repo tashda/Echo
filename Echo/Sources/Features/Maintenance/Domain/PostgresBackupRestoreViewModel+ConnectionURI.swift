@@ -24,6 +24,15 @@ extension PostgresBackupRestoreViewModel {
         )
     }
 
+    /// How many jobs the tools run. With a Kerberos sign-in, one: their forked workers can't use
+    /// this Mac's Kerberos ticket (Apple's Kerberos isn't usable after fork, #43); Messages says so.
+    func effectiveJobs(_ requested: Int, category: String) -> Int {
+        guard requested > 1, connection.authenticationMethod == .kerberos else { return requested }
+        log("Kerberos sign-in: running with one job instead of \(requested). The tools' parallel workers can't use this Mac's Kerberos ticket.",
+            severity: .info, category: category)
+        return 1
+    }
+
     func detectFormat() {
         guard let url = inputURL else { return }
         let ext = url.pathExtension.lowercased()

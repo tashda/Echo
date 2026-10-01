@@ -30,7 +30,8 @@ extension PostgresBackupRestoreViewModel {
             args.append(contentsOf: ["--compress", String(compression)])
         }
         if outputFormat == .directory && parallelJobs > 1 {
-            args.append(contentsOf: ["--jobs", String(parallelJobs)])
+            let jobs = effectiveJobs(parallelJobs, category: "Backup")
+            if jobs > 1 { args.append(contentsOf: ["--jobs", String(jobs)]) }
         }
         if schemaOnly { args.append("--schema-only") }
         if dataOnly { args.append("--data-only") }

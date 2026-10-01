@@ -42,7 +42,8 @@ extension PostgresBackupRestoreViewModel {
         if restoreDisableTriggers { args.append("--disable-triggers") }
         args.append("--no-password")
         if restoreParallelJobs > 1 {
-            args.append(contentsOf: ["--jobs", String(restoreParallelJobs)])
+            let jobs = effectiveJobs(restoreParallelJobs, category: "Restore")
+            if jobs > 1 { args.append(contentsOf: ["--jobs", String(jobs)]) }
         }
         if restoreVerbose { args.append("--verbose") }
 
