@@ -19,7 +19,10 @@ extension AppDirector {
         let start = Date()
         print("automation-script start \(String(format: "%.3f", start.timeIntervalSince1970))")
         for (index, step) in script.steps.enumerated() {
-            if step.action == "scroll" {
+            if step.action == "type" {
+                announce(index: index, label: step.label ?? "type")
+                await performAutomationTyping(step.target ?? "", interval: step.seconds ?? 0.12)
+            } else if step.action == "scroll" {
                 announce(index: index, label: step.label ?? "scroll \(step.target ?? "")")
                 await performAutomationScroll(target: step.target ?? "sidebar", distance: step.distance ?? 800, seconds: step.seconds ?? 1)
             } else if let action = step.action, Self.appAutomationActions.contains(action) {
@@ -37,6 +40,11 @@ extension AppDirector {
         print("automation-script end \(String(format: "%.3f", Date().timeIntervalSince1970))")
         fflush(stdout)
         Self.scriptLogger.info("Automation script finished")
+    }
+
+    /// A point of interest for one moment inside a step, such as a keystroke.
+    static func markAutomationEvent(_ label: String) {
+        scriptSignposter.emitEvent("key", "\(label, privacy: .public)")
     }
 
     private func announce(index: Int, label: String) {

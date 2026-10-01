@@ -26,8 +26,10 @@ struct AutoCompletionListView: View {
     }
 
     /// Wide enough for the longest name plus its badge, chip and type, within the popup's limits.
+    /// Measured over the first suggestions, the ones within a short scroll: measuring hundreds on
+    /// every keystroke was a large part of typing's cost.
     var preferredWidth: CGFloat {
-        let widest = suggestions.map { suggestion -> CGFloat in
+        let widest = suggestions.prefix(Self.measuredSuggestionCount).map { suggestion -> CGFloat in
             let name = (suggestion.nameAndQualifier.name as NSString).size(withAttributes: [.font: nameFont]).width
             let chip = suggestion.nameAndQualifier.qualifier.map { ($0 as NSString).size(withAttributes: [.font: TypographyTokens.AppKit.detail]).width + LayoutTokens.EchoSense.chipHorizontalPadding * 2 + LayoutTokens.EchoSense.rowSpacing } ?? 0
             let trailing = suggestion.trailingText.map { ($0 as NSString).size(withAttributes: [.font: TypographyTokens.AppKit.detail]).width + LayoutTokens.EchoSense.rowSpacing } ?? 0
@@ -37,6 +39,8 @@ struct AutoCompletionListView: View {
             + LayoutTokens.EchoSense.badgeSize + LayoutTokens.EchoSense.rowSpacing * 2
         return min(LayoutTokens.EchoSense.maxWidth, max(LayoutTokens.EchoSense.minWidth, ceil(widest + chrome)))
     }
+
+    static let measuredSuggestionCount = 60
 
     var body: some View {
         VStack(alignment: .leading, spacing: LayoutTokens.EchoSense.padding) {
@@ -63,7 +67,8 @@ struct AutoCompletionListView: View {
     private var rows: some View {
         ScrollViewReader { proxy in
             ScrollView(showsIndicators: false) {
-                VStack(spacing: SpacingTokens.none) {
+                // Lazy: only the rows in view are built and laid out on each keystroke.
+                LazyVStack(spacing: SpacingTokens.none) {
                     ForEach(suggestions) { suggestion in
                         AutoCompletionRowView(
                             suggestion: suggestion, typed: typed, isSelected: suggestion.id == selectedID,
