@@ -96,11 +96,20 @@ struct CenteredTabSectionBarLayout: Layout {
     struct Sizes {
         var center: CGSize
         var controls: CGSize
+        var spacing = ViewSpacing()
     }
 
     func makeCache(subviews: Subviews) -> Sizes? {
         guard subviews.count == 2 else { return nil }
-        return Sizes(center: subviews[0].sizeThatFits(.unspecified), controls: subviews[1].sizeThatFits(.unspecified))
+        var spacing = subviews[0].spacing
+        spacing.formUnion(subviews[1].spacing)
+        return Sizes(center: subviews[0].sizeThatFits(.unspecified), controls: subviews[1].sizeThatFits(.unspecified),
+                     spacing: spacing)
+    }
+
+    /// The subviews' spacing, worked out once with the sizes (the default asks them every time).
+    func spacing(subviews: Subviews, cache: inout Sizes?) -> ViewSpacing {
+        cache?.spacing ?? ViewSpacing()
     }
 
     func updateCache(_ cache: inout Sizes?, subviews: Subviews) {

@@ -34,6 +34,11 @@ struct KeptAliveTabsTests {
         #expect(KeptAliveTabsActivity.isActive(a, in: nil))
     }
 
+    @Test func canKeepOneMoreForAMoment() {
+        let ids = Host.recentTabIDs([a, b, c], activating: d, openIDs: [a, b, c, d], keeping: 4)
+        #expect(ids == [d, a, b, c])
+    }
+
     @Test func closedTabsDropOut() {
         let ids = Host.recentTabIDs([a, b, c], activating: c, openIDs: [a, c])
         #expect(ids == [c, a])

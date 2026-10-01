@@ -38,6 +38,7 @@ struct KeptAliveTabsView<Content: View>: View {
 
     @State private var recentTabIDs: [UUID] = []
     @State private var activity = KeptAliveTabsActivity()
+    @State private var trimTask: Task<Void, Never>?
 
     var body: some View {
         ZStack {
@@ -69,15 +70,25 @@ struct KeptAliveTabsView<Content: View>: View {
         return ids.compactMap { id in tabs.first { $0.id == id } }
     }
 
+    /// The tab that falls out of the kept ones is unmounted a moment later: tearing down its grid
+    /// in the same update held back the tab being shown (~70 ms).
     private func remember(_ tabID: UUID) {
-        recentTabIDs = Self.recentTabIDs(recentTabIDs, activating: tabID, openIDs: Set(tabs.map(\.id)))
+        let openIDs = Set(tabs.map(\.id))
+        recentTabIDs = Self.recentTabIDs(recentTabIDs, activating: tabID, openIDs: openIDs, keeping: Self.keptTabCount + 1)
+        trimTask?.cancel()
+        guard recentTabIDs.count > Self.keptTabCount else { return }
+        trimTask = Task(name: "kept-tabs-trim") { @MainActor in
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled else { return }
+            recentTabIDs = Array(recentTabIDs.prefix(Self.keptTabCount))
+        }
     }
 
     /// The tabs to keep mounted after `tabID` becomes active: it goes first, closed tabs drop
-    /// out, and the list is cut to `keptTabCount`.
-    static func recentTabIDs(_ recent: [UUID], activating tabID: UUID, openIDs: Set<UUID>) -> [UUID] {
+    /// out, and the list is cut to `keeping` (`keptTabCount` unless given).
+    static func recentTabIDs(_ recent: [UUID], activating tabID: UUID, openIDs: Set<UUID>, keeping: Int = keptTabCount) -> [UUID] {
         var ids = recent.filter { $0 != tabID && openIDs.contains($0) }
         ids.insert(tabID, at: 0)
-        return Array(ids.prefix(keptTabCount))
+        return Array(ids.prefix(keeping))
     }
 }
