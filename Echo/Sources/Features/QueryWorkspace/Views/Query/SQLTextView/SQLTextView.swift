@@ -31,7 +31,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     var completionWorkItem: DispatchWorkItem?
     var completionTask: Task<Void, Never>?
     var completionGeneration = 0
-    let validationScheduler = SQLValidationScheduler()
+    let validationScheduler = SQLValidationScheduler(debounceInterval: LayoutTokens.EditorGutter.liveCheckPause)
     var currentDiagnostics: [SQLDiagnostic] = []
     var validationOverlays: [NSView] = []
     /// QE1: the script's statements (kept between edits) and the one at the caret.
@@ -51,7 +51,9 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     var runningRange: NSRange? { didSet { if oldValue != runningRange { updateRunningMark(previous: oldValue) } } }
     /// Round 21 EM5 / round 22 ED1: the last run's error, as a squiggle with a bubble on hover.
     var errorMark: QueryErrorMark? { didSet { showErrorMark() } }
-    var errorMarkView: QueryErrorMarkView?
+    var errorMarkView: ErrorPillView?
+    /// Round 28.6 (T1): the line last edited, so leaving it runs the live check.
+    var lastEditedLine: Int?
     /// Round 28.10: whether the empty prompt is drawn.
     var showsEmptyPrompt = true
     override var string: String { didSet { refreshEmptyPrompt() } }
@@ -264,6 +266,8 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     override func didChangeText() {
         super.didChangeText(); sqlDelegate?.sqlTextView(self, didUpdateText: string); lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
         refreshEmptyPrompt()
+        let caret = selectedRange().location
+        if caret != NSNotFound { lastEditedLine = (string as NSString).lineNumber(at: caret) }
         notifySelectionChanged(); scheduleHighlighting()
         if !isApplyingCompletion { deactivateManualCompletionSuppression() }
         updateCompletionIndicator(); scheduleValidation()
@@ -272,7 +276,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
     func textViewDidChangeSelection(_ notification: Notification) {
         (layoutManager as? SQLLayoutManager)?.selectedRanges = selectedRanges.map(\.rangeValue)
-        notifySelectionChanged(); updateStatementFocus(); let range = selectedLineRange()
+        notifySelectionChanged(); updateStatementFocus(); updateErrorBubbles(); checkLineLeft(); let range = selectedLineRange()
         if range.location != NSNotFound { lineNumberRuler?.highlightedLines = IndexSet(integersIn: range.location..<(range.location + range.length)) }
         else { lineNumberRuler?.highlightedLines = IndexSet() }
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)

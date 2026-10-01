@@ -54,13 +54,14 @@ extension SQLTextView {
             lineNumberRuler?.errorLines = []
             return
         }
-        guard let layoutManager, let textContainer else { return }
+        guard layoutManager != nil else { return }
 
         let text = string as NSString
         let textLength = text.length
         let limitedDiagnostics = Array(currentDiagnostics.prefix(Self.maxValidationOverlays))
         var errorLines = IndexSet()
         defer {
+            updateErrorBubbles()
             lineNumberRuler?.errorLines = errorLines
             if displayOptions.outlineEdgeEnabled { outlineStrip?.refresh() }
         }
@@ -72,31 +73,12 @@ extension SQLTextView {
             // A red dot in the gutter on each failing line (Design/05-components.md › Editor card).
             errorLines.insert(text.lineNumber(at: range.location))
 
-            let glyphRange = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
-            var tokenRect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
-
-            tokenRect.origin.x += textContainerInset.width
-            tokenRect.origin.y += textContainerInset.height
-
-            guard tokenRect.width > 0, tokenRect.height > 0 else { continue }
-
-            // Glow frame around the token
-            let glowOverlay = ValidationAccessoryView(diagnostic: diagnostic)
-            glowOverlay.onActivate = nil
-            addSubview(glowOverlay)
-            glowOverlay.update(for: tokenRect)
-            validationOverlays.append(glowOverlay)
-
-            // Inline annotation after the line end
-            let lineEnd = resolveLineEndX(for: range, in: text, layoutManager: layoutManager, textContainer: textContainer)
-            let annotationOrigin = NSPoint(
-                x: lineEnd + textContainerInset.width + 12,
-                y: tokenRect.origin.y
-            )
-            let annotation = ValidationInlineAnnotation(diagnostic: diagnostic)
-            annotation.frame = NSRect(origin: annotationOrigin, size: annotation.intrinsicContentSize)
-            addSubview(annotation)
-            validationOverlays.append(annotation)
+            // Round 28.6 (E10, SL0): a tinted pill behind the word; the message is in its bubble.
+            guard let frame = errorPillRect(for: range) else { continue }
+            let pill = ErrorPillView(content: ErrorBubbleContent(diagnostic: diagnostic), line: text.lineNumber(at: range.location))
+            pill.frame = frame
+            addSubview(pill)
+            validationOverlays.append(pill)
         }
     }
 
@@ -150,15 +132,6 @@ extension SQLTextView {
         guard found.location != NSNotFound else { return nil }
 
         return found
-    }
-
-    private func resolveLineEndX(for range: NSRange, in text: NSString, layoutManager: NSLayoutManager, textContainer: NSTextContainer) -> CGFloat {
-        let lineRange = text.lineRange(for: NSRange(location: range.location, length: 0))
-        let trimmedLength = max(0, lineRange.length - 1)
-        let trimmedRange = NSRange(location: lineRange.location, length: max(trimmedLength, 1))
-        let lineGlyphRange = layoutManager.glyphRange(forCharacterRange: trimmedRange, actualCharacterRange: nil)
-        let lineRect = layoutManager.boundingRect(forGlyphRange: lineGlyphRange, in: textContainer)
-        return lineRect.maxX
     }
 }
 

@@ -151,6 +151,12 @@ public enum LayoutTokens {
         public static let runningBreathFloor: Float = 0.45
         public static let runningBreathDuration: Double = 1.5
         public static let ranFadeDuration: Double = 2
+        /// Round 28.6 (E10, BB3): the tinted pill behind a wrong word, and the bubble's width.
+        public static let errorPillOpacity: CGFloat = 0.14
+        public static let errorBubbleMaxWidth: CGFloat = 360
+        /// Round 28.6 (T1): the live check waits this long after typing stops (or until the
+        /// caret leaves the line).
+        public static let liveCheckPause: Double = 2
         /// Round 28.8: how far a pinch has to go for one zoom step.
         public static let pinchStepThreshold: CGFloat = 0.15
         /// Round 28.9 (GL1): the Go to Line field.
