@@ -98,6 +98,19 @@ jobs:
       with:
         deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
 
+    - name: Create Secrets.xcconfig
+      env:
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      run: |
+        cp Echo/Configuration/Secrets.xcconfig.example Echo/Configuration/Secrets.xcconfig
+        # A repository secret, when set, replaces the example placeholder (the later line wins).
+        [ -n "$SUPABASE_URL" ] && echo "SUPABASE_URL = $SUPABASE_URL" >> Echo/Configuration/Secrets.xcconfig
+        [ -n "$SUPABASE_ANON_KEY" ] && echo "SUPABASE_ANON_KEY = $SUPABASE_ANON_KEY" >> Echo/Configuration/Secrets.xcconfig
+        [ -n "$GOOGLE_CLIENT_ID" ] && echo "GOOGLE_CLIENT_ID = $GOOGLE_CLIENT_ID" >> Echo/Configuration/Secrets.xcconfig
+        true
+
     - name: Resolve packages
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
 
