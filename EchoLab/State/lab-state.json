@@ -1243,6 +1243,10 @@
       {
         "date": "2026-10-01T18:45:16Z",
         "text": "Built into Echo (b5eebdb9): the system's ultra-thin material with a 15% card tint under every floating footer, faded in exponentially from 40pt above it; the AppKit blur stays off under footers"
+      },
+      {
+        "date": "2026-10-01T19:59:30Z",
+        "text": "Also at the editor's bottom (bf7c0b2c), the owner's ask: with the results open the editor card gets the same material at the same height, and the text runs under it"
       }
     ],
     "needsMore": [],

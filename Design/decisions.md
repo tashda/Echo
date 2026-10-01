@@ -2,6 +2,10 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · The editor's bottom softens like the results'
+
+The owner, on round 44 in the running app: "absolutely perfect", and the same for the editor. With the results in their own card the editor card's bottom gets the same material (`FooterMaterialBlur`) at the same height, and the editor's text now runs to the card's edge with the footer's 38pt of room instead of stopping 20pt above it, so lines scroll down under the material and the last one rests above the pills. Built in bf7c0b2c. → EDT margins, FTR-2.2
+
 ## 2026-10-01 · After round 41: one real header line, fewer buttons in the popovers, the pill's Setting, the server's own message
 
 The owner's notes on the running app, decided in chat. These change what round 41's entry above says where they differ.
