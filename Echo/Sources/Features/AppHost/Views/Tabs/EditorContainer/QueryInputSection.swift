@@ -17,6 +17,7 @@ struct QueryInputSection: View {
     @Environment(AppState.self) var appState
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(AppearanceStore.self) private var appearanceStore
+    @Environment(\.cardFooterOverlayHeight) private var footerOverlayHeight
     private let sqlHelpProvider = SQLHelpInspectorContentProvider()
 
     /// The editor's theme at this tab's zoom (round 28.8).
@@ -82,8 +83,8 @@ struct QueryInputSection: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .overlay(alignment: .bottomLeading) {
             EditorZoomControl(zoom: $query.editorZoom)
-                .padding(.leading, SpacingTokens.xs)
-                .padding(.bottom, bottomPadding + SpacingTokens.xs)
+                .padding(.leading, EditorZoomControl.leadingInset)
+                .padding(.bottom, EditorZoomControl.bottomInset(footerOverlayHeight: footerOverlayHeight))
         }
         .background(alignment: .leading) {
             if appState.sqlEditorDisplay.showLineNumbers {

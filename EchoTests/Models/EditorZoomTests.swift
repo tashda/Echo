@@ -16,4 +16,12 @@ struct EditorZoomTests {
         #expect(EditorZoom.label(1) == "100%")
         #expect(EditorZoom.label(1.25) == "125%")
     }
+
+    /// Round 31 (ZW1, ZN2): with results the pill sits 9pt up, like the footer's pills; with the
+    /// footer in the editor's card it stacks above the server pill, 9pt between.
+    @Test @MainActor func thePillSitsLikeTheFooterPills() {
+        #expect(EditorZoomControl.bottomInset(footerOverlayHeight: 0) == LayoutTokens.Footer.pillInset)
+        #expect(EditorZoomControl.bottomInset(footerOverlayHeight: 38) == 42)
+        #expect(EditorZoomControl.leadingInset == 12)
+    }
 }
