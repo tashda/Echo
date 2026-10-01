@@ -42,6 +42,8 @@ happens fails the test, so a fix shows up at once: remove the marker with the fi
   which the plain-SQL test needs, is not bundled at all.
 - **Why:** the copy step (CI's "Install PostgreSQL tools" and its local equivalent) copies the
   dylibs without rewriting their install names to `@loader_path`.
+  On a fresh copy (as on CI, which copies from the runner's current Homebrew) the tools start, so
+  the suite runs there; on a Mac whose Homebrew OpenSSL moved on they do not, and it skips.
 - **Fix:** the driver agent (libpq and OpenSSL are being rebuilt for the driver switch); until
   then the release's bundled tools are affected too.
 

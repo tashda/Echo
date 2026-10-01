@@ -8,10 +8,11 @@ import ServerLabClient
 /// Every test creates real data, backs up, drops/truncates, restores, and verifies
 /// the data survived the roundtrip. No test merely checks exit codes or file contents.
 ///
-/// Runs on a fresh lab Postgres (`.server`), removed when the suite ends.
+/// Runs on a fresh lab Postgres (`.server`), removed when the suite ends. Serialized: every test
+/// uses the same tables (bk_parent, …) in the same database.
 @Suite("PostgreSQL Backup & Restore", .enabled(if: labIntegrationEnabled, labIntegrationNote),
        .enabled(if: bundledPostgresToolsStart, "The bundled pg_dump does not start: tashda/Echo#29"),
-       .server(LabRecipes.postgres))
+       .server(LabRecipes.postgres), .serialized)
 struct PostgresBackupRestoreIntegrationTests {
 
     // MARK: - Config & Helpers
