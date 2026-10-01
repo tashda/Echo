@@ -3766,6 +3766,10 @@
       {
         "date": "2026-10-01T20:01:22Z",
         "text": "Built into Echo (bb01362f) as the owner's note said: tool actions stay in the tab and only the query editor uses Run. The window toolbar's tool group is removed; the structure editor's Add, Script and Apply, Activity Monitor's pause, Start Job, Open in Window, Cycle Log and Maintenance's database menu moved into their tabs."
+      },
+      {
+        "date": "2026-10-01T21:22:03Z",
+        "text": "Replaced by round 37.5 (bb8a6bee): tool buttons are back in the window toolbar, tied to the tab."
       }
     ],
     "needsMore": [
@@ -3964,9 +3968,14 @@
         "date": "2026-10-01T20:38:33Z",
         "id": "2EA1E722-4C80-4329-B64B-9C9666DCB4FF",
         "text": "Review of Tool tabs: the tab's own buttons in the toolbar\n1. Which toolbar?: no answer yet\n2. Tie to the tab: no answer yet\n3. Several groups: no answer yet\n4. Run: no answer yet\n5. What moves: no answer yet\n6. Main action: no answer yet\n7. Gap: no answer yet\n8. Switching: no answer yet\n9. A tab without buttons: no answer yet\n10. A narrow window: no answer yet\n11. The header line afterwards: no answer yet\n12. Round 45: no answer yet\nOverall: I don't like any of the styles but TT2 is the one I like the best - but the tab symbol should not be in a \"glas button\" but should somehow show. Make more suggestions and a lot of them"
+      },
+      {
+        "date": "2026-10-01T20:55:47Z",
+        "id": "276C56A3-A660-4E72-8C9F-47FE1139FDEF",
+        "text": "Review of Tool tabs: the tab's own buttons in the toolbar\n1. Which toolbar?: picked Proposal: a query tab\n2. Tie to the tab: picked TT8 \u00b7 The symbol on its own before the buttons, no shape around it\n3. Symbol colour: picked SC0 \u00b7 Grey, like a label\n4. Symbol size: picked SZ1 \u00b7 13pt, the buttons' size\n5. Several groups: picked GR1 \u00b7 One capsule, the groups split by short hairlines\n6. Run: picked RN0 \u00b7 Run keeps its own capsule that turns red (round 24)\n7. What moves: picked MV1 \u00b7 The buttons; pickers and search stay on the header line\n8. Main action: picked MA1 \u00b7 Symbol and word (37.3's PA1), the only word in the toolbar\n9. Gap: picked GP0 \u00b7 The toolbar's own fixed gap (today)\n10. Switching: picked SW2 \u00b7 The glass reshapes from one tab's groups into the next\n11. A tab without buttons: picked EM0 \u00b7 Nothing: the window's icons only\n12. A narrow window: picked NW1 \u00b7 The tab's section folds into \u22ef first, the window's icons stay\n13. The header line afterwards: picked HL0 \u00b7 Yes: the name and what you look at stay above the content\n14. Round 45: picked R45-0 \u00b7 Yes: this round's answer replaces 45\nOverall: I think I have answered this correctly but I like the \"On every tab\" section where e.g. SQL profiler has \"Start trace\" as a seperate button, Activitiy Monitor has \"pause\" as its seperate button and query has run etc. PLease make an assesment of which tabs has which \"special\" button outside of the \"tab toolbar button group\" before starting your work."
       }
     ],
-    "generalNote": "I don't like any of the styles but TT2 is the one I like the best - but the tab symbol should not be in a \"glas button\" but should somehow show. Make more suggestions and a lot of them",
+    "generalNote": "I think I have answered this correctly but I like the \"On every tab\" section where e.g. SQL profiler has \"Start trace\" as a seperate button, Activitiy Monitor has \"pause\" as its seperate button and query has run etc. PLease make an assesment of which tabs has which \"special\" button outside of the \"tab toolbar button group\" before starting your work.",
     "history": [
       {
         "date": "2026-10-01T20:38:33Z",
@@ -3975,16 +3984,36 @@
       {
         "date": "2026-10-01T20:41:07Z",
         "text": "Revision 2: Fifteen ways to show the tab's symbol without a glass button, from TT2"
+      },
+      {
+        "date": "2026-10-01T20:55:47Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T21:22:03Z",
+        "text": "Built into Echo (bb8a6bee): every tab's own buttons in the window toolbar before the window's icons, the tab's symbol in grey first, the special button with its word, the rest in one capsule split by hairlines; Run keeps its red capsule; the glass reshapes between tabs; replaces round 45. Agent Jobs' New Job and Start/Stop and SQL Server security's per-page New moved there as you answered. Check it with a query tab, SQL Profiler, Agent Jobs and a tab without buttons (Availability Groups)."
       }
     ],
-    "needsMore": [
-      "exhibit",
-      "tie"
-    ],
+    "needsMore": [],
     "optionNotes": {},
     "pickNotes": {},
-    "picks": {},
-    "reviewedRevision": 1,
+    "picks": {
+      "empty": "nothing",
+      "exhibit": "query",
+      "gap": "GP0 \u00b7 The toolbar's own fixed gap (today)",
+      "groups": "GR1 \u00b7 One capsule, the groups split by short hairlines",
+      "headerAfter": "keep",
+      "mainLook": "MA1 \u00b7 Symbol and word (37.3's PA1), the only word in the toolbar",
+      "motion": "SW2 \u00b7 The glass reshapes from one tab's groups into the next",
+      "move": "MV1 \u00b7 The buttons; pickers and search stay on the header line",
+      "narrow": "tabFirst",
+      "replace45": "replace",
+      "run": "RN0 \u00b7 Run keeps its own capsule that turns red (round 24)",
+      "symbolColour": "SC0 \u00b7 Grey, like a label",
+      "symbolSize": "SZ1 \u00b7 13pt, the buttons' size",
+      "tie": "TT8 \u00b7 The symbol on its own before the buttons, no shape around it"
+    },
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
@@ -3999,7 +4028,7 @@
         "summary": "Fifteen ways to show the tab's symbol without a glass button, from TT2"
       }
     ],
-    "status": "Judging",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.tree-tool-rows-r38": {
