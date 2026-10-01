@@ -4,9 +4,9 @@ import SQLServerKit
 
 /// Tests SQL Server query streaming through Echo's dedicated query session layer.
 ///
-/// Uses `MSSQLDedicatedDockerTestCase` to match how Echo actually streams queries:
+/// Uses `MSSQLDedicatedLabTestCase` to match how Echo actually streams queries:
 /// streaming always happens through a dedicated `SQLServerConnection` per query tab.
-final class MSSQLStreamingTests: MSSQLDedicatedDockerTestCase {
+final class MSSQLStreamingTests: MSSQLDedicatedLabTestCase {
 
     // MARK: - Streaming with Progress
 
@@ -87,7 +87,6 @@ final class MSSQLStreamingTests: MSSQLDedicatedDockerTestCase {
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
             SQLServerColumnDefinition(name: "value", definition: .standard(.init(dataType: .int)))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         let progressCalled = LockIsolated(false)
         let result = try await dedicatedSession.simpleQuery(

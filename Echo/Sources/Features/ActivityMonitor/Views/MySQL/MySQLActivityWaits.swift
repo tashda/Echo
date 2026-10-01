@@ -29,20 +29,20 @@ struct MySQLActivityWaits: View {
     }
 
     private var toolbar: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            Picker("Tab", selection: $selectedTab) {
+        CenteredTabSectionToolbar {
+            TabSectionPicker(
+                "Waits Section",
+                selection: $selectedTab,
+                itemCount: WaitsTab.allCases.count
+            ) {
                 ForEach(WaitsTab.allCases, id: \.self) { tab in
                     Text(tab.rawValue).tag(tab)
                 }
             }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 320)
-
+        } controls: {
             TextField("", text: $filterText, prompt: Text("Filter"))
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 180)
-
-            Spacer()
 
             if let report {
                 Text("\(filteredRows.count) of \(report.rows.count) rows")
@@ -57,8 +57,6 @@ struct MySQLActivityWaits: View {
             }
             .buttonStyle(.borderless)
         }
-        .padding(.horizontal, SpacingTokens.md)
-        .padding(.vertical, SpacingTokens.sm)
     }
 
     @ViewBuilder

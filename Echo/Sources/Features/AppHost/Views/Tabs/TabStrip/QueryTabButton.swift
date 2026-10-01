@@ -27,6 +27,7 @@ struct QueryTabButton: View {
 
     @State var isHovering = false
     @State var isHoveringClose = false
+    @State private var isPressed = false
 
     var shouldShowClose: Bool {
         guard !tab.isPinned else { return false }
@@ -61,7 +62,7 @@ struct QueryTabButton: View {
         .padding(.leading, tab.isPinned ? 13 : SpacingTokens.xs)
         .padding(.trailing, tab.isPinned ? 13 : SpacingTokens.sm)
         .padding(.vertical, SpacingTokens.xxxs)
-        .frame(minHeight: 24)
+        .frame(minHeight: WorkspaceChromeMetrics.tabHeight)
         .background(tabBackground)
         .overlay(tabStroke)
         .overlay(hoverOutline)
@@ -75,9 +76,17 @@ struct QueryTabButton: View {
         }
         .onMiddleClick(perform: onClose)
 #endif
-        .onTapGesture {
-            onSelect()
-        }
+        // Selects on press rather than on release (round 9, TFIX), so the click counts at once;
+        // the strip's drag still reorders. Pressing the close button doesn't select the tab.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    guard !isPressed else { return }
+                    isPressed = true
+                    if !isHoveringClose { onSelect() }
+                }
+                .onEnded { _ in isPressed = false }
+        )
         .contextMenu {
             tabContextMenuContent
         }
@@ -158,45 +167,8 @@ struct QueryTabButton: View {
         }
     }
 
-    @ViewBuilder
-    private var tabTitleContent: some View {
-        if tab.isPinned {
-            Text(displayedTitle)
-                .font(tabTitleFont)
-                .lineLimit(1)
-                .foregroundStyle(tabTitleColor)
-        } else if let dbName = tab.tabSubtitle ?? tab.activeDatabaseName, !dbName.isEmpty {
-            HStack(spacing: SpacingTokens.xxxs) {
-                Text(displayedTitle)
-                    .font(tabTitleFont)
-                    .lineLimit(1)
-                    .foregroundStyle(tabTitleColor)
 
-                Text(dbName)
-                    .font(TypographyTokens.detail.weight(.medium))
-                    .lineLimit(1)
-                    .foregroundStyle(tabTitleColor.opacity(0.55))
-            }
-        } else {
-            Text(displayedTitle)
-                .font(tabTitleFont)
-                .lineLimit(1)
-                .foregroundStyle(tabTitleColor)
-        }
-    }
-
-    private var displayedTitle: String {
-        let trimmed = tab.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        if tab.isPinned {
-            if let first = trimmed.first {
-                return String(first).uppercased()
-            }
-            return "•"
-        }
-        return trimmed.isEmpty ? "Untitled" : trimmed
-    }
-
-    private var tabTitleFont: Font {
+    var tabTitleFont: Font {
         if tab.isPinned {
             return TypographyTokens.detail.weight(.semibold)
         }

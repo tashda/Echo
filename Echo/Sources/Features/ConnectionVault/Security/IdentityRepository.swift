@@ -47,6 +47,7 @@ final class IdentityRepository: IdentityRepositoryProtocol, @unchecked Sendable 
     }
     
     func deletePassword(for connection: SavedConnection) {
+        ConnectionKeyPasswordStore.setPassword(nil, for: connection.id)
         if let identifier = connection.keychainIdentifier {
             try? keychain.deletePassword(account: identifier)
         }
@@ -74,6 +75,14 @@ final class IdentityRepository: IdentityRepositoryProtocol, @unchecked Sendable 
     }
 
     func resolveAuthenticationConfiguration(for connection: SavedConnection, overridePassword: String?) -> DatabaseAuthenticationConfiguration? {
+        guard var configuration = resolveSignIn(for: connection, overridePassword: overridePassword) else { return nil }
+        if connection.databaseType == .postgresql, connection.sslCertPath != nil {
+            configuration.sslKeyPassword = ConnectionKeyPasswordStore.password(for: connection.id)
+        }
+        return configuration
+    }
+
+    private func resolveSignIn(for connection: SavedConnection, overridePassword: String?) -> DatabaseAuthenticationConfiguration? {
         let username: String
         let password: String?
 

@@ -13,6 +13,16 @@ struct IndexUsageSection: View {
     }
 
     var body: some View {
+        if stats.isEmpty {
+            TabContentUnavailableView("No Index Usage Data", systemImage: "chart.bar.xaxis") {
+                Text("No index usage statistics are available. Execute some queries, then refresh this tab.")
+            }
+        } else {
+            usageTable
+        }
+    }
+
+    private var usageTable: some View {
         Table(sortedStats, sortOrder: $sortOrder) {
             TableColumn("Index Name", value: \.indexName) { stat in
                 Text(stat.indexName)
@@ -80,15 +90,6 @@ struct IndexUsageSection: View {
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .tableColumnAutoResize()
-        .overlay {
-            if stats.isEmpty {
-                ContentUnavailableView {
-                    Label("No Index Usage Data", systemImage: "chart.bar.xaxis")
-                } description: {
-                    Text("No index usage statistics available. Execute some queries first.")
-                }
-            }
-        }
     }
 
     private func isUnderutilized(_ stat: SQLServerTuningClient.SQLServerIndexUsageStat) -> Bool {

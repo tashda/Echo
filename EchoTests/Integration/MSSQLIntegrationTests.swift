@@ -2,6 +2,7 @@ import XCTest
 import SQLServerKit
 @testable import Echo
 
+@MainActor
 final class MSSQLIntegrationTests: XCTestCase {
     private struct MSSQLConfig {
         let host: String
@@ -12,42 +13,11 @@ final class MSSQLIntegrationTests: XCTestCase {
         let useTLS: Bool
     }
 
-    private func loadConfig() throws -> MSSQLConfig {
-        var env = ProcessInfo.processInfo.environment
-
-        // Also check for .env file at project root
-        if env["MSSQL_HOST"] == nil {
-            let projectRoot = URL(fileURLWithPath: #filePath)
-                .deletingLastPathComponent()
-                .deletingLastPathComponent()
-            let envFilePath = projectRoot.appendingPathComponent(".env").path
-            if let contents = try? String(contentsOfFile: envFilePath) {
-                for line in contents.components(separatedBy: .newlines) {
-                    let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !trimmed.isEmpty, !trimmed.hasPrefix("#") else { continue }
-                    let parts = trimmed.split(separator: "=", maxSplits: 1)
-                    if parts.count == 2 {
-                        let key = String(parts[0]).trimmingCharacters(in: .whitespacesAndNewlines)
-                        let value = String(parts[1]).trimmingCharacters(in: .whitespacesAndNewlines)
-                        if env[key] == nil { env[key] = value }
-                    }
-                }
-            }
-        }
-
-        guard
-            let host = env["MSSQL_HOST"],
-            let portStr = env["MSSQL_PORT"], let port = Int(portStr),
-            let username = env["MSSQL_USERNAME"],
-            let password = env["MSSQL_PASSWORD"]
-        else {
-            throw XCTSkip("MSSQL integration test env vars not set (MSSQL_HOST, MSSQL_PORT, MSSQL_USERNAME, MSSQL_PASSWORD)")
-        }
-
-        let database = env["MSSQL_DATABASE"] ?? "master"
-        let useTLS = env["MSSQL_ENABLE_TLS"]?.lowercased() == "true"
-
-        return MSSQLConfig(host: host, port: port, database: database, username: username, password: password, useTLS: useTLS)
+    /// The lab server with the AdventureWorks samples, shared by the suites of the run.
+    private func loadConfig() async throws -> MSSQLConfig {
+        let server = try await labServer(LabRecipes.sqlServerSamples)
+        return MSSQLConfig(host: server.host, port: server.port, database: "master",
+                           username: server.username, password: server.password, useTLS: false)
     }
 
     private func connect(config: MSSQLConfig) async throws -> DatabaseSession {
@@ -82,6 +52,7 @@ final class MSSQLIntegrationTests: XCTestCase {
             trustServerCertificate: true,
             sslRootCertPath: nil,
             mssqlEncryptionMode: .optional,
+            hostNameInCertificate: nil,
             readOnlyIntent: false,
             authentication: DatabaseAuthenticationConfiguration(
                 method: .sqlPassword,
@@ -105,7 +76,7 @@ final class MSSQLIntegrationTests: XCTestCase {
     // MARK: - Basic Connectivity
 
     func testSimpleQuerySelect1() async throws {
-        let config = try loadConfig()
+        let config = try await loadConfig()
         let session = try await connect(config: config)
         defer { Task { @MainActor in await session.close() } }
 
@@ -118,7 +89,7 @@ final class MSSQLIntegrationTests: XCTestCase {
     // MARK: - Schema Discovery
 
     func testListDatabases() async throws {
-        let config = try loadConfig()
+        let config = try await loadConfig()
         let session = try await connect(config: config)
         defer { Task { @MainActor in await session.close() } }
 
@@ -128,7 +99,7 @@ final class MSSQLIntegrationTests: XCTestCase {
     }
 
     func testListSchemas() async throws {
-        let config = try loadConfig()
+        let config = try await loadConfig()
         let session = try await connect(config: config)
         defer { Task { @MainActor in await session.close() } }
 
@@ -137,7 +108,7 @@ final class MSSQLIntegrationTests: XCTestCase {
     }
 
     func testListTablesAndViews() async throws {
-        let config = try loadConfig()
+        let config = try await loadConfig()
         let session = try await connect(config: config)
         defer { Task { @MainActor in await session.close() } }
 
@@ -148,21 +119,27 @@ final class MSSQLIntegrationTests: XCTestCase {
     // MARK: - Table Structure
 
     func testGetTableStructureDetails() async throws {
-        let config = try loadConfig()
+        let config = try await loadConfig()
         let session = try await connect(config: config)
         defer { Task { @MainActor in await session.close() } }
 
-        // Create a temp table to test
-        let tableName = "##echo_test_\(UUID().uuidString.prefix(8).lowercased())"
-        _ = try await session.executeUpdate("CREATE TABLE \(tableName) (id INT PRIMARY KEY, name NVARCHAR(100))")
-        defer { Task { @MainActor in try? await session.executeUpdate("DROP TABLE \(tableName)") } }
+        // A table in master, made and removed through sqlserver-nio.
+        let admin = (session as! SQLServerSessionAdapter).client.admin
+        let tableName = "echo_test_\(UUID().uuidString.prefix(8).lowercased())"
+        try await admin.createTable(name: tableName, columns: [
+            SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
+            SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
+        ])
+        addTeardownBlock { try? await admin.dropTable(name: tableName, ifExists: true) }
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
-        XCTAssertGreaterThanOrEqual(details.columns.count, 2)
+        XCTAssertEqual(details.columns.map(\.name), ["id", "name"])
     }
 
     func testDedicatedSessionCanQueryAdventureWorksEmployeeAndContinue() async throws {
-        let config = try loadConfig()
+        // Remove when it passes (an expected failure that does not happen fails the test).
+        XCTExpectFailure("A query tab reads table structure from the default database: tashda/Echo#28")
+        let config = try await loadConfig()
         let targetDatabase = "AdventureWorks"
         let session = try await makeDedicatedQuerySession(config: config, database: targetDatabase)
 

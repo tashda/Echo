@@ -22,18 +22,16 @@ final class ResultTableDataCellView: NSTableCellView {
     }
 
     private func setup() {
+        // One layer per cell: the text draws into the cell's layer. The text field had its own
+        // layer with a rounded clip that showed nothing, so every cell scrolled in drew and
+        // composited two layers (traced 2026-10-01).
         wantsLayer = true
+        canDrawSubviewsIntoLayer = true
         contentTextField.isEditable = false
         contentTextField.isSelectable = false
         contentTextField.isBordered = false
         contentTextField.drawsBackground = false
         contentTextField.focusRingType = .none
-        contentTextField.wantsLayer = true
-        if let layer = contentTextField.layer {
-            layer.masksToBounds = true
-            layer.cornerRadius = SpacingTokens.xxs2
-            layer.cornerCurve = .continuous
-        }
         contentTextField.lineBreakMode = .byTruncatingTail
         contentTextField.usesSingleLineMode = true
         contentTextField.maximumNumberOfLines = 1
@@ -57,7 +55,8 @@ final class ResultTableDataCellView: NSTableCellView {
 
     func apply(text: String,
                font: NSFont,
-               textColor: NSColor) {
+               textColor: NSColor,
+               alignment: NSTextAlignment = .left) {
         var shouldInvalidateMetrics = false
         if contentTextField.stringValue != text {
             contentTextField.stringValue = text
@@ -67,12 +66,12 @@ final class ResultTableDataCellView: NSTableCellView {
             contentTextField.font = font
             shouldInvalidateMetrics = true
         }
-        if contentTextField.alignment != .left {
-            contentTextField.alignment = .left
+        if contentTextField.alignment != alignment {
+            contentTextField.alignment = alignment
         }
         if let cell = contentTextField.cell as? VerticallyCenteredTextFieldCell {
-            if cell.alignment != .left {
-                cell.alignment = .left
+            if cell.alignment != alignment {
+                cell.alignment = alignment
                 shouldInvalidateMetrics = true
             }
             if shouldInvalidateMetrics {
@@ -83,6 +82,38 @@ final class ResultTableDataCellView: NSTableCellView {
         if contentTextField.textColor != textColor {
             contentTextField.textColor = textColor
         }
+    }
+
+    /// Draws the first `length` characters (an array's element count) in `color`.
+    func applyCountEmphasis(length: Int, color: NSColor) {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = contentTextField.alignment
+        paragraph.lineBreakMode = .byTruncatingTail
+        let text = NSMutableAttributedString(string: contentTextField.stringValue, attributes: [
+            .font: contentTextField.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize),
+            .foregroundColor: currentTextColor,
+            .paragraphStyle: paragraph,
+        ])
+        text.addAttribute(.foregroundColor, value: color, range: NSRange(location: 0, length: min(length, text.length)))
+        contentTextField.attributedStringValue = text
+    }
+
+    /// Puts an SF Symbol before the text, in the text's colour (round 29: the lock of an encrypted cell).
+    func applyLeadingSymbol(_ symbolName: String) {
+        let font = contentTextField.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        let configuration = NSImage.SymbolConfiguration(pointSize: font.pointSize * 0.85, weight: .regular)
+        guard let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)?
+            .withSymbolConfiguration(configuration) else { return }
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = contentTextField.alignment
+        paragraph.lineBreakMode = .byTruncatingTail
+        let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: currentTextColor, .paragraphStyle: paragraph]
+        let attachment = NSTextAttachment()
+        attachment.image = image
+        let text = NSMutableAttributedString(attachment: attachment)
+        text.addAttributes(attributes, range: NSRange(location: 0, length: text.length))
+        text.append(NSAttributedString(string: " " + contentTextField.stringValue, attributes: attributes))
+        contentTextField.attributedStringValue = text
     }
 
     func configureIcon(_ handler: (() -> Void)?) {

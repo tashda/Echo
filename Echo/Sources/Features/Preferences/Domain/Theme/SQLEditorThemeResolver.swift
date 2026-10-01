@@ -15,7 +15,7 @@ enum SQLEditorThemeResolver {
         let lineHeightValue = project?.settings.editorLineHeight ?? globalSettings.defaultEditorLineHeight
 
         let fontSize = max(8, CGFloat(fontSizeValue))
-        let lineHeight = max(1.0, CGFloat(lineHeightValue))
+        let lineHeight = CGFloat(EditorLineHeight.nearest(to: lineHeightValue).rawValue)
 
         let strongHighlight = SQLEditorTokenPalette.defaultSymbolHighlightStrong(
             selection: basePalette.selection,
@@ -62,7 +62,14 @@ enum SQLEditorThemeResolver {
             autoCompletionEnabled: globalSettings.editorEnableAutocomplete,
             qualifyTableCompletions: globalSettings.editorQualifyTableCompletions,
             showSystemSchemasInCompletion: globalSettings.editorShowSystemSchemas,
-            liveValidationEnabled: globalSettings.editorEnableLiveValidation
+            liveValidationEnabled: globalSettings.editorEnableLiveValidation,
+            statementFocusEnabled: globalSettings.editorStatementFocus,
+            outlineEdgeEnabled: globalSettings.editorOutlineEdge,
+            ghostTextEnabled: globalSettings.editorGhostTextCompletion,
+            gutterStyle: globalSettings.editorGutterStyle,
+            markCorners: globalSettings.editorMarkCorners,
+            markStrength: globalSettings.editorMarkStrength,
+            cardCornerRadius: globalSettings.workspaceCornerRadius.points
         )
     }
 
@@ -100,10 +107,6 @@ enum SQLEditorThemeResolver {
         switch trimmed {
         case SQLEditorTheme.systemFontIdentifier, "System", "system", "MonospacedSystem", ".monospacedSystemFont", ".SystemMonospaced":
             return SQLEditorTheme.systemFontIdentifier
-        case "IBMPlexMono-Regular":
-            return "IBMPlexMono"
-        case "Iosevka-Regular":
-            return "Iosevka"
         default:
             return trimmed
         }

@@ -1,3 +1,4 @@
+import EchoSense
 import SwiftUI
 
 /// Builds a `BottomPanelStatusBar` configured for query tabs.
@@ -8,6 +9,10 @@ struct QueryPanelStatusBar: View {
     let databaseName: String?
     let availableDatabases: [String]
     let onSwitchDatabase: ((String) -> Void)?
+    /// Runs COMMIT or ROLLBACK from the transaction pill's menu (round 21, TA2).
+    var onRunCommand: ((String) -> Void)?
+    /// The server a connection with several moved to (round 23, FS1).
+    var serverMove: ConnectionServerMove?
 
     @State private var showStatisticsPopover = false
     @State private var showDatabasePicker = false
@@ -18,6 +23,7 @@ struct QueryPanelStatusBar: View {
 
     private var hasActivity: Bool {
         query.hasExecutedAtLeastOnce || query.isExecuting || query.errorMessage != nil || query.isEstablishingConnection
+            || query.connectionLoss != nil || query.transactionState != .none
     }
 
     private var visibleSegments: [PanelSegment] {
@@ -86,13 +92,26 @@ struct QueryPanelStatusBar: View {
     }
 
     private func buildMetrics() -> BottomPanelStatusBarConfiguration.Metrics {
-        let rowCount = EchoFormatters.compactNumber(query.rowProgress.displayCount)
-        let rowLabel = query.rowProgress.displayCount == 1 ? "row" : "rows"
+        // Rows loaded of the total while streaming (plan R5), then the total.
+        let rowCount = GridSelectionSummary.rowCountText(
+            for: query.rowProgress,
+            isExecuting: query.isExecuting,
+            compact: EchoFormatters.compactNumber
+        )
+        var rowLabel = query.rowProgress.displayCount == 1 ? "row" : "rows"
+        // Round 21, cancel CP1: rows kept after a cancel are marked as partial.
+        if query.wasCancelled, !query.isExecuting, query.rowProgress.displayCount > 0 { rowLabel += ", partial" }
         let elapsed = query.isExecuting ? query.currentExecutionTime : (query.lastExecutionTime ?? 0)
         let hasDuration = query.isExecuting || query.lastExecutionTime != nil
-        let durationText = hasDuration ? EchoFormatters.duration(seconds: Int(elapsed.rounded())) : nil
+        var durationText = hasDuration ? EchoFormatters.duration(seconds: Int(elapsed.rounded())) : nil
+        // Round 21, timeouts (FT1): the limit next to the timer while a statement runs under one.
+        if query.isExecuting, let limit = query.timeLimit, let text = durationText {
+            durationText = "\(text) / \(EchoFormatters.duration(seconds: Int(limit.rounded())))"
+        }
 
-        return .init(rowCountText: rowCount, rowCountLabel: rowLabel, durationText: durationText)
+        var metrics = BottomPanelStatusBarConfiguration.Metrics(rowCountText: rowCount, rowCountLabel: rowLabel, durationText: durationText)
+        metrics.selectionText = query.gridSelectionSummary.flatMap { $0.cellCount > 1 ? $0.text : nil }
+        return metrics
     }
 
     private func buildModeIndicators() -> [BottomPanelStatusBarConfiguration.ModeIndicator] {
@@ -103,12 +122,51 @@ struct QueryPanelStatusBar: View {
         if query.statisticsEnabled {
             indicators.append(.init(id: "statistics", label: "Statistics", icon: "chart.bar"))
         }
+        if let serverMove {
+            indicators.append(.init(id: "server", label: serverMove.label, icon: "arrow.triangle.swap", help: serverMove.help))
+        }
         return indicators
     }
 
+    /// Commit and Roll Back one click from the pill (TA2); a failed transaction can only roll back.
+    private func transactionMenu(failed: Bool) -> [BottomPanelStatusBarConfiguration.StatusBubble.MenuItem] {
+        var items: [BottomPanelStatusBarConfiguration.StatusBubble.MenuItem] = []
+        if let onRunCommand {
+            if !failed { items.append(.init(title: "Commit", systemImage: "checkmark.circle") { onRunCommand("COMMIT") }) }
+            items.append(.init(title: "Roll Back", systemImage: "arrow.uturn.backward", isDestructive: !failed) { onRunCommand("ROLLBACK") })
+        }
+        items.append(.init(title: "Show in Messages", systemImage: "text.bubble") {
+            panelState.isOpen = true
+            panelState.selectedSegment = .messages
+        })
+        return items
+    }
+
     private func buildStatusBubble() -> BottomPanelStatusBarConfiguration.StatusBubble {
+        if query.cancelPhase != nil {
+            return .init(label: "Cancelling", tint: .orange, isPulsing: true)
+        }
+        // Round 21, timeouts (LF3): a statement waiting for a lock says so; hover shows who holds it.
+        if query.isExecuting, let wait = query.lockWait {
+            return .init(label: "Waiting for lock", tint: ColorTokens.Status.warning, isPulsing: false,
+                         icon: "lock", help: wait.summary())
+        }
         if query.isExecuting {
             return .init(label: "Executing", tint: .orange, isPulsing: true)
+        }
+        if query.connectionLoss != nil {
+            return .init(label: "Disconnected", tint: .red, isPulsing: false)
+        }
+        // Round 21, transaction state: the status pill shows an open or failed transaction.
+        switch query.transactionState {
+        case .open(let since):
+            return .init(label: "Transaction", tint: ColorTokens.Status.warning, isPulsing: false,
+                         icon: "arrow.triangle.branch", since: since, menu: transactionMenu(failed: false))
+        case .failed:
+            return .init(label: "Failed — roll back", tint: ColorTokens.Status.error, isPulsing: false,
+                         icon: "exclamationmark.octagon", menu: transactionMenu(failed: true))
+        case .none:
+            break
         }
         if query.wasCancelled {
             return .init(label: "Cancelled", tint: .yellow, isPulsing: false)

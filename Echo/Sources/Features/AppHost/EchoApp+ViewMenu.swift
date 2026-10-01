@@ -9,14 +9,25 @@ import AppKit
 
 struct ViewMenuCommands: Commands {
     var appState: AppState
+    let environmentState: EnvironmentState
     let navigationStore: NavigationStore
     let tabStore: TabStore
 
     var body: some Commands {
-        CommandGroup(after: .sidebar) {
+        // Replaces the system's sidebar item, which would otherwise take ⌃⌘S and send it to a
+        // split view the workspace no longer has.
+        CommandGroup(replacing: .sidebar) {
             Button {
-                if let keyWindow = NSApplication.shared.keyWindow,
-                   keyWindow.identifier == AppWindowIdentifier.manageConnections {
+                let keyWindow = NSApplication.shared.keyWindow
+                if keyWindow?.identifier == AppWindowIdentifier.workspace {
+                    // The workspace draws its own tree beside the rail; the shell animates it.
+                    let hasContent = WorkspaceTreeAvailability.hasContent(
+                        environmentState: environmentState,
+                        navigationStore: navigationStore
+                    )
+                    guard hasContent else { return }
+                    appState.isWorkspaceTreeVisible.toggle()
+                } else if keyWindow?.identifier == AppWindowIdentifier.manageConnections {
                     NotificationCenter.default.post(name: .toggleManageConnectionsSidebar, object: nil)
                 } else {
                     NSApp?.sendAction(#selector(NSSplitViewController.toggleSidebar(_:)), to: nil, from: nil)
@@ -27,10 +38,10 @@ struct ViewMenuCommands: Commands {
             .keyboardShortcut("s", modifiers: [.command, .control])
 
             Button {
-                appState.showInfoSidebar.toggle()
+                appState.toggleInspector()
             } label: {
                 Label(
-                    appState.showInfoSidebar ? "Hide Inspector" : "Show Inspector",
+                    appState.showInfoSidebar && !appState.isNotificationHistoryVisible ? "Hide Inspector" : "Show Inspector",
                     systemImage: "sidebar.trailing"
                 )
             }
@@ -49,12 +60,42 @@ struct ViewMenuCommands: Commands {
             .keyboardShortcut("y", modifiers: [.command, .shift])
             .disabled(!navigationStore.isWorkspaceWindowKey || !tabStore.hasTabs)
 
+            // Same as double-clicking the gap between the content and panel cards (plan E3, TT1).
             Button {
-                NotificationCenter.default.post(name: .activateSidebarSearch, object: nil)
+                guard let panelState = tabStore.activeTab?.panelState else { return }
+                if !panelState.isOpen {
+                    panelState.isOpen = true
+                    panelState.isResultsMaximized = true
+                } else {
+                    panelState.isResultsMaximized.toggle()
+                }
             } label: {
-                Label("Find in Sidebar", systemImage: "magnifyingglass")
+                let isMaximized = tabStore.activeTab?.panelState.isResultsMaximized ?? false
+                let isQuery = tabStore.activeTab?.kind == .query
+                Label(
+                    isMaximized ? (isQuery ? "Restore Editor" : "Restore Bottom Panel") : (isQuery ? "Maximize Results" : "Maximize Bottom Panel"),
+                    systemImage: isMaximized ? "rectangle.split.1x2" : "rectangle.bottomhalf.filled"
+                )
             }
-            .keyboardShortcut("f", modifiers: [.command, .shift])
+            .keyboardShortcut("y", modifiers: [.command, .shift, .option])
+            .disabled(!navigationStore.isWorkspaceWindowKey || tabStore.activeTab?.kind.hasBottomPanel != true)
+
+            // Search is the ⌘K palette (plan K4); ⇧⌘F is Format Query (K3).
+            Button {
+                appState.isCommandPaletteVisible = true
+            } label: {
+                Label("Search", systemImage: "magnifyingglass")
+            }
+            .keyboardShortcut("f", modifiers: [.command, .option])
+            .disabled(!navigationStore.isWorkspaceWindowKey)
+
+            Button {
+                appState.isCommandPaletteVisible.toggle()
+            } label: {
+                Label("Command Palette", systemImage: "command")
+            }
+            .keyboardShortcut("k", modifiers: .command)
+            .disabled(!navigationStore.isWorkspaceWindowKey)
 
             Divider()
 
@@ -68,7 +109,30 @@ struct ViewMenuCommands: Commands {
             }
             .keyboardShortcut("o", modifiers: [.command, .shift])
             .disabled(!navigationStore.isWorkspaceWindowKey || !tabStore.hasTabs)
+
+            Divider()
+
+            // Round 28.8 (ZK0): the query editor's zoom, this tab only.
+            Button("Zoom In", systemImage: "plus.magnifyingglass") { zoomEditor(by: 1) }
+                .keyboardShortcut("+", modifiers: .command)
+                .disabled(editorQuery == nil)
+            Button("Zoom Out", systemImage: "minus.magnifyingglass") { zoomEditor(by: -1) }
+                .keyboardShortcut("-", modifiers: .command)
+                .disabled(editorQuery == nil)
+            Button("Actual Size", systemImage: "1.magnifyingglass") { editorQuery?.editorZoom = EditorZoom.actualSize }
+                .keyboardShortcut("0", modifiers: .command)
+                .disabled(editorQuery == nil)
         }
+    }
+
+    private var editorQuery: QueryEditorState? {
+        guard navigationStore.isWorkspaceWindowKey else { return nil }
+        return tabStore.activeTab?.query
+    }
+
+    private func zoomEditor(by direction: Int) {
+        guard let query = editorQuery else { return }
+        query.editorZoom = EditorZoom.step(query.editorZoom, by: direction)
     }
 }
 #endif

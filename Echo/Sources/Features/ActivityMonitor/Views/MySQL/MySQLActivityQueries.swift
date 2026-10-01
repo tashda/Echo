@@ -31,20 +31,20 @@ struct MySQLActivityQueries: View {
     }
 
     private var toolbar: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            Picker("Report", selection: $selectedReport) {
+        CenteredTabSectionToolbar {
+            TabSectionPicker(
+                "Query Report",
+                selection: $selectedReport,
+                itemCount: QueryReportType.allCases.count
+            ) {
                 ForEach(QueryReportType.allCases, id: \.self) { type in
                     Text(type.rawValue).tag(type)
                 }
             }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 420)
-
+        } controls: {
             TextField("", text: $filterText, prompt: Text("Filter"))
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 180)
-
-            Spacer()
 
             if let report {
                 Text("\(filteredRows.count) of \(report.rows.count) rows")
@@ -59,8 +59,6 @@ struct MySQLActivityQueries: View {
             }
             .buttonStyle(.borderless)
         }
-        .padding(.horizontal, SpacingTokens.md)
-        .padding(.vertical, SpacingTokens.sm)
     }
 
     @ViewBuilder

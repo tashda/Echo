@@ -1,5 +1,6 @@
 import SwiftUI
 import EchoSense
+import PostgresWire
 
 extension WorkspaceTabContainerView {
     func runQuery(tabId: UUID, sql: String) async {
@@ -14,6 +15,7 @@ extension WorkspaceTabContainerView {
 
         let trimmedSQL = sql.trimmingCharacters(in: .whitespacesAndNewlines)
         let baseSQL = trimmedSQL.isEmpty ? sql : trimmedSQL
+        await prepareQueryTimeLimit(tab: tab, queryState: queryState, sql: sql)
 
         // MSSQL: split at GO boundaries and route to multi-batch execution if needed
         var effectiveSQL: String
@@ -102,6 +104,34 @@ extension WorkspaceTabContainerView {
             effectiveSQL = baseSQL
         }
 
+        // PostgreSQL runs one statement per query: a script with several statements goes through the
+        // multi-batch path, one statement per batch, on the tab's connection.
+        if tab.connection.databaseType == .postgresql {
+            let statements = PostgresSQLSplitter.split(baseSQL)
+            if statements.count > 1 {
+                let session: DatabaseSession
+                do {
+                    session = try await resolvePostgresExecutionSession(for: tab)
+                } catch {
+                    queryState.errorMessage = "No dedicated connection. Click \"Retry Connection\" to reconnect."
+                    return
+                }
+                let startLines = statements.map { statement in
+                    baseSQL[..<statement.range.lowerBound].reduce(0) { $1 == "\n" ? $0 + 1 : $0 }
+                }
+                await runBatchQuery(
+                    tabId: tabId,
+                    batches: statements.map(\.text),
+                    batchStartLines: startLines,
+                    queryState: queryState,
+                    resolvedSession: session,
+                    tab: tab,
+                    trimmedSQL: trimmedSQL
+                )
+                return
+            }
+        }
+
         // Resolve the execution session — for PostgreSQL, route through database-specific session.
         // MSSQL dedicated session wait is deferred to inside the Task so startExecution() runs immediately.
         let executionSession: DatabaseSession
@@ -144,6 +174,7 @@ extension WorkspaceTabContainerView {
         let foreignKeySource = resolveSchemaAndTable(for: inferredObject, connection: tab.connection)
 
         let activityHandle = AppDirector.shared.activityEngine.begin("Executing query", connectionSessionID: tab.connectionSessionID)
+        let sentSQL = effectiveSQL
         let task = Task { [weak queryState] in
             guard let state = await MainActor.run(body: { queryState }) else { return }
 
@@ -159,7 +190,14 @@ extension WorkspaceTabContainerView {
                 // Wait for dedicated session if still connecting
                 let resolvedSession: DatabaseSession
                 if needsDedicatedSessionWait {
-                    resolvedSession = try await tab.awaitDedicatedSession()
+                    let dedicated = try await tab.awaitDedicatedSession()
+                    // PostgreSQL: run against the tab's active database, not the one the session opened with.
+                    if tab.connection.databaseType == .postgresql,
+                       let activeDB = tab.activeDatabaseName, !activeDB.isEmpty {
+                        resolvedSession = try await dedicated.sessionForDatabase(activeDB)
+                    } else {
+                        resolvedSession = dedicated
+                    }
                 } else {
                     resolvedSession = executionSession
                 }
@@ -263,7 +301,10 @@ extension WorkspaceTabContainerView {
                     } else {
                         activityHandle.fail(error.localizedDescription)
                         state.errorMessage = error.localizedDescription
+                        presentServerMessages(of: error, sentSQL: sentSQL, state: state)
                         state.failExecution(with: "Query execution failed: \(error.localizedDescription)")
+                        presentErrorLocation(of: error, sentSQL: sentSQL, tab: tab, state: state)
+                        reportQueryFailure(error.localizedDescription, tab: tab)
                     }
                 }
             }
@@ -281,7 +322,94 @@ extension WorkspaceTabContainerView {
     func cancelQuery(tabId: UUID) {
         guard let tab = tabStore.tabs.first(where: { $0.id == tabId }),
               let queryState = tab.query else { return }
+        guard tab.connection.databaseType == .postgresql else {
+            if let session = tab.session as? MSSQLDedicatedQuerySession {
+                cancelSQLServerQuery(queryState: queryState, session: session)
+            } else {
+                queryState.cancelExecution()
+            }
+            return
+        }
+        // PostgreSQL: stop the statement on the server first (otherwise it keeps running and the
+        // connection stays busy draining rows), then cancel the task. The "canceling statement"
+        // error that follows is treated as a cancellation because the request flag is already set.
+        guard queryState.cancelPhase == nil else { return }
+        queryState.isCancellationRequested = true
+        queryState.cancelPhase = .cancelling
+        let session = tab.session
+        Task { @MainActor in
+            _ = await session.cancelRunningQuery()
+            queryState.cancelExecution()
+            await followPostgresCancel(queryState: queryState, session: session)
+        }
+    }
+
+    /// SQL Server: cancelling the task cancels the statement on the server and keeps the session
+    /// (round 22, CL1), and looks like the PostgreSQL cancel (Cancelling, Force Stop after 5 s).
+    /// Tabs run with XACT_ABORT ON, so SQL Server rolls back a transaction the cancelled statement
+    /// was in; say so (XA1).
+    private func cancelSQLServerQuery(queryState: QueryEditorState, session: MSSQLDedicatedQuerySession) {
+        guard queryState.cancelPhase == nil else { return }
+        let transactionWasOpen = session.isInTransaction
+        queryState.isCancellationRequested = true
+        queryState.cancelPhase = .cancelling
         queryState.cancelExecution()
+        Task { @MainActor in
+            await followCancel(queryState: queryState) { await session.forceStopRunningQuery() }
+            // After a Force Stop the connection is closed and still reports the transaction, so
+            // this note only follows a cancel that SQL Server acknowledged.
+            guard transactionWasOpen, queryState.wasCancelled, !session.isInTransaction else { return }
+            queryState.appendMessage(
+                message: "Transaction rolled back: the cancelled statement was inside a transaction, and SQL Server rolled it back (XACT_ABORT is on).",
+                severity: .warning,
+                category: "Transaction"
+            )
+        }
+    }
+
+    /// Round 21, cancel: offers Force Stop when the server hasn't stopped within 5 s (CS2), and says
+    /// when the cancelled statement left its transaction needing ROLLBACK (TX1).
+    private func followPostgresCancel(queryState: QueryEditorState, session: DatabaseSession) async {
+        await followCancel(queryState: queryState) {
+            await (session as? PostgresSession)?.forceStopRunningQuery() ?? (stopped: false, transactionWasOpen: false)
+        }
+        if queryState.wasCancelled, await (session as? PostgresSession)?.isInFailedTransaction() == true {
+            queryState.noteCancelledInsideTransaction()
+        }
+    }
+
+    /// Waits for the cancelled run to end, offering Force Stop when the server hasn't stopped
+    /// within 5 s (round 21, CS2). `forceStop` closes the tab's connection.
+    private func followCancel(
+        queryState: QueryEditorState,
+        forceStop: @escaping @MainActor () async -> (stopped: Bool, transactionWasOpen: Bool)
+    ) async {
+        let started = ContinuousClock.now
+        while queryState.isExecuting {
+            if queryState.cancelPhase == .cancelling, ContinuousClock.now - started >= QueryCancelPhase.forceStopDelay {
+                queryState.cancelPhase = .notStopping
+                queryState.forceStopHandler = { [weak queryState] in
+                    guard let queryState else { return }
+                    queryState.forceStopHandler = nil
+                    Task { @MainActor in
+                        let outcome = await forceStop()
+                        if outcome.stopped { queryState.noteForceStopped(transactionWasOpen: outcome.transactionWasOpen) }
+                        queryState.cancelExecution()
+                    }
+                }
+            }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+    }
+
+    /// The session a PostgreSQL tab runs on: its dedicated session (waiting for it if it is still
+    /// connecting), switched to the tab's active database.
+    func resolvePostgresExecutionSession(for tab: WorkspaceTab) async throws -> DatabaseSession {
+        let base = tab.isAwaitingDedicatedSession ? try await tab.awaitDedicatedSession() : tab.session
+        if let activeDB = tab.activeDatabaseName, !activeDB.isEmpty {
+            return try await base.sessionForDatabase(activeDB)
+        }
+        return base
     }
 
     /// Returns true if the SQL begins with a DDL statement that modifies schema objects.
@@ -315,22 +443,7 @@ extension WorkspaceTabContainerView {
         var emittedServerResponse = false
         for serverMsg in result.serverMessages {
             emittedServerResponse = true
-            let severity: QueryExecutionMessage.Severity = serverMsg.kind == .error ? .error : .info
-            var metadata = serverMsg.metadata
-            if serverMsg.number != 0 {
-                metadata["messageNumber"] = "\(serverMsg.number)"
-            }
-            if let serverName = serverMsg.serverName, !serverName.isEmpty {
-                metadata["server"] = serverName
-            }
-            state.appendMessage(
-                message: serverMsg.message,
-                severity: severity,
-                category: serverMsg.category ?? "Server Response",
-                procedure: serverMsg.procedureName,
-                line: serverMsg.lineNumber.map(Int.init),
-                metadata: metadata
-            )
+            state.appendServerMessage(serverMsg)
         }
 
         if isMessageOnlyStatement,

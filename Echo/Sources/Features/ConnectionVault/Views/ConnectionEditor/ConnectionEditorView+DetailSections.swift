@@ -8,7 +8,7 @@ import UniformTypeIdentifiers
 
 extension ConnectionEditorView {
     var authenticationSection: some View {
-        Section("Authentication") {
+        Section("Sign In") {
             PropertyRow(title: "Method") {
                 Picker("", selection: $credentialSource) {
                     ForEach(availableCredentialSources, id: \.self) { source in
@@ -40,6 +40,7 @@ extension ConnectionEditorView {
             switch credentialSource {
             case .manual:
                 manualCredentialFields
+                validationRow(for: .password)
             case .identity:
                 identityPickerFields
             case .inherit:
@@ -54,7 +55,7 @@ extension ConnectionEditorView {
             PropertyRow(title: "Mechanism") {
                 Picker("", selection: $authenticationMethod) {
                     ForEach(availableAuthenticationMethods, id: \.self) { method in
-                        Text(method.displayName).tag(method)
+                        Text(method.displayName(for: selectedDatabaseType)).tag(method)
                     }
                 }
                 .labelsHidden()
@@ -67,7 +68,9 @@ extension ConnectionEditorView {
                 TextField("", text: $domain, prompt: Text("DOMAIN"))
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
+                    .focused($focusedField, equals: .domain)
             }
+            validationRow(for: .domain)
         }
 
         if authenticationMethod.usesAccessToken {
@@ -92,21 +95,30 @@ extension ConnectionEditorView {
                 TextField("", text: $username, prompt: Text("username"))
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
+                    .focused($focusedField, equals: .username)
+            }
+            validationRow(for: .username)
+
+            if authenticationMethod == .kerberos {
+                kerberosTicketRow
             }
 
-            PropertyRow(title: "Password") {
-                SecureField(
-                    "",
-                    text: $password,
-                    prompt: Text(hasSavedPassword && !passwordDirty
-                        ? "••••••••"
-                        : (authenticationMethod == .windowsIntegrated ? "Windows password" : "password"))
-                )
-                .textFieldStyle(.plain)
-                .multilineTextAlignment(.trailing)
-                .onChange(of: password) { _, newValue in
-                    if !newValue.isEmpty {
-                        passwordDirty = true
+            if authenticationMethod.usesPassword {
+                PropertyRow(title: "Password") {
+                    SecureField(
+                        "",
+                        text: $password,
+                        prompt: Text(hasSavedPassword && !passwordDirty
+                            ? "••••••••"
+                            : (authenticationMethod == .windowsIntegrated ? "Windows password" : "password"))
+                    )
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+                    .focused($focusedField, equals: .password)
+                    .onChange(of: password) { _, newValue in
+                        if !newValue.isEmpty {
+                            passwordDirty = true
+                        }
                     }
                 }
             }
@@ -152,8 +164,9 @@ extension ConnectionEditorView {
         }
     }
 
-    var advancedSection: some View {
-        Section("Advanced") {
+    /// The timeout rows, shown inside the Security and timeouts disclosure.
+    var advancedRows: some View {
+        Group {
             PropertyRow(title: "Connection Timeout") {
                 HStack(spacing: SpacingTokens.xs) {
                     TextField(
@@ -171,13 +184,16 @@ extension ConnectionEditorView {
                 }
             }
 
-            PropertyRow(title: "Query Timeout") {
+            PropertyRow(
+                title: "Query Time Limit",
+                info: "Stops a statement that runs longer than this. Empty uses Settings › Databases › Query time limit; 0 means no limit."
+            ) {
                 HStack(spacing: SpacingTokens.xs) {
                     TextField(
                         "",
-                        value: $queryTimeout,
+                        value: $queryTimeLimit,
                         format: .number.grouping(.never),
-                        prompt: Text("60")
+                        prompt: Text("Default")
                     )
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)

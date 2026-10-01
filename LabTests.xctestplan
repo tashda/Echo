@@ -1,0 +1,89 @@
+{
+  "configurations" : [
+    {
+      "id" : "A5F024CB-A93D-4180-8CED-646CB0383E0E",
+      "name" : "Lab Tests",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "defaultTestExecutionTimeAllowance" : 300,
+    "environmentVariableEntries" : [
+      {
+        "key" : "SERVERLAB_INTEGRATION",
+        "value" : "1"
+      }
+    ],
+    "maximumTestExecutionTimeAllowance" : 900,
+    "performanceAntipatternCheckerEnabled" : true,
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : false,
+      "selectedTests" : [
+        "FactoryConnectionTests",
+        "LabPostgresSessionTests",
+        "LabSQLServerAlwaysEncryptedTests",
+        "LabSQLServerImportTests",
+        "LabSQLServerSessionTests",
+        "MSSQLActivityMonitorTests",
+        "MSSQLAgentManagementTests",
+        "MSSQLAgentTests",
+        "MSSQLBackupRestoreTests",
+        "MSSQLBulkImportTests",
+        "MSSQLColumnTests",
+        "MSSQLConnectionTests",
+        "MSSQLConstraintTests",
+        "MSSQLDataTypeBinaryTests",
+        "MSSQLDataTypeDateTimeTests",
+        "MSSQLDataTypeNumericTests",
+        "MSSQLDataTypeStringTests",
+        "MSSQLDatabaseAdminTests",
+        "MSSQLDedicatedSessionCancelTests",
+        "MSSQLDedicatedSessionConnectionLossTests",
+        "MSSQLDedicatedSessionErrorTests",
+        "MSSQLDedicatedSessionResultSetTests",
+        "MSSQLFunctionTests",
+        "MSSQLIndexTests",
+        "MSSQLIntegrationTests",
+        "MSSQLMaintenanceTests",
+        "MSSQLMetadataLoadingTests",
+        "MSSQLMetadataTests",
+        "MSSQLProcedureTests",
+        "MSSQLQueryTabIsolationTests",
+        "MSSQLQueryTests",
+        "MSSQLSchemaDiscoveryTests",
+        "MSSQLSecurityTests",
+        "MSSQLStreamingSpoolTests",
+        "MSSQLStreamingTests",
+        "MSSQLSynonymTests",
+        "MSSQLTableDesignerTests",
+        "MSSQLTableOperationsTests",
+        "MSSQLTransactionTests",
+        "MSSQLTriggerTests",
+        "MSSQLViewTests",
+        "MySQLIntegrationTests",
+        "PostgresBackupRestoreIntegrationTests",
+        "PostgresCancelTests",
+        "PostgresConnectionLossTests",
+        "PostgresFailoverTests",
+        "PostgresIntegrationTests",
+        "PostgresOpenTransactionGuardTests",
+        "PostgresQueryTabSessionTests",
+        "PostgresQueryTimeLimitTests",
+        "PostgresScriptRunTests",
+        "PostgresTransactionStateTests",
+        "SessionProtocolComplianceTests"
+      ],
+      "target" : {
+        "containerPath" : "container:Echo.xcodeproj",
+        "identifier" : "385E60BACCBA4F1A95FC14AF",
+        "name" : "EchoTests"
+      }
+    }
+  ],
+  "version" : 1
+}

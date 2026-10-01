@@ -15,15 +15,31 @@ struct SQLEditorSurfaceColors: Codable, Equatable {
 }
 
 struct SQLEditorTheme: Codable, Equatable {
-    static let defaultFontName = "JetBrainsMono-Regular"
+    /// Round 28.1: SF Mono, the system's monospaced font.
+    static let defaultFontName = systemFontIdentifier
+    static let defaultFontFamily = systemFontIdentifier
+    /// The default before round 28.1; settings still on it move to SF Mono once.
+    static let formerDefaultFontNames: Set<String> = ["JetBrainsMono-Regular", "JetBrains Mono"]
+    /// Families bundled in `Resources/Fonts`, all under the SIL Open Font License.
+    static let bundledFontFamilies = [
+        "JetBrains Mono", "Geist Mono", "Google Sans Code", "Intel One Mono", "Martian Mono", "Fragment Mono",
+        "Atkinson Hyperlegible Mono", "Cascadia Code", "CommitMono",
+        "Monaspace Neon Var", "Monaspace Argon Var", "Monaspace Xenon Var", "Monaspace Radon Var", "Monaspace Krypton Var",
+    ]
+    /// Picker names where a font's family name reads badly.
+    static let bundledFontDisplayNames = [
+        "CommitMono": "Commit Mono",
+        "Monaspace Neon Var": "Monaspace Neon", "Monaspace Argon Var": "Monaspace Argon", "Monaspace Xenon Var": "Monaspace Xenon",
+        "Monaspace Radon Var": "Monaspace Radon", "Monaspace Krypton Var": "Monaspace Krypton",
+    ]
     static let systemFontIdentifier = "__system_monospaced__"
-    static let defaultFontSize: CGFloat = 12
-    static let defaultLineHeight: CGFloat = 1.0
+    static let defaultFontSize: CGFloat = 13
+    static let defaultLineHeight: CGFloat = 1.55
 
     var fontName: String
     var fontSize: CGFloat
     var lineHeightMultiplier: CGFloat
-    var ligaturesEnabled: Bool = true
+    var ligaturesEnabled: Bool = false
     var surfaces: SQLEditorSurfaceColors
     var tokenPalette: SQLEditorTokenPalette
     var palette: SQLEditorTokenPalette { tokenPalette }
@@ -32,7 +48,7 @@ struct SQLEditorTheme: Codable, Equatable {
         fontName: String = SQLEditorTheme.defaultFontName,
         fontSize: CGFloat = SQLEditorTheme.defaultFontSize,
         lineHeightMultiplier: CGFloat = SQLEditorTheme.defaultLineHeight,
-        ligaturesEnabled: Bool = true,
+        ligaturesEnabled: Bool = false,
         surfaces: SQLEditorSurfaceColors,
         tokenPalette: SQLEditorTokenPalette
     ) {
@@ -58,7 +74,7 @@ struct SQLEditorTheme: Codable, Equatable {
         fontName = try container.decode(String.self, forKey: .fontName)
         fontSize = try container.decode(CGFloat.self, forKey: .fontSize)
         lineHeightMultiplier = try container.decode(CGFloat.self, forKey: .lineHeightMultiplier)
-        ligaturesEnabled = try container.decodeIfPresent(Bool.self, forKey: .ligaturesEnabled) ?? true
+        ligaturesEnabled = try container.decodeIfPresent(Bool.self, forKey: .ligaturesEnabled) ?? false
         surfaces = try container.decode(SQLEditorSurfaceColors.self, forKey: .surfaces)
         tokenPalette = try container.decode(SQLEditorTokenPalette.self, forKey: .tokenPalette)
     }
@@ -126,9 +142,4 @@ struct SQLEditorTheme: Codable, Equatable {
         )
     }
 }
-extension SQLEditorTheme {
-    var lineSpacing: CGFloat {
-        let base = fontSize * 0.2
-        return base * lineHeightMultiplier
-    }
-}
+

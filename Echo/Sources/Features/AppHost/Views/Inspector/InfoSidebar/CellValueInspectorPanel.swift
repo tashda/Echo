@@ -9,67 +9,33 @@ struct CellValueInspectorPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.md) {
-            Text("Cell Value")
-                .font(TypographyTokens.prominent.weight(.semibold))
-
-            GroupBox {
-                VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-                    PropertyRow(title: "Column") {
-                        Text(content.columnName)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                    }
-                    Divider()
-                    PropertyRow(title: "Type") {
-                        Text(content.dataType.isEmpty ? "Unknown" : content.dataType)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                    }
-                    Divider()
-                    PropertyRow(title: "Kind") {
-                        Text(kindLabel)
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                    }
-                }
-                .padding(.vertical, SpacingTokens.xs)
+            InspectorSection(title: content.columnName, subtitle: typeLine, systemImage: "character.cursor.ibeam") {
+                Button { PlatformClipboard.copy(content.rawValue) } label: { Label("Copy", systemImage: "doc.on.doc") }
+                    .help("Copy Value")
+                Button { showingExpandedEditor = true } label: { Label("Open in Editor", systemImage: "arrow.up.left.and.arrow.down.right") }
+                    .help("Open in Editor")
+                Button(action: saveToFile) { Label("Save to File", systemImage: "square.and.arrow.down") }
+                    .help("Save to File")
+            } content: {
+                Text(displayValue)
+                    .font(TypographyTokens.code)
+                    .italic(content.valueKind == .null)
+                    .foregroundStyle(content.valueKind == .null ? ColorTokens.Text.tertiary : ColorTokens.Text.primary)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            HStack {
-                Text("Value")
-                    .font(TypographyTokens.detail.weight(.semibold))
-                    .foregroundStyle(ColorTokens.Text.secondary)
-
-                Spacer()
-
-                Button {
-                    PlatformClipboard.copy(content.rawValue)
-                } label: {
-                    Label("Copy", systemImage: "doc.on.doc")
+            // Row detail (plan I4): every column of the selected cell's row.
+            if !content.rowFields.isEmpty {
+                InspectorSection(title: content.rowNumber.map { "Row \($0)" } ?? "Row", systemImage: "tablecells") {
+                    Button { PlatformClipboard.copy(rowAsText) } label: { Label("Copy Row", systemImage: "doc.on.doc") }
+                        .help("Copy Row")
+                } content: {
+                    ForEach(Array(content.rowFields.enumerated()), id: \.offset) { index, field in
+                        InspectorSectionRow(label: field.name, value: field.value, isLast: index == content.rowFields.count - 1)
+                    }
                 }
-                .controlSize(.small)
-                .buttonStyle(.borderless)
-
-                Button {
-                    showingExpandedEditor = true
-                } label: {
-                    Label("Open in Editor", systemImage: "arrow.up.left.and.arrow.down.right")
-                }
-                .controlSize(.small)
-                .buttonStyle(.borderless)
-
-                Button {
-                    saveToFile()
-                } label: {
-                    Label("Save to File", systemImage: "square.and.arrow.down")
-                }
-                .controlSize(.small)
-                .buttonStyle(.borderless)
             }
-
-            Text(displayValue)
-                .font(TypographyTokens.code)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(SpacingTokens.sm)
-                .background(ColorTokens.Background.secondary, in: RoundedRectangle(cornerRadius: 6))
         }
         .sheet(isPresented: $showingExpandedEditor) {
             CellValueEditorSheet(
@@ -78,6 +44,16 @@ struct CellValueInspectorPanel: View {
                 onSaveToFile: saveToFile
             )
         }
+    }
+
+    private var typeLine: String {
+        let type = content.dataType.isEmpty ? "Unknown type" : content.dataType
+        return "\(type) · \(kindLabel)"
+    }
+
+    /// The row as "column<TAB>value" lines.
+    private var rowAsText: String {
+        content.rowFields.map { "\($0.name)\t\($0.value)" }.joined(separator: "\n")
     }
 
     private var kindLabel: String {
@@ -90,6 +66,7 @@ struct CellValueInspectorPanel: View {
         case .identifier: return "Identifier"
         case .json: return "JSON"
         case .null: return "NULL"
+        case .encrypted: return "Always Encrypted"
         }
     }
 

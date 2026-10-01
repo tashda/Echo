@@ -31,14 +31,15 @@ struct DatabasesSettingsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Database", selection: $selectedTab) {
+            TabSectionPicker(
+                "Database Settings Section",
+                selection: $selectedTab,
+                itemCount: DatabaseSettingsTab.allCases.count
+            ) {
                 ForEach(DatabaseSettingsTab.allCases, id: \.self) { tab in
                     Text(tab.title).tag(tab)
                 }
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
             .padding(.top, SpacingTokens.sm)
             .padding(.bottom, SpacingTokens.xs)
 

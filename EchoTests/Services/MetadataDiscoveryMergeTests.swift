@@ -1,4 +1,5 @@
 import XCTest
+import Testing
 @testable import Echo
 
 @MainActor
@@ -240,5 +241,62 @@ final class MetadataDiscoveryMergeTests: XCTestCase {
 
         XCTAssertEqual(result.objects.count, 1, "Table and view with same schema.name share the same ID, so partial overwrites existing")
         XCTAssertEqual(result.objects.first?.type, .view, "Partial object should overwrite existing")
+    }
+}
+
+@MainActor
+struct SQLServerDatabaseListReconciliationTests {
+    @Test func authoritativeLiveDatabaseListDropsCachedDatabasesMissingFromServer() {
+        let liveDatabases = [
+            DatabaseInfo(name: "master", schemas: [], schemaCount: 0, stateDescription: "ONLINE", hasAccess: true),
+            DatabaseInfo(name: "app", schemas: [], schemaCount: 0, stateDescription: "ONLINE", hasAccess: true)
+        ]
+        let cachedDatabases = [
+            DatabaseInfo(
+                name: "app",
+                schemas: [SchemaInfo(name: "dbo", objects: [
+                    SchemaObjectInfo(name: "Customers", schema: "dbo", type: .table)
+                ])],
+                schemaCount: 1
+            ),
+            DatabaseInfo(name: "other_server_db", schemas: [], schemaCount: 0)
+        ]
+
+        let result = MetadataDiscoveryEngine.mergeAuthoritativeDatabaseList(
+            liveDatabases: liveDatabases,
+            existingDatabases: cachedDatabases
+        )
+
+        #expect(result.map(\.name) == ["master", "app"])
+        #expect(result.contains { $0.name == "other_server_db" } == false)
+        #expect(result.first { $0.name == "app" }?.schemas.first?.objects.first?.name == "Customers")
+    }
+
+    @Test func mergeDatabaseInfoPreservesLiveStateAndAccessMetadata() {
+        let live = DatabaseInfo(name: "app", schemas: [], schemaCount: 0, stateDescription: "OFFLINE", hasAccess: false)
+        let cached = DatabaseInfo(
+            name: "app",
+            schemas: [SchemaInfo(name: "dbo", objects: [
+                SchemaObjectInfo(name: "Customers", schema: "dbo", type: .table)
+            ])],
+            schemaCount: 1,
+            stateDescription: "ONLINE",
+            hasAccess: true
+        )
+
+        let result = MetadataDiscoveryEngine.mergeDatabaseInfo(partial: live, existing: cached)
+
+        #expect(result.stateDescription == "OFFLINE")
+        #expect(result.hasAccess == false)
+        #expect(result.schemas.first?.objects.first?.name == "Customers")
+    }
+
+    @Test func authoritativeLiveDatabaseListUsesLiveDatabaseNameCasing() {
+        let result = MetadataDiscoveryEngine.mergeAuthoritativeDatabaseList(
+            liveDatabases: [DatabaseInfo(name: "SalesDW", schemas: [], schemaCount: 0)],
+            existingDatabases: [DatabaseInfo(name: "salesdw", schemas: [], schemaCount: 0)]
+        )
+
+        #expect(result.map(\.name) == ["SalesDW"])
     }
 }

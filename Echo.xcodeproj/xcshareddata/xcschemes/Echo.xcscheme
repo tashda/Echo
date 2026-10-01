@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
-   LastUpgradeVersion = "2630"
+   LastUpgradeVersion = "2700"
    version = "1.7">
    <BuildAction
       parallelizeBuildables = "YES"
@@ -56,16 +56,10 @@
             reference = "container:UnitTests.xctestplan">
          </TestPlanReference>
          <TestPlanReference
-            reference = "container:IntegrationTests.xctestplan">
+            reference = "container:LabTests.xctestplan">
          </TestPlanReference>
          <TestPlanReference
-            reference = "container:MSSQLCompatibilityTests.xctestplan">
-         </TestPlanReference>
-         <TestPlanReference
-            reference = "container:PostgresCompatibilityTests.xctestplan">
-         </TestPlanReference>
-         <TestPlanReference
-            reference = "container:SQLiteIntegrationTests.xctestplan">
+            reference = "container:SQLServerVersions.xctestplan">
          </TestPlanReference>
          <TestPlanReference
             reference = "container:EchoUITests.xctestplan">

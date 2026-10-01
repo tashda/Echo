@@ -441,14 +441,17 @@ public struct MSSQLStructureFetcher: DatabaseStructureFetcher {
 
             await progressHandler(Progress(fraction: 0.2, message: "Loading SQL Server metadata"))
 
-            var databases: [DatabaseInfo] = []
-            do {
-                let allDbs = try await sqlSession.listDatabasesWithState()
-                databases = allDbs.map { DatabaseInfo(name: $0.name, schemas: [], schemaCount: 0, stateDescription: $0.stateDescription, hasAccess: $0.hasAccess) }
-                databases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-            } catch {
-                structureLogger.warning("SQL Server: failed to list databases: \(error.localizedDescription)")
+            let allDbs = try await sqlSession.listDatabasesWithState()
+            var databases = allDbs.map {
+                DatabaseInfo(
+                    name: $0.name,
+                    schemas: [],
+                    schemaCount: 0,
+                    stateDescription: $0.stateDescription,
+                    hasAccess: $0.hasAccess
+                )
             }
+            databases.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
 
             await progressHandler(Progress(fraction: 0.6, message: "Fetching server version"))
 

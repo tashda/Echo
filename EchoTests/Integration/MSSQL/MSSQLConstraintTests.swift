@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server constraint operations through Echo's DatabaseSession layer.
-final class MSSQLConstraintTests: MSSQLDockerTestCase {
+final class MSSQLConstraintTests: MSSQLLabTestCase {
 
     // MARK: - Primary Key
 
@@ -13,7 +13,6 @@ final class MSSQLConstraintTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         XCTAssertNotNil(details.primaryKey)
@@ -32,7 +31,6 @@ final class MSSQLConstraintTests: MSSQLDockerTestCase {
             table: tableName,
             columns: ["a", "b"]
         )
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         XCTAssertNotNil(details.primaryKey)
@@ -45,7 +43,6 @@ final class MSSQLConstraintTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int))),
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.constraints.addPrimaryKey(
             name: "PK_\(tableName)",
@@ -76,10 +73,6 @@ final class MSSQLConstraintTests: MSSQLDockerTestCase {
             referencedTable: parent,
             referencedColumns: ["id"]
         )
-        cleanupSQL(
-            "DROP TABLE [\(child)]",
-            "DROP TABLE [\(parent)]"
-        )
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: child)
         XCTAssertFalse(details.foreignKeys.isEmpty, "Should detect FK constraint")
@@ -98,16 +91,11 @@ final class MSSQLConstraintTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "parent_id", definition: .standard(.init(dataType: .int))),
         ])
-        cleanupSQL(
-            "DROP TABLE [\(child)]",
-            "DROP TABLE [\(parent)]"
-        )
 
         // Cascade options require raw SQL — no typed API for ON DELETE/UPDATE CASCADE
-        try await execute("""
-            ALTER TABLE [\(child)] ADD CONSTRAINT FK_\(child)_cascade
-            FOREIGN KEY (parent_id) REFERENCES [\(parent)](id) ON DELETE CASCADE ON UPDATE CASCADE
-        """)
+        try await sqlserverClient.constraints.addForeignKey(
+            name: "FK_\(child)_cascade", table: child, columns: ["parent_id"], referencedTable: parent, referencedColumns: ["id"],
+            options: .init(onDelete: .cascade, onUpdate: .cascade))
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: child)
         XCTAssertFalse(details.foreignKeys.isEmpty)
@@ -127,7 +115,6 @@ final class MSSQLConstraintTests: MSSQLDockerTestCase {
             table: tableName,
             columns: ["code"]
         )
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         let hasUnique = !details.uniqueConstraints.isEmpty ||
@@ -141,7 +128,6 @@ final class MSSQLConstraintTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "email", definition: .standard(.init(dataType: .nvarchar(length: .length(200))))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.constraints.addUniqueConstraint(
             name: "UQ_\(tableName)_email",
@@ -168,7 +154,6 @@ final class MSSQLConstraintTests: MSSQLDockerTestCase {
             table: tableName,
             expression: "[age] >= 0 AND [age] <= 150"
         )
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         // Insert valid data
         try await sqlserverClient.admin.insertRow(
@@ -205,7 +190,6 @@ final class MSSQLConstraintTests: MSSQLDockerTestCase {
             column: "status",
             defaultValue: "N'active'"
         )
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.admin.insertRow(
             into: tableName,
@@ -234,10 +218,6 @@ final class MSSQLConstraintTests: MSSQLDockerTestCase {
             columns: ["parent_id"],
             referencedTable: parent,
             referencedColumns: ["id"]
-        )
-        cleanupSQL(
-            "DROP TABLE [\(child)]",
-            "DROP TABLE [\(parent)]"
         )
 
         try await sqlserverClient.constraints.dropForeignKey(name: fkName, table: child)

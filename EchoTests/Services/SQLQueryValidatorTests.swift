@@ -77,6 +77,76 @@ struct SQLQueryValidatorTests {
         #expect(diagnostics.isEmpty)
     }
 
+    @Test("Newline-separated statements without semicolons are validated independently")
+    func newlineSeparatedStatementsWithoutSemicolons() async {
+        let diagnostics = await validator.validate(
+            sql: """
+            SELECT * FROM users WHERE id = 1
+            SELECT * FROM orders WHERE total > 10
+            """,
+            structure: makeStructure(),
+            selectedDatabase: "testdb",
+            defaultSchema: "public",
+            dialect: .postgresql
+        )
+        #expect(diagnostics.isEmpty)
+    }
+
+    @Test("Syntax error in later implicit statement reports original buffer offset")
+    func syntaxErrorInLaterImplicitStatementUsesOriginalOffset() async {
+        let sql = """
+        SELECT * FROM users WHERE id = 1
+        SELECT * FORM orders WHERE id = 1
+        """
+        let diagnostics = await validator.validate(
+            sql: sql,
+            structure: makeStructure(),
+            selectedDatabase: "testdb",
+            defaultSchema: "public",
+            dialect: .postgresql
+        )
+
+        let diagnostic = diagnostics.first
+        #expect(diagnostic?.kind == .syntaxError)
+        #expect((diagnostic?.offset ?? 0) > "SELECT * FROM users WHERE id = 1\n".utf16.count)
+    }
+
+    @Test("TransactSQL variable projections do not produce parser diagnostics")
+    func transactSQLVariableProjection() async {
+        let diagnostics = await validator.validate(
+            sql: """
+            SELECT
+                @SERVERNAME AS legacy_server_name,
+                SERVERPROPERTY('ServerName') AS server_name,
+                SERVERPROPERTY('MachineName') AS machine_name,
+                SERVERPROPERTY('InstanceName') AS instance_name;
+
+            SELECT name
+            FROM sys.databases
+            ORDER BY name;
+            """,
+            structure: makeStructure(schema: "sys", tables: ["databases": ["name"]]),
+            selectedDatabase: "master",
+            defaultSchema: "sys",
+            dialect: .microsoftSQL
+        )
+
+        #expect(diagnostics.isEmpty)
+    }
+
+    @Test("TransactSQL variables in predicates do not produce parser diagnostics")
+    func transactSQLVariablePredicate() async {
+        let diagnostics = await validator.validate(
+            sql: "SELECT * FROM users WHERE id = @id AND name <> @@SERVERNAME",
+            structure: makeStructure(),
+            selectedDatabase: "testdb",
+            defaultSchema: "public",
+            dialect: .microsoftSQL
+        )
+
+        #expect(diagnostics.isEmpty)
+    }
+
     // MARK: - Unknown Table
 
     @Test("Unknown table after FROM")

@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server stored procedure operations through Echo's DatabaseSession layer.
-final class MSSQLProcedureTests: MSSQLDockerTestCase {
+final class MSSQLProcedureTests: MSSQLLabTestCase {
 
     // MARK: - Create and Execute
 
@@ -16,7 +16,6 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
             ],
             body: "BEGIN SELECT @value * 2 AS doubled; END"
         )
-        cleanupSQL("DROP PROCEDURE [\(procName)]")
 
         let result = try await query("EXEC [\(procName)] @value = 21")
         XCTAssertEqual(result.rows[0][0], "42")
@@ -32,7 +31,6 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
             ],
             body: "BEGIN SELECT @first + ' ' + @last AS full_name; END"
         )
-        cleanupSQL("DROP PROCEDURE [\(procName)]")
 
         let result = try await query("EXEC [\(procName)] @first = 'John', @last = 'Doe'")
         XCTAssertEqual(result.rows[0][0], "John Doe")
@@ -58,10 +56,6 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
                 END
             """
         )
-        cleanupSQL(
-            "DROP PROCEDURE [\(procName)]",
-            "DROP TABLE [\(tableName)]"
-        )
 
         let result = try await query("EXEC [\(procName)] @id = 1, @name = 'Alice'")
         XCTAssertEqual(result.rows[0][1], "Alice")
@@ -75,10 +69,9 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
             name: procName,
             body: "BEGIN SELECT 1 AS original; END"
         )
-        cleanupSQL("DROP PROCEDURE [\(procName)]")
 
         // ALTER PROCEDURE — no typed API, use raw SQL
-        try await execute("ALTER PROCEDURE [\(procName)] AS BEGIN SELECT 2 AS modified; END")
+        try await sqlserverClient.routines.alterStoredProcedure(name: procName, body: "SELECT 2 AS modified;")
 
         let result = try await query("EXEC [\(procName)]")
         XCTAssertEqual(result.rows[0][0], "2")
@@ -115,7 +108,6 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
             ],
             body: "BEGIN SELECT @id AS result_id; END"
         )
-        cleanupSQL("DROP PROCEDURE dbo.[\(procName)]")
 
         let definition = try await session.getObjectDefinition(
             objectName: procName, schemaName: "dbo", objectType: .procedure
@@ -136,7 +128,6 @@ final class MSSQLProcedureTests: MSSQLDockerTestCase {
                 END
             """
         )
-        cleanupSQL("DROP PROCEDURE [\(procName)]")
 
         // Multiple result sets require the streaming path
         let result = try await session.simpleQuery(

@@ -8,6 +8,8 @@ final class ResultTableContainerView: NSView {
     private var backgroundColor: NSColor
     private var showRowNumbers: Bool
     private var reservedRowNumberCount: Int = 0
+    private lazy var footerOverlay = FooterScrollOverlay(scrollView: scrollView, softEdges: true,
+                                                         barLeadingInCard: leadingWidthConstraint?.constant ?? 0)
 
     init(scrollView: NSScrollView, showRowNumbers: Bool) {
         self.scrollView = scrollView
@@ -48,6 +50,18 @@ final class ResultTableContainerView: NSView {
         ])
     }
 
+    /// Room for the footer floating over the grid, the soft blur of the rows under it (round 9,
+    /// FB1), the scroll bars just above its pills and soft edges where more columns wait
+    /// (round 27). Zero removes the room and the blur.
+    func setFooterOverlay(height: CGFloat) {
+        footerOverlay.update(footerHeight: height)
+    }
+
+    /// Accent row numbers for the selected rows and the hovered row.
+    func setAccentRows(_ rows: IndexSet) {
+        rowNumberView.accentRows = rows
+    }
+
     func updateRowNumbers(count: Int) {
         reservedRowNumberCount = max(reservedRowNumberCount, count)
         rowNumberView.update(rowCount: count, reservedCount: reservedRowNumberCount)
@@ -65,6 +79,7 @@ final class ResultTableContainerView: NSView {
     private func updateLeadingWidth(_ width: CGFloat) {
         guard leadingWidthConstraint?.constant != width else { return }
         leadingWidthConstraint?.constant = width
+        footerOverlay.update(barLeadingInCard: width)
         rowNumberView.isHidden = width == 0
         needsLayout = true
     }
@@ -72,6 +87,7 @@ final class ResultTableContainerView: NSView {
     func updateBackgroundColor(_ color: NSColor) {
         backgroundColor = color
         rowNumberView.layer?.backgroundColor = color.cgColor
+        footerOverlay.update(edgeColor: color)
     }
 
     func setRowNumberCallbacks(
@@ -90,5 +106,18 @@ final class ResultTableContainerView: NSView {
 
     var tableView: NSTableView? {
         scrollView.documentView as? NSTableView
+    }
+
+    /// The horizontal bar runs as wide as the footer, over the row numbers too (round 27, L2), so
+    /// a click on that part of it goes to the bar rather than the row numbers under it.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        if let superview, let bar = scrollView.horizontalScroller, let barParent = bar.superview {
+            let local = convert(point, from: superview)
+            // Only the part reaching past the grid; AppKit decides whether the bar takes the click.
+            if local.x < scrollView.frame.minX, let hit = bar.hitTest(barParent.convert(point, from: superview)) {
+                return hit
+            }
+        }
+        return super.hitTest(point)
     }
 }

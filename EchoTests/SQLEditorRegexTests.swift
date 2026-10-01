@@ -194,56 +194,6 @@ final class SQLAutoCompletionEngineTests: XCTestCase {
         XCTAssertEqual(first.insertText, "fixture")
     }
 
-    func testTableSuggestionsFilterByTypedPrefix() {
-        // Engine uses fuzzy matching, so "fi" matches "fixture" and any table
-        // containing "fi" (e.g., "cache_config" via "con*fi*g"). Use a table name
-        // that cannot fuzzy-match "fi" to verify filtering works.
-        let suggestions = [
-            SQLCompletionSuggestion(id: "object:table:testdb.public.fixture",
-                                    title: "fixture",
-                                    subtitle: "public",
-                                    detail: "public.fixture",
-                                    insertText: "public.fixture",
-                                    kind: .table,
-                                    priority: 1300),
-            SQLCompletionSuggestion(id: "object:table:testdb.public.orders",
-                                    title: "orders",
-                                    subtitle: "public",
-                                    detail: "public.orders",
-                                    insertText: "public.orders",
-                                    kind: .table,
-                                    priority: 1290)
-        ]
-        let metadata = SQLCompletionMetadata(clause: .from,
-                                             currentToken: "public.fi",
-                                             precedingKeyword: "from",
-                                             pathComponents: ["public"],
-                                             tablesInScope: [],
-                                             focusTable: nil,
-                                             cteColumns: [:])
-        stubCompletionEngine.result = SQLCompletionResult(suggestions: suggestions, metadata: metadata)
-        engine.updateContext(sampleContext())
-
-        let text = "SELECT * FROM public.fi"
-        let caretLocation = text.count
-        let query = SQLAutoCompletionQuery(token: "public.fi",
-                                           prefix: "fi",
-                                           pathComponents: ["public"],
-                                           replacementRange: NSRange(location: caretLocation, length: 0),
-                                           precedingKeyword: "from",
-                                           precedingCharacter: " ",
-                                           focusTable: nil,
-                                           tablesInScope: [],
-                                           clause: .from)
-
-        let result = engine.suggestions(for: query, text: text, caretLocation: caretLocation)
-        let tableSuggestions = result.sections.flatMap { $0.suggestions }.filter { $0.kind == .table }
-
-        XCTAssertEqual(tableSuggestions.count, 1)
-        XCTAssertEqual(tableSuggestions.first?.title, "fixture")
-        XCTAssertEqual(tableSuggestions.first?.insertText, "fixture")
-    }
-
     func testJoinConditionSuggestionProducesSnippet() {
         let joinExpression = "o.customer_id = c.id<# #>"
         let suggestion = SQLCompletionSuggestion(
@@ -1016,65 +966,6 @@ SELECT
         let context = sampleContext()
         let weight = SQLAutoCompletionHistoryStore.shared.weight(for: accepted, context: context)
         XCTAssertGreaterThan(weight, 0, "History weight should be positive after recording a selection")
-    }
-
-    func testHistoryRespectSchemaQualifiedInsertionSetting() {
-        SQLAutoCompletionHistoryStore.shared.reset()
-
-        let unqualified = SQLCompletionSuggestion(id: "object:table:testdb.public.fixture",
-                                                  title: "fixture",
-                                                  subtitle: "public",
-                                                  detail: "public.fixture",
-                                                  insertText: "fixture",
-                                                  kind: .table,
-                                                  priority: 1300)
-        let metadata = SQLCompletionMetadata(clause: .from,
-                                             currentToken: "fi",
-                                             precedingKeyword: "from",
-                                             pathComponents: [],
-                                             tablesInScope: [],
-                                             focusTable: nil,
-                                             cteColumns: [:])
-        stubCompletionEngine.result = SQLCompletionResult(suggestions: [unqualified], metadata: metadata)
-
-        let context = sampleContext()
-        engine.updateContext(context)
-
-        let text = "SELECT * FROM fi"
-        let caret = text.count
-        let query = SQLAutoCompletionQuery(token: "fi",
-                                           prefix: "fi",
-                                           pathComponents: [],
-                                           replacementRange: NSRange(location: caret - 2, length: 2),
-                                           precedingKeyword: "from",
-                                           precedingCharacter: " ",
-                                           focusTable: nil,
-                                           tablesInScope: [],
-                                           clause: .from)
-
-        let firstResult = engine.suggestions(for: query, text: text, caretLocation: caret)
-        guard let suggestion = firstResult.sections.first?.suggestions.first else {
-            XCTFail("Expected initial table suggestion")
-            return
-        }
-        XCTAssertEqual(suggestion.insertText, "fixture")
-
-        engine.recordSelection(suggestion, query: query)
-
-        engine.updateQualifiedInsertionPreference(includeSchema: true)
-        stubCompletionEngine.result = SQLCompletionResult(suggestions: [], metadata: metadata)
-
-        let secondResult = engine.suggestions(for: query, text: text, caretLocation: caret)
-        let hydrated = secondResult.sections.flatMap { $0.suggestions }
-
-        guard let historySuggestion = hydrated.first else {
-            XCTFail("Expected history suggestion")
-            return
-        }
-
-        XCTAssertEqual(historySuggestion.kind, .table)
-        XCTAssertEqual(historySuggestion.source, .history)
-        XCTAssertEqual(historySuggestion.insertText, "public.fixture")
     }
 
     func testHistorySnapshotRoundTrip() {

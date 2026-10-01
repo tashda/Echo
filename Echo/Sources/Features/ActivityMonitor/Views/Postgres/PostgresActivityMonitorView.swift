@@ -20,13 +20,6 @@ struct PostgresActivityMonitorView: View {
         }
     }
 
-    private var selectedSectionBinding: Binding<PostgresActivitySection> {
-        Binding(
-            get: { self.selectedSection },
-            set: { self.selectedSection = $0 }
-        )
-    }
-
     @State private var sessionsSortOrder = [KeyPathComparator(\PostgresProcessInfo.pid)]
     @State private var locksSortOrder = [KeyPathComparator(\PostgresLockInfo.pid)]
     @State private var dbStatsSortOrder = [KeyPathComparator(\PostgresDatabaseStatDelta.xact_commit_delta, order: .reverse)]
@@ -55,25 +48,6 @@ struct PostgresActivityMonitorView: View {
         case configuration = "Configuration"
     }
 
-    private var sectionAvailability: [PostgresActivitySection: Bool] {
-        guard case .postgres(let snap) = viewModel.latestSnapshot else {
-            return Dictionary(uniqueKeysWithValues: PostgresActivitySection.allCases.map { ($0, true) })
-        }
-        return [
-            .sessions: true,
-            .locks: true,
-            .database: true,
-            .operations: true,
-            .queries: true,
-            .replication: !snap.replicationInfo.isEmpty,
-            .ioStats: true,
-            .wal: true,
-            .bgWriter: true,
-            .preparedTxns: true,
-            .configuration: true
-        ]
-    }
-
     var body: some View {
         ActivityMonitorTabFrame(
             viewModel: viewModel,
@@ -84,12 +58,6 @@ struct PostgresActivityMonitorView: View {
                 environmentState.openFormattedQueryTab(sql: sql, database: db, connectionID: viewModel.connectionID, dialect: .postgres)
             }
         ) {
-            PostgresActivitySectionPicker(
-                selection: selectedSectionBinding,
-                sectionAvailability: sectionAvailability
-            )
-            .frame(maxWidth: 480)
-        } sparklines: {
             sparklineStrip
         } sectionContent: {
             sectionTable

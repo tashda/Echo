@@ -6,8 +6,10 @@ extension QueryResultsSection {
         Group {
             if query.isExecuting && !hasRows {
                 executingView
-            } else if let error = query.errorMessage, !hasRows {
-                errorView(error)
+            } else if let stop = query.timeLimitStop, !hasRows, selectedTab == .results {
+                QueryTimeLimitStopView(stop: stop, query: query, connectionID: connection.id)
+            } else if let error = query.errorMessage, !hasRows, selectedTab == .results {
+                QueryFailureView(message: error, query: query, panelState: panelState)
             } else {
                 switch selectedTab {
                 case .results:
@@ -29,9 +31,25 @@ extension QueryResultsSection {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(platformBackground)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if query.cancelPhase == .notStopping { forceStopBanner }
+        }
     }
 
+    @ViewBuilder
     var resultsView: some View {
+#if os(macOS)
+        if let entries = query.scriptEntries, entries.count > 1 {
+            scriptResultsView(entries)
+        } else {
+            standardResultsView
+        }
+#else
+        standardResultsView
+#endif
+    }
+
+    private var standardResultsView: some View {
         Group {
             if hasRows || !query.additionalResults.isEmpty {
 #if os(macOS)
@@ -114,22 +132,20 @@ extension QueryResultsSection {
             alternateRowShading: projectStore.globalSettings.resultsAlternateRowShading,
             showRowNumbers: projectStore.globalSettings.resultsShowRowNumbers,
             colorOverrides: projectStore.globalSettings.resultGridColorOverrides,
-            isDarkMode: appearanceStore.effectiveColorScheme == .dark
+            isDarkMode: appearanceStore.effectiveColorScheme == .dark,
+            monospacedCells: projectStore.globalSettings.resultsMonospacedCells
         )
     }
 
-    private var multiResultSetView: some View {
+    var multiResultSetView: some View {
         return VStack(spacing: 0) {
             if query.selectedResultSetIndex == 0 && hasRows {
                 primaryResultsTable
             } else if query.selectedResultSetIndex > 0,
-                      query.selectedResultSetIndex - 1 < query.additionalResults.count {
-                AdditionalResultSetTableView(
-                    resultSet: query.additionalResults[query.selectedResultSetIndex - 1],
-                    backgroundColor: NSColor(ColorTokens.Background.primary),
-                    alternateRowShading: projectStore.globalSettings.resultsAlternateRowShading,
-                    showRowNumbers: projectStore.globalSettings.resultsShowRowNumbers
-                )
+                      let state = query.additionalResultState(at: query.selectedResultSetIndex - 1) {
+                // The same grid as the first set (plan R6).
+                AdditionalResultSetGrid(state: state)
+                    .id(query.selectedResultSetIndex)
             } else {
                 noRowsReturnedView
             }
@@ -200,9 +216,11 @@ extension QueryResultsSection {
     }
 
     var messagesView: some View {
-        ExecutionConsoleView(executionMessages: query.messages) {
-            query.messages.removeAll()
-        }
+        ExecutionConsoleView(
+            executionMessages: query.messages,
+            onClear: { query.messages.removeAll() },
+            onGoToLine: { query.goToLine(of: $0) }
+        )
     }
 
 
@@ -231,23 +249,6 @@ extension QueryResultsSection {
                 .foregroundStyle(ColorTokens.Text.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    func errorView(_ message: String) -> some View {
-        VStack(spacing: SpacingTokens.md) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(TypographyTokens.hero)
-                .foregroundStyle(ColorTokens.Status.warning)
-            Text("Query Failed")
-                .font(TypographyTokens.headline)
-            Text(message)
-                .font(TypographyTokens.body)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .textSelection(.enabled)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(SpacingTokens.xl2)
     }
 
     var noRowsReturnedView: some View {

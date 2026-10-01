@@ -1,0 +1,70 @@
+name: "Set up lab tests"
+description: >
+  Everything a job needs before running a test plan whose suites start echo-server-lab servers:
+  access to the private echo-server-lab package and to testlab, the serverlab tool built from the
+  lab revision Echo is pinned to, placeholder secrets for the build, and resolved packages.
+  Run it after checkout, Xcode selection and the PostgreSQL tools step. It joins the tailnet last,
+  so every download (packages, caches, Homebrew) happens on the runner's own network.
+inputs:
+  lab-deploy-key:
+    required: true
+  tailscale-oauth-client-id:
+    required: true
+  tailscale-oauth-secret:
+    required: true
+  testlab-ssh-key:
+    required: true
+  testlab-known-hosts:
+    required: true
+outputs:
+  serverlab:
+    description: "Path of the serverlab tool (pass it to the tests as TEST_RUNNER_SERVERLAB_CLI)"
+    value: ${{ github.workspace }}/echo-server-lab/.build/release/serverlab
+runs:
+  using: composite
+  steps:
+    - name: Access to echo-server-lab
+      uses: ./.github/actions/lab-repo-access
+      with:
+        deploy-key: ${{ inputs.lab-deploy-key }}
+
+    - name: Lab revision Echo is pinned to
+      id: lab
+      shell: bash
+      run: |
+        revision=$(python3 -c "import json; d=json.load(open('Echo.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved')); print(next(p['state']['revision'] for p in d['pins'] if p['identity'] == 'echo-server-lab'))")
+        echo "revision=$revision" >> "$GITHUB_OUTPUT"
+
+    - name: Check out echo-server-lab
+      uses: actions/checkout@v4
+      with:
+        repository: tashda/echo-server-lab
+        ref: ${{ steps.lab.outputs.revision }}
+        ssh-key: ${{ inputs.lab-deploy-key }}
+        path: echo-server-lab
+
+    - name: Cache the serverlab build
+      uses: actions/cache@v4
+      with:
+        path: echo-server-lab/.build
+        key: serverlab-${{ runner.os }}-${{ steps.lab.outputs.revision }}
+
+    - name: Build serverlab
+      shell: bash
+      run: swift build -c release --product serverlab --package-path echo-server-lab
+
+    - name: Placeholder secrets for test builds
+      shell: bash
+      run: cp Echo/Configuration/Secrets.xcconfig.example Echo/Configuration/Secrets.xcconfig
+
+    - name: Resolve packages
+      shell: bash
+      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
+
+    - name: Access to testlab
+      uses: ./.github/actions/testlab-access
+      with:
+        tailscale-oauth-client-id: ${{ inputs.tailscale-oauth-client-id }}
+        tailscale-oauth-secret: ${{ inputs.tailscale-oauth-secret }}
+        ssh-key: ${{ inputs.testlab-ssh-key }}
+        known-hosts: ${{ inputs.testlab-known-hosts }}

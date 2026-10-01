@@ -51,9 +51,14 @@ extension LoginEditorViewModel {
             password = ""
             confirmPassword = ""
 
-            // Reload mappings to get actual server state (userNames, schemas)
+            // Reload mappings to get actual server state. Must run for both
+            // edit AND create — for a freshly created login the local
+            // mappingEntries still reflect the user's pending selections
+            // (isMapped = true, originallyMapped = false), which makes
+            // hasChanges return true forever and triggers a spurious
+            // "unsaved changes" prompt on close.
             if hasLoadedMappings {
-                await reloadMappingsAfterApply(session: session)
+                await reloadMappingsAfterApply(session: session, loginName: name)
             }
 
             takeSnapshot()
@@ -85,7 +90,15 @@ extension LoginEditorViewModel {
                 checkExpiration: enforcePasswordExpiration
             ))
         } else {
-            try await ssec.createWindowsLogin(name: name)
+            // CREATE LOGIN ... FROM WINDOWS supports an inline WITH clause —
+            // pass DEFAULT_DATABASE and DEFAULT_LANGUAGE atomically so the
+            // login is never momentarily on master before a follow-up alter
+            // takes effect.
+            try await ssec.createWindowsLogin(
+                name: name,
+                defaultDatabase: (defaultDatabase.isEmpty || defaultDatabase == "master") ? nil : defaultDatabase,
+                defaultLanguage: defaultLanguage.isEmpty ? nil : defaultLanguage
+            )
         }
 
         if !loginEnabled {
@@ -170,12 +183,11 @@ extension LoginEditorViewModel {
 
     // MARK: - Reload After Apply
 
-    private func reloadMappingsAfterApply(session: ConnectionSession) async {
-        guard let mssql = session.session as? MSSQLSession,
-              let existingName = existingLoginName else { return }
+    private func reloadMappingsAfterApply(session: ConnectionSession, loginName: String) async {
+        guard let mssql = session.session as? MSSQLSession else { return }
 
         do {
-            let mappings = try await mssql.serverSecurity.listLoginDatabaseMappings(login: existingName)
+            let mappings = try await mssql.serverSecurity.listLoginDatabaseMappings(login: loginName)
             let mappedSet = Dictionary(
                 mappings.map { ($0.databaseName.lowercased(), $0) },
                 uniquingKeysWith: { first, _ in first }

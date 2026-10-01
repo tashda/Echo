@@ -8,6 +8,10 @@ struct MSSQLActivityQueries: View {
     let onPopout: (String) -> Void
     var onOpenInQueryWindow: ((_ sql: String, _ database: String?) -> Void)?
     var onDoubleClick: (() -> Void)?
+    @Environment(\.keptAliveTabsActivity) private var tabsActivity
+    @Environment(\.keptAliveTabID) private var tabID
+    /// Live dates tick only while this tab is on screen (owner's choice, 2026-10-01).
+    private var isOnScreen: Bool { KeptAliveTabsActivity.isActive(tabID, in: tabsActivity) }
 
     private var sortedQueries: [SQLServerExpensiveQuery] {
         queries.sorted(using: sortOrder)
@@ -66,7 +70,7 @@ struct MSSQLActivityQueries: View {
 
             TableColumn("Last Run", value: \.sortableLastRun) { query in
                 if let date = query.lastExecutionTime {
-                    Text(date, style: .relative)
+                    SinceDateText.text(since: date, isLive: isOnScreen)
                         .font(TypographyTokens.Table.date)
                         .foregroundStyle(ColorTokens.Text.secondary)
                 } else {

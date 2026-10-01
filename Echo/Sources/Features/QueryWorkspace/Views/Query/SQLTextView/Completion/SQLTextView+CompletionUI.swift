@@ -131,6 +131,12 @@ extension SQLTextView {
 
             if response.shouldShow {
                 self.removeCompletionIndicator()
+                if !manual, self.displayOptions.ghostTextEnabled {
+                    controller.hide()
+                    self.showGhostText(for: response)
+                    return
+                }
+                self.hideGhostText()
                 controller.present(suggestions: response.suggestions, response: response)
             } else {
                 self.hideCompletions()

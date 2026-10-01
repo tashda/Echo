@@ -35,8 +35,26 @@ final class BulkImportViewModel {
     let databaseType: DatabaseType
     var schema: String
     var tableName: String
-    var batchSize = 1000
+    /// Rows per batch. SQL Server sends each batch as one bulk load, so it starts larger.
+    var batchSize: Int
+    /// SQL Server: keep the file's values for identity columns.
     var identityInsert = false
+
+    /// SQL Server: what an empty cell becomes (round 25, EC1).
+    enum EmptyCells: String, CaseIterable, Identifiable {
+        case null = "NULL"
+        case columnDefault = "Column default"
+        var id: Self { self }
+    }
+    var emptyCells: EmptyCells = .null
+    var checkConstraints = true
+    var fireTriggers = true
+    var tableLock = false
+
+    /// The server's error under a failed import's summary (SQL Server).
+    var failureDetail: String?
+    /// Said after an import that had to use INSERT statements (round 25, ME1).
+    var completionNote: String?
 
     // Column mapping
     var columnMappings: [ColumnMapping] = []
@@ -65,6 +83,11 @@ final class BulkImportViewModel {
         self.databaseType = databaseType
         self.schema = schema
         self.tableName = tableName
+        self.batchSize = databaseType == .microsoftSQL ? 10_000 : 1_000
+    }
+
+    private var qualifiedTargetName: String {
+        "\(schema.isEmpty ? "dbo" : schema).\(tableName)"
     }
 
     var isImporting: Bool { phase == .importing }
@@ -161,6 +184,8 @@ final class BulkImportViewModel {
     func startImport() {
         guard canImport else { return }
         phase = .importing
+        failureDetail = nil
+        completionNote = nil
         importedRowCount = 0
         completedBatches = 0
         elapsedTime = 0
@@ -227,12 +252,18 @@ final class BulkImportViewModel {
             activityHandle = nil
         } catch is CancellationError {
             timerTask?.cancel()
-            phase = .failed(message: "Import cancelled")
+            // SQL Server imports run in one transaction, so a cancelled one leaves nothing behind.
+            phase = .failed(message: databaseType == .microsoftSQL ? "Import cancelled. Nothing was imported." : "Import cancelled")
             activityHandle?.cancel()
             activityHandle = nil
         } catch {
             timerTask?.cancel()
-            phase = .failed(message: error.localizedDescription)
+            if databaseType == .microsoftSQL {
+                phase = .failed(message: "Nothing was imported. \(qualifiedTargetName) is as it was.")
+                failureDetail = error.localizedDescription
+            } else {
+                phase = .failed(message: error.localizedDescription)
+            }
             activityHandle?.fail(error.localizedDescription)
             activityHandle = nil
         }
@@ -257,12 +288,36 @@ final class BulkImportViewModel {
             schema: schema.isEmpty ? "dbo" : schema,
             columns: columns,
             batchSize: max(1, batchSize),
-            identityInsert: identityInsert
+            identityInsert: identityInsert,
+            checkConstraints: checkConstraints,
+            fireTriggers: fireTriggers,
+            keepNulls: emptyCells == .null,
+            tableLock: tableLock
         )
 
-        let summary = try await adapter.client.bulk.copy(rows: bcpRows, options: options)
+        let batchSz = max(1, batchSize)
+        let total = bcpRows.count
+        let afterBatch: @Sendable (SQLServerConnection, Int) async throws -> Void = { [weak self] _, batch in
+            try Task.checkCancellation()
+            await MainActor.run {
+                guard let self else { return }
+                self.completedBatches = batch
+                self.importedRowCount = min(batch * batchSz, total)
+                self.activityHandle?.updateProgress(Double(self.importedRowCount) / Double(max(total, 1)))
+            }
+        }
+        // One transaction for the whole file (round 25, FA1): a failure or a cancel leaves the
+        // table as it was, so fixing the file and importing again just works.
+        let summary = try await adapter.client.withConnection { connection in
+            try await connection.withTransaction { connection in
+                try await connection.bulkCopy(rows: bcpRows, options: options, afterBatch: afterBatch)
+            }
+        }
 
         timerTask?.cancel()
+        if summary.method == .insertStatements {
+            completionNote = "Imported with INSERT statements: the table has a column the bulk load cannot fill (such as geometry, sql_variant or text)."
+        }
         importedRowCount = summary.totalRows
         completedBatches = summary.batchesExecuted
         elapsedTime = summary.duration

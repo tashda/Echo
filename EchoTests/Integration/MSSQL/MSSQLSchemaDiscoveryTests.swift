@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server schema discovery through Echo's DatabaseSession layer.
-final class MSSQLSchemaDiscoveryTests: MSSQLDockerTestCase {
+final class MSSQLSchemaDiscoveryTests: MSSQLLabTestCase {
 
     // MARK: - List Databases
 
@@ -18,8 +18,7 @@ final class MSSQLSchemaDiscoveryTests: MSSQLDockerTestCase {
 
     func testListDatabasesIncludesUserDatabase() async throws {
         let dbName = uniqueTableName(prefix: "echo_db")
-        try await execute("CREATE DATABASE [\(dbName)]")
-        cleanupSQL("DROP DATABASE [\(dbName)]")
+        try await sqlserverClient.admin.createDatabase(name: dbName)
 
         let databases = try await session.listDatabases()
         IntegrationTestHelpers.assertContains(databases, value: dbName)
@@ -36,7 +35,6 @@ final class MSSQLSchemaDiscoveryTests: MSSQLDockerTestCase {
     func testListSchemasIncludesCustomSchema() async throws {
         let schemaName = uniqueTableName(prefix: "schema")
         try await sqlserverClient.security.createSchema(name: schemaName)
-        cleanupSQL("DROP SCHEMA [\(schemaName)]")
 
         let schemas = try await session.listSchemas()
         IntegrationTestHelpers.assertContains(schemas, value: schemaName)
@@ -51,7 +49,6 @@ final class MSSQLSchemaDiscoveryTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
             SQLServerColumnDefinition(name: "value", definition: .standard(.init(dataType: .int))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         let objects = try await session.listTablesAndViews(schema: "dbo")
         XCTAssertNotNil(objects)
@@ -62,7 +59,6 @@ final class MSSQLSchemaDiscoveryTests: MSSQLDockerTestCase {
         try await sqlserverClient.admin.createTable(name: tableName, columns: [
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
         ])
-        cleanupSQL("DROP TABLE dbo.[\(tableName)]")
 
         let objects = try await session.listTablesAndViews(schema: "dbo")
         IntegrationTestHelpers.assertContainsObject(objects, name: tableName, type: .table)
@@ -78,10 +74,6 @@ final class MSSQLSchemaDiscoveryTests: MSSQLDockerTestCase {
             name: viewName,
             query: "SELECT id FROM dbo.[\(tableName)]"
         )
-        cleanupSQL(
-            "DROP VIEW dbo.[\(viewName)]",
-            "DROP TABLE dbo.[\(tableName)]"
-        )
 
         let objects = try await session.listTablesAndViews(schema: "dbo")
         IntegrationTestHelpers.assertContainsObject(objects, name: viewName, type: .view)
@@ -91,11 +83,7 @@ final class MSSQLSchemaDiscoveryTests: MSSQLDockerTestCase {
         let schemaName = uniqueTableName(prefix: "s")
         let tableName = uniqueTableName()
         try await sqlserverClient.security.createSchema(name: schemaName)
-        try await execute("CREATE TABLE [\(schemaName)].[\(tableName)] (id INT)")
-        cleanupSQL(
-            "DROP TABLE [\(schemaName)].[\(tableName)]",
-            "DROP SCHEMA [\(schemaName)]"
-        )
+        try await createTable(tableName, schema: schemaName, [.column("id", .int)])
 
         let objects = try await session.listTablesAndViews(schema: schemaName)
         IntegrationTestHelpers.assertContainsObject(objects, name: tableName)

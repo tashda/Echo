@@ -33,73 +33,11 @@ final class MSSQLMetadataLoadingTests: XCTestCase {
         }
     }
 
-    private func loadMSSQLConfig() -> MSSQLConfig? {
-        var env = ProcessInfo.processInfo.environment
-        if let config = makeConfig(from: env) {
-            return config
-        }
-
-        if let envFile = defaultEnvFile(),
-           let fileVars = parseEnvFile(at: envFile) {
-            for (key, value) in fileVars where env[key] == nil {
-                env[key] = value
-            }
-        }
-
-        return makeConfig(from: env)
-    }
-
-    private func makeConfig(from env: [String: String]) -> MSSQLConfig? {
-        guard
-            let host = env["MSSQL_HOST"],
-            let portString = env["MSSQL_PORT"], let port = Int(portString),
-            let username = env["MSSQL_USERNAME"],
-            let password = env["MSSQL_PASSWORD"]
-        else {
-            return nil
-        }
-
-        let database = env["MSSQL_DATABASE"]?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let resolvedDatabase = (database?.isEmpty == false) ? database! : "AdventureWorks2022"
-        let useTLS = env["MSSQL_ENABLE_TLS"]?.lowercased() == "true"
-
-        return MSSQLConfig(
-            host: host,
-            port: port,
-            username: username,
-            password: password,
-            database: resolvedDatabase,
-            useTLS: useTLS
-        )
-    }
-
-    private func parseEnvFile(at path: String) -> [String: String]? {
-        guard let contents = try? String(contentsOfFile: path) else {
-            return nil
-        }
-        var result: [String: String] = [:]
-        let lines = contents.split(whereSeparator: \.isNewline)
-        for rawLine in lines {
-            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !line.isEmpty, !line.hasPrefix("#") else { continue }
-            let parts = line.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
-            guard parts.count == 2 else { continue }
-            let key = parts[0].trimmingCharacters(in: .whitespacesAndNewlines)
-            var value = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
-            if value.hasPrefix("\""), value.hasSuffix("\""), value.count >= 2 {
-                value = String(value.dropFirst().dropLast())
-            }
-            result[key] = value
-        }
-        return result
-    }
-
-    private func defaultEnvFile() -> String? {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent() // MSSQLMetadataLoadingTests.swift
-            .deletingLastPathComponent() // EchoTests
-        let candidate = root.appendingPathComponent(".env").path
-        return FileManager.default.fileExists(atPath: candidate) ? candidate : nil
+    /// The lab server with the AdventureWorks samples, shared by the suites of the run.
+    private func loadMSSQLConfig() async throws -> MSSQLConfig? {
+        let server = try await labServer(LabRecipes.sqlServerSamples)
+        return MSSQLConfig(host: server.host, port: server.port, username: server.username,
+                           password: server.password, database: "AdventureWorks", useTLS: false)
     }
 
     private func makeSavedConnection(from config: MSSQLConfig) -> SavedConnection {
@@ -200,8 +138,8 @@ final class MSSQLMetadataLoadingTests: XCTestCase {
 
     @available(macOS 12.0, *)
     func testEchoMSSQLStructureLoadIncludesColumnsAndRoutines() async throws {
-        guard let config = loadMSSQLConfig() else {
-            throw XCTSkip("MSSQL env not configured; set MSSQL_HOST/MSSQL_PORT/MSSQL_USERNAME/MSSQL_PASSWORD or create .env")
+        guard let config = try await loadMSSQLConfig() else {
+            throw XCTSkip("No lab server")
         }
 
         let session = try await withTimeout(30) {
@@ -264,8 +202,8 @@ final class MSSQLMetadataLoadingTests: XCTestCase {
 
     @available(macOS 12.0, *)
     func testEchoMSSQLSessionMetadataQueries() async throws {
-        guard let config = loadMSSQLConfig() else {
-            throw XCTSkip("MSSQL env not configured; set MSSQL_HOST/MSSQL_PORT/MSSQL_USERNAME/MSSQL_PASSWORD or create .env")
+        guard let config = try await loadMSSQLConfig() else {
+            throw XCTSkip("No lab server")
         }
 
         let session = try await withTimeout(30) {
@@ -308,8 +246,8 @@ final class MSSQLMetadataLoadingTests: XCTestCase {
 
     @available(macOS 12.0, *)
     func testEchoMSSQLMetadataDebugFullLoad() async throws {
-        guard let config = loadMSSQLConfig() else {
-            throw XCTSkip("MSSQL env not configured; set MSSQL_HOST/MSSQL_PORT/MSSQL_USERNAME/MSSQL_PASSWORD or create .env")
+        guard let config = try await loadMSSQLConfig() else {
+            throw XCTSkip("No lab server")
         }
 
         let session = try await withTimeout(30) {

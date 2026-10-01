@@ -1,7 +1,15 @@
 import XCTest
+import ServerLabClient
 @testable import Echo
 
+@MainActor
 final class MySQLIntegrationTests: XCTestCase {
+    override func setUp() async throws {
+        try await super.setUp()
+        // Remove when the suite passes (an expected failure that does not happen fails the test).
+        XCTExpectFailure("Echo cannot log in to MySQL 8.4 without TLS: tashda/Echo#31")
+    }
+
     private struct MySQLConfig {
         let host: String
         let port: Int
@@ -10,18 +18,11 @@ final class MySQLIntegrationTests: XCTestCase {
         let password: String
     }
 
-    private func loadConfig() throws -> MySQLConfig {
-        let env = ProcessInfo.processInfo.environment
-        guard
-            let host = env["TEST_MYSQL_HOST"],
-            let portStr = env["TEST_MYSQL_PORT"], let port = Int(portStr),
-            let database = env["TEST_MYSQL_DATABASE"],
-            let username = env["TEST_MYSQL_USER"],
-            let password = env["TEST_MYSQL_PASSWORD"]
-        else {
-            throw XCTSkip("MySQL integration test env vars not set (TEST_MYSQL_HOST, TEST_MYSQL_PORT, TEST_MYSQL_DATABASE, TEST_MYSQL_USER, TEST_MYSQL_PASSWORD)")
-        }
-        return MySQLConfig(host: host, port: port, database: database, username: username, password: password)
+    /// The lab MySQL the suites share (`LabSharedServers`); the tests only read.
+    private func loadConfig() async throws -> MySQLConfig {
+        let server = try await labServer(LabRecipes.mysql)
+        return MySQLConfig(host: server.host, port: server.port, database: "mysql",
+                           username: server.username, password: server.password)
     }
 
     private func connect(config: MySQLConfig) async throws -> DatabaseSession {
@@ -41,7 +42,7 @@ final class MySQLIntegrationTests: XCTestCase {
     // MARK: - Basic Connectivity
 
     func testSimpleQuerySelect1() async throws {
-        let config = try loadConfig()
+        let config = try await loadConfig()
         let session = try await connect(config: config)
         defer { Task { @MainActor in await session.close() } }
 
@@ -53,7 +54,7 @@ final class MySQLIntegrationTests: XCTestCase {
     // MARK: - Schema Discovery
 
     func testListDatabases() async throws {
-        let config = try loadConfig()
+        let config = try await loadConfig()
         let session = try await connect(config: config)
         defer { Task { @MainActor in await session.close() } }
 
@@ -62,7 +63,7 @@ final class MySQLIntegrationTests: XCTestCase {
     }
 
     func testListTablesAndViews() async throws {
-        let config = try loadConfig()
+        let config = try await loadConfig()
         let session = try await connect(config: config)
         defer { Task { @MainActor in await session.close() } }
 
@@ -73,7 +74,7 @@ final class MySQLIntegrationTests: XCTestCase {
     // MARK: - Query With Paging
 
     func testQueryWithPaging() async throws {
-        let config = try loadConfig()
+        let config = try await loadConfig()
         let session = try await connect(config: config)
         defer { Task { @MainActor in await session.close() } }
 

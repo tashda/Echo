@@ -175,16 +175,6 @@ struct GlowFrameView: View {
         ColorTokens.Glow.lavender
     ]
 
-    /// Validation error palette — deep reds and crimsons with warm accents.
-    /// Slow-pulsing gradient that reads as "error" without being harsh.
-    static let validationPalette: [Color] = [
-        Color(red: 0.90, green: 0.20, blue: 0.20),  // crimson
-        Color(red: 0.85, green: 0.15, blue: 0.25),  // deep red
-        Color(red: 1.00, green: 0.35, blue: 0.30),  // warm red
-        Color(red: 0.95, green: 0.25, blue: 0.20),  // scarlet
-        Color(red: 1.00, green: 0.45, blue: 0.35),  // coral accent
-        Color(red: 0.80, green: 0.18, blue: 0.22),  // dark crimson
-    ]
 
     static func generateGradientStops(from palette: [Color] = completionPalette) -> [Gradient.Stop] {
         palette.map { color in

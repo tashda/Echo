@@ -27,8 +27,8 @@ struct ExecutionPlanView: View {
     }
 
     private var planToolbar: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            Picker("View", selection: $selectedTab) {
+        CenteredTabSectionToolbar {
+            TabSectionPicker("Execution Plan Section", selection: $selectedTab, itemCount: availableTabCount) {
                 Text("Execution Plan").tag(PlanTab.flow)
                 if plan.xml != nil {
                     Text(isXMLPlan ? "XML" : "Raw Plan").tag(PlanTab.rawPlan)
@@ -38,20 +38,18 @@ struct ExecutionPlanView: View {
                 }
                 Text("Compare").tag(PlanTab.compare)
             }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 360)
-
-            Spacer()
-
+        } controls: {
             if let stmt = plan.statements.first, let cost = stmt.subtreeCost {
                 Text("Cost: \(formatCost(cost))")
                     .font(TypographyTokens.detail)
                     .foregroundStyle(ColorTokens.Text.secondary)
             }
         }
-        .padding(.horizontal, SpacingTokens.sm)
-        .padding(.vertical, SpacingTokens.xs)
         .background(ColorTokens.Background.secondary)
+    }
+
+    private var availableTabCount: Int {
+        2 + (plan.xml == nil ? 0 : 1) + (plan.missingIndexes.isEmpty ? 0 : 1)
     }
 
     @ViewBuilder

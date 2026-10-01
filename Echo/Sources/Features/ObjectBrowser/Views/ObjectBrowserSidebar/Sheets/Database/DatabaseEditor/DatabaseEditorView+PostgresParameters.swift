@@ -187,8 +187,7 @@ private struct PgInfoPopoverButton: View {
         .popover(isPresented: $isShowing, arrowEdge: .bottom) {
             Text(text)
                 .font(TypographyTokens.standard)
-                .padding(SpacingTokens.sm)
-                .frame(maxWidth: 280)
+                .floatingSurfaceContent(.medium)
         }
     }
 }

@@ -46,6 +46,24 @@ struct BulkImportViewModelTests {
         #expect(sql == "INSERT INTO `notes` (`title`, `body`) VALUES ('Hello', NULL), ('World', NULL)")
     }
 
+    @Test
+    func sqlServerStartsWithTheBulkLoadDefaults() {
+        let viewModel = makeViewModel(databaseType: .microsoftSQL)
+        // Round 25: 10,000-row batches, empty cells as NULL, constraints and triggers on, no table lock.
+        #expect(viewModel.batchSize == 10_000)
+        #expect(viewModel.emptyCells == .null)
+        #expect(viewModel.checkConstraints)
+        #expect(viewModel.fireTriggers)
+        #expect(!viewModel.tableLock)
+        #expect(!viewModel.identityInsert)
+    }
+
+    @Test
+    func otherEnginesKeepThousandRowInsertBatches() {
+        #expect(makeViewModel(databaseType: .postgresql).batchSize == 1_000)
+        #expect(makeViewModel(databaseType: .mysql).batchSize == 1_000)
+    }
+
     private func makeViewModel(databaseType: DatabaseType) -> BulkImportViewModel {
         let session = MockDatabaseSession()
         let connectionSession = ConnectionSession(

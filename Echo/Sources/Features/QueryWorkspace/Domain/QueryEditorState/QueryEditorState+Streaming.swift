@@ -6,6 +6,10 @@ extension QueryEditorState {
     @MainActor
     func applyStreamUpdate(_ update: QueryStreamUpdate) {
         guard !update.columns.isEmpty else { return }
+        if update.resultSetIndex > 0 {
+            applyAdditionalStreamUpdate(update)
+            return
+        }
         if streamingMode == .idle { streamingMode = .preview }
         if streamingColumns.isEmpty { streamingColumns = update.columns }
 
@@ -192,7 +196,12 @@ extension QueryEditorState {
         let total = result.totalRowCount ?? result.rows.count
         performanceTracker.markResultSetReceived(totalRowCount: total)
         streamingMode = .completed; streamingColumns = result.columns
-        shouldPersistResults = shouldPersistResults || total > frontBufferLimit
+        // Also activate spool when the final result set is incomplete: streaming delivered
+        // rows beyond the preview batch as binary updates (stored in deferredSpoolUpdates),
+        // but result.rows only contains the preview rows. Without the spool, those binary
+        // rows are discarded and the display gets stuck on "Loading rows".
+        let hasIncompleteFinalResult = result.rows.count < total
+        shouldPersistResults = shouldPersistResults || total > frontBufferLimit || hasIncompleteFinalResult
         let truncated = Array(result.rows.prefix(shouldPersistResults ? frontBufferLimit : max(frontBufferLimit, total)))
         rowCache.ingest(rows: truncated, startingAt: 0)
         // Clamp streamedRowCount to the authoritative total from the database
@@ -200,6 +209,7 @@ extension QueryEditorState {
         if streamingRows.count < truncated.count { streamingRows = truncated } else { for i in 0..<truncated.count { streamingRows[i] = truncated[i] } }
         results = QueryResultSet(columns: result.columns, rows: truncated, totalRowCount: total, commandTag: result.commandTag, additionalResults: result.additionalResults, dataClassification: result.dataClassification)
         additionalResults = result.additionalResults
+        finishStreamedAdditionalResults(result.additionalResults)
         selectedResultSetIndex = 0
         dataClassification = result.dataClassification
         // Use the authoritative total — don't preserve inflated streaming estimates.

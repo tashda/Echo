@@ -1,0 +1,14 @@
+/// Living references that always reflect the shipped design system.
+@MainActor enum ReferencePages {
+    static let all: [LabPage] = []
+    static let retired: [LabPage] = [
+        LabPage(
+            id: "reference.tokens",
+            section: .reference,
+            group: "Design system",
+            title: "Design tokens",
+            symbol: "paintpalette",
+            summary: "The shared EchoDesignSystem tokens, rendered by Echo Labs itself."
+        ) { TokensReferencePage() }
+    ]
+}

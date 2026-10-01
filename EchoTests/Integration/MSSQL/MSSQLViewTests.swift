@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server view operations through Echo's DatabaseSession layer.
-final class MSSQLViewTests: MSSQLDockerTestCase {
+final class MSSQLViewTests: MSSQLLabTestCase {
 
     // MARK: - Create View
 
@@ -18,10 +18,6 @@ final class MSSQLViewTests: MSSQLDockerTestCase {
         try await sqlserverClient.views.createView(
             name: viewName,
             query: "SELECT id, name FROM [\(tableName)] WHERE active = 1"
-        )
-        cleanupSQL(
-            "DROP VIEW [\(viewName)]",
-            "DROP TABLE [\(tableName)]"
         )
 
         let objects = try await session.listTablesAndViews(schema: "dbo")
@@ -49,10 +45,6 @@ final class MSSQLViewTests: MSSQLDockerTestCase {
             name: viewName,
             query: "SELECT id, name FROM [\(tableName)] WHERE active = 1"
         )
-        cleanupSQL(
-            "DROP VIEW [\(viewName)]",
-            "DROP TABLE [\(tableName)]"
-        )
 
         let result = try await query("SELECT * FROM [\(viewName)] ORDER BY id")
         IntegrationTestHelpers.assertRowCount(result, expected: 2)
@@ -74,13 +66,9 @@ final class MSSQLViewTests: MSSQLDockerTestCase {
             name: viewName,
             query: "SELECT id, name FROM [\(tableName)]"
         )
-        cleanupSQL(
-            "DROP VIEW [\(viewName)]",
-            "DROP TABLE [\(tableName)]"
-        )
 
         // Alter to include email — no typed API for ALTER VIEW, use raw SQL
-        try await execute("ALTER VIEW [\(viewName)] AS SELECT id, name, email FROM [\(tableName)]")
+        try await sqlserverClient.views.alterView(name: viewName, query: "SELECT id, name, email FROM [\(tableName)]")
 
         let definition = try await session.getObjectDefinition(
             objectName: viewName, schemaName: "dbo", objectType: .view
@@ -100,7 +88,6 @@ final class MSSQLViewTests: MSSQLDockerTestCase {
             name: viewName,
             query: "SELECT id FROM [\(tableName)]"
         )
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.views.dropView(name: viewName)
 
@@ -121,10 +108,6 @@ final class MSSQLViewTests: MSSQLDockerTestCase {
         try await sqlserverClient.views.createView(
             name: viewName,
             query: "SELECT id, name FROM [\(tableName)] WHERE id > 0"
-        )
-        cleanupSQL(
-            "DROP VIEW [\(viewName)]",
-            "DROP TABLE [\(tableName)]"
         )
 
         let definition = try await session.getObjectDefinition(
@@ -167,11 +150,6 @@ final class MSSQLViewTests: MSSQLDockerTestCase {
                 SELECT e.name AS employee, d.name AS department
                 FROM [\(t2)] e JOIN [\(t1)] d ON e.dept_id = d.id
             """
-        )
-        cleanupSQL(
-            "DROP VIEW [\(viewName)]",
-            "DROP TABLE [\(t2)]",
-            "DROP TABLE [\(t1)]"
         )
 
         let result = try await query("SELECT * FROM [\(viewName)]")

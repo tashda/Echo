@@ -1,22 +1,33 @@
 import SwiftUI
 import AppKit
 
+// MARK: - Environment key for context menu active state
+
+struct SidebarContextMenuActiveKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var sidebarContextMenuActive: Bool {
+        get { self[SidebarContextMenuActiveKey.self] }
+        set { self[SidebarContextMenuActiveKey.self] = newValue }
+    }
+}
+
+// MARK: - Modifier
+
 /// A ViewModifier that provides context menus via AppKit's NSMenu instead of
 /// SwiftUI's `.contextMenu`. The menu is only constructed when the user right-clicks,
 /// avoiding SwiftUI's eager evaluation of `.contextMenu` closures during body rendering.
-/// Shows a subtle highlight while the context menu is open.
+/// Sets `sidebarContextMenuActive` in the environment while the menu is open so that
+/// child views (e.g. SidebarRow) can draw the highlight only over their content area.
 struct LazyContextMenuModifier: ViewModifier {
     let menuBuilder: () -> NSMenu
     @State private var isMenuVisible = false
 
     func body(content: Content) -> some View {
         content
-            .background {
-                if isMenuVisible {
-                    RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
-                        .fill(ColorTokens.Sidebar.contextFill)
-                }
-            }
+            .environment(\.sidebarContextMenuActive, isMenuVisible)
             .overlay {
                 LazyContextMenuRepresentable(
                     menuBuilder: menuBuilder,

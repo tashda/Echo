@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server numeric data type round-trips through Echo's DatabaseSession layer.
-final class MSSQLDataTypeNumericTests: MSSQLDockerTestCase {
+final class MSSQLDataTypeNumericTests: MSSQLLabTestCase {
 
     // MARK: - Integer Types
 
@@ -95,7 +95,6 @@ final class MSSQLDataTypeNumericTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "money_val", definition: .standard(.init(dataType: .money))),
             SQLServerColumnDefinition(name: "bit_val", definition: .standard(.init(dataType: .bit)))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         _ = try await sqlserverClient.admin.insertRow(into: tableName, values: [
             "id": .int(1),

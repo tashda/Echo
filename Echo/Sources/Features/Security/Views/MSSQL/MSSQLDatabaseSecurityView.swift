@@ -4,18 +4,19 @@ struct MSSQLDatabaseSecurityView: View {
     @Bindable var viewModel: DatabaseSecurityViewModel
     @Bindable var panelState: BottomPanelState
     @Environment(TabStore.self) private var tabStore
+    @Environment(\.workspaceTab) private var hostTab
     @Environment(EnvironmentState.self) private var environmentState
 
-    @State private var showNewRoleSheet = false
-    @State private var showNewSchemaSheet = false
-    @State private var showNewAppRoleSheet = false
-    @State private var showNewRLSPolicySheet = false
-    @State private var showNewMaskSheet = false
-    @State private var showNewAuditSpecSheet = false
-    @State private var showNewCMKSheet = false
-    @State private var showNewCEKSheet = false
+    @State var showNewRoleSheet = false
+    @State var showNewSchemaSheet = false
+    @State var showNewAppRoleSheet = false
+    @State var showNewRLSPolicySheet = false
+    @State var showNewMaskSheet = false
+    @State var showNewAuditSpecSheet = false
+    @State var showNewCMKSheet = false
+    @State var showNewCEKSheet = false
 
-    private var session: ConnectionSession? {
+    var session: ConnectionSession? {
         environmentState.sessionGroup.sessionForConnection(viewModel.connectionID)
     }
 
@@ -39,7 +40,7 @@ struct MSSQLDatabaseSecurityView: View {
         }
         .onChange(of: viewModel.selectedDatabase) { _, newDB in
             guard let newDB else { return }
-            if let tab = tabStore.activeTab, tab.databaseSecurity != nil {
+            if let tab = hostTab, tab.databaseSecurity != nil {
                 tab.title = "Database Security (\(newDB))"
                 tab.activeDatabaseName = newDB
             }
@@ -103,7 +104,7 @@ struct MSSQLDatabaseSecurityView: View {
     }
 
     private var connectionText: String {
-        let connText = tabStore.activeTab?.connection.connectionName ?? "Server"
+        let connText = hostTab?.connection.connectionName ?? "Server"
         let db = viewModel.selectedDatabase
         return db.map { "\(connText) \u{2022} \($0)" } ?? connText
     }
@@ -122,68 +123,15 @@ struct MSSQLDatabaseSecurityView: View {
     // MARK: - Section Picker
 
     private var sectionPicker: some View {
-        Picker(selection: $viewModel.selectedSection) {
+        TabSectionPicker(
+            "Security Section",
+            selection: $viewModel.selectedSection,
+            itemCount: DatabaseSecurityViewModel.Section.allCases.count
+        ) {
             ForEach(DatabaseSecurityViewModel.Section.allCases, id: \.self) { section in
                 Text(section.rawValue).tag(section)
             }
-        } label: {
-            EmptyView()
         }
-        .pickerStyle(.segmented)
-        .frame(maxWidth: 580)
     }
 
-    // MARK: - Section Content
-
-    @ViewBuilder
-    private var sectionContent: some View {
-        VStack(spacing: 0) {
-            if !(session?.permissions?.canManageRoles ?? true) {
-                PermissionBanner(message: "Some operations require the securityadmin or sysadmin role.")
-            }
-            switch viewModel.selectedSection {
-            case .users:
-                MSSQLSecurityUsersSection(viewModel: viewModel)
-            case .roles:
-                MSSQLSecurityRolesSection(
-                    viewModel: viewModel,
-                    onNewRole: { showNewRoleSheet = true }
-                )
-            case .appRoles:
-                MSSQLSecurityAppRolesSection(
-                    viewModel: viewModel,
-                    onNewAppRole: { showNewAppRoleSheet = true }
-                )
-            case .schemas:
-                MSSQLSecuritySchemasSection(
-                    viewModel: viewModel,
-                    onNewSchema: { showNewSchemaSheet = true }
-                )
-            case .certificates:
-                MSSQLSecurityCertificatesSection(viewModel: viewModel)
-            case .masking:
-                MSSQLSecurityMaskingSection(
-                    viewModel: viewModel,
-                    onNewMask: { showNewMaskSheet = true }
-                )
-            case .securityPolicies:
-                MSSQLSecurityPoliciesSection(
-                    viewModel: viewModel,
-                    onNewPolicy: { showNewRLSPolicySheet = true }
-                )
-            case .auditSpecifications:
-                MSSQLSecurityDBAuditSpecSection(
-                    viewModel: viewModel,
-                    onNewSpec: { showNewAuditSpecSheet = true }
-                )
-            case .alwaysEncrypted:
-                MSSQLSecurityAlwaysEncryptedSection(
-                    viewModel: viewModel,
-                    onNewCMK: { showNewCMKSheet = true },
-                    onNewCEK: { showNewCEKSheet = true }
-                )
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
 }

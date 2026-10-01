@@ -4,10 +4,10 @@ import SQLServerKit
 
 /// Tests SQL Server query execution through Echo's dedicated query session layer.
 ///
-/// Uses `MSSQLDedicatedDockerTestCase` to match how Echo actually runs queries:
+/// Uses `MSSQLDedicatedLabTestCase` to match how Echo actually runs queries:
 /// each query tab gets its own dedicated `SQLServerConnection`, while metadata
 /// operations are delegated to the shared pooled session.
-final class MSSQLQueryTests: MSSQLDedicatedDockerTestCase {
+final class MSSQLQueryTests: MSSQLDedicatedLabTestCase {
 
     // MARK: - Simple Queries
 
@@ -41,7 +41,6 @@ final class MSSQLQueryTests: MSSQLDedicatedDockerTestCase {
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
             SQLServerColumnDefinition(name: "value", definition: .standard(.init(dataType: .int))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         // sqlserver-nio derives column metadata from rows, so empty result sets
         // may not have columns. Verify the query succeeds and returns zero rows.
@@ -58,7 +57,6 @@ final class MSSQLQueryTests: MSSQLDedicatedDockerTestCase {
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
             SQLServerColumnDefinition(name: "value", definition: .standard(.init(dataType: .int))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         let count = try await dedicatedExecute(
             "INSERT INTO [\(tableName)] (id, name, value) VALUES (1, N'test', 42)"
@@ -73,7 +71,6 @@ final class MSSQLQueryTests: MSSQLDedicatedDockerTestCase {
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
             SQLServerColumnDefinition(name: "value", definition: .standard(.init(dataType: .int))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         let count = try await dedicatedExecute("""
             INSERT INTO [\(tableName)] (id, name, value) VALUES
@@ -89,7 +86,6 @@ final class MSSQLQueryTests: MSSQLDedicatedDockerTestCase {
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
             SQLServerColumnDefinition(name: "value", definition: .standard(.init(dataType: .int))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.admin.insertRows(
             into: tableName,
@@ -113,7 +109,6 @@ final class MSSQLQueryTests: MSSQLDedicatedDockerTestCase {
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
             SQLServerColumnDefinition(name: "value", definition: .standard(.init(dataType: .int))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.admin.insertRows(
             into: tableName,
@@ -139,7 +134,6 @@ final class MSSQLQueryTests: MSSQLDedicatedDockerTestCase {
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
             SQLServerColumnDefinition(name: "value", definition: .standard(.init(dataType: .int))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         let rows: [[SQLServerLiteralValue]] = (1...20).map { i in
             [.int(i), .nString("row\(i)"), .int(i)]
@@ -173,7 +167,6 @@ final class MSSQLQueryTests: MSSQLDedicatedDockerTestCase {
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
             SQLServerColumnDefinition(name: "value", definition: .standard(.init(dataType: .int))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.admin.insertRow(
             into: tableName,

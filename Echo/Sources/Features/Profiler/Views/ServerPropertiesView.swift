@@ -5,6 +5,7 @@ struct ServerPropertiesView: View {
     @Bindable var viewModel: ServerPropertiesViewModel
     @Bindable var panelState: BottomPanelState
     @Environment(TabStore.self) private var tabStore
+    @Environment(\.workspaceTab) private var hostTab
     @Environment(ProjectStore.self) private var projectStore
 
     @State private var showVariableEditor = false
@@ -45,20 +46,18 @@ struct ServerPropertiesView: View {
     private var mysqlContent: some View {
         MaintenanceTabFrame(
             panelState: panelState,
-            serverName: tabStore.activeTab?.connection.connectionName ?? "Server",
+            serverName: hostTab?.connection.connectionName ?? "Server",
             isInitialized: viewModel.isInitialized,
             statusBubble: viewModel.isLoading ? .init(label: "Loading\u{2026}", tint: .blue, isPulsing: true) : nil
         ) {
-            HStack(spacing: SpacingTokens.md) {
-                Picker(selection: $viewModel.selectedSection) {
-                    ForEach(ServerPropertiesViewModel.Section.allCases, id: \.self) { section in
-                        Text(section.rawValue).tag(section)
-                    }
-                } label: {
-                    EmptyView()
+            TabSectionPicker(
+                "Server Properties Section",
+                selection: $viewModel.selectedSection,
+                itemCount: ServerPropertiesViewModel.Section.allCases.count
+            ) {
+                ForEach(ServerPropertiesViewModel.Section.allCases, id: \.self) { section in
+                    Text(section.rawValue).tag(section)
                 }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 560)
             }
         } content: {
             switch viewModel.selectedSection {
@@ -131,20 +130,18 @@ struct ServerPropertiesView: View {
         let availableSections: [ServerPropertiesViewModel.Section] = [.overview, .control, .variables, .status]
         return MaintenanceTabFrame(
             panelState: panelState,
-            serverName: tabStore.activeTab?.connection.connectionName ?? "Server",
+            serverName: hostTab?.connection.connectionName ?? "Server",
             isInitialized: viewModel.isInitialized,
             statusBubble: viewModel.isLoading ? .init(label: "Loading\u{2026}", tint: .blue, isPulsing: true) : nil
         ) {
-            HStack(spacing: SpacingTokens.md) {
-                Picker(selection: $viewModel.selectedSection) {
-                    ForEach(availableSections, id: \.self) { section in
-                        Text(section.rawValue).tag(section)
-                    }
-                } label: {
-                    EmptyView()
+            TabSectionPicker(
+                "Server Properties Section",
+                selection: $viewModel.selectedSection,
+                itemCount: availableSections.count
+            ) {
+                ForEach(availableSections, id: \.self) { section in
+                    Text(section.rawValue).tag(section)
                 }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 400)
             }
         } content: {
             switch viewModel.selectedSection {

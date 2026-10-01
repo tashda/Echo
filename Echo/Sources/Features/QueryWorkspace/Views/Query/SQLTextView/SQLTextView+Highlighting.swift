@@ -51,11 +51,6 @@ extension SQLTextView {
     }
 
     private func applySymbolMatches(in textStorage: NSTextStorage, range: NSRange) {
-        for matchRange in selectionMatchRanges {
-            if NSIntersectionRange(matchRange, range).length > 0 {
-                textStorage.addAttribute(.backgroundColor, value: theme.surfaces.selection.nsColor.withAlphaComponent(0.3), range: matchRange)
-            }
-        }
         for matchRange in caretMatchRanges {
             if NSIntersectionRange(matchRange, range).length > 0 {
                 textStorage.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: matchRange)
@@ -95,6 +90,8 @@ extension SQLTextView {
             selectionMatchRanges = newSelectionMatches
             caretMatchRanges = newCaretMatches
             reapplyHighlighting()
+            // Round 28.5: the word's other uses are drawn behind the text (SQLTextView+Background).
+            setNeedsDisplay(visibleRect)
         }
     }
 }

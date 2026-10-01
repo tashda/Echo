@@ -27,7 +27,7 @@ struct JobQueueView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
         if !canViewJobs {
             PermissionBanner(
                 message: "You do not have permission to view SQL Agent jobs. This requires membership in SQLAgentUserRole or a higher role.",
@@ -36,18 +36,9 @@ struct JobQueueView: View {
         } else if !canManageJobs {
             PermissionBanner(message: "Job management requires the sysadmin or SQLAgentOperatorRole role.")
         }
-        NativeSplitView(
-            isVertical: false,
-            firstMinFraction: 0.30,
-            secondMinFraction: 0.15,
-            fraction: $verticalFraction
-        ) {
-            NativeSplitView(
-                isVertical: true,
-                firstMinFraction: 0.25,
-                secondMinFraction: 0.25,
-                fraction: $horizontalFraction
-            ) {
+        // TT1: Jobs, Details and History are three cards on the canvas, one gutter apart.
+        CardSplitView(axis: .vertical, fraction: $verticalFraction, minFraction: 0.2) {
+            CardSplitView(axis: .horizontal, fraction: $horizontalFraction, minFraction: 0.25) {
                 JobListView(
                     viewModel: viewModel,
                     notificationEngine: environmentState.notificationEngine,

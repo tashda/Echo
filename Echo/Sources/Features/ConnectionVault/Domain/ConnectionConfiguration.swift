@@ -24,8 +24,10 @@ struct ConnectionConfiguration: Codable, Hashable {
     var sslCertPath: String?
     var sslKeyPath: String?
     var verifySSLCertificate: Bool = true
-    var mssqlEncryptionMode: MSSQLEncryptionMode = .optional
+    var mssqlEncryptionMode: MSSQLEncryptionMode = .mandatory
+    var hostNameInCertificate: String?
     var readOnlyIntent: Bool = false
+    var allowLegacyTLS: Bool = false
 
     // Connection behavior
     var connectionTimeout: TimeInterval = 30
@@ -63,8 +65,10 @@ struct ConnectionConfiguration: Codable, Hashable {
         sslCertPath: String? = nil,
         sslKeyPath: String? = nil,
         verifySSLCertificate: Bool = true,
-        mssqlEncryptionMode: MSSQLEncryptionMode = .optional,
+        mssqlEncryptionMode: MSSQLEncryptionMode = .mandatory,
+        hostNameInCertificate: String? = nil,
         readOnlyIntent: Bool = false,
+        allowLegacyTLS: Bool = false,
         connectionTimeout: TimeInterval = 30,
         queryTimeout: TimeInterval = 60,
         maxRetries: Int = 3,
@@ -95,7 +99,9 @@ struct ConnectionConfiguration: Codable, Hashable {
         self.sslKeyPath = sslKeyPath
         self.verifySSLCertificate = verifySSLCertificate
         self.mssqlEncryptionMode = mssqlEncryptionMode
+        self.hostNameInCertificate = hostNameInCertificate
         self.readOnlyIntent = readOnlyIntent
+        self.allowLegacyTLS = allowLegacyTLS
         self.connectionTimeout = connectionTimeout
         self.queryTimeout = queryTimeout
         self.maxRetries = maxRetries
@@ -130,7 +136,9 @@ struct ConnectionConfiguration: Codable, Hashable {
             sslCertPath: sslCertPath,
             sslKeyPath: sslKeyPath,
             mssqlEncryptionMode: mssqlEncryptionMode,
+            hostNameInCertificate: hostNameInCertificate,
             readOnlyIntent: readOnlyIntent,
+            allowLegacyTLS: allowLegacyTLS,
             connectionTimeout: connectionTimeout,
             queryTimeout: queryTimeout
         )
@@ -158,7 +166,9 @@ struct ConnectionConfiguration: Codable, Hashable {
             sslCertPath: savedConnection.sslCertPath,
             sslKeyPath: savedConnection.sslKeyPath,
             mssqlEncryptionMode: savedConnection.mssqlEncryptionMode,
+            hostNameInCertificate: savedConnection.hostNameInCertificate,
             readOnlyIntent: savedConnection.readOnlyIntent,
+            allowLegacyTLS: savedConnection.allowLegacyTLS,
             connectionTimeout: savedConnection.connectionTimeout,
             queryTimeout: savedConnection.queryTimeout,
             id: savedConnection.id
@@ -208,9 +218,10 @@ enum MSSQLEncryptionMode: String, CaseIterable, Codable, Sendable {
 
     var description: String {
         switch self {
-        case .optional: return "Optional - Use encryption if available"
-        case .mandatory: return "Mandatory - Require encryption"
-        case .strict: return "Strict - TDS 8.0 strict mode"
+        // Round 22, EW1: say what each mode checks. Every mode encrypts.
+        case .optional: return "Optional – encrypt, don't check the certificate"
+        case .mandatory: return "Mandatory – encrypt and check the certificate"
+        case .strict: return "Strict – TLS first (TDS 8.0), always checks"
         }
     }
 }

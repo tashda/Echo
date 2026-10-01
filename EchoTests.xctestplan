@@ -9,6 +9,15 @@
     }
   ],
   "defaultOptions" : {
+    "maximumTestExecutionTimeAllowance" : 900,
+    "testTimeoutsEnabled" : true,
+    "defaultTestExecutionTimeAllowance" : 300,
+    "environmentVariableEntries" : [
+      {
+        "key" : "SERVERLAB_INTEGRATION",
+        "value" : "1"
+      }
+    ],
     "performanceAntipatternCheckerEnabled" : true
   },
   "testTargets" : [

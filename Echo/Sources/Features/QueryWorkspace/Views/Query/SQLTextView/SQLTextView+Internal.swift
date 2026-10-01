@@ -38,7 +38,12 @@ extension SQLTextView {
         if let scrollView = enclosingScrollView as? SQLScrollView {
             scrollView.setRulerVisible(displayOptions.showLineNumbers)
         }
-        
+        refreshStatements()
+        (layoutManager as? SQLLayoutManager)?.selectionCorners = displayOptions.markCorners
+        updateValidationOverlays()
+        showErrorMark()
+        setNeedsDisplay(visibleRect)
+
         let container = textContainer
         if displayOptions.wrapLines {
             container?.widthTracksTextView = true
@@ -63,7 +68,6 @@ extension SQLTextView {
         if let sqlLayout = layoutManager as? SQLLayoutManager {
             sqlLayout.textFont = theme.nsFont
             sqlLayout.lineHeightMultiple = theme.lineHeightMultiplier
-            sqlLayout.extraLineSpacing = theme.lineSpacing
         }
 
         let nsString = string as NSString
@@ -106,16 +110,16 @@ extension SQLTextView {
         }
     }
 
+    /// What typing this asks of the completion popup. The rules are EchoSense's (`SQLEditorTriggerPolicy`),
+    /// so the scenarios in Echo Labs and the package's tests check exactly what the editor does.
     func determineCompletionTrigger(for string: Any) -> CompletionTriggerKind {
-        guard let inserted = (string as? String) ?? (string as? NSAttributedString)?.string, inserted.count == 1 else {
-            return .none
+        guard let inserted = (string as? String) ?? (string as? NSAttributedString)?.string else { return .none }
+        switch SQLEditorTriggerPolicy.trigger(forInsertedText: inserted) {
+        case .none: return .none
+        case .standard: return .standard
+        case .immediate: return .immediate
+        case .evaluateSpace: return .evaluateSpace
         }
-        guard let scalar = inserted.unicodeScalars.first else { return .none }
-        if CharacterSet.letters.contains(scalar) { return .standard }
-        if inserted == "_" { return .standard }
-        if inserted == "." { return .immediate }
-        if inserted == " " { return .evaluateSpace }
-        return .none
     }
 
     func handleCompletionTrigger(_ trigger: CompletionTriggerKind, insertedText: String) {
@@ -146,10 +150,7 @@ extension SQLTextView {
     }
 
     func shouldTriggerAfterKeywordSpace() -> Bool {
-        let linePrefix = currentLinePrefix()
-        guard !linePrefix.isEmpty else { return false }
-        let pattern = #"(?i)(from|join|update|call|exec|execute|into)\s*$"#
-        return linePrefix.range(of: pattern, options: .regularExpression) != nil
+        SQLEditorTriggerPolicy.shouldTriggerAfterKeywordSpace(linePrefix: currentLinePrefix())
     }
 
     func currentLinePrefix() -> String {
@@ -181,31 +182,6 @@ extension SQLTextView {
         scrollRangeToVisible(lineRange)
         lineNumberRuler?.highlightedLines = IndexSet(integer: targetLine)
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
-    }
-
-    func showGoToLinePanel() {
-        guard let window else { return }
-
-        let alert = NSAlert()
-        alert.messageText = "Go to Line"
-        alert.informativeText = "Enter a line number:"
-        alert.addButton(withTitle: "Go")
-        alert.addButton(withTitle: "Cancel")
-
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
-        field.placeholderString = "Line number"
-        field.formatter = NumberFormatter()
-        alert.accessoryView = field
-
-        alert.beginSheetModal(for: window) { [weak self] response in
-            guard response == .alertFirstButtonReturn else { return }
-            if let lineNumber = Int(field.stringValue), lineNumber >= 1 {
-                self?.goToLine(lineNumber)
-            }
-        }
-
-        // Focus the text field
-        alert.window.initialFirstResponder = field
     }
 
 }

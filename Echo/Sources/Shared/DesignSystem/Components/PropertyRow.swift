@@ -78,8 +78,7 @@ public struct PropertyRow<Control: View>: View {
                 .foregroundStyle(ColorTokens.Text.primary)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(SpacingTokens.md)
-                .frame(width: LayoutTokens.Form.infoPopoverWidth)
+                .floatingSurfaceContent(.medium)
         }
     }
 }

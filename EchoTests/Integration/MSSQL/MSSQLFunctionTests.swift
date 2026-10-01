@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server user-defined function operations through Echo's DatabaseSession layer.
-final class MSSQLFunctionTests: MSSQLDockerTestCase {
+final class MSSQLFunctionTests: MSSQLLabTestCase {
 
     // MARK: - Scalar Functions
 
@@ -17,7 +17,6 @@ final class MSSQLFunctionTests: MSSQLDockerTestCase {
             returnType: .int,
             body: "BEGIN RETURN @x * 3; END"
         )
-        cleanupSQL("DROP FUNCTION dbo.[\(funcName)]")
 
         let result = try await query("SELECT dbo.[\(funcName)](14) AS tripled")
         XCTAssertEqual(result.rows[0][0], "42")
@@ -34,7 +33,6 @@ final class MSSQLFunctionTests: MSSQLDockerTestCase {
             returnType: .nvarchar(length: .length(101)),
             body: "BEGIN RETURN @first + ' ' + @last; END"
         )
-        cleanupSQL("DROP FUNCTION dbo.[\(funcName)]")
 
         let result = try await query("SELECT dbo.[\(funcName)]('Jane', 'Doe') AS name")
         XCTAssertEqual(result.rows[0][0], "Jane Doe")
@@ -59,17 +57,9 @@ final class MSSQLFunctionTests: MSSQLDockerTestCase {
                 [.int(3), .nString("HR"), .nString("Carol")],
             ]
         )
-        // Inline TVF requires raw SQL — createFunction wraps body in BEGIN/END which is for scalar functions
-        try await execute("""
-            CREATE FUNCTION dbo.[\(funcName)](@dept NVARCHAR(50))
-            RETURNS TABLE
-            AS
-            RETURN (SELECT id, name FROM [\(tableName)] WHERE dept = @dept)
-        """)
-        cleanupSQL(
-            "DROP FUNCTION dbo.[\(funcName)]",
-            "DROP TABLE [\(tableName)]"
-        )
+        try await sqlserverClient.routines.createInlineTableValuedFunction(
+            name: funcName, parameters: [FunctionParameter(name: "dept", dataType: .nvarchar(length: .length(50)))],
+            query: "SELECT id, name FROM [\(tableName)] WHERE dept = @dept")
 
         let result = try await query("SELECT * FROM dbo.[\(funcName)]('ENG')")
         IntegrationTestHelpers.assertRowCount(result, expected: 2)
@@ -87,13 +77,9 @@ final class MSSQLFunctionTests: MSSQLDockerTestCase {
             returnType: .int,
             body: "BEGIN RETURN @x; END"
         )
-        cleanupSQL("DROP FUNCTION dbo.[\(funcName)]")
 
-        // ALTER FUNCTION — no typed API, use raw SQL
-        try await execute("""
-            ALTER FUNCTION dbo.[\(funcName)](@x INT)
-            RETURNS INT AS BEGIN RETURN @x + 100; END
-        """)
+        try await sqlserverClient.routines.alterScalarFunction(
+            name: funcName, parameters: [FunctionParameter(name: "x", dataType: .int)], returnType: .int, body: "BEGIN RETURN @x + 100; END")
 
         let result = try await query("SELECT dbo.[\(funcName)](1) AS val")
         XCTAssertEqual(result.rows[0][0], "101")
@@ -132,7 +118,6 @@ final class MSSQLFunctionTests: MSSQLDockerTestCase {
             returnType: .nvarchar(length: .length(100)),
             body: "BEGIN RETURN UPPER(@input); END"
         )
-        cleanupSQL("DROP FUNCTION dbo.[\(funcName)]")
 
         let definition = try await session.getObjectDefinition(
             objectName: funcName, schemaName: "dbo", objectType: .function

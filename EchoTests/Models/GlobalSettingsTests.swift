@@ -84,5 +84,13 @@ final class GlobalSettingsTests: XCTestCase {
         XCTAssertEqual(settings.diagramPrefetchMode, .off)
         XCTAssertEqual(settings.diagramRefreshCadence, .never)
         XCTAssertEqual(settings.accentColorSource, .connection)
+        XCTAssertEqual(settings.sidebarExpandOneConnectionAtATime, true)
+    }
+
+    func testSidebarExpandOneConnectionAtATimeDefaultsToTrueWhenMissing() throws {
+        let data = try JSONSerialization.data(withJSONObject: [:])
+        let decoded = try JSONDecoder().decode(GlobalSettings.self, from: data)
+
+        XCTAssertEqual(decoded.sidebarExpandOneConnectionAtATime, true)
     }
 }

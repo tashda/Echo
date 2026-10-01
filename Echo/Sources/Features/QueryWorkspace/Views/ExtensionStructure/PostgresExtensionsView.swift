@@ -40,7 +40,7 @@ struct PostgresExtensionsView: View {
     }
     
     private var header: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: SpacingTokens.sm) {
                 Image(systemName: "puzzlepiece")
                     .font(TypographyTokens.hero)
@@ -56,20 +56,26 @@ struct PostgresExtensionsView: View {
                 }
                 
                 Spacer()
-                
-                Picker("", selection: $viewModel.selectedTab) {
-                    ForEach(PostgresExtensionsViewModel.Tab.allCases, id: \.self) { tab in
-                        Text(tab.rawValue).tag(tab)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 250)
-                
+
                 Button(action: { Task { await viewModel.reload() } }) {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.plain)
                 .font(TypographyTokens.detail)
+            }
+            .padding(.horizontal, SpacingTokens.lg)
+            .padding(.top, SpacingTokens.lg)
+
+            CenteredTabSectionToolbar {
+                TabSectionPicker(
+                    "Extension Section",
+                    selection: $viewModel.selectedTab,
+                    itemCount: PostgresExtensionsViewModel.Tab.allCases.count
+                ) {
+                    ForEach(PostgresExtensionsViewModel.Tab.allCases, id: \.self) { tab in
+                        Text(tab.rawValue).tag(tab)
+                    }
+                }
             }
             
             HStack {
@@ -80,9 +86,10 @@ struct PostgresExtensionsView: View {
             }
             .padding(SpacingTokens.xs)
             .background(ColorTokens.Text.primary.opacity(0.05))
-            .cornerRadius(8)
+            .clipShape(RoundedRectangle(cornerRadius: SpacingTokens.xs))
+            .padding(.horizontal, SpacingTokens.lg)
+            .padding(.bottom, SpacingTokens.lg)
         }
-        .padding(SpacingTokens.lg)
         .background(ColorTokens.Background.secondary.opacity(0.5))
     }
     

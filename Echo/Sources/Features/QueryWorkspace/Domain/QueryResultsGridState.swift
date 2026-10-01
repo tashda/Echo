@@ -41,11 +41,7 @@ final class QueryResultsGridState {
     func scheduleRowCountRefresh() {
         guard !isRowCountRefreshScheduled else { return }
         isRowCountRefreshScheduled = true
-#if os(macOS)
-        let modes: [RunLoop.Mode] = [.default, .eventTracking]
-#else
         let modes: [RunLoop.Mode] = [.default]
-#endif
         RunLoop.main.perform(inModes: modes) { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }

@@ -1,0 +1,203 @@
+{
+  "configurations" : [
+    {
+      "id" : "5D0AAEA5-1A1C-4C09-8946-FFA722763E7D",
+      "name" : "SQL Server 2017",
+      "options" : {
+        "environmentVariableEntries" : [
+          {
+            "key" : "SERVERLAB_INTEGRATION",
+            "value" : "1"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_VERSION",
+            "value" : "2017"
+          }
+        ]
+      }
+    },
+    {
+      "id" : "221B65DB-0014-4484-A1C9-82DBA3BBEF2D",
+      "name" : "SQL Server 2019",
+      "options" : {
+        "environmentVariableEntries" : [
+          {
+            "key" : "SERVERLAB_INTEGRATION",
+            "value" : "1"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_VERSION",
+            "value" : "2019"
+          }
+        ]
+      }
+    },
+    {
+      "id" : "F25A68A9-447C-49CE-8097-704273649E08",
+      "name" : "SQL Server 2022",
+      "options" : {
+        "environmentVariableEntries" : [
+          {
+            "key" : "SERVERLAB_INTEGRATION",
+            "value" : "1"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_VERSION",
+            "value" : "2022"
+          }
+        ]
+      }
+    },
+    {
+      "id" : "361BBECE-F10A-4E68-9C38-C7244B28221F",
+      "name" : "SQL Server 2025",
+      "options" : {
+        "environmentVariableEntries" : [
+          {
+            "key" : "SERVERLAB_INTEGRATION",
+            "value" : "1"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_VERSION",
+            "value" : "2025"
+          }
+        ]
+      }
+    },
+    {
+      "id" : "50FDE967-C44F-459B-BFB8-8570D8439A12",
+      "name" : "SQL Server 2017 at level 100 (2008)",
+      "options" : {
+        "environmentVariableEntries" : [
+          {
+            "key" : "SERVERLAB_INTEGRATION",
+            "value" : "1"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_VERSION",
+            "value" : "2017"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_COMPAT",
+            "value" : "100"
+          }
+        ]
+      }
+    },
+    {
+      "id" : "1D32DDE0-FB71-42A2-890B-62BE45705FBC",
+      "name" : "SQL Server 2017 at level 110 (2012)",
+      "options" : {
+        "environmentVariableEntries" : [
+          {
+            "key" : "SERVERLAB_INTEGRATION",
+            "value" : "1"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_VERSION",
+            "value" : "2017"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_COMPAT",
+            "value" : "110"
+          }
+        ]
+      }
+    },
+    {
+      "id" : "0813DFBC-6822-443B-ABE7-46224FF94004",
+      "name" : "SQL Server 2017 at level 120 (2014)",
+      "options" : {
+        "environmentVariableEntries" : [
+          {
+            "key" : "SERVERLAB_INTEGRATION",
+            "value" : "1"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_VERSION",
+            "value" : "2017"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_COMPAT",
+            "value" : "120"
+          }
+        ]
+      }
+    },
+    {
+      "id" : "44955D54-A826-429B-B145-FDFDD3D0DE94",
+      "name" : "SQL Server 2017 at level 130 (2016)",
+      "options" : {
+        "environmentVariableEntries" : [
+          {
+            "key" : "SERVERLAB_INTEGRATION",
+            "value" : "1"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_VERSION",
+            "value" : "2017"
+          },
+          {
+            "key" : "ECHO_LAB_SQLSERVER_COMPAT",
+            "value" : "130"
+          }
+        ]
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "maximumTestExecutionTimeAllowance" : 900,
+    "testTimeoutsEnabled" : true,
+    "defaultTestExecutionTimeAllowance" : 180,
+    "performanceAntipatternCheckerEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : false,
+      "selectedTests" : [
+        "MSSQLActivityMonitorTests",
+        "MSSQLAgentManagementTests",
+        "MSSQLAgentTests",
+        "MSSQLBackupRestoreTests",
+        "MSSQLBulkImportTests",
+        "MSSQLColumnTests",
+        "MSSQLConnectionTests",
+        "MSSQLConstraintTests",
+        "MSSQLDataTypeBinaryTests",
+        "MSSQLDataTypeDateTimeTests",
+        "MSSQLDataTypeNumericTests",
+        "MSSQLDataTypeStringTests",
+        "MSSQLDatabaseAdminTests",
+        "MSSQLDedicatedSessionCancelTests",
+        "MSSQLDedicatedSessionConnectionLossTests",
+        "MSSQLDedicatedSessionErrorTests",
+        "MSSQLDedicatedSessionResultSetTests",
+        "MSSQLFunctionTests",
+        "MSSQLIndexTests",
+        "MSSQLIntegrationTests",
+        "MSSQLMaintenanceTests",
+        "MSSQLMetadataLoadingTests",
+        "MSSQLMetadataTests",
+        "MSSQLProcedureTests",
+        "MSSQLQueryTabIsolationTests",
+        "MSSQLQueryTests",
+        "MSSQLSchemaDiscoveryTests",
+        "MSSQLSecurityTests",
+        "MSSQLStreamingSpoolTests",
+        "MSSQLStreamingTests",
+        "MSSQLSynonymTests",
+        "MSSQLTableDesignerTests",
+        "MSSQLTableOperationsTests",
+        "MSSQLTransactionTests",
+        "MSSQLTriggerTests",
+        "MSSQLViewTests"
+      ],
+      "target" : {
+        "containerPath" : "container:Echo.xcodeproj",
+        "identifier" : "385E60BACCBA4F1A95FC14AF",
+        "name" : "EchoTests"
+      }
+    }
+  ],
+  "version" : 1
+}

@@ -29,6 +29,7 @@ extension QueryResultsTableView.Coordinator {
         guard !isResizingColumn, !isSplitResizing else { return }
         // Quick check: if visible rows haven't changed, skip entirely
         guard let tableView else { return }
+        refreshLiveColumns(tableView)
         let visibleRange = tableView.rows(in: tableView.visibleRect)
         if visibleRange == lastPaginationVisibleRange { return }
         requestPaginationEvaluation()
@@ -73,6 +74,7 @@ extension QueryResultsTableView.Coordinator {
         columnResizeObserver = NotificationCenter.default.addObserver(forName: NSTableView.columnDidResizeNotification, object: tableView, queue: .main) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                if let tableView = self.tableView { self.refreshLiveColumns(tableView) }
                 if !self.isResizingColumn {
                     self.isResizingColumn = true
                     // Reset the flag after a brief delay — column resize generates a burst of notifications.
@@ -101,7 +103,15 @@ extension QueryResultsTableView.Coordinator {
         if let existing = rowCountUpdateWorkItem, !existing.isCancelled { return }
         let workItem = DispatchWorkItem { [weak self, weak tableView] in
             guard let self = self, let tableView = tableView else { return }
-            self.rowCountUpdateWorkItem = nil; self.pendingRowCountCorrection = false; tableView.noteNumberOfRowsChanged()
+            self.rowCountUpdateWorkItem = nil; self.pendingRowCountCorrection = false
+            // The table moves its row views through their animator, which animates for the
+            // context's default quarter second: with rows arriving many times a second, a row
+            // animation ran on every frame of a streaming query (traced 2026-10-01).
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0
+                context.allowsImplicitAnimation = false
+                tableView.noteNumberOfRowsChanged()
+            }
         }
         rowCountUpdateWorkItem = workItem
         Task { @MainActor in workItem.perform() }

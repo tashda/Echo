@@ -47,6 +47,9 @@ extension EnvironmentState {
     }
 
     func disconnectSession(withID id: UUID) async {
+        // Round 21: open PostgreSQL transactions in this server's tabs ask first.
+        let tabsInTransaction = tabStore.tabs.filter { $0.connectionSessionID == id && mayHaveOpenTransaction($0) }
+        guard await confirmOpenTransactions(in: tabsInTransaction, for: .disconnect) else { return }
         let displayName: String
         if let session = sessionGroup.activeSessions.first(where: { $0.id == id }) {
             let name = session.connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -67,6 +70,13 @@ extension EnvironmentState {
         for key in serverEditorKeys { serverEditorViewModels.removeValue(forKey: key) }
         let roleEditorKeys = roleEditorViewModels.keys.filter { $0.connectionSessionID == id }
         for key in roleEditorKeys { roleEditorViewModels.removeValue(forKey: key) }
+        let pickerKeys = windowsPrincipalPickerViewModels.keys.filter { $0.connectionSessionID == id }
+        for key in pickerKeys {
+            // Release any pending callbacks; the windows will close themselves
+            // on disappear and observe their state become unavailable.
+            windowsPrincipalPickerCallbacks.removeValue(forKey: key.requestID)
+            windowsPrincipalPickerViewModels.removeValue(forKey: key)
+        }
         sessionGroup.removeSession(withID: id)
         notificationEngine?.post(category: .connectionDisconnected, message: "Disconnected from \(displayName)")
     }
@@ -112,9 +122,16 @@ extension EnvironmentState {
         removeRecentConnections(for: connection.id)
     }
 
-    func testConnection(_ connection: SavedConnection, passwordOverride: String? = nil, connectTimeoutSeconds: Int? = nil) async -> ConnectionTestResult {
-        guard let credentials = identityRepository.resolveAuthenticationConfiguration(for: connection, overridePassword: passwordOverride) else {
+    func testConnection(_ connection: SavedConnection, passwordOverride: String? = nil, keyPasswordOverride: String? = nil,
+                        connectTimeoutSeconds: Int? = nil) async -> ConnectionTestResult {
+        guard var credentials = identityRepository.resolveAuthenticationConfiguration(for: connection, overridePassword: passwordOverride) else {
             return ConnectionTestResult(isSuccessful: false, message: "Missing credentials", responseTime: nil, serverVersion: nil)
+        }
+        if let keyPasswordOverride { credentials.sslKeyPassword = keyPasswordOverride }
+        // Round 23, TS1: with several PostgreSQL servers, test each one.
+        if connection.databaseType == .postgresql, !connection.additionalHosts.isEmpty {
+            return await PostgresConnectionTest.testServers(
+                connection, authentication: credentials, connectTimeoutSeconds: connectTimeoutSeconds ?? Int(connection.connectionTimeout))
         }
 
         let startTime = Date()
@@ -125,17 +142,8 @@ extension EnvironmentState {
                 : (connection.database.isEmpty ? nil : connection.database)
 
             let session = try await factory!.connect(
-                host: connection.host,
-                port: connection.port,
+                to: connection,
                 database: connectDatabase,
-                tls: connection.useTLS,
-                trustServerCertificate: connection.trustServerCertificate,
-                tlsMode: connection.tlsMode,
-                sslRootCertPath: connection.sslRootCertPath,
-                sslCertPath: connection.sslCertPath,
-                sslKeyPath: connection.sslKeyPath,
-                mssqlEncryptionMode: connection.mssqlEncryptionMode,
-                readOnlyIntent: connection.readOnlyIntent,
                 authentication: credentials,
                 connectTimeoutSeconds: connectTimeoutSeconds ?? Int(connection.connectionTimeout)
             )
@@ -147,7 +155,13 @@ extension EnvironmentState {
         } catch {
             let duration = Date().timeIntervalSince(startTime)
             let message = error.localizedDescription
-            return ConnectionTestResult(isSuccessful: false, message: message, responseTime: duration, serverVersion: nil)
+            if connection.databaseType == .postgresql {
+                return PostgresConnectionTest.failed(error, connection: connection, elapsed: duration)
+            }
+            let fix = connection.databaseType == .microsoftSQL
+                ? MSSQLConnectionTestFix.fix(for: error, encryptionMode: connection.mssqlEncryptionMode)
+                : nil
+            return ConnectionTestResult(isSuccessful: false, message: message, responseTime: duration, serverVersion: nil, fix: fix)
         }
     }
 
@@ -257,17 +271,8 @@ extension EnvironmentState {
         }
 
         return try await factory.connect(
-            host: connection.host,
-            port: connection.port,
+            to: connection,
             database: database,
-            tls: connection.useTLS,
-            trustServerCertificate: connection.trustServerCertificate,
-            tlsMode: connection.tlsMode,
-            sslRootCertPath: connection.sslRootCertPath,
-            sslCertPath: connection.sslCertPath,
-            sslKeyPath: connection.sslKeyPath,
-            mssqlEncryptionMode: connection.mssqlEncryptionMode,
-            readOnlyIntent: connection.readOnlyIntent,
             authentication: credentials,
             connectTimeoutSeconds: 10
         )
@@ -302,7 +307,9 @@ extension EnvironmentState {
                 trustServerCertificate: connection.trustServerCertificate,
                 sslRootCertPath: connection.sslRootCertPath,
                 mssqlEncryptionMode: connection.mssqlEncryptionMode,
+                hostNameInCertificate: connection.hostNameInCertificate,
                 readOnlyIntent: connection.readOnlyIntent,
+                allowLegacyTLS: connection.allowLegacyTLS,
                 authentication: credentials,
                 connectTimeoutSeconds: 10
             )
@@ -334,20 +341,17 @@ extension EnvironmentState {
             connectDatabase = nil
         }
 
-        return try await factory.connect(
-            host: connection.host,
-            port: connection.port,
+        let session = try await factory.connect(
+            to: connection,
             database: connectDatabase,
-            tls: connection.useTLS,
-            trustServerCertificate: connection.trustServerCertificate,
-            tlsMode: connection.tlsMode,
-            sslRootCertPath: connection.sslRootCertPath,
-            sslCertPath: connection.sslCertPath,
-            sslKeyPath: connection.sslKeyPath,
-            mssqlEncryptionMode: connection.mssqlEncryptionMode,
-            readOnlyIntent: connection.readOnlyIntent,
             authentication: credentials,
             connectTimeoutSeconds: Int(connection.connectionTimeout)
         )
+        // PostgreSQL query tabs run every statement on one pinned connection per database, so
+        // BEGIN … COMMIT, SET and temporary tables behave as in psql (metadata stays on the pool).
+        if let postgres = session as? PostgresSession {
+            return postgres.withPinnedQueries()
+        }
+        return session
     }
 }

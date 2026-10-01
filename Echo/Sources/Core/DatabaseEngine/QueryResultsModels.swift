@@ -91,6 +91,12 @@ public struct ColumnInfo: Sendable, Identifiable, Codable, Hashable {
     public let maxLength: Int?
     public var foreignKey: ForeignKeyReference?
     public let comment: String?
+    /// The driver's description of the column's wire format, for formatting spooled cells later.
+    /// SQL Server stores `SQLServerCellType.encoded` here; other engines leave it nil.
+    public let wireType: String?
+    /// SQL Server Always Encrypted (round 29): the column's values are ciphertext Echo cannot
+    /// decrypt. Nil for every other column.
+    public let encryption: Encryption?
 
     public nonisolated init(
         name: String,
@@ -99,9 +105,36 @@ public struct ColumnInfo: Sendable, Identifiable, Codable, Hashable {
         isNullable: Bool = true,
         maxLength: Int? = nil,
         foreignKey: ForeignKeyReference? = nil,
-        comment: String? = nil
+        comment: String? = nil,
+        wireType: String? = nil,
+        encryption: Encryption? = nil
     ) {
-        self.name = name; self.dataType = dataType; self.isPrimaryKey = isPrimaryKey; self.isNullable = isNullable; self.maxLength = maxLength; self.foreignKey = foreignKey; self.comment = comment
+        self.name = name; self.dataType = dataType; self.isPrimaryKey = isPrimaryKey; self.isNullable = isNullable; self.maxLength = maxLength; self.foreignKey = foreignKey; self.comment = comment; self.wireType = wireType; self.encryption = encryption
+    }
+
+    /// How an Always Encrypted column is encrypted, as SQL Server describes it.
+    public struct Encryption: Sendable, Codable, Hashable {
+        /// `deterministic` or `randomized`.
+        public let kind: String?
+        public let algorithm: String
+        /// The plaintext type, for example `nvarchar(11)`.
+        public let typeName: String
+        public let keyStoreName: String?
+        public let keyPath: String?
+
+        public nonisolated init(kind: String?, algorithm: String, typeName: String, keyStoreName: String?, keyPath: String?) {
+            self.kind = kind; self.algorithm = algorithm; self.typeName = typeName; self.keyStoreName = keyStoreName; self.keyPath = keyPath
+        }
+
+        /// The column master key, as the header's tooltip and the edit explanation name it.
+        public nonisolated var keyDescription: String? {
+            switch (keyStoreName, keyPath) {
+            case let (store?, path?): "\(store), \(path)"
+            case let (nil, path?): path
+            case let (store?, nil): store
+            default: nil
+            }
+        }
     }
 
     public struct ForeignKeyReference: Sendable, Codable, Hashable {
@@ -193,9 +226,12 @@ public struct QueryStreamUpdate: Sendable {
     public let totalRowCount: Int
     public let metrics: QueryStreamMetrics?
     public let rowRange: Range<Int>?
+    /// Which result set of the run these rows belong to: 0 for the first, 1 and up for extra sets,
+    /// which the tab streams into their own results (round 22, BG1).
+    public var resultSetIndex: Int
 
-    public nonisolated init(columns: [ColumnInfo], appendedRows: [[String?]], encodedRows: [ResultBinaryRow] = [], rawRows: [ResultRowPayload] = [], totalRowCount: Int, metrics: QueryStreamMetrics? = nil, rowRange: Range<Int>? = nil) {
-        self.columns = columns; self.appendedRows = appendedRows; self.encodedRows = encodedRows; self.rawRows = rawRows; self.totalRowCount = totalRowCount; self.metrics = metrics; self.rowRange = rowRange
+    public nonisolated init(columns: [ColumnInfo], appendedRows: [[String?]], encodedRows: [ResultBinaryRow] = [], rawRows: [ResultRowPayload] = [], totalRowCount: Int, metrics: QueryStreamMetrics? = nil, rowRange: Range<Int>? = nil, resultSetIndex: Int = 0) {
+        self.columns = columns; self.appendedRows = appendedRows; self.encodedRows = encodedRows; self.rawRows = rawRows; self.totalRowCount = totalRowCount; self.metrics = metrics; self.rowRange = rowRange; self.resultSetIndex = resultSetIndex
     }
 }
 

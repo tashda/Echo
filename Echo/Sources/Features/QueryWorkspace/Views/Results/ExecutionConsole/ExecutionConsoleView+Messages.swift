@@ -3,6 +3,8 @@ import SwiftUI
 /// A single row in the execution console, showing severity, category, timestamp, delta, and message.
 struct ConsoleMessageRow: View {
     let message: QueryExecutionMessage
+    /// Round 22 LL1 / round 21 J1: puts the editor on the message's line.
+    var onGoToLine: ((QueryExecutionMessage) -> Void)?
 
     private static let categoryWidth: CGFloat = 120
     private static let timestampWidth: CGFloat = 68
@@ -38,14 +40,29 @@ struct ConsoleMessageRow: View {
                 .frame(width: Self.deltaWidth, alignment: .leading)
                 .padding(.leading, SpacingTokens.xxs)
 
-            // Message (fills remaining space)
-            Text(message.message)
-                .font(TypographyTokens.detail)
-                .foregroundStyle(messageTextColor)
-                .textSelection(.enabled)
-                .lineLimit(nil)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.leading, SpacingTokens.xs)
+            // Message (fills remaining space), under the SSMS header for server errors (EM1)
+            VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
+                if let header = message.ssmsHeader {
+                    HStack(spacing: SpacingTokens.none) {
+                        Text(message.line == nil ? header : header + ", ")
+                        if let line = message.line {
+                            Button("Line \(line)") { onGoToLine?(message) }
+                                .buttonStyle(.link)
+                                .disabled(onGoToLine == nil)
+                                .help("Select line \(line) in the editor")
+                        }
+                    }
+                    .font(TypographyTokens.detail.monospaced())
+                    .foregroundStyle(messageTextColor)
+                }
+                Text(message.message)
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(messageTextColor)
+                    .textSelection(.enabled)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.leading, SpacingTokens.xs)
 
             Spacer(minLength: 0)
         }
@@ -53,6 +70,11 @@ struct ConsoleMessageRow: View {
         .padding(.vertical, SpacingTokens.xs2)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(rowBackground)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            // J1: clicking the error goes there.
+            if message.severity == .error, message.line != nil { onGoToLine?(message) }
+        }
     }
 
     // MARK: - Styling

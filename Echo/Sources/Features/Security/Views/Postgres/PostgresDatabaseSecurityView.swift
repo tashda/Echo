@@ -4,6 +4,7 @@ struct PostgresDatabaseSecurityView: View {
     @Bindable var viewModel: PostgresDatabaseSecurityViewModel
     @Bindable var panelState: BottomPanelState
     @Environment(TabStore.self) private var tabStore
+    @Environment(\.workspaceTab) private var hostTab
     @Environment(EnvironmentState.self) private var environmentState
 
     @Environment(\.openWindow) private var openWindow
@@ -58,8 +59,8 @@ struct PostgresDatabaseSecurityView: View {
     }
 
     private var connectionText: String {
-        let connText = tabStore.activeTab?.connection.connectionName ?? "Server"
-        let db = tabStore.activeTab?.activeDatabaseName
+        let connText = hostTab?.connection.connectionName ?? "Server"
+        let db = hostTab?.activeDatabaseName
         return db.map { "\(connText) \u{2022} \($0)" } ?? connText
     }
 
@@ -71,19 +72,17 @@ struct PostgresDatabaseSecurityView: View {
     }
 
     private var sectionPicker: some View {
-        HStack(spacing: SpacingTokens.md) {
-            Picker(selection: $viewModel.selectedSection) {
+        CenteredTabSectionLayout {
+            TabSectionPicker(
+                "Security Section",
+                selection: $viewModel.selectedSection,
+                itemCount: PostgresDatabaseSecurityViewModel.Section.allCases.count
+            ) {
                 ForEach(PostgresDatabaseSecurityViewModel.Section.allCases, id: \.self) { section in
                     Text(section.rawValue).tag(section)
                 }
-            } label: {
-                EmptyView()
             }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 400)
-
-            Spacer()
-
+        } controls: {
             Button {
                 showGrantWizard = true
             } label: {

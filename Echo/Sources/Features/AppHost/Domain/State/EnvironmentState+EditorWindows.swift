@@ -1,4 +1,5 @@
 import Foundation
+import ActiveDirectory
 
 extension EnvironmentState {
     // MARK: - Editor Windows
@@ -362,5 +363,45 @@ extension EnvironmentState {
         }
         activeTypeEditorValue = value
         return value
+    }
+
+    // MARK: - Windows Principal Picker
+
+    /// Registers a callback and view model for a fresh Browse-AD invocation.
+    /// The caller (`BrowsePrincipalButton`) is responsible for opening the
+    /// `WindowsPrincipalPickerWindow` via `openWindow(id:value:)` with the
+    /// returned value.
+    @discardableResult
+    func prepareWindowsPrincipalPickerWindow(
+        connectionSessionID: UUID,
+        domain: String,
+        username: String,
+        password: String,
+        onResult: @escaping WindowsPrincipalPickerCallback
+    ) -> WindowsPrincipalPickerWindowValue {
+        let value = WindowsPrincipalPickerWindowValue(
+            requestID: UUID(),
+            connectionSessionID: connectionSessionID
+        )
+        windowsPrincipalPickerViewModels[value] = WindowsPrincipalPickerViewModel(
+            domain: domain,
+            username: username,
+            password: password
+        )
+        windowsPrincipalPickerCallbacks[value.requestID] = onResult
+        return value
+    }
+
+    /// Delivers the picker's result to the registered caller and releases the
+    /// associated view model. Idempotent — calling twice for the same request
+    /// is a no-op on the second call.
+    func completeWindowsPrincipalPickerWindow(
+        value: WindowsPrincipalPickerWindowValue,
+        accountName: String?
+    ) {
+        if let callback = windowsPrincipalPickerCallbacks.removeValue(forKey: value.requestID) {
+            callback(accountName)
+        }
+        windowsPrincipalPickerViewModels.removeValue(forKey: value)
     }
 }

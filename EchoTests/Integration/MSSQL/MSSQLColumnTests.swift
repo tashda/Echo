@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server column operations through Echo's DatabaseSession layer.
-final class MSSQLColumnTests: MSSQLDockerTestCase {
+final class MSSQLColumnTests: MSSQLLabTestCase {
 
     // MARK: - Add Column
 
@@ -12,7 +12,6 @@ final class MSSQLColumnTests: MSSQLDockerTestCase {
         try await sqlserverClient.admin.createTable(name: tableName, columns: [
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.admin.addColumn(
             table: tableName,
@@ -29,7 +28,6 @@ final class MSSQLColumnTests: MSSQLDockerTestCase {
         try await sqlserverClient.admin.createTable(name: tableName, columns: [
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.admin.addColumn(
             table: tableName,
@@ -47,7 +45,6 @@ final class MSSQLColumnTests: MSSQLDockerTestCase {
         try await sqlserverClient.admin.createTable(name: tableName, columns: [
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.admin.addColumn(
             table: tableName,
@@ -71,7 +68,6 @@ final class MSSQLColumnTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(50))))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.admin.alterColumnType(
             table: tableName,
@@ -93,7 +89,6 @@ final class MSSQLColumnTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "value", definition: .standard(.init(dataType: .int))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.admin.alterColumnType(
             table: tableName,
@@ -116,7 +111,6 @@ final class MSSQLColumnTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
             SQLServerColumnDefinition(name: "temp_col", definition: .standard(.init(dataType: .int))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.admin.dropColumn(table: tableName, column: "temp_col")
 
@@ -133,7 +127,6 @@ final class MSSQLColumnTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "old_name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.admin.renameColumn(table: tableName, from: "old_name", to: "new_name")
 
@@ -150,7 +143,6 @@ final class MSSQLColumnTests: MSSQLDockerTestCase {
         try await sqlserverClient.admin.createTable(name: tableName, columns: [
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.admin.addColumn(
             table: tableName, name: "first_name", dataType: "NVARCHAR(50)"

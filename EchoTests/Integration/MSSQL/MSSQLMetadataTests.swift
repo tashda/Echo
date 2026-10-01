@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server metadata retrieval through Echo's DatabaseSession layer.
-final class MSSQLMetadataTests: MSSQLDockerTestCase {
+final class MSSQLMetadataTests: MSSQLLabTestCase {
 
     // MARK: - Table Schema
 
@@ -15,7 +15,6 @@ final class MSSQLMetadataTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "email", definition: .standard(.init(dataType: .nvarchar(length: .length(200))))),
             SQLServerColumnDefinition(name: "age", definition: .standard(.init(dataType: .int)))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         let columns = try await session.getTableSchema(tableName, schemaName: "dbo")
         XCTAssertEqual(columns.count, 4)
@@ -34,7 +33,6 @@ final class MSSQLMetadataTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "amount", definition: .standard(.init(dataType: .decimal(precision: 10, scale: 2)))),
             SQLServerColumnDefinition(name: "created_at", definition: .standard(.init(dataType: .datetime2(precision: 7))))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         let columns = try await session.getTableSchema(tableName, schemaName: "dbo")
 
@@ -52,7 +50,6 @@ final class MSSQLMetadataTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
             SQLServerColumnDefinition(name: "value", definition: .standard(.init(dataType: .decimal(precision: 10, scale: 2))))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         XCTAssertGreaterThanOrEqual(details.columns.count, 3)
@@ -67,7 +64,6 @@ final class MSSQLMetadataTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100)))))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         XCTAssertNotNil(details.primaryKey, "Should detect primary key")
@@ -83,8 +79,7 @@ final class MSSQLMetadataTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
             SQLServerColumnDefinition(name: "email", definition: .standard(.init(dataType: .nvarchar(length: .length(200)))))
         ])
-        try await execute("CREATE INDEX IX_\(tableName)_name ON dbo.[\(tableName)](name)")
-        cleanupSQL("DROP TABLE dbo.[\(tableName)]")
+        try await sqlserverClient.indexes.createIndex(name: "IX_\(tableName)_name", table: tableName, columns: [IndexColumn(name: "name")])
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         XCTAssertFalse(details.indexes.isEmpty, "Should have at least one index")
@@ -97,16 +92,9 @@ final class MSSQLMetadataTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100)))))
         ])
-        try await execute("""
-            CREATE TABLE dbo.[\(childTable)] (
-                id INT PRIMARY KEY,
-                parent_id INT REFERENCES dbo.[\(parentTable)](id)
-            )
-        """)
-        cleanupSQL(
-            "DROP TABLE dbo.[\(childTable)]",
-            "DROP TABLE dbo.[\(parentTable)]"
-        )
+        try await createTable(childTable, [.column("id", .int, primaryKey: true), .column("parent_id", .int)])
+        try await sqlserverClient.constraints.addForeignKey(name: "FK_\(childTable)_parent", table: childTable, columns: ["parent_id"],
+                                                            referencedTable: parentTable, referencedColumns: ["id"])
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: childTable)
         XCTAssertFalse(details.foreignKeys.isEmpty, "Should detect foreign key")
@@ -116,10 +104,10 @@ final class MSSQLMetadataTests: MSSQLDockerTestCase {
     }
 
     func testGetTableStructureDetailsUniqueConstraints() async throws {
-        // UNIQUE constraint requires raw SQL since typed API doesn't support constraints inline
         let tableName = uniqueTableName()
-        try await execute("CREATE TABLE [\(tableName)] (id INT PRIMARY KEY, code NVARCHAR(10) UNIQUE, name NVARCHAR(100))")
-        cleanupSQL("DROP TABLE [\(tableName)]")
+        try await createTable(tableName, [.column("id", .int, primaryKey: true), .column("code", .nvarchar(length: .length(10))),
+                                          .column("name", .nvarchar(length: .length(100)))])
+        try await sqlserverClient.constraints.addUniqueConstraint(name: "UQ_\(tableName)_code", table: tableName, columns: ["code"])
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         // Unique constraint may appear as index or unique constraint
@@ -137,11 +125,7 @@ final class MSSQLMetadataTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100)))))
         ])
-        try await execute("CREATE VIEW dbo.[\(viewName)] AS SELECT id, name FROM dbo.[\(tableName)]")
-        cleanupSQL(
-            "DROP VIEW dbo.[\(viewName)]",
-            "DROP TABLE dbo.[\(tableName)]"
-        )
+        try await sqlserverClient.views.createView(name: viewName, query: "SELECT id, name FROM dbo.[\(tableName)]")
 
         let definition = try await session.getObjectDefinition(
             objectName: viewName, schemaName: "dbo", objectType: .view
@@ -153,15 +137,8 @@ final class MSSQLMetadataTests: MSSQLDockerTestCase {
 
     func testGetProcedureDefinition() async throws {
         let procName = uniqueTableName(prefix: "usp")
-        try await execute("""
-            CREATE PROCEDURE dbo.[\(procName)]
-                @id INT
-            AS
-            BEGIN
-                SELECT @id AS result;
-            END
-        """)
-        cleanupSQL("DROP PROCEDURE dbo.[\(procName)]")
+        try await sqlserverClient.routines.createStoredProcedure(
+            name: procName, parameters: [ProcedureParameter(name: "id", dataType: .int)], body: "SELECT @id AS result;")
 
         let definition = try await session.getObjectDefinition(
             objectName: procName, schemaName: "dbo", objectType: .procedure
@@ -171,15 +148,8 @@ final class MSSQLMetadataTests: MSSQLDockerTestCase {
 
     func testGetFunctionDefinition() async throws {
         let funcName = uniqueTableName(prefix: "fn")
-        try await execute("""
-            CREATE FUNCTION dbo.[\(funcName)](@x INT)
-            RETURNS INT
-            AS
-            BEGIN
-                RETURN @x * 2;
-            END
-        """)
-        cleanupSQL("DROP FUNCTION dbo.[\(funcName)]")
+        try await sqlserverClient.routines.createFunction(
+            name: funcName, parameters: [FunctionParameter(name: "x", dataType: .int)], returnType: .int, body: "BEGIN RETURN @x * 2; END")
 
         let definition = try await session.getObjectDefinition(
             objectName: funcName, schemaName: "dbo", objectType: .function
@@ -193,7 +163,6 @@ final class MSSQLMetadataTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100)))))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         let definition = try await session.getObjectDefinition(
             objectName: tableName, schemaName: "dbo", objectType: .table
@@ -210,7 +179,6 @@ final class MSSQLMetadataTests: MSSQLDockerTestCase {
         try await sqlserverClient.admin.createTable(name: tableName, columns: [
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true)))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         guard let metaSession = session as? DatabaseMetadataSession else {
             throw XCTSkip("Session does not support DatabaseMetadataSession")

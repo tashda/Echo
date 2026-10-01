@@ -2,7 +2,7 @@ import XCTest
 @testable import Echo
 
 /// Tests SQL Server connection lifecycle through Echo's DatabaseSession layer.
-final class MSSQLConnectionTests: MSSQLDockerTestCase {
+final class MSSQLConnectionTests: MSSQLLabTestCase {
 
     // MARK: - Basic Connectivity
 
@@ -43,8 +43,7 @@ final class MSSQLConnectionTests: MSSQLDockerTestCase {
     func testSessionForDatabase() async throws {
         // Create a test database
         let dbName = uniqueTableName(prefix: "echo_db")
-        try await execute("CREATE DATABASE [\(dbName)]")
-        cleanupSQL("DROP DATABASE [\(dbName)]")
+        try await sqlserverClient.admin.createDatabase(name: dbName)
 
         let dbSession = try await session.sessionForDatabase(dbName)
 
@@ -67,15 +66,15 @@ final class MSSQLConnectionTests: MSSQLDockerTestCase {
     func testConnectionWithTrustServerCertificate() async throws {
         let factory = MSSQLNIOFactory()
         let s = try await factory.connect(
-            host: "127.0.0.1",
-            port: Self.port,
+            host: host,
+            port: port,
             database: nil,
             tls: false,
             trustServerCertificate: true,
             authentication: DatabaseAuthenticationConfiguration(
                 method: .sqlPassword,
-                username: Self.username,
-                password: Self.password
+                username: username,
+                password: password
             ),
             connectTimeoutSeconds: 15
         )
@@ -87,16 +86,16 @@ final class MSSQLConnectionTests: MSSQLDockerTestCase {
     func testConnectionWithReadOnlyIntent() async throws {
         let factory = MSSQLNIOFactory()
         let s = try await factory.connect(
-            host: "127.0.0.1",
-            port: Self.port,
+            host: host,
+            port: port,
             database: nil,
             tls: false,
             trustServerCertificate: true,
             readOnlyIntent: true,
             authentication: DatabaseAuthenticationConfiguration(
                 method: .sqlPassword,
-                username: Self.username,
-                password: Self.password
+                username: username,
+                password: password
             ),
             connectTimeoutSeconds: 15
         )
@@ -122,8 +121,8 @@ final class MSSQLConnectionTests: MSSQLDockerTestCase {
         let factory = MSSQLNIOFactory()
         do {
             let s = try await factory.connect(
-                host: "127.0.0.1",
-                port: Self.port,
+                host: host,
+                port: port,
                 database: nil,
                 tls: false,
                 trustServerCertificate: true,

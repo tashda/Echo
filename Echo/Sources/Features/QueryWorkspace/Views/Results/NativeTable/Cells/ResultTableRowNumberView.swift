@@ -14,6 +14,9 @@ final class ResultTableRowNumberView: NSView {
     private let font = NSFont.monospacedDigitSystemFont(ofSize: ResultsGridMetrics.rowNumberFontSize, weight: .regular)
     private let textColor = NSColor(ColorTokens.Text.tertiary)
     private var drawAttributes: [NSAttributedString.Key: Any] = [:]
+    /// Every number is one line of the same font, so its height is measured once: measuring each
+    /// label on every scrolled frame was a steady cost while scrolling.
+    private var labelHeight: CGFloat = 0
     private var cachedBackgroundColor: NSColor = .controlBackgroundColor
     private weak var observedContentView: NSClipView?
     private weak var tableView: NSTableView?
@@ -29,6 +32,11 @@ final class ResultTableRowNumberView: NSView {
     /// Called when the user opens a context menu on a row number.
     var onRowContextMenu: ((Int) -> NSMenu?)?
 
+    /// Rows whose number turns accent: the selected rows and the hovered one (plans R3, R4).
+    var accentRows: IndexSet = [] {
+        didSet { if oldValue != accentRows { needsDisplay = true } }
+    }
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
@@ -40,6 +48,7 @@ final class ResultTableRowNumberView: NSView {
             .foregroundColor: textColor,
             .paragraphStyle: paragraphStyle
         ]
+        labelHeight = ("8" as NSString).size(withAttributes: drawAttributes).height
     }
 
     required init?(coder: NSCoder) {
@@ -216,14 +225,19 @@ final class ResultTableRowNumberView: NSView {
             let convertedRowRect = NSRect(x: 0, y: convertedOrigin.y, width: bounds.width, height: rowRect.height)
             guard convertedRowRect.maxY >= dirtyRect.minY, convertedRowRect.minY <= dirtyRect.maxY else { continue }
             let label = "\(row + 1)" as NSString
-            let textSize = label.size(withAttributes: drawAttributes)
             let textRect = NSRect(
                 x: leadingPadding,
-                y: floor(convertedRowRect.midY - textSize.height / 2),
+                y: floor(convertedRowRect.midY - labelHeight / 2),
                 width: bounds.width - leadingPadding - trailingPadding,
-                height: textSize.height
+                height: labelHeight
             )
-            label.draw(in: textRect, withAttributes: drawAttributes)
+            if accentRows.contains(row) {
+                var accentAttributes = drawAttributes
+                accentAttributes[.foregroundColor] = AppearanceStore.shared.accentNSColor
+                label.draw(in: textRect, withAttributes: accentAttributes)
+            } else {
+                label.draw(in: textRect, withAttributes: drawAttributes)
+            }
         }
 
         NSGraphicsContext.restoreGraphicsState()

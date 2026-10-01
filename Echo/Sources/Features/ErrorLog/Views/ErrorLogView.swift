@@ -8,7 +8,7 @@ struct ErrorLogView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TabSectionToolbar(sectionPicker: { sectionToolbar }) { archivePicker }
+            CenteredTabSectionToolbar { sectionToolbar } controls: { archivePicker }
             Divider()
 
             if !viewModel.isInitialized {
@@ -18,10 +18,11 @@ struct ErrorLogView: View {
                     subtitle: "Loading log entries"
                 )
             } else {
-                logTable
+                logContent
             }
         }
         .background(ColorTokens.Background.primary)
+        .tabContentFrame()
         .task { await viewModel.initialLoad() }
     }
 
@@ -29,17 +30,18 @@ struct ErrorLogView: View {
 
     @ViewBuilder
     private var sectionToolbar: some View {
-        Picker("Product", selection: Binding(
-            get: { viewModel.selectedProduct },
-            set: { product in Task { await viewModel.switchProduct(to: product) } }
-        )) {
+        TabSectionPicker(
+            "Log Product",
+            selection: Binding(
+                get: { viewModel.selectedProduct },
+                set: { product in Task { await viewModel.switchProduct(to: product) } }
+            ),
+            itemCount: ErrorLogViewModel.LogProduct.allCases.count
+        ) {
             ForEach(ErrorLogViewModel.LogProduct.allCases) { product in
                 Text(product.rawValue).tag(product)
             }
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .frame(width: 200)
     }
 
     @ViewBuilder
@@ -67,6 +69,28 @@ struct ErrorLogView: View {
     }
 
     // MARK: - Table
+
+    @ViewBuilder
+    private var logContent: some View {
+        if viewModel.isLoading && viewModel.filteredEntries.isEmpty {
+            TabInitializingPlaceholder(
+                icon: "doc.text.magnifyingglass",
+                title: "Loading Error Log",
+                subtitle: "Fetching SQL Server log entries…"
+            )
+        } else if viewModel.filteredEntries.isEmpty {
+            TabContentUnavailableView(
+                viewModel.searchText.isEmpty ? "No Log Entries" : "No Results",
+                systemImage: "doc.text.magnifyingglass"
+            ) {
+                Text(viewModel.searchText.isEmpty
+                    ? "The selected error log is empty."
+                    : "No entries match \u{201c}\(viewModel.searchText)\u{201d}.")
+            }
+        } else {
+            logTable
+        }
+    }
 
     private var logTable: some View {
         Table(viewModel.filteredEntries, selection: $viewModel.selectedEntryIDs) {
@@ -119,20 +143,6 @@ struct ErrorLogView: View {
                     .controlSize(.small)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                     .padding(SpacingTokens.sm)
-            }
-        }
-        .overlay {
-            if !viewModel.isLoading && viewModel.filteredEntries.isEmpty {
-                ContentUnavailableView {
-                    Label(
-                        viewModel.searchText.isEmpty ? "No Log Entries" : "No Results",
-                        systemImage: "doc.text.magnifyingglass"
-                    )
-                } description: {
-                    Text(viewModel.searchText.isEmpty
-                        ? "The error log is empty."
-                        : "No entries match \u{201c}\(viewModel.searchText)\u{201d}.")
-                }
             }
         }
     }

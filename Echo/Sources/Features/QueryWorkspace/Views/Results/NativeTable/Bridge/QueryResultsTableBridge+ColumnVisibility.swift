@@ -49,6 +49,7 @@ extension QueryResultsTableView.Coordinator {
         while tableView.tableColumns.count > 0 {
             tableView.removeTableColumn(tableView.tableColumns[0])
         }
+        invalidateTableColumnPositions()
         let allColumns = queryState.displayedColumns
         let hidden = persistedState?.hiddenColumnIndices ?? []
         let savedWidths = persistedState?.cachedColumnWidths ?? [:]
@@ -65,7 +66,8 @@ extension QueryResultsTableView.Coordinator {
             }
             tableColumn.headerCell.controlSize = .regular
             tableColumn.headerCell.alignment = .left
-            tableColumn.headerCell.font = NSFont.systemFont(ofSize: 12, weight: .medium)
+            tableColumn.headerCell.font = ResultTableHeaderCell.nameFont
+            (tableColumn.headerCell as? ResultTableHeaderCell)?.typeName = column.dataType
             tableView.addTableColumn(tableColumn)
             if let savedWidth = savedWidths[column.id], savedWidth > 0 {
                 tableColumn.width = min(max(savedWidth, tableColumn.minWidth), tableColumn.maxWidth)
@@ -78,6 +80,7 @@ extension QueryResultsTableView.Coordinator {
         applyHeaderStyle(to: tableView)
         cachedColumnIDs = allColumns.map(\.id)
         cachedColumnKinds = allColumns.map { ResultGridValueClassifier.kind(for: $0, value: "") }
+        refreshColumnForms(allColumns)
         tableView.reloadData()
         refreshVisibleRowBackgrounds(tableView)
     }

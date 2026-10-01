@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server table DDL operations through Echo's DatabaseSession layer.
-final class MSSQLTableOperationsTests: MSSQLDockerTestCase {
+final class MSSQLTableOperationsTests: MSSQLLabTestCase {
 
     // MARK: - Create Table
 
@@ -14,7 +14,6 @@ final class MSSQLTableOperationsTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
             SQLServerColumnDefinition(name: "created_at", definition: .standard(.init(dataType: .datetime2(precision: 7), defaultValue: "GETDATE()"))),
         ])
-        cleanupSQL("DROP TABLE dbo.[\(tableName)]")
 
         let objects = try await session.listTablesAndViews(schema: "dbo")
         IntegrationTestHelpers.assertContainsObject(objects, name: tableName, type: .table)
@@ -46,10 +45,6 @@ final class MSSQLTableOperationsTests: MSSQLDockerTestCase {
             table: childTable,
             expression: "[value] >= 0"
         )
-        cleanupSQL(
-            "DROP TABLE dbo.[\(childTable)]",
-            "DROP TABLE dbo.[\(parentTable)]"
-        )
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: childTable)
         XCTAssertEqual(details.columns.count, 4)
@@ -65,10 +60,6 @@ final class MSSQLTableOperationsTests: MSSQLDockerTestCase {
         try await sqlserverClient.admin.createTable(name: oldName, columns: [
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
         ])
-        cleanupSQL(
-            "DROP TABLE dbo.[\(newName)]",
-            "DROP TABLE dbo.[\(oldName)]"
-        )
 
         try await session.renameTable(schema: "dbo", oldName: oldName, newName: newName)
 
@@ -115,7 +106,6 @@ final class MSSQLTableOperationsTests: MSSQLDockerTestCase {
                 [.int(3), .nString("c")],
             ]
         )
-        cleanupSQL("DROP TABLE dbo.[\(tableName)]")
 
         // Verify data exists
         let before = try await query("SELECT COUNT(*) AS cnt FROM dbo.[\(tableName)]")
@@ -136,7 +126,6 @@ final class MSSQLTableOperationsTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(50))))),
             SQLServerColumnDefinition(name: "score", definition: .standard(.init(dataType: .decimal(precision: 5, scale: 2)))),
         ])
-        cleanupSQL("DROP TABLE dbo.[\(tableName)]")
 
         try await sqlserverClient.admin.insertRow(
             into: tableName,

@@ -11,12 +11,14 @@ struct SidebarView: View {
     @Environment(EnvironmentState.self) var environmentState
     @Environment(AppState.self) var appState
 
+    let railBridge: ServerRailBridge
     var onAddConnection: () -> Void
 
     var body: some View {
         SidebarMenu(
             selectedConnectionID: $selectedConnectionID,
             selectedIdentityID: $selectedIdentityID,
+            railBridge: railBridge,
             onAddConnection: onAddConnection
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

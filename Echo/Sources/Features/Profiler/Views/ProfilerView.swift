@@ -1,7 +1,5 @@
 import SwiftUI
 import SQLServerKit
-import AppKit
-import UniformTypeIdentifiers
 
 struct ProfilerView: View {
     @Bindable var viewModel: ProfilerViewModel
@@ -18,10 +16,11 @@ struct ProfilerView: View {
     var body: some View {
         VStack(spacing: 0) {
             toolbar
-            
-            eventTable
+            Divider()
+            eventContent
         }
         .background(ColorTokens.Background.primary)
+        .tabContentFrame()
         .task { await viewModel.loadDatabases() }
         .sheet(isPresented: $showTemplateSheet) {
             ProfilerEventPickerSheet(
@@ -31,48 +30,8 @@ struct ProfilerView: View {
         }
     }
 
-    private func exportTrace() {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.json, .commaSeparatedText]
-        panel.nameFieldStringValue = "profiler_trace.json"
-        panel.canCreateDirectories = true
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-
-        let events = viewModel.events
-        let isCSV = url.pathExtension.lowercased() == "csv"
-
-        do {
-            if isCSV {
-                var csv = "timestamp,event,database,login,duration_ms,cpu,reads,writes,spid,sql_text\n"
-                let fmt = ISO8601DateFormatter()
-                for e in events {
-                    let ts = e.timestamp.map { fmt.string(from: $0) } ?? ""
-                    let sql = (e.textData ?? "").replacingOccurrences(of: "\"", with: "\"\"")
-                    csv += "\"\(ts)\",\"\(e.eventName)\",\"\(e.databaseName ?? "")\",\"\(e.loginName ?? "")\",\(e.duration ?? 0),\(e.cpu ?? 0),\(e.reads ?? 0),\(e.writes ?? 0),\(e.spid ?? 0),\"\(sql)\"\n"
-                }
-                try csv.write(to: url, atomically: true, encoding: .utf8)
-            } else {
-                let jsonEvents: [[String: Any]] = events.map { e in
-                    var dict: [String: Any] = ["event_name": e.eventName]
-                    if let ts = e.timestamp { dict["timestamp"] = ISO8601DateFormatter().string(from: ts) }
-                    if let t = e.textData { dict["sql_text"] = t }
-                    if let d = e.databaseName { dict["database"] = d }
-                    if let l = e.loginName { dict["login"] = l }
-                    if let dur = e.duration { dict["duration_ms"] = dur }
-                    if let c = e.cpu { dict["cpu"] = c }
-                    if let r = e.reads { dict["reads"] = r }
-                    if let w = e.writes { dict["writes"] = w }
-                    if let s = e.spid { dict["spid"] = s }
-                    return dict
-                }
-                let data = try JSONSerialization.data(withJSONObject: jsonEvents, options: [.prettyPrinted, .sortedKeys])
-                try data.write(to: url)
-            }
-        } catch { }
-    }
-    
     private var toolbar: some View {
-        HStack {
+        TabSectionToolbar {
             Button {
                 viewModel.toggleTracing()
             } label: {
@@ -82,16 +41,19 @@ struct ProfilerView: View {
                 )
             }
             .buttonStyle(.bordered)
-            .tint(viewModel.isRunning ? .red : .accentColor)
+            .controlSize(.small)
+            .tint(viewModel.isRunning ? ColorTokens.Status.error : ColorTokens.accent)
             
             Button {
                 viewModel.clear()
             } label: {
                 Label("Clear", systemImage: "trash")
             }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .controlSize(.small)
             .disabled(viewModel.events.isEmpty)
-
-            Divider().frame(height: 16)
+            .help("Clear captured trace events")
 
             Picker("Database", selection: Binding(
                 get: { viewModel.targetDatabase ?? "" },
@@ -102,39 +64,60 @@ struct ProfilerView: View {
                     Text(db).tag(db)
                 }
             }
-            .frame(width: 180)
+            .pickerStyle(.menu)
+            .controlSize(.small)
+            .fixedSize()
             .disabled(viewModel.isRunning)
-
-            Divider().frame(height: 16)
 
             Button {
                 showTemplateSheet = true
             } label: {
                 Label("Events (\(viewModel.selectedTraceEvents.count))", systemImage: "list.bullet")
             }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .controlSize(.small)
             .disabled(viewModel.isRunning)
+            .help("Choose trace events")
 
             Button {
                 exportTrace()
             } label: {
                 Label("Export", systemImage: "square.and.arrow.up")
             }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .controlSize(.small)
             .disabled(viewModel.events.isEmpty)
-
-            Spacer()
-
+            .help("Export captured trace events")
+        } controls: {
             if viewModel.isRunning {
-                ProgressView()
-                    .controlSize(.small)
-                Text("Tracing active...")
+                Label("Tracing", systemImage: "record.circle")
                     .font(TypographyTokens.detail)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(ColorTokens.Status.success)
             }
         }
-        .padding(SpacingTokens.sm)
-        .background(ColorTokens.Background.secondary)
     }
-    
+
+    @ViewBuilder
+    private var eventContent: some View {
+        if sortedEvents.isEmpty {
+            TabContentUnavailableView(
+                viewModel.isRunning ? "Waiting for Trace Events" : "No Trace Events",
+                systemImage: "chart.line.uptrend.xyaxis"
+            ) {
+                Text(viewModel.isRunning ? "Trace events will appear here as SQL Server emits them." : "Start a trace to capture SQL Server activity.")
+            } actions: {
+                if !viewModel.isRunning {
+                    Button("Start Trace") { viewModel.toggleTracing() }
+                        .buttonStyle(.bordered)
+                }
+            }
+        } else {
+            eventTable
+        }
+    }
+
     private var eventTable: some View {
         Table(sortedEvents, selection: $viewModel.selectedEventID, sortOrder: $sortOrder) {
             TableColumn("Time", value: \.sortableTimestamp) { event in
@@ -156,20 +139,20 @@ struct ProfilerView: View {
             .width(min: 150, ideal: 200)
             
             TableColumn("Duration (ms)", value: \.sortableDuration) { event in
-                Text(event.duration.map { "\($0)" } ?? "")
+                Text(event.duration.map { "\($0)" } ?? "—")
                     .font(TypographyTokens.Table.numeric)
                     .foregroundStyle(ColorTokens.accent)
             }
             .width(80)
             
             TableColumn("CPU", value: \.sortableCPU) { event in
-                Text(event.cpu.map { "\($0)" } ?? "")
+                Text(event.cpu.map { "\($0)" } ?? "—")
                     .font(TypographyTokens.Table.numeric)
             }
             .width(60)
             
             TableColumn("Reads", value: \.sortableReads) { event in
-                Text(event.reads.map { "\($0)" } ?? "")
+                Text(event.reads.map { "\($0)" } ?? "—")
                     .font(TypographyTokens.Table.numeric)
                     .foregroundStyle(ColorTokens.Text.secondary)
             }

@@ -2,7 +2,7 @@ import XCTest
 @testable import Echo
 
 /// Tests SQL Server activity monitoring through Echo's DatabaseSession layer.
-final class MSSQLActivityMonitorTests: MSSQLDockerTestCase {
+final class MSSQLActivityMonitorTests: MSSQLLabTestCase {
 
     // MARK: - Monitor Creation
 

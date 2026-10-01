@@ -12,21 +12,15 @@ struct ExtendedPropertiesContentView: View {
         .sheet(item: $viewModel.editingProperty) { _ in
             ExtendedPropertyEditorSheet(viewModel: viewModel)
         }
+        .tabContentFrame()
     }
 
     private var toolbar: some View {
-        HStack(spacing: SpacingTokens.sm) {
+        TabSectionToolbar {
             Text("Extended Properties")
                 .font(TypographyTokens.standard.weight(.medium))
                 .foregroundStyle(ColorTokens.Text.primary)
-
-            Spacer()
-
-            if viewModel.isLoading {
-                ProgressView()
-                    .controlSize(.small)
-            }
-
+        } controls: {
             Button {
                 viewModel.beginAdd()
             } label: {
@@ -35,28 +29,36 @@ struct ExtendedPropertiesContentView: View {
             .buttonStyle(.bordered)
             .controlSize(.small)
 
-            Button {
+            TabRefreshButton(isRefreshing: viewModel.isLoading) {
                 Task { await viewModel.load() }
-            } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
         }
-        .padding(.horizontal, SpacingTokens.lg)
-        .padding(.vertical, SpacingTokens.sm)
     }
 
     @ViewBuilder
     private var content: some View {
-        if let error = viewModel.errorMessage {
-            StatusToastView(icon: "exclamationmark.triangle.fill", message: error, style: .error)
-                .padding(SpacingTokens.md)
-        }
+        let isEmpty = viewModel.tableProperties.isEmpty && viewModel.columnProperties.isEmpty
 
-        if viewModel.tableProperties.isEmpty && viewModel.columnProperties.isEmpty && !viewModel.isLoading {
+        if isEmpty && viewModel.isLoading {
+            TabInitializingPlaceholder(
+                icon: "tag",
+                title: "Loading Extended Properties",
+                subtitle: "Fetching table and column metadata…"
+            )
+        } else if isEmpty, let error = viewModel.errorMessage {
+            TabContentUnavailableView("Could Not Load Extended Properties", systemImage: "exclamationmark.triangle") {
+                Text(error)
+            } actions: {
+                Button("Try Again") { Task { await viewModel.load() } }
+                    .buttonStyle(.bordered)
+            }
+        } else if isEmpty {
             emptyState
         } else {
+            if let error = viewModel.errorMessage {
+                StatusToastView(icon: "exclamationmark.triangle.fill", message: error, style: .error)
+                    .padding(SpacingTokens.md)
+            }
             ScrollView {
                 VStack(alignment: .leading, spacing: SpacingTokens.lg) {
                     if !viewModel.tableProperties.isEmpty {
@@ -75,19 +77,12 @@ struct ExtendedPropertiesContentView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: SpacingTokens.sm) {
-            Image(systemName: "tag")
-                .font(TypographyTokens.iconDisplay)
-                .foregroundStyle(ColorTokens.Text.tertiary)
-            Text("No Extended Properties")
-                .font(TypographyTokens.standard.weight(.medium))
-                .foregroundStyle(ColorTokens.Text.secondary)
+        TabContentUnavailableView("No Extended Properties", systemImage: "tag") {
             Text("Add metadata to this table and its columns.")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.tertiary)
+        } actions: {
+            Button("Add Property") { viewModel.beginAdd() }
+                .buttonStyle(.bordered)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(SpacingTokens.xl)
     }
 
     private var tablePropertiesGroup: some View {

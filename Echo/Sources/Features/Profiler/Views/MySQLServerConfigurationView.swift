@@ -3,8 +3,11 @@ import SwiftUI
 struct MySQLServerConfigurationView: View {
     @Bindable var viewModel: ServerPropertiesViewModel
 
+    @Environment(ProjectStore.self) private var projectStore
+    @State private var fileListFraction: CGFloat = 0.3
+
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
             TabSectionToolbar {
                 VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
                     Text("MySQL Configuration")
@@ -62,15 +65,13 @@ struct MySQLServerConfigurationView: View {
                 .buttonStyle(.bordered)
                 .disabled(!canSave)
             }
+            .tabSectionToolbarOnCanvas()
 
-            Divider()
-
-            HSplitView {
+            // TT1: the files and the editor are two cards.
+            CardSplitView(axis: .horizontal, fraction: $fileListFraction, minFraction: 0.2, maxFraction: 0.45) {
                 configFileList
-                    .frame(minWidth: 280, idealWidth: 320, maxWidth: 360)
-
+            } second: {
                 configEditor
-                    .frame(minWidth: 420)
             }
         }
     }

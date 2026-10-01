@@ -33,11 +33,15 @@ struct SyncAdapter: Sendable {
         fields["sslCertPath"] = try field(connection.sslCertPath, hlc: hlc)
         fields["sslKeyPath"] = try field(connection.sslKeyPath, hlc: hlc)
         fields["mssqlEncryptionMode"] = try field(connection.mssqlEncryptionMode, hlc: hlc)
+        fields["hostNameInCertificate"] = try field(connection.hostNameInCertificate, hlc: hlc)
         fields["readOnlyIntent"] = try field(connection.readOnlyIntent, hlc: hlc)
+        fields["allowLegacyTLS"] = try field(connection.allowLegacyTLS, hlc: hlc)
         fields["connectionTimeout"] = try field(connection.connectionTimeout, hlc: hlc)
         fields["queryTimeout"] = try field(connection.queryTimeout, hlc: hlc)
+        fields["queryTimeLimit"] = try field(connection.queryTimeLimit, hlc: hlc)
         fields["databaseType"] = try field(connection.databaseType, hlc: hlc)
         fields["colorHex"] = try field(connection.colorHex, hlc: hlc)
+        fields["explorerDockSections"] = try field(connection.explorerDockSections, hlc: hlc)
 
         // Excluded from sync (Phase 2): keychainIdentifier, logo, cachedStructure,
         // cachedStructureUpdatedAt, serverVersion — these are local-only.
@@ -79,11 +83,15 @@ struct SyncAdapter: Sendable {
         if let v: String? = try optionalValue(doc, "sslCertPath") { conn.sslCertPath = v }
         if let v: String? = try optionalValue(doc, "sslKeyPath") { conn.sslKeyPath = v }
         if let v: MSSQLEncryptionMode = try value(doc, "mssqlEncryptionMode") { conn.mssqlEncryptionMode = v }
+        if let v: String? = try optionalValue(doc, "hostNameInCertificate") { conn.hostNameInCertificate = v }
         if let v: Bool = try value(doc, "readOnlyIntent") { conn.readOnlyIntent = v }
+        if let v: Bool = try value(doc, "allowLegacyTLS") { conn.allowLegacyTLS = v }
         if let v: TimeInterval = try value(doc, "connectionTimeout") { conn.connectionTimeout = v }
         if let v: TimeInterval = try value(doc, "queryTimeout") { conn.queryTimeout = v }
+        if let v: TimeInterval? = try optionalValue(doc, "queryTimeLimit") { conn.queryTimeLimit = v }
         if let v: DatabaseType = try value(doc, "databaseType") { conn.databaseType = v }
         if let v: String = try value(doc, "colorHex") { conn.colorHex = v }
+        if let v: [String]? = try optionalValue(doc, "explorerDockSections") { conn.explorerDockSections = v }
 
         return conn
     }

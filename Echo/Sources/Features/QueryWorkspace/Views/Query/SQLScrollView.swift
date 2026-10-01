@@ -9,6 +9,15 @@ final class SQLScrollView: NSScrollView {
     private var displayOptions: SQLEditorDisplayOptions
     private let lineNumberRuler: LineNumberRulerView
     private var backgroundOverride: NSColor?
+    private lazy var footerOverlay = FooterScrollOverlay(scrollView: self, softEdges: false)
+    private let outlineStrip = EditorOutlineStripView()
+
+    /// Room for the footer floating over the editor while there are no results, the soft blur
+    /// of the text under it (round 9, FB1) and the scroll bars just above its pills (round 27).
+    /// Zero removes the room and the blur.
+    func setFooterOverlay(height: CGFloat) {
+        footerOverlay.update(footerHeight: height)
+    }
     var completionContext: SQLEditorCompletionContext? {
         didSet { sqlTextView.completionContext = completionContext }
     }
@@ -70,6 +79,10 @@ final class SQLScrollView: NSScrollView {
         }
 
         sqlTextView.setFrameSize(NSSize(width: 800, height: 360))
+        outlineStrip.textView = sqlTextView
+        sqlTextView.outlineStrip = outlineStrip
+        contentView.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(self, selector: #selector(clipViewDidScroll), name: NSView.boundsDidChangeNotification, object: contentView)
         lineNumberRuler.needsDisplay = true
         applyTheme()
         applyDisplay()
@@ -120,8 +133,32 @@ final class SQLScrollView: NSScrollView {
         lineNumberRuler.theme = theme
     }
 
+    @objc private func clipViewDidScroll(_ notification: Notification) {
+        if displayOptions.outlineEdgeEnabled { outlineStrip.refresh() }
+    }
+
+    /// QE5: the outline strip sits on the trailing edge, above the footer's room.
+    override func tile() {
+        super.tile()
+        guard outlineStrip.superview === self else { return }
+        let inset = LayoutTokens.EditorOutline.inset
+        let width = LayoutTokens.EditorOutline.width
+        outlineStrip.frame = NSRect(x: bounds.maxX - width - inset, y: inset,
+                                    width: width, height: max(bounds.height - inset * 2 - contentInsets.bottom, 0))
+    }
+
     private func applyDisplay() {
         sqlTextView.displayOptions = displayOptions
+
+        if displayOptions.outlineEdgeEnabled {
+            if outlineStrip.superview == nil { addSubview(outlineStrip) }
+            hasVerticalScroller = false
+            outlineStrip.refresh()
+        } else {
+            outlineStrip.removeFromSuperview()
+            hasVerticalScroller = true
+        }
+        tile()
 
         if displayOptions.wrapLines {
             hasHorizontalScroller = false
@@ -140,9 +177,11 @@ final class SQLScrollView: NSScrollView {
             hasVerticalRuler = true
             rulersVisible = true
             verticalRulerView = lineNumberRuler
-            lineNumberRuler.ruleThickness = SpacingTokens.xl
-            lineNumberRuler.setFrameSize(NSSize(width: SpacingTokens.xl, height: lineNumberRuler.frame.size.height))
-            lineNumberRuler.setBoundsSize(NSSize(width: SpacingTokens.xl, height: lineNumberRuler.bounds.size.height))
+            lineNumberRuler.gutterStyle = displayOptions.gutterStyle
+            lineNumberRuler.updateThickness()
+            let thickness = lineNumberRuler.ruleThickness
+            lineNumberRuler.setFrameSize(NSSize(width: thickness, height: lineNumberRuler.frame.size.height))
+            lineNumberRuler.setBoundsSize(NSSize(width: thickness, height: lineNumberRuler.bounds.size.height))
             lineNumberRuler.clientView = sqlTextView
             lineNumberRuler.theme = theme
             lineNumberRuler.sqlTextView = sqlTextView

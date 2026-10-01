@@ -48,8 +48,7 @@ struct SectionInfoButton: View {
             Text(info)
                 .font(TypographyTokens.detail)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(SpacingTokens.sm)
-                .frame(width: 250)
+                .floatingSurfaceContent(.small)
         }
     }
 }

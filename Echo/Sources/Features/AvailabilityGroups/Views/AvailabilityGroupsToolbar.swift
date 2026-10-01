@@ -5,18 +5,9 @@ struct AvailabilityGroupsToolbar: View {
     @Bindable var viewModel: AvailabilityGroupsViewModel
 
     var body: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            Image(systemName: "server.rack")
-                .foregroundStyle(ColorTokens.Text.secondary)
-
-            Text("Availability Groups")
-                .font(TypographyTokens.prominent.weight(.semibold))
-                .foregroundStyle(ColorTokens.Text.primary)
-
+        TabSectionToolbar {
             hadrBadge
-
-            Spacer()
-
+        } controls: {
             if let group = viewModel.selectedGroup {
                 Picker("Backup Preference", selection: Binding(
                     get: { group.automatedBackupPreference },
@@ -29,26 +20,28 @@ struct AvailabilityGroupsToolbar: View {
                     Text("Prefer Secondary").tag("SECONDARY")
                     Text("Any Replica").tag("NONE")
                 }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .controlSize(.small)
                 .frame(width: 180)
+                .help("Choose the automated backup preference")
 
                 Button {
                     viewModel.requestFailover(groupName: group.name)
                 } label: {
                     Label("Failover", systemImage: "arrow.triangle.2.circlepath")
                 }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .controlSize(.small)
                 .disabled(viewModel.isFailoverInProgress)
+                .help("Fail over the selected availability group")
             }
 
-            Button {
+            TabRefreshButton(isRefreshing: viewModel.loadingState == .loading) {
                 Task { await viewModel.refresh() }
-            } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
             }
-            .disabled(viewModel.loadingState == .loading)
         }
-        .padding(.horizontal, SpacingTokens.md)
-        .padding(.vertical, SpacingTokens.sm)
-        .background(ColorTokens.Background.secondary)
     }
 
     @ViewBuilder
@@ -64,6 +57,7 @@ struct AvailabilityGroupsToolbar: View {
                         .fill((enabled ? ColorTokens.Status.success : ColorTokens.Text.tertiary).opacity(0.15))
                 )
                 .foregroundStyle(enabled ? ColorTokens.Status.success : ColorTokens.Text.tertiary)
+                .help(enabled ? "Always On is enabled" : "Always On is disabled")
         }
     }
 }

@@ -1,0 +1,41 @@
+import Foundation
+import ServerLabClient
+import Testing
+@testable import Echo
+
+/// Echo's own sessions against fresh echo-server-lab servers.
+@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote), .server("mssql-2022-column-types"), .timeLimit(.minutes(10)))
+@MainActor
+struct LabSQLServerSessionTests {
+    @Test func sessionListsEveryColumnTypeIncludingCLRTypes() async throws {
+        let server = try #require(LabServer.current)
+        let session = try await MSSQLNIOFactory().connect(
+            host: server.host, port: server.port, database: "LabData", tls: true, trustServerCertificate: true,
+            authentication: DatabaseAuthenticationConfiguration(method: .sqlPassword, username: server.username, password: server.password),
+            connectTimeoutSeconds: 30
+        )
+        let columns = try await session.getTableSchema("AllTypes", schemaName: "dbo").map(\.name)
+        await session.close()
+        #expect(columns.count == 37)
+        for clrColumn in ["HierarchyIdCol", "GeometryCol", "GeographyCol"] {
+            #expect(columns.contains(clrColumn), "\(clrColumn) missing")
+        }
+    }
+}
+
+@Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote), .server("pg-17-column-types"), .timeLimit(.minutes(10)))
+@MainActor
+struct LabPostgresSessionTests {
+    @Test func sessionListsJsonAndEveryType() async throws {
+        let server = try #require(LabServer.current)
+        let session = try await PostgresNIOFactory().connect(
+            host: server.host, port: server.port, database: "labdata", tls: false,
+            authentication: DatabaseAuthenticationConfiguration(method: .sqlPassword, username: server.username, password: server.password),
+            connectTimeoutSeconds: 30
+        )
+        let columns = try await session.getTableSchema("all_types", schemaName: "public")
+        await session.close()
+        #expect(columns.count == 52)
+        #expect(columns.contains { $0.name == "jsonb_col" })
+    }
+}

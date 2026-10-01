@@ -21,6 +21,22 @@ struct MonospacedFontPicker: View {
         }.sorted()
     }
 
+    /// The fonts Echo ships (design board, 2026-09-30), in the order the picker lists them.
+    private var bundledFamilies: [String] {
+        let available = Set(monospacedFamilies)
+        return SQLEditorTheme.bundledFontFamilies.filter { available.contains($0) }
+    }
+
+    private var installedFamilies: [String] {
+        let bundled = Set(SQLEditorTheme.bundledFontFamilies)
+        return monospacedFamilies.filter { !bundled.contains($0) }
+    }
+
+    /// Saved values may be a family ("Geist Mono") or a PostScript name ("JetBrainsMono-Regular").
+    private func isKnown(_ value: String) -> Bool {
+        monospacedFamilies.contains(value)
+    }
+
     private var filteredFamilies: [String] {
         if searchText.isEmpty {
             return monospacedFamilies
@@ -33,8 +49,20 @@ struct MonospacedFontPicker: View {
     var body: some View {
         PropertyRow(title: "Font Family") {
             Picker("", selection: $selectedFamily) {
-                ForEach(monospacedFamilies, id: \.self) { family in
-                    Text(displayName(for: family)).tag(family)
+                Section("Echo") {
+                    // Round 28.1: SF Mono, the system's monospaced font, is the default.
+                    Text(displayName(for: SQLEditorTheme.systemFontIdentifier)).tag(SQLEditorTheme.systemFontIdentifier)
+                    ForEach(bundledFamilies, id: \.self) { family in
+                        Text(displayName(for: family)).tag(family)
+                    }
+                }
+                Section("Installed on This Mac") {
+                    ForEach(installedFamilies, id: \.self) { family in
+                        Text(displayName(for: family)).tag(family)
+                    }
+                }
+                if !isKnown(selectedFamily), !SQLEditorTheme.isSystemFontIdentifier(selectedFamily) {
+                    Text(displayName(for: SQLEditorTheme.defaultFontFamily)).tag(selectedFamily)
                 }
             }
             .labelsHidden()
@@ -45,8 +73,8 @@ struct MonospacedFontPicker: View {
 
     private func displayName(for family: String) -> String {
         if SQLEditorTheme.isSystemFontIdentifier(family) {
-            return "System Monospaced"
+            return "SF Mono"
         }
-        return family
+        return SQLEditorTheme.bundledFontDisplayNames[family] ?? family
     }
 }

@@ -2,6 +2,8 @@
 *.log
 *.md
 !README.md
+# Design language and decisions are shared with everyone working on Echo.
+!Design/*.md
 proxmox_mcp.log
 ci_log.txt
 
@@ -99,3 +101,6 @@ Tools/
 *.crash
 *.ips
 .ci-fixtures/adventureworks/
+
+# Automation test-server credentials (real config lives in ~/.echo-automation/)
+.echo-automation/

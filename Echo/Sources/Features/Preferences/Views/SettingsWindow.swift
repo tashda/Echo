@@ -12,6 +12,7 @@ struct SettingsView: View {
         case general
         case notifications
         case appearance
+        case editor
         case databases
         case sidebar
         case search
@@ -28,6 +29,7 @@ struct SettingsView: View {
             case .general: return "General"
             case .notifications: return "Notifications"
             case .appearance: return "Appearance"
+            case .editor: return "Editor"
             case .databases: return "Databases"
             case .sidebar: return "Sidebar"
             case .search: return "Search"
@@ -44,6 +46,7 @@ struct SettingsView: View {
             case .general: return "gear"
             case .notifications: return "bell.badge"
             case .appearance: return "paintbrush"
+            case .editor: return "character.cursor.ibeam"
             case .databases: return "externaldrive.connected.to.line.below"
             case .sidebar: return "sidebar.left"
             case .search: return "magnifyingglass"
@@ -180,6 +183,9 @@ struct SettingsView: View {
                 .environment(environmentState)
                 .environment(appState)
                 .environment(appearanceStore)
+
+        case .editor:
+            EditorSettingsView()
 
         case .databases:
             DatabasesSettingsView(selectedTab: $databaseTab)

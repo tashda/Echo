@@ -10,6 +10,7 @@ final class ResourceGovernorViewModel {
     var groups: [SQLServerWorkloadGroup] = []
 
     var isRefreshing = false
+    var hasLoaded = false
     var isToggling = false
     var errorMessage: String?
     var selectedPoolID: Int32?
@@ -26,19 +27,31 @@ final class ResourceGovernorViewModel {
     }
 
     func refresh() {
-        guard let client = rgClient else { return }
+        guard let client = rgClient else {
+            errorMessage = "Resource Governor is not available for this connection."
+            return
+        }
+        guard !isRefreshing else { return }
         isRefreshing = true
+        errorMessage = nil
+        let handle = activityEngine?.begin(
+            "Refreshing Resource Governor",
+            connectionSessionID: connectionSessionID
+        )
 
         Task {
             do {
                 configuration = try await client.fetchConfiguration()
                 pools = try await client.listResourcePools(includeStats: true)
                 groups = try await client.listWorkloadGroups(includeStats: true)
-                isRefreshing = false
+                hasLoaded = true
+                handle?.succeed()
             } catch {
                 logger.error("Failed to load Resource Governor data: \(error)")
-                isRefreshing = false
+                errorMessage = error.localizedDescription
+                handle?.fail(error.localizedDescription)
             }
+            isRefreshing = false
         }
     }
 

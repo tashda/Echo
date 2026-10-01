@@ -54,6 +54,13 @@ extension ConnectionSession {
             activeDatabaseName: databaseName,
             ownsSession: ownsSession
         )
+        queryState.runEndedHandler = { [weak tab, weak queryState] succeeded in
+            guard let tab, let queryState else { return }
+            AppDirector.shared.notificationEngine.noteQueryEnded(
+                tabTitle: tab.title, succeeded: succeeded, duration: queryState.lastExecutionTime,
+                context: NotificationContext(serverName: serverName, connectionID: tab.connection.id, tabID: tab.id)
+            )
+        }
         queryTabs.append(tab)
         activeQueryTabID = tab.id
         lastActivity = Date()

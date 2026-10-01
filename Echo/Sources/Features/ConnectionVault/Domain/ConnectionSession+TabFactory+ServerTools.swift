@@ -72,6 +72,7 @@ extension ConnectionSession {
             policyClient: session.policy,
             connectionSessionID: id
         )
+        viewModel.activityEngine = AppDirector.shared.activityEngine
         let tab = WorkspaceTab(
             connection: connection,
             session: session,

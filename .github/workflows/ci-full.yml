@@ -14,14 +14,14 @@ concurrency:
 jobs:
   build-and-test:
     name: "Step 1: Build & Test"
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
     - uses: actions/checkout@v4
 
     - name: Select Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '26'
+        xcode-version: '27'
 
     - name: Install PostgreSQL tools
       run: |
@@ -46,48 +46,112 @@ jobs:
         rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
         rm -rf ~/Library/Developer/Xcode/DerivedData/*/SourcePackages
 
+    - name: Access to echo-server-lab
+      uses: ./.github/actions/lab-repo-access
+      with:
+        deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
+
+    - name: Placeholder secrets for test builds
+      run: cp Echo/Configuration/Secrets.xcconfig.example Echo/Configuration/Secrets.xcconfig
+
     - name: Resolve packages
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
 
     - name: Run Unit Tests
-      run: |
-        find . -maxdepth 1 -name "TestResults-unit*" -exec rm -rf {} + 2>/dev/null || true
-        xcodebuild test -project Echo.xcodeproj \
-          -scheme Echo -testPlan UnitTests \
-          -destination 'platform=macOS' \
-          -resultBundlePath TestResults-unit \
-          -disable-concurrent-testing \
-          CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=NO ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
-
-    - name: Run SQLite Integration Tests
-      run: |
-        find . -maxdepth 1 -name "TestResults-sqlite*" -exec rm -rf {} + 2>/dev/null || true
-        xcodebuild test -project Echo.xcodeproj \
-          -scheme Echo -testPlan SQLiteIntegrationTests \
-          -destination 'platform=macOS' \
-          -resultBundlePath TestResults-sqlite \
-          CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=NO ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
+      run: .github/scripts/run-test-plan.sh UnitTests TestResults-unit
 
     - name: Upload Unit Test Results
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: test-results-unit
-        path: TestResults-unit.xcresult
+        path: |
+          TestResults-unit.xcresult
+          TestResults-unit.log
 
-    - name: Upload SQLite Test Results
+
+  # ── Database tests on echo-server-lab ───────────────────────────────────────
+  # Runs the LabTests plan (only the suites that use lab servers, one process, with time limits):
+  # each starts fresh servers from its recipe on testlab, reached over Tailscale, and removes them.
+
+  lab-tests:
+    name: "Step 2: Database tests on the lab"
+    runs-on: xcode-27
+    needs: [build-and-test]
+    timeout-minutes: 120
+    concurrency:
+      group: testlab
+      cancel-in-progress: false
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Select Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '27'
+
+    - name: Install PostgreSQL tools
+      run: |
+        brew list libpq >/dev/null 2>&1 || brew install libpq
+        brew list krb5 >/dev/null 2>&1 || brew install krb5
+        brew list zstd >/dev/null 2>&1 || brew install zstd
+        brew list lz4 >/dev/null 2>&1 || brew install lz4
+        brew list gettext >/dev/null 2>&1 || brew install gettext
+        LIBPQ_PREFIX="$(brew --prefix libpq)"
+        mkdir -p Tools/PostgresTools
+        cp "$LIBPQ_PREFIX/bin/pg_dump" Tools/PostgresTools/
+        cp "$LIBPQ_PREFIX/bin/pg_restore" Tools/PostgresTools/
+        SEARCH_DIRS="$LIBPQ_PREFIX/lib $(brew --prefix krb5)/lib $(brew --prefix zstd)/lib $(brew --prefix lz4)/lib $(brew --prefix gettext)/lib $(brew --prefix openssl@3)/lib /opt/homebrew/lib /usr/local/lib"
+        for lib in libpq.5.dylib libzstd.1.dylib liblz4.1.dylib libssl.3.dylib libcrypto.3.dylib libintl.8.dylib libgssapi_krb5.2.2.dylib libkrb5.3.3.dylib libk5crypto.3.1.dylib libkrb5support.1.1.dylib libcom_err.3.0.dylib; do
+          for dir in $SEARCH_DIRS; do
+            if [ -f "$dir/$lib" ]; then cp "$dir/$lib" Tools/PostgresTools/ && break; fi
+          done
+        done
+
+    - name: Set up lab tests
+      id: lab
+      uses: ./.github/actions/lab-tests-setup
+      with:
+        lab-deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
+        tailscale-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+        tailscale-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+        testlab-ssh-key: ${{ secrets.TESTLAB_SSH_KEY }}
+        testlab-known-hosts: ${{ secrets.TESTLAB_KNOWN_HOSTS }}
+
+    - name: Run the LabTests plan against the lab
+      env:
+        TEST_RUNNER_SERVERLAB_CLI: ${{ steps.lab.outputs.serverlab }}
+        TEST_RUNNER_SERVERLAB_PASSWORD: ${{ secrets.SERVERLAB_PASSWORD }}
+        TEST_RUNNER_SERVERLAB_OWNER_PREFIX: ci-${{ github.run_id }}-${{ github.run_attempt }}
+      run: .github/scripts/run-test-plan.sh LabTests TestResults-lab
+
+    - name: Remove servers this run left behind
+      if: always()
+      env:
+        SERVERLAB_PASSWORD: ${{ secrets.SERVERLAB_PASSWORD }}
+      run: |
+        "${{ steps.lab.outputs.serverlab }}" down --all --owner-prefix "ci-${{ github.run_id }}-${{ github.run_attempt }}" || true
+        "${{ steps.lab.outputs.serverlab }}" reap || true
+
+    # The results go up while the runner is still on the tailnet: leaving it (`tailscale down`) broke
+    # the runner's name lookups for minutes, and every upload after it failed. The Tailscale action
+    # logs out when the job ends.
+    - name: Upload Lab Test Results
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-results-sqlite
-        path: TestResults-sqlite.xcresult
+        name: test-results-lab
+        path: |
+          TestResults-lab.xcresult
+          TestResults-lab.log
+          diagnostics/
 
   # ── Production Build & Release ──────────────────────────────────────────────
 
   release:
-    name: "Step 2: Production Build & Release"
-    runs-on: macos-26
-    needs: [build-and-test]
+    name: "Step 3: Production Build & Release"
+    runs-on: xcode-27
+    needs: [build-and-test, lab-tests]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: write
@@ -97,7 +161,7 @@ jobs:
         fetch-depth: 0
     - uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '26'
+        xcode-version: '27'
     - name: Install PostgreSQL tools
       run: |
         brew list libpq >/dev/null 2>&1 || brew install libpq
@@ -136,6 +200,11 @@ jobs:
         # Add to search list so codesign finds it
         security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+    - name: Access to echo-server-lab
+      uses: ./.github/actions/lab-repo-access
+      with:
+        deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
 
     - name: Resolve packages
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo

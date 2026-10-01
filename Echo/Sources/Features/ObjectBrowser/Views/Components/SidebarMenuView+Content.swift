@@ -2,16 +2,13 @@ import SwiftUI
 
 extension SidebarMenu {
     @ViewBuilder
-    var contentView: some View {
-        switch selectedNavSection {
+    func contentView(for section: NavSection) -> some View {
+        switch section {
         case .folder:
-            ObjectBrowserSidebarView(selectedConnectionID: $selectedConnectionID)
-        case .experimentalFolder:
-            ObjectBrowserSidebarView(selectedConnectionID: $selectedConnectionID)
+            // Rendered separately by `SidebarMenu` so it stays alive while other tools show.
+            EmptyView()
         case .bookmark:
             BookmarksSidebarView()
-        case .search:
-            SearchSidebarView()
         case .clipboard:
             ClipboardHistoryView()
         case .snippets:

@@ -82,13 +82,14 @@ struct ProjectContextMenuButton: View {
                 Image(systemName: project.iconName ?? "folder.fill")
             }
         }
+        .labelStyle(.iconOnly)
     }
 
     // MARK: - Initials Icon
 
     private var initialsIcon: some View {
         let initials = avatarInitials
-        let img = renderInitialsAvatar(initials: initials, size: 28)
+        let img = renderInitialsAvatar(initials: initials, size: 22)
         return Image(nsImage: img)
     }
 
@@ -138,7 +139,7 @@ struct ProjectContextMenuButton: View {
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
             guard let source = NSImage(data: data) else { return }
-            avatarImage = circularAvatar(from: source, size: 28)
+            avatarImage = circularAvatar(from: source, size: 22)
         } catch {
             avatarImage = nil
         }

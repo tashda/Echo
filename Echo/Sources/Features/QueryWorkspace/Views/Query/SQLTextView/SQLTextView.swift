@@ -12,6 +12,8 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     var backgroundOverride: NSColor? { didSet { applyTheme() } }
     var completionContext: SQLEditorCompletionContext? {
         didSet {
+            // SwiftUI sets it on every update; rebuilding the catalog costs tens of milliseconds.
+            guard completionContext != oldValue else { return }
             let dbCount = completionContext?.structure?.databases.count ?? 0
             let nonEmptyDBs = completionContext?.structure?.databases.filter({ !$0.schemas.isEmpty }).count ?? 0
             crossDBDebug("[CROSSDB-CONTEXT-SET] databases=\(dbCount), withSchemas=\(nonEmptyDBs), selectedDB=\(completionContext?.selectedDatabase ?? "nil")")
@@ -29,9 +31,41 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     var completionWorkItem: DispatchWorkItem?
     var completionTask: Task<Void, Never>?
     var completionGeneration = 0
-    let validationScheduler = SQLValidationScheduler()
+    let validationScheduler = SQLValidationScheduler(debounceInterval: LayoutTokens.EditorGutter.liveCheckPause)
     var currentDiagnostics: [SQLDiagnostic] = []
     var validationOverlays: [NSView] = []
+    /// QE1: the script's statements (kept between edits) and the one at the caret.
+    var cachedStatements: [SQLStatementAtCaret.Match] = []
+    var focusedStatementRange: NSRange?
+    /// Round 21, SK2: the statement of the result selected in a script's statement list.
+    var resultStatementRange: NSRange? { didSet { if oldValue != resultStatementRange { updateResultStatement() } } }
+    /// QE5: the outline strip, when the setting is on.
+    weak var outlineStrip: EditorOutlineStripView?
+    /// ES3: the suggestion shown as ghost text after the caret, with the response it came from.
+    var ghostSuggestion: (suggestion: SQLAutoCompletionSuggestion, response: SQLCompletionResponse)?
+    var ghostTextLabel: NSTextField?
+    /// QE2: the note at the end of what last ran.
+    var runNotes: [QueryRunNote] = [] { didSet { if oldValue != runNotes { showRunNotes() } } }
+    var runNoteViews: [NSView] = []
+    /// Round 28.7: the range of the query running now (RR1); when it ends, H9 marks what ran.
+    var runningRange: NSRange? { didSet { if oldValue != runningRange { updateRunningMark(previous: oldValue) } } }
+    /// Round 21 EM5 / round 22 ED1: the last run's error, as a squiggle with a bubble on hover.
+    var errorMark: QueryErrorMark? { didSet { showErrorMark() } }
+    var errorMarkView: ErrorPillView?
+    /// Round 28.6 (T1): the line last edited, so leaving it runs the live check.
+    var lastEditedLine: Int?
+    /// Round 28.10: whether the empty prompt is drawn.
+    var showsEmptyPrompt = true
+    override var string: String { didSet { refreshEmptyPrompt() } }
+    /// Round 28.8: a pinch asks for the next zoom step; the magnification gathered so far.
+    var onZoomStep: ((Int) -> Void)?
+    var pinchAmount: CGFloat = 0
+    /// Rounds 28.12 and 28.13: the editor's own find and replace, its bar and its preview.
+    let find = EditorFind()
+    var findBarView: NSView?
+    var hasReplacePreview = false
+    /// Round 28.9: the Go to Line field while it is open.
+    var goToLineField: NSView?
     static let maxValidationOverlays = 10
     let completionEngine = SQLAutoCompletionEngine()
     let ruleEngine = SQLAutocompleteRuleEngine()
@@ -104,15 +138,14 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         let textStorage = NSTextStorage(); let layoutManager = SQLLayoutManager(); let textContainer = NSTextContainer(size: NSSize(width: 800, height: CGFloat.greatestFiniteMagnitude))
         layoutManager.textFont = theme.nsFont
         layoutManager.lineHeightMultiple = theme.lineHeightMultiplier
-        layoutManager.extraLineSpacing = theme.lineSpacing
         textStorage.addLayoutManager(layoutManager); layoutManager.addTextContainer(textContainer)
         super.init(frame: NSRect(x: 0, y: 0, width: 800, height: 360), textContainer: textContainer)
         completionEngine.updateContext(completionContext); completionController = SQLAutoCompletionController(textView: self)
         self.nextResponder = fallbackResponder
         isEditable = true; isSelectable = true; isRichText = false; isAutomaticQuoteSubstitutionEnabled = false; isAutomaticDashSubstitutionEnabled = false
         isAutomaticTextReplacementEnabled = false; isAutomaticSpellingCorrectionEnabled = false; isGrammarCheckingEnabled = false
-        usesAdaptiveColorMappingForDarkAppearance = false; textContainerInset = NSSize(width: SpacingTokens.xxs, height: SpacingTokens.xxs); allowsUndo = true
-        usesFindBar = true; isIncrementalSearchingEnabled = true
+        usesAdaptiveColorMappingForDarkAppearance = false; textContainerInset = NSSize(width: SpacingTokens.xxs, height: SpacingTokens.xs); allowsUndo = true
+        usesFindBar = false; isIncrementalSearchingEnabled = false
         maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude); minSize = NSSize(width: 0, height: 320)
         isHorizontallyResizable = false; isVerticallyResizable = true; autoresizingMask = [.width]; wantsLayer = true; layer?.isOpaque = true
         if super.undoManager == nil { self.setValue(fallbackResponder.undoManagerInstance, forKey: "undoManager") }
@@ -133,7 +166,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     private func configureDelegates() { delegate = self }
 
     func applyTheme() {
-        font = theme.nsFont; textColor = theme.tokenColors.plain.nsColor; insertionPointColor = theme.tokenColors.operatorSymbol.nsColor
+        font = theme.nsFont; textColor = theme.tokenColors.plain.nsColor; insertionPointColor = .textInsertionPointColor
         drawsBackground = true; backgroundColor = backgroundOverride ?? theme.surfaces.background.nsColor; typingAttributes[.ligature] = theme.ligaturesEnabled ? 1 : 0
         updateParagraphStyle(); lineNumberRuler?.theme = theme
         let range = selectedLineRange()
@@ -141,7 +174,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         else { lineNumberRuler?.highlightedLines = IndexSet() }
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero); scheduleHighlighting(after: 0)
         if displayOptions.highlightSelectedSymbol { scheduleSymbolHighlights(for: currentSelectionDescriptor(), immediate: true) }
-        completionController?.popover.appearance = effectiveAppearance
+        completionController?.panel.appearance = effectiveAppearance
     }
 
     override func viewDidMoveToWindow() {
@@ -151,21 +184,32 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     override func keyDown(with event: NSEvent) {
+        if acceptGhostTextIfNeeded(event) { return }
         if event.keyCode == 48 && !event.modifierFlags.contains(.shift) && expandSelectStarShorthandIfNeeded() { return }
-        if handleSnippetNavigation(event) || completionController?.handleKeyDown(event) == true || handleCommandShortcut(event) { return }
+        if handleSnippetNavigation(event) || completionController?.handleKeyDown(event) == true { return }
         super.keyDown(with: event)
     }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if handleCommandShortcut(event) { return true }
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if handleFindKey(event) { return true }
         if modifiers == .command, event.charactersIgnoringModifiers == "l" { showGoToLinePanel(); return true }
+        if modifiers == .command, event.charactersIgnoringModifiers == "/" { toggleLineComment(); return true }
         return super.performKeyEquivalent(with: event)
     }
 
+    override func complete(_ sender: Any?) {
+        _ = presentRequestedCompletions()
+    }
+
     override func insertText(_ string: Any, replacementRange: NSRange) {
+        let typed = (string as? String) ?? (string as? NSAttributedString)?.string ?? ""
+        // Round 28.9: brackets and quotes close themselves and are stepped over.
+        if ["(", ")", "'", "\""].contains(typed), handleTypedPair(typed, replacementRange: replacementRange) { return }
         suppressNextCompletionPopover = false; let trigger = determineCompletionTrigger(for: string); super.insertText(string, replacementRange: replacementRange)
-        handleCompletionTrigger(trigger, insertedText: (string as? String) ?? (string as? NSAttributedString)?.string ?? "")
+        let inserted = typed
+        handleCompletionTrigger(trigger, insertedText: inserted)
+        if inserted == ")" { flashMatchingBracket(closingAt: selectedRange().location - 1) }
     }
 
     override func deleteBackward(_ sender: Any?) {
@@ -226,13 +270,19 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
     override func didChangeText() {
         super.didChangeText(); sqlDelegate?.sqlTextView(self, didUpdateText: string); lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
+        refreshEmptyPrompt()
+        refreshFind()
+        let caret = selectedRange().location
+        if caret != NSNotFound { lastEditedLine = (string as NSString).lineNumber(at: caret) }
         notifySelectionChanged(); scheduleHighlighting()
         if !isApplyingCompletion { deactivateManualCompletionSuppression() }
         updateCompletionIndicator(); scheduleValidation()
+        refreshStatements()
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {
-        notifySelectionChanged(); let range = selectedLineRange()
+        (layoutManager as? SQLLayoutManager)?.selectedRanges = selectedRanges.map(\.rangeValue)
+        notifySelectionChanged(); updateStatementFocus(); updateErrorBubbles(); checkLineLeft(); let range = selectedLineRange()
         if range.location != NSNotFound { lineNumberRuler?.highlightedLines = IndexSet(integersIn: range.location..<(range.location + range.length)) }
         else { lineNumberRuler?.highlightedLines = IndexSet() }
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)

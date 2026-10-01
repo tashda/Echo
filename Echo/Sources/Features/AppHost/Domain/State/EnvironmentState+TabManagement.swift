@@ -114,6 +114,7 @@ extension EnvironmentState {
                 await gate.signal()
                 handle.succeed()
                 tab.upgradeToDedicatedSession(dedicatedSession)
+                watchConnectionLoss(for: tab, session: dedicatedSession)
                 tab.query?.isEstablishingConnection = false
             } catch {
                 await gate.signal()
@@ -152,6 +153,7 @@ extension EnvironmentState {
                 )
                 handle.succeed()
                 tab.upgradeToDedicatedSession(dedicatedSession)
+                watchConnectionLoss(for: tab, session: dedicatedSession)
                 tab.query?.isEstablishingConnection = false
             } catch {
                 handle.fail(error.localizedDescription)
@@ -343,11 +345,8 @@ extension EnvironmentState {
                     database: effectiveDatabase
                 )
 
-                let sessionFactory: @Sendable (String) async throws -> DatabaseSession = { [weak self] databaseName in
-                    guard let self else {
-                        throw DatabaseError.connectionFailed("The environment is no longer available.")
-                    }
-                    return try await self.makeDedicatedPostgresConsoleSession(
+                let sessionFactory: @Sendable (String) async throws -> DatabaseSession = { [self] databaseName in
+                    return try await makeDedicatedPostgresConsoleSession(
                         for: connection,
                         database: databaseName
                     )
@@ -434,9 +433,11 @@ extension EnvironmentState {
     func openStructureTab(for session: ConnectionSession, object: SchemaObjectInfo, focus: TableStructureSection? = nil, databaseName: String? = nil) {
         let tab = session.addStructureTab(for: object, focus: focus, databaseName: databaseName)
         registerTab(tab)
+        recordRecentTable(object, in: session, databaseName: databaseName)
     }
 
     func openDiagramTab(for session: ConnectionSession, object: SchemaObjectInfo, activeDatabaseName: String? = nil) {
+        recordRecentTable(object, in: session, databaseName: activeDatabaseName)
         let selectedProjectID = projectStore.selectedProject?.id
         let title = "\(object.schema).\(object.name)"
         let cacheKey = selectedProjectID.map {
@@ -489,9 +490,9 @@ extension EnvironmentState {
                     projectID: selectedProjectID ?? UUID(),
                     cacheKey: cacheKey,
                     databaseName: databaseName,
-                    progress: { [weak placeholder] message in
+                    progress: { [placeholder] message in
                         Task { @MainActor in
-                            placeholder?.statusMessage = message
+                            placeholder.statusMessage = message
                         }
                     },
                     isPrefetch: false

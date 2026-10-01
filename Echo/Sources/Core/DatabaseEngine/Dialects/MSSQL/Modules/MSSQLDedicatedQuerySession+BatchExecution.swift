@@ -51,7 +51,8 @@ extension MSSQLDedicatedQuerySession {
                                 dataType: column.typeName,
                                 isPrimaryKey: false,
                                 isNullable: (column.flags & 0x01) != 0,
-                                maxLength: column.length > 0 ? column.length : nil
+                                maxLength: column.length > 0 ? column.length : nil,
+                                encryption: ColumnInfo.Encryption(column.encryption)
                             )
                         }
                         currentRows = []

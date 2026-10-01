@@ -89,26 +89,10 @@ struct LoginEditorView: View {
                 Task { await viewModel.ensurePageLoaded(page, session: session) }
             }
         }
-        .overlay(alignment: .bottom) {
+        .safeAreaInset(edge: .bottom) {
             if let error = viewModel.errorMessage {
-                HStack(spacing: SpacingTokens.xs) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(ColorTokens.Status.warning)
-                    Text(error)
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                        .lineLimit(1)
-                }
-                .padding(SpacingTokens.sm)
-                .background(.regularMaterial, in: .capsule)
-                .padding(.bottom, SpacingTokens.sm)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-                .onAppear {
-                    Task {
-                        try? await Task.sleep(for: .seconds(5))
-                        withAnimation { viewModel.errorMessage = nil }
-                    }
-                }
+                editorErrorBanner(error)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.errorMessage)
@@ -118,6 +102,44 @@ struct LoginEditorView: View {
 
     private var showInspector: Bool {
         selectedPage == .userMapping && viewModel.selectedMappingDatabase != nil
+    }
+
+    // MARK: - Error Banner
+
+    @ViewBuilder
+    private func editorErrorBanner(_ message: String) -> some View {
+        HStack(alignment: .top, spacing: SpacingTokens.sm) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(ColorTokens.Status.error)
+                .imageScale(.large)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Couldn't save")
+                    .font(TypographyTokens.standard.weight(.semibold))
+                Text(message)
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            Button {
+                viewModel.errorMessage = nil
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .imageScale(.large)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+            }
+            .buttonStyle(.plain)
+            .help("Dismiss")
+        }
+        .padding(SpacingTokens.sm)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(ColorTokens.Status.error.opacity(0.25), lineWidth: 1)
+        )
+        .padding(.horizontal, SpacingTokens.md)
+        .padding(.bottom, SpacingTokens.sm)
     }
 
     // MARK: - Title
@@ -175,7 +197,7 @@ struct LoginEditorView: View {
     private var pageContent: some View {
         switch selectedPage {
         case .general:
-            LoginEditorGeneralPage(viewModel: viewModel)
+            LoginEditorGeneralPage(viewModel: viewModel, session: session)
         case .serverRoles:
             LoginEditorServerRolesPage(viewModel: viewModel)
         case .userMapping:

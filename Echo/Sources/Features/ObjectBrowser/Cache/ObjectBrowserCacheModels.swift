@@ -5,7 +5,7 @@ struct ObjectBrowserCacheKey: Hashable, Codable, Sendable {
 }
 
 struct ObjectBrowserCacheEntry: Codable, Sendable {
-    static let currentSchemaVersion = 1
+    static let currentSchemaVersion = 2
 
     let schemaVersion: Int
     let key: ObjectBrowserCacheKey

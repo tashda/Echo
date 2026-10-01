@@ -3,14 +3,25 @@ import SQLServerKit
 
 struct LoginEditorGeneralPage: View {
     @Bindable var viewModel: LoginEditorViewModel
+    let session: ConnectionSession
 
     var body: some View {
         Section("Authentication") {
             if !viewModel.isEditing {
                 PropertyRow(title: "Login Name") {
-                    TextField("", text: $viewModel.loginName, prompt: Text("login_name"))
-                        .textFieldStyle(.plain)
-                        .multilineTextAlignment(.trailing)
+                    HStack(spacing: SpacingTokens.xs) {
+                        TextField("", text: $viewModel.loginName, prompt: Text("login_name"))
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
+                        if viewModel.authType == .windows {
+                            BrowsePrincipalButton(
+                                connectionSessionID: session.connection.id,
+                                connection: session.connection
+                            ) { ntName in
+                                viewModel.loginName = ntName
+                            }
+                        }
+                    }
                 }
             }
 

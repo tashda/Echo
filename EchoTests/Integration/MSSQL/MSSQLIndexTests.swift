@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server index operations through Echo's DatabaseSession layer.
-final class MSSQLIndexTests: MSSQLDockerTestCase {
+final class MSSQLIndexTests: MSSQLLabTestCase {
 
     // MARK: - Create Index
 
@@ -15,7 +15,6 @@ final class MSSQLIndexTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
             SQLServerColumnDefinition(name: "email", definition: .standard(.init(dataType: .nvarchar(length: .length(200))))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.indexes.createIndex(name: indexName, table: tableName, columns: [IndexColumn(name: "name")])
 
@@ -31,7 +30,6 @@ final class MSSQLIndexTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "id", definition: .standard(.init(dataType: .int, isPrimaryKey: true))),
             SQLServerColumnDefinition(name: "email", definition: .standard(.init(dataType: .nvarchar(length: .length(200))))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.indexes.createUniqueIndex(name: indexName, table: tableName, columns: [IndexColumn(name: "email")])
 
@@ -49,7 +47,6 @@ final class MSSQLIndexTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "last_name", definition: .standard(.init(dataType: .nvarchar(length: .length(50))))),
             SQLServerColumnDefinition(name: "first_name", definition: .standard(.init(dataType: .nvarchar(length: .length(50))))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.indexes.createIndex(name: indexName, table: tableName, columns: [IndexColumn(name: "last_name"), IndexColumn(name: "first_name")])
 
@@ -67,10 +64,11 @@ final class MSSQLIndexTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "score", definition: .standard(.init(dataType: .int))),
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         // Sort order requires raw SQL — no typed API for ASC/DESC column ordering
-        try await execute("CREATE INDEX [\(indexName)] ON [\(tableName)](score DESC, name ASC)")
+        try await sqlserverClient.indexes.createIndex(name: indexName, table: tableName, columns: [
+            IndexColumn(name: "score", sortDirection: .descending), IndexColumn(name: "name"),
+        ])
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         let idx = details.indexes.first { $0.name.caseInsensitiveCompare(indexName) == .orderedSame }
@@ -87,7 +85,6 @@ final class MSSQLIndexTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
         ])
         try await sqlserverClient.indexes.createIndex(name: indexName, table: tableName, columns: [IndexColumn(name: "name")], schema: "dbo")
-        cleanupSQL("DROP TABLE dbo.[\(tableName)]")
 
         // Insert some data first
         for i in 1...50 {
@@ -115,7 +112,6 @@ final class MSSQLIndexTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
         ])
         try await sqlserverClient.indexes.createIndex(name: indexName, table: tableName, columns: [IndexColumn(name: "name")])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         try await sqlserverClient.indexes.dropIndex(name: indexName, table: tableName)
 
@@ -134,10 +130,10 @@ final class MSSQLIndexTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "status", definition: .standard(.init(dataType: .nvarchar(length: .length(20))))),
             SQLServerColumnDefinition(name: "name", definition: .standard(.init(dataType: .nvarchar(length: .length(100))))),
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         // Filtered index requires raw SQL — no typed API for WHERE clause on indexes
-        try await execute("CREATE INDEX [\(indexName)] ON [\(tableName)](name) WHERE status = 'active'")
+        try await sqlserverClient.indexes.createIndex(name: indexName, table: tableName, columns: [IndexColumn(name: "name")],
+                                                      filter: "status = 'active'")
 
         let details = try await session.getTableStructureDetails(schema: "dbo", table: tableName)
         let idx = details.indexes.first { $0.name.caseInsensitiveCompare(indexName) == .orderedSame }

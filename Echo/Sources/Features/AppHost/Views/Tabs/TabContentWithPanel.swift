@@ -1,6 +1,8 @@
 import SwiftUI
 
-/// Wraps any tab content with a universal bottom panel (status bar + toggleable content area).
+/// A tool tab's content with the universal bottom panel (TT1). The same cards as the query
+/// tab's editor and results: the panel grows out of the status bar and folds back into it, the
+/// gap resizes, and a double-click on it maximises the panel, leaving a one-line content card.
 struct TabContentWithPanel<MainContent: View, PanelContent: View>: View {
     @Bindable var panelState: BottomPanelState
     let statusBarConfiguration: BottomPanelStatusBarConfiguration
@@ -11,33 +13,16 @@ struct TabContentWithPanel<MainContent: View, PanelContent: View>: View {
     private let maxRatio: CGFloat = 0.85
 
     var body: some View {
-        VStack(spacing: 0) {
-            if panelState.isOpen {
-                NativeSplitView(
-                    isVertical: false,
-                    firstMinFraction: minRatio,
-                    secondMinFraction: 1 - maxRatio,
-                    fraction: Binding(
-                        get: { clampedRatio(panelState.splitRatio) },
-                        set: { panelState.splitRatio = clampedRatio($0) }
-                    )
-                ) {
-                    mainContent()
-                } second: {
-                    panelContent()
-                        .clipped()
-                }
-            } else {
-                mainContent()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-
+        ContentPanelCards(
+            panelState: panelState,
+            minContentFraction: minRatio,
+            maxContentFraction: maxRatio
+        ) {
+            mainContent()
+        } panel: {
+            panelContent()
+        } footer: {
             BottomPanelStatusBar(configuration: statusBarConfiguration)
         }
-        .background(ColorTokens.Background.primary)
-    }
-
-    private func clampedRatio(_ ratio: CGFloat) -> CGFloat {
-        min(max(ratio, minRatio), maxRatio)
     }
 }

@@ -1,4 +1,5 @@
 #if os(macOS)
+import EchoSense
 import SwiftUI
 
 struct JsonViewerSheet: View {
@@ -35,7 +36,8 @@ struct JsonViewerSheet: View {
                 Text("Tree").tag(JsonViewerTab.tree)
                 Text("Raw").tag(JsonViewerTab.raw)
             }
-            .pickerStyle(.segmented)
+            .tabSectionPickerStyle()
+            .controlSize(.small)
             .frame(maxWidth: 120)
             .labelsHidden()
 

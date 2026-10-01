@@ -40,16 +40,11 @@ struct ExtendedEventsToolbar: View {
     }
 
     private var refreshButton: some View {
-        Button {
+        TabRefreshButton(isRefreshing: viewModel.loadingState == .loading) {
             Task {
                 await viewModel.loadSessions()
             }
-        } label: {
-            Label("Refresh", systemImage: "arrow.clockwise")
-                .font(TypographyTokens.detail)
         }
-        .buttonStyle(.borderless)
-        .disabled(viewModel.loadingState == .loading)
     }
 
     private func exportEventsToFile() {

@@ -161,15 +161,16 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
                 interimServerVersion = serverVersion
             }
 
-            // Merge fetcher results into existing structure
-            var mergedDatabases = connectionSession.databaseStructure?.databases ?? []
-            for db in structure.databases {
-                if let index = mergedDatabases.firstIndex(where: { $0.name == db.name }) {
-                    mergedDatabases[index] = Self.mergeDatabaseInfo(partial: db, existing: mergedDatabases[index])
-                } else {
-                    mergedDatabases.append(db)
-                }
-            }
+            let isSQLServerInitialListRefresh = connectionSession.session is SQLServerSessionAdapter && selectedDatabase == nil
+            var mergedDatabases = isSQLServerInitialListRefresh
+                ? Self.mergeAuthoritativeDatabaseList(
+                    liveDatabases: structure.databases,
+                    existingDatabases: connectionSession.databaseStructure?.databases ?? []
+                )
+                : Self.mergeDatabases(
+                    partialDatabases: structure.databases,
+                    existingDatabases: connectionSession.databaseStructure?.databases ?? []
+                )
 
             // For non-MSSQL, list all databases and add empty entries for unlisted ones.
             // MSSQL already fetches the full database list with state in its fetcher.
@@ -356,11 +357,18 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
     static func mergeDatabaseInfo(partial: DatabaseInfo, existing: DatabaseInfo?) -> DatabaseInfo {
         guard let existing else {
             let sortedSchemas = partial.schemas.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-            return DatabaseInfo(name: partial.name, schemas: sortedSchemas, schemaCount: max(partial.schemaCount, sortedSchemas.count), stateDescription: partial.stateDescription)
+            return DatabaseInfo(
+                name: partial.name,
+                schemas: sortedSchemas,
+                schemaCount: max(partial.schemaCount, sortedSchemas.count),
+                stateDescription: partial.stateDescription,
+                hasAccess: partial.hasAccess
+            )
         }
         var mergedSchemas = mergeSchemas(partialSchemas: partial.schemas, existingSchemas: existing.schemas)
         mergedSchemas.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         let state = partial.stateDescription ?? existing.stateDescription
+        let hasAccess = partial.hasAccess ?? existing.hasAccess
         
         // Merge extensions
         var extensionMap = Dictionary(uniqueKeysWithValues: existing.extensions.map { ($0.id, $0) })
@@ -374,8 +382,36 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
             schemas: mergedSchemas,
             extensions: mergedExtensions,
             schemaCount: max(existing.schemaCount, partial.schemaCount, mergedSchemas.count),
-            stateDescription: state
+            stateDescription: state,
+            hasAccess: hasAccess
         )
+    }
+
+    static func mergeDatabases(partialDatabases: [DatabaseInfo], existingDatabases: [DatabaseInfo]) -> [DatabaseInfo] {
+        var mergedDatabases = existingDatabases
+        for database in partialDatabases {
+            if let index = mergedDatabases.firstIndex(where: { $0.name == database.name }) {
+                mergedDatabases[index] = mergeDatabaseInfo(partial: database, existing: mergedDatabases[index])
+            } else {
+                mergedDatabases.append(database)
+            }
+        }
+        return mergedDatabases
+    }
+
+    static func mergeAuthoritativeDatabaseList(liveDatabases: [DatabaseInfo], existingDatabases: [DatabaseInfo]) -> [DatabaseInfo] {
+        liveDatabases.map { liveDatabase in
+            let existing = existingDatabases.first { $0.name.caseInsensitiveCompare(liveDatabase.name) == .orderedSame }
+            let merged = mergeDatabaseInfo(partial: liveDatabase, existing: existing)
+            return DatabaseInfo(
+                name: liveDatabase.name,
+                schemas: merged.schemas,
+                extensions: merged.extensions,
+                schemaCount: merged.schemaCount,
+                stateDescription: merged.stateDescription,
+                hasAccess: merged.hasAccess
+            )
+        }
     }
 
     static func mergeSchemas(partialSchemas: [SchemaInfo], existingSchemas: [SchemaInfo]) -> [SchemaInfo] {

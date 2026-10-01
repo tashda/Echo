@@ -2,6 +2,8 @@ import Foundation
 
 public enum ResultGridValueKind: Sendable, Equatable {
     case text, numeric, boolean, temporal, binary, identifier, json, null
+    /// SQL Server Always Encrypted ciphertext Echo cannot decrypt (round 29).
+    case encrypted
 }
 
 public enum ResultGridValueClassifier {
@@ -27,12 +29,22 @@ public enum ResultGridValueClassifier {
     public static func kind(for column: ColumnInfo?, value: String?) -> ResultGridValueKind {
         guard value != nil else { return .null }
         guard let column else { return .text }
-        return kind(for: normalizedTypeTokens(for: column.dataType))
+        if column.encryption != nil { return .encrypted }
+        return kind(forType: column.dataType)
     }
 
     public static func kind(forDataType dataType: String?, value: String?) -> ResultGridValueKind {
         guard value != nil else { return .null }
         guard let dataType else { return .text }
+        return kind(forType: dataType)
+    }
+
+    /// Postgres columns carry `"NAME(OID)"`: arrays (`"INTEGER[](1007)"`) and bit strings
+    /// (`"BIT(1560)"`, which may be many bits long) are shown as text, not as numbers or booleans.
+    private static func kind(forType dataType: String) -> ResultGridValueKind {
+        if let oid = PostgresSpoolColumns.oid(for: dataType), dataType.contains("[]") || oid == 1560 || oid == 1562 {
+            return .text
+        }
         return kind(for: normalizedTypeTokens(for: dataType))
     }
 

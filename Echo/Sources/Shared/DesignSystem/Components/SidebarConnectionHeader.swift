@@ -2,26 +2,21 @@ import SwiftUI
 
 /// A sidebar connection header that matches SidebarRow's exact layout.
 ///
-/// Single-line row (connection name only) with a status dot overlaid on the
-/// server icon. Database type and version appear as a tooltip on hover.
-/// Visually identical in height and spacing to a depth-0 SidebarRow.
+/// Top-level connection row for Explorer. It keeps the native outline-view
+/// interaction model while giving each connected server a clear visual identity.
 struct SidebarConnectionHeader: View {
     let connectionName: String
     let subtitle: String
     let databaseType: DatabaseType
     let connectionColor: Color
     let isExpanded: Binding<Bool>
+    var isSelected: Bool = false
     let isColorful: Bool
     let isSecure: Bool
     let connectionState: ConnectionState
     let onAction: () -> Void
     var trailingAccessory: TrailingAccessory = .chevron
-    var iconScale: CGFloat = 1
-    var iconFrameScale: CGFloat = 1
-    var iconGlyphScale: CGFloat = 1
-    var leadingPaddingAdjustment: CGFloat = 0
     var statusPresentation: StatusPresentation = .overlayIcon
-    var labelFont: Font? = nil
 
     @Environment(\.sidebarDensity) private var density
 
@@ -38,16 +33,18 @@ struct SidebarConnectionHeader: View {
         case none
     }
 
+    @State private var isHovering = false
+
     private var statusInfo: (color: Color, label: String?) {
         switch connectionState {
         case .connected:
-            return (Color.green, "Online")
+            return (ColorTokens.Status.success, "Online")
         case .connecting, .testing:
-            return (Color.orange, "Connecting")
+            return (ColorTokens.Status.warning, "Connecting")
         case .disconnected:
-            return (Color.gray, "Disconnected")
+            return (ColorTokens.Text.tertiary, "Disconnected")
         case .error:
-            return (Color.red, "Failed")
+            return (ColorTokens.Status.error, "Failed")
         }
     }
 
@@ -55,61 +52,87 @@ struct SidebarConnectionHeader: View {
 
     private var densityVerticalPadding: CGFloat {
         switch density {
-        case .small: return SidebarRowConstants.rowVerticalPadding // 4pt
-        case .medium: return 4.5
-        case .large: return 5
-        }
-    }
-
-    private var densityIconFont: Font {
-        switch density {
-        case .small: return SidebarRowConstants.iconFont // 14pt
-        case .medium: return Font.system(size: 14.5, weight: .regular)
-        case .large: return Font.system(size: 15, weight: .regular)
-        }
-    }
-
-    private var densityIconFrameWidth: CGFloat {
-        switch density {
-        case .small: return SidebarRowConstants.iconFrameWidth // 18pt
-        case .medium: return 19
-        case .large: return 20
-        }
-    }
-
-    private var densityIconFrameHeight: CGFloat {
-        switch density {
-        case .small: return SidebarRowConstants.iconFrameHeight // 16pt
-        case .medium: return 17
-        case .large: return 18
+        case .compact: return 2
+        case .small: return 3
+        case .medium: return 4
+        case .large: return 6
         }
     }
 
     private var densityLabelFont: Font {
-        if let labelFont {
-            return labelFont
-        }
         switch density {
-        case .small: return SidebarRowConstants.labelFont // 11pt
-        case .medium: return Font.system(size: 12, weight: .regular)
-        case .large: return Font.system(size: 13, weight: .regular)
+        case .compact: return .system(size: 11, weight: .semibold)
+        case .small:   return .system(size: 12, weight: .semibold)
+        case .medium:  return .system(size: 14, weight: .semibold)
+        case .large:   return .system(size: 16, weight: .semibold)
+        }
+    }
+
+    private var densitySubtitleFont: Font {
+        switch density {
+        case .compact: return TypographyTokens.compact
+        case .small: return TypographyTokens.label
+        case .medium: return TypographyTokens.detail
+        case .large: return TypographyTokens.caption2
         }
     }
 
     private var densityStatusDotSize: CGFloat {
         switch density {
+        case .compact: return 5.5
         case .small: return 6
         case .medium: return 6.5
         case .large: return 7
         }
     }
 
-    // MARK: - Icon
+    private var densityIconTileSize: CGFloat {
+        switch density {
+        case .compact: return 16
+        case .small: return 17
+        case .medium: return 18
+        case .large: return 20
+        }
+    }
+
+    private var densityIconGlyphSize: CGFloat {
+        switch density {
+        case .compact: return 11
+        case .small: return 12
+        case .medium: return 13
+        case .large: return 15
+        }
+    }
+
+    private var densityRailHeight: CGFloat {
+        switch density {
+        case .compact: return 22
+        case .small: return 24
+        case .medium: return 28
+        case .large: return 32
+        }
+    }
+
+    private var resolvedConnectionColor: Color {
+        isColorful ? connectionColor : ColorTokens.Sidebar.symbol
+    }
 
     // MARK: - Highlight
 
+    @ViewBuilder
     private var highlightFill: some View {
-        Color.clear
+        if isSelected {
+            RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
+                .fill(resolvedConnectionColor.opacity(0.12))
+        } else if isHovering {
+            RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
+                .fill(ColorTokens.Sidebar.hoverFill)
+        } else if isExpanded.wrappedValue {
+            RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
+                .fill(ColorTokens.Surface.rest)
+        } else {
+            Color.clear
+        }
     }
 
     // MARK: - Body
@@ -117,7 +140,6 @@ struct SidebarConnectionHeader: View {
     var body: some View {
         Button(action: onAction) {
             HStack(alignment: .center, spacing: SidebarRowConstants.iconTextSpacing) {
-                // Disclosure chevron column — same fixed width as SidebarRow
                 ZStack(alignment: .center) {
                     Image(systemName: isExpanded.wrappedValue ? "chevron.down" : "chevron.right")
                         .font(SidebarRowConstants.chevronFont)
@@ -125,39 +147,24 @@ struct SidebarConnectionHeader: View {
                 }
                 .frame(width: SidebarRowConstants.chevronWidth)
 
+                connectionRail
+
                 serverIconView
 
-                // Connection name — single line, same font as SidebarRow
-                Text(connectionName)
-                    .font(densityLabelFont)
-                    .foregroundStyle(ColorTokens.Text.primary)
-                    .lineLimit(1)
-
-                if statusPresentation == .inlineDot {
-                    inlineStatusIndicator
-                }
-
-                if isSecure {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: density == .large ? 9 : 8))
-                        .foregroundStyle(ColorTokens.Text.quaternary)
-                }
-
-                if case .error = connectionState {
-                    Text("Error")
-                        .font(SidebarRowConstants.trailingFont)
-                        .foregroundStyle(ColorTokens.Status.error)
-                }
+                titleBlock
 
                 Spacer(minLength: SpacingTokens.xxxs)
 
+                statusAccessory
                 trailingAccessoryView
             }
-            .padding(.leading, SidebarRowConstants.rowLeadingPadding + leadingPaddingAdjustment)
+            .padding(.leading, SidebarRowConstants.rowLeadingPadding)
             .padding(.trailing, SidebarRowConstants.rowTrailingPadding)
-            .padding(.vertical, densityVerticalPadding)
+            .padding(.vertical, densityVerticalPadding + SpacingTokens.xxxs)
             .background(highlightFill)
+            .overlay(headerStroke)
             .contentShape(RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous))
+            .onHover { isHovering = $0 }
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -166,56 +173,104 @@ struct SidebarConnectionHeader: View {
         .focusable(false)
     }
 
-    @ViewBuilder
-    private var serverIconView: some View {
-        switch statusPresentation {
-        case .overlayIcon:
-            ZStack(alignment: .bottomTrailing) {
-                iconImage
-                statusDot
-                    .offset(x: 1.5, y: 1.5)
+    private var connectionRail: some View {
+        Capsule()
+            .fill(resolvedConnectionColor.opacity(isExpanded.wrappedValue || isSelected ? 0.75 : 0.35))
+            .frame(width: SpacingTokens.xxxs, height: densityRailHeight)
+            .opacity(isExpanded.wrappedValue || isSelected || isHovering ? 1 : 0.55)
+    }
+
+    private var titleBlock: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.micro) {
+            Text(connectionName)
+                .font(densityLabelFont)
+                .foregroundStyle(ColorTokens.Text.primary)
+                .lineLimit(1)
+
+            HStack(spacing: SpacingTokens.xxs) {
+                Text(subtitle)
+                    .font(densitySubtitleFont)
+                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .lineLimit(1)
+
+                if isSecure {
+                    Image(systemName: "lock.fill")
+                        .font(TypographyTokens.compact.weight(.semibold))
+                        .foregroundStyle(ColorTokens.Text.quaternary)
+                        .accessibilityLabel("Secure connection")
+                }
             }
-        case .inlineDot, .none:
-            iconImage
         }
     }
 
-    private var iconImage: some View {
+    private var serverIconView: some View {
         DatabaseTypeIcon(
             databaseType: databaseType,
-            tint: connectionColor,
+            tint: resolvedConnectionColor,
             isColorful: isColorful,
             presentation: .sidebar,
-            glyphScale: iconGlyphScale
+            glyphScale: 0.9
         )
-        .scaleEffect(iconScale)
-        .frame(
-            width: densityIconFrameWidth * iconFrameScale,
-            height: densityIconFrameHeight * iconFrameScale
-        )
+        .frame(width: densityIconTileSize, height: densityIconTileSize)
+        .overlay(alignment: .bottomTrailing) {
+            if case .overlayIcon = statusPresentation {
+                Circle()
+                    .fill(statusInfo.color)
+                    .frame(width: max(6, densityIconTileSize * 0.34), height: max(6, densityIconTileSize * 0.34))
+                    .overlay(
+                        Circle()
+                            .strokeBorder(ColorTokens.Background.primary, lineWidth: 1)
+                    )
+                    .offset(x: 1, y: 1)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var headerStroke: some View {
+        if isSelected {
+            RoundedRectangle(cornerRadius: SidebarRowConstants.hoverCornerRadius, style: .continuous)
+                .strokeBorder(resolvedConnectionColor.opacity(0.22), lineWidth: 0.75)
+        }
     }
 
     private var statusDot: some View {
         Circle()
             .fill(statusInfo.color)
             .frame(width: densityStatusDotSize, height: densityStatusDotSize)
-            .overlay(Circle().stroke(Color.white.opacity(0.4), lineWidth: 0.75))
+            .overlay(Circle().stroke(ColorTokens.Background.primary.opacity(0.7), lineWidth: 0.75))
     }
 
     @ViewBuilder
-    private var inlineStatusIndicator: some View {
+    private var statusAccessory: some View {
         switch connectionState {
-        case .connected, .disconnected, .error:
-            statusDot
-                .shadow(color: statusInfo.color.opacity(0.18), radius: 1.5, y: 0.5)
-                .padding(.leading, SpacingTokens.xxxs)
-                .padding(.trailing, SpacingTokens.xxxs)
+        case .connected:
+            if case .inlineDot = statusPresentation {
+                statusDot
+            }
+        case .disconnected:
+            if case .inlineDot = statusPresentation {
+                statusDot
+            }
+        case .error:
+            if case .inlineDot = statusPresentation {
+                statusDot
+            }
         case .connecting, .testing:
-            ProgressView()
-                .controlSize(.mini)
-                .padding(.leading, SpacingTokens.xxxs)
-                .padding(.trailing, SpacingTokens.xxxs)
+            if case .none = statusPresentation {
+                EmptyView()
+            } else {
+                ProgressView()
+                    .controlSize(.mini)
+            }
         }
+    }
+
+    private func statusLabel(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(SidebarRowConstants.trailingFont)
+            .foregroundStyle(color)
+            .lineLimit(1)
     }
 
     // MARK: - Trailing Accessory

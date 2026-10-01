@@ -169,11 +169,10 @@ final class LoginEditorViewModel {
     // MARK: - Pages
 
     var pages: [LoginEditorPage] {
-        if isEditing {
-            return [.general, .serverRoles, .userMapping, .securables]
-        } else {
-            return [.general, .serverRoles]
-        }
+        // Every page is available in both Create and Edit mode — matches
+        // SSMS, which lets you stage User Mappings and Securables before the
+        // login exists and applies them on save.
+        [.general, .serverRoles, .userMapping, .securables]
     }
 
     // MARK: - Lazy Page Loading

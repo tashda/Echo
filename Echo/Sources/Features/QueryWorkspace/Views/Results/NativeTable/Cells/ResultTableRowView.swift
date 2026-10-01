@@ -1,5 +1,6 @@
 #if os(macOS)
 import AppKit
+import SwiftUI
 
 final class ResultTableRowView: NSTableRowView {
     private var rowIndex: Int = 0
@@ -7,8 +8,17 @@ final class ResultTableRowView: NSTableRowView {
 
     struct SelectionRenderInfo {
         let rect: NSRect
+        /// Corner radius on the maxY side; nonzero only where the range's outline closes.
         let topCornerRadius: CGFloat
+        /// Corner radius on the minY side; nonzero only where the range's outline closes.
         let bottomCornerRadius: CGFloat
+        /// The active cell, which gets a stronger ring, when it's in this row.
+        var activeCellRect: NSRect? = nil
+    }
+
+    /// The pointer is over this row (plan R4): a faint rounded tint.
+    var isHovered = false {
+        didSet { if oldValue != isHovered { needsDisplay = true } }
     }
 
     private var highlightProvider: ((ResultTableRowView, Int) -> [SelectionRenderInfo])?
@@ -26,6 +36,7 @@ final class ResultTableRowView: NSTableRowView {
         super.prepareForReuse()
         colorProvider = nil
         highlightProvider = nil
+        isHovered = false
     }
 
     override func drawBackground(in dirtyRect: NSRect) {
@@ -37,19 +48,66 @@ final class ResultTableRowView: NSTableRowView {
             dirtyRect.fill()
         }
 
+        if isHovered {
+            let hover = bounds.insetBy(dx: ResultsGridMetrics.hoverHorizontalInset, dy: ResultsGridMetrics.hoverVerticalInset)
+            NSColor(ColorTokens.Sidebar.hoverFill).setFill()
+            NSBezierPath(roundedRect: hover, xRadius: ResultsGridMetrics.hoverCornerRadius, yRadius: ResultsGridMetrics.hoverCornerRadius).fill()
+        }
+
         if let infos = highlightProvider?(self, rowIndex) {
             let accent = AppearanceStore.shared.accentNSColor
             let fill = accent.withAlphaComponent(0.18)
             let stroke = accent.withAlphaComponent(0.65)
             for info in infos {
-                let path = makeRoundedPath(in: info.rect, topRadius: info.topCornerRadius, bottomRadius: info.bottomCornerRadius)
                 fill.setFill()
-                path.fill()
+                makeRoundedPath(in: info.rect, topRadius: info.topCornerRadius, bottomRadius: info.bottomCornerRadius).fill()
+                // One outline around the whole range (plan R3): each row strokes its sides, and
+                // only the rows where the range starts or ends close it, so rows show no seams.
                 stroke.setStroke()
-                path.lineWidth = 1
-                path.stroke()
+                let outline = makeOutlinePath(in: info.rect, topRadius: info.topCornerRadius, bottomRadius: info.bottomCornerRadius)
+                outline.lineWidth = 1
+                outline.stroke()
+                if let cell = info.activeCellRect {
+                    accent.setStroke()
+                    let ring = NSBezierPath(
+                        roundedRect: cell.insetBy(dx: ResultsGridMetrics.activeCellRingWidth / 2, dy: ResultsGridMetrics.activeCellRingWidth / 2),
+                        xRadius: ResultsGridMetrics.activeCellCornerRadius,
+                        yRadius: ResultsGridMetrics.activeCellCornerRadius
+                    )
+                    ring.lineWidth = ResultsGridMetrics.activeCellRingWidth
+                    ring.stroke()
+                }
             }
         }
+    }
+
+    /// The outline for one row of a selected range: both sides always, and the maxY or minY edge
+    /// (with its corners) only where the range starts or ends.
+    private func makeOutlinePath(in rect: NSRect, topRadius: CGFloat, bottomRadius: CGFloat) -> NSBezierPath {
+        let path = NSBezierPath()
+        let topR = min(topRadius, rect.width / 2, rect.height / 2)
+        let bottomR = min(bottomRadius, rect.width / 2, rect.height / 2)
+        let closesTop = topRadius > 0
+        let closesBottom = bottomRadius > 0
+
+        // Left side, bottom to top.
+        path.move(to: NSPoint(x: rect.minX, y: rect.minY + bottomR))
+        path.line(to: NSPoint(x: rect.minX, y: rect.maxY - topR))
+        if closesTop {
+            path.appendArc(withCenter: NSPoint(x: rect.minX + topR, y: rect.maxY - topR), radius: topR, startAngle: 180, endAngle: 90, clockwise: true)
+            path.line(to: NSPoint(x: rect.maxX - topR, y: rect.maxY))
+            path.appendArc(withCenter: NSPoint(x: rect.maxX - topR, y: rect.maxY - topR), radius: topR, startAngle: 90, endAngle: 0, clockwise: true)
+        } else {
+            path.move(to: NSPoint(x: rect.maxX, y: rect.maxY))
+        }
+        // Right side, top to bottom.
+        path.line(to: NSPoint(x: rect.maxX, y: rect.minY + bottomR))
+        if closesBottom {
+            path.appendArc(withCenter: NSPoint(x: rect.maxX - bottomR, y: rect.minY + bottomR), radius: bottomR, startAngle: 0, endAngle: 270, clockwise: true)
+            path.line(to: NSPoint(x: rect.minX + bottomR, y: rect.minY))
+            path.appendArc(withCenter: NSPoint(x: rect.minX + bottomR, y: rect.minY + bottomR), radius: bottomR, startAngle: 270, endAngle: 180, clockwise: true)
+        }
+        return path
     }
 
     override func drawSelection(in dirtyRect: NSRect) {}

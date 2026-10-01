@@ -1,74 +1,66 @@
 import SwiftUI
 import EchoSense
 
-/// Standalone view that properly observes `@Observable` state changes.
-/// See `RecentConnectionsMenuButton` for rationale.
-struct ConnectionsMenuButton: View {
+/// The connections menu: open sessions, saved connections by folder, Manage Connections and
+/// Quick Connect. Opened from the + at the bottom of the rail's server pill.
+struct ConnectionsMenuContent: View {
     @Environment(ProjectStore.self) private var projectStore
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(EnvironmentState.self) private var environmentState
 
     var body: some View {
-        Menu {
-            Section("Connections") {
-                let activeSessions = environmentState.sessionGroup.activeSessions
-                let connectedIDs = Set(activeSessions.map { $0.connection.id })
+        Section("Connections") {
+            let activeSessions = environmentState.sessionGroup.activeSessions
+            let connectedIDs = Set(activeSessions.map { $0.connection.id })
 
-                // Active Sessions
-                if !activeSessions.isEmpty {
-                    ForEach(activeSessions) { session in
-                        sessionButton(session)
+            // Active Sessions
+            if !activeSessions.isEmpty {
+                ForEach(activeSessions) { session in
+                    sessionButton(session)
+                }
+                Divider()
+            }
+
+            // Hierarchical Saved Connections
+            let projectID = projectStore.selectedProject?.id
+            let projectConnections = connectionStore.connections.filter { $0.projectID == projectID && !connectedIDs.contains($0.id) }
+            let projectFolders = connectionStore.folders.filter { $0.projectID == projectID && $0.kind == .connections }
+
+            let rootFolders = projectFolders.filter { $0.parentFolderID == nil }
+                .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+
+            ForEach(rootFolders) { folder in
+                ToolbarFolderMenu(
+                    folder: folder,
+                    allFolders: projectFolders,
+                    allConnections: projectConnections,
+                    onConnect: { conn in
+                        environmentState.connectToNewSession(to: conn)
                     }
-                    Divider()
-                }
-
-                // Hierarchical Saved Connections
-                let projectID = projectStore.selectedProject?.id
-                let projectConnections = connectionStore.connections.filter { $0.projectID == projectID && !connectedIDs.contains($0.id) }
-                let projectFolders = connectionStore.folders.filter { $0.projectID == projectID && $0.kind == .connections }
-
-                let rootFolders = projectFolders.filter { $0.parentFolderID == nil }
-                    .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
-
-                ForEach(rootFolders) { folder in
-                    ToolbarFolderMenu(
-                        folder: folder,
-                        allFolders: projectFolders,
-                        allConnections: projectConnections,
-                        onConnect: { conn in
-                            environmentState.connectToNewSession(to: conn)
-                        }
-                    )
-                }
-
-                let rootConnections = projectConnections.filter { $0.folderID == nil }
-                    .sorted { $0.connectionName.localizedCaseInsensitiveCompare($1.connectionName) == .orderedAscending }
-
-                ForEach(rootConnections) { connection in
-                    connectionButton(connection)
-                }
+                )
             }
 
-            Divider()
+            let rootConnections = projectConnections.filter { $0.folderID == nil }
+                .sorted { $0.connectionName.localizedCaseInsensitiveCompare($1.connectionName) == .orderedAscending }
 
-            Button {
-                ManageConnectionsWindowController.shared.present()
-            } label: {
-                Label("Manage Connections", systemImage: "gearshape")
+            ForEach(rootConnections) { connection in
+                connectionButton(connection)
             }
-
-            Button {
-                AppDirector.shared.appState.showSheet(.quickConnect)
-            } label: {
-                Label("Quick Connect", systemImage: "bolt.fill")
-            }
-        } label: {
-            Label("Connections", systemImage: "server.rack")
-                .labelStyle(.iconOnly)
         }
-        .menuStyle(.button)
-        .menuIndicator(.hidden)
-        .help("Connections")
+
+        Divider()
+
+        Button {
+            ManageConnectionsWindowController.shared.present()
+        } label: {
+            Label("Manage Connections", systemImage: "gearshape")
+        }
+
+        Button {
+            AppDirector.shared.appState.showSheet(.quickConnect)
+        } label: {
+            Label("Quick Connect", systemImage: "bolt.fill")
+        }
     }
 
     // MARK: - Menu Helpers

@@ -3,14 +3,13 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server database administration through Echo's DatabaseSession layer.
-final class MSSQLDatabaseAdminTests: MSSQLDockerTestCase {
+final class MSSQLDatabaseAdminTests: MSSQLLabTestCase {
 
     // MARK: - Create Database
 
     func testCreateDatabase() async throws {
         let dbName = uniqueTableName(prefix: "testdb")
-        try await execute("CREATE DATABASE [\(dbName)]")
-        cleanupSQL("DROP DATABASE [\(dbName)]")
+        try await sqlserverClient.admin.createDatabase(name: dbName)
 
         let databases = try await session.listDatabases()
         IntegrationTestHelpers.assertContains(databases, value: dbName)
@@ -20,9 +19,9 @@ final class MSSQLDatabaseAdminTests: MSSQLDockerTestCase {
 
     func testDropDatabase() async throws {
         let dbName = uniqueTableName(prefix: "dropdb")
-        try await execute("CREATE DATABASE [\(dbName)]")
+        try await sqlserverClient.admin.createDatabase(name: dbName)
 
-        try await execute("DROP DATABASE [\(dbName)]")
+        _ = try await sqlserverClient.admin.dropDatabase(name: dbName)
 
         let databases = try await session.listDatabases()
         let exists = databases.contains(where: { $0.caseInsensitiveCompare(dbName) == .orderedSame })
@@ -64,15 +63,12 @@ final class MSSQLDatabaseAdminTests: MSSQLDockerTestCase {
 
     func testAlterDatabaseRecoveryModel() async throws {
         let dbName = uniqueTableName(prefix: "recdb")
-        try await execute("CREATE DATABASE [\(dbName)]")
-        cleanupSQL("DROP DATABASE [\(dbName)]")
+        try await sqlserverClient.admin.createDatabase(name: dbName)
 
-        try await execute("ALTER DATABASE [\(dbName)] SET RECOVERY SIMPLE")
+        _ = try await sqlserverClient.admin.alterDatabaseOption(name: dbName, option: .recoveryModel(.simple))
 
-        let result = try await query("""
-            SELECT recovery_model_desc FROM sys.databases WHERE name = '\(dbName)'
-        """)
-        XCTAssertEqual(result.rows[0][0], "SIMPLE")
+        let health = try await sqlserverClient.maintenance.getDatabaseHealth(database: dbName)
+        XCTAssertEqual(health.recoveryModel, "SIMPLE")
     }
 
     // MARK: - Server Properties
@@ -107,13 +103,10 @@ final class MSSQLDatabaseAdminTests: MSSQLDockerTestCase {
 
     func testCreateDatabaseWithCollation() async throws {
         let dbName = uniqueTableName(prefix: "colldb")
-        try await execute("CREATE DATABASE [\(dbName)] COLLATE Latin1_General_CI_AS")
-        cleanupSQL("DROP DATABASE [\(dbName)]")
+        try await sqlserverClient.admin.createDatabase(name: dbName, options: .init(collation: "Latin1_General_CI_AS"))
 
-        let result = try await query("""
-            SELECT collation_name FROM sys.databases WHERE name = '\(dbName)'
-        """)
-        XCTAssertEqual(result.rows[0][0], "Latin1_General_CI_AS")
+        let health = try await sqlserverClient.maintenance.getDatabaseHealth(database: dbName)
+        XCTAssertEqual(health.collationName, "Latin1_General_CI_AS")
     }
 
     // MARK: - Activity Monitor

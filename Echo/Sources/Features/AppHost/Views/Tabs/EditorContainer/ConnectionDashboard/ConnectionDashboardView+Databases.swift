@@ -3,23 +3,17 @@ import SwiftUI
 struct ConnectionDashboardDatabases: View {
     @Bindable var session: ConnectionSession
     @Environment(EnvironmentState.self) private var environmentState
+    @Environment(\.echoMotion) private var motion
 
     @State private var showAll = false
+    @State private var filter = ""
 
     private var databases: [DatabaseInfo] {
         session.databaseStructure?.databases ?? []
     }
 
-    private let columns = [
-        GridItem(.flexible(), spacing: SpacingTokens.xs),
-        GridItem(.flexible(), spacing: SpacingTokens.xs),
-        GridItem(.flexible(), spacing: SpacingTokens.xs)
-    ]
-
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            DashboardSectionLabel(title: "New Query")
-
             switch session.structureLoadingState {
             case .loading:
                 loadingState
@@ -38,6 +32,10 @@ struct ConnectionDashboardDatabases: View {
     // MARK: - Grid
 
     private var visibleDatabases: [DatabaseInfo] {
+        let query = filter.trimmingCharacters(in: .whitespaces)
+        if !query.isEmpty {
+            return databases.filter { $0.name.localizedCaseInsensitiveContains(query) }
+        }
         if showAll || databases.count <= 9 {
             return databases
         }
@@ -46,9 +44,17 @@ struct ConnectionDashboardDatabases: View {
 
     @ViewBuilder
     private var databaseGrid: some View {
-        LazyVGrid(columns: columns, spacing: SpacingTokens.xs) {
+        DashboardCard {
+            TextField("Filter \(databases.count) databases", text: $filter)
+                .textFieldStyle(.plain)
+                .font(TypographyTokens.standard)
+                .padding(.horizontal, SpacingTokens.xs)
+                .frame(height: LayoutTokens.FloatingSurface.rowHeight)
+                .background(ColorTokens.Sidebar.hoverFill, in: RoundedRectangle(cornerRadius: LayoutTokens.FloatingSurface.rowCornerRadius, style: .continuous))
+                .padding(.bottom, SpacingTokens.xxs)
+
             ForEach(visibleDatabases) { db in
-                DashboardDatabaseCard(
+                DashboardDatabaseRow(
                     name: db.name,
                     stateDescription: db.stateDescription,
                     isSelected: db.name == session.sidebarFocusedDatabase
@@ -58,9 +64,9 @@ struct ConnectionDashboardDatabases: View {
             }
         }
 
-        if databases.count > 9, !showAll {
+        if databases.count > 9, !showAll, filter.isEmpty {
             Button {
-                withAnimation(.easeInOut(duration: 0.2)) { showAll = true }
+                withAnimation(motion.standard) { showAll = true }
             } label: {
                 Text("Show all \(databases.count) databases")
                     .font(TypographyTokens.detail.weight(.medium))
@@ -99,26 +105,26 @@ struct ConnectionDashboardDatabases: View {
     }
 }
 
-// MARK: - Database Card
+// MARK: - Database Row
 
-struct DashboardDatabaseCard: View {
+/// A database on the page's "New query in" card: a click opens a query tab in it.
+struct DashboardDatabaseRow: View {
     let name: String
     let stateDescription: String?
     let isSelected: Bool
     let action: () -> Void
 
-    @State private var isHovered = false
-
     var body: some View {
         Button(action: action) {
-            VStack(spacing: SpacingTokens.xxs) {
+            DashboardCardRow(isSelected: isSelected) {
                 Image(systemName: "cylinder")
-                    .font(TypographyTokens.prominent)
-                    .foregroundStyle(isSelected ? ColorTokens.accent : ColorTokens.Text.secondary)
+                    .font(TypographyTokens.detail)
+                    .foregroundStyle(ColorTokens.accent)
+                    .frame(width: LayoutTokens.Welcome.monogramWidth)
 
                 Text(name)
-                    .font(TypographyTokens.detail.weight(.medium))
-                    .foregroundStyle(ColorTokens.Text.secondary)
+                    .font(TypographyTokens.standard)
+                    .foregroundStyle(ColorTokens.Text.primary)
                     .lineLimit(1)
                     .truncationMode(.middle)
 
@@ -127,28 +133,15 @@ struct DashboardDatabaseCard: View {
                         .font(TypographyTokens.compact)
                         .foregroundStyle(ColorTokens.Status.warning)
                 }
+
+                Spacer(minLength: SpacingTokens.xs)
+
+                Image(systemName: "chevron.right")
+                    .font(TypographyTokens.compact.weight(.semibold))
+                    .foregroundStyle(ColorTokens.Text.tertiary)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, SpacingTokens.sm)
-            .padding(.horizontal, SpacingTokens.xxs)
-            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(cardFill)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(isSelected ? ColorTokens.Surface.selectedBorder : .clear, lineWidth: 1)
-        )
-    }
-
-    private var cardFill: Color {
-        if isSelected {
-            return ColorTokens.Surface.selected
-        }
-        return isHovered ? ColorTokens.Surface.hover : ColorTokens.Surface.rest
+        .help("New query in \(name)")
     }
 }

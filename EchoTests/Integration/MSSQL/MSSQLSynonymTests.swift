@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server synonym operations through Echo's DatabaseSession layer.
-final class MSSQLSynonymTests: MSSQLDockerTestCase {
+final class MSSQLSynonymTests: MSSQLLabTestCase {
 
     // MARK: - Synonym in Schema Info
 
@@ -11,12 +11,8 @@ final class MSSQLSynonymTests: MSSQLDockerTestCase {
         let tableName = uniqueTableName(prefix: "syn_target")
         let synName = uniqueTableName(prefix: "syn_test")
 
-        try await execute("CREATE TABLE dbo.[\(tableName)] (id INT)")
-        try await execute("CREATE SYNONYM dbo.[\(synName)] FOR dbo.[\(tableName)]")
-        cleanupSQL(
-            "DROP SYNONYM dbo.[\(synName)]",
-            "DROP TABLE dbo.[\(tableName)]"
-        )
+        try await createTable(tableName, [.column("id", .int)])
+        try await sqlserverClient.admin.createSynonym(name: synName, target: SQLServerObjectName(object: tableName))
 
         guard let metaSession = session as? DatabaseMetadataSession else {
             throw XCTSkip("Session does not support DatabaseMetadataSession")
@@ -35,12 +31,8 @@ final class MSSQLSynonymTests: MSSQLDockerTestCase {
         let tableName = uniqueTableName(prefix: "syn_target")
         let synName = uniqueTableName(prefix: "syn_type")
 
-        try await execute("CREATE TABLE dbo.[\(tableName)] (id INT, name NVARCHAR(100))")
-        try await execute("CREATE SYNONYM dbo.[\(synName)] FOR dbo.[\(tableName)]")
-        cleanupSQL(
-            "DROP SYNONYM dbo.[\(synName)]",
-            "DROP TABLE dbo.[\(tableName)]"
-        )
+        try await createTable(tableName, [.column("id", .int), .column("name", .nvarchar(length: .length(100)))])
+        try await sqlserverClient.admin.createSynonym(name: synName, target: SQLServerObjectName(object: tableName))
 
         guard let metaSession = session as? DatabaseMetadataSession else {
             throw XCTSkip("Session does not support DatabaseMetadataSession")
@@ -61,13 +53,9 @@ final class MSSQLSynonymTests: MSSQLDockerTestCase {
         let tableName = uniqueTableName(prefix: "syn_target")
         let synName = uniqueTableName(prefix: "syn_query")
 
-        try await execute("CREATE TABLE dbo.[\(tableName)] (id INT, name NVARCHAR(100))")
-        try await execute("INSERT INTO dbo.[\(tableName)] VALUES (1, N'Alice'), (2, N'Bob')")
-        try await execute("CREATE SYNONYM dbo.[\(synName)] FOR dbo.[\(tableName)]")
-        cleanupSQL(
-            "DROP SYNONYM dbo.[\(synName)]",
-            "DROP TABLE dbo.[\(tableName)]"
-        )
+        try await createTable(tableName, [.column("id", .int), .column("name", .nvarchar(length: .length(100)))])
+        try await sqlserverClient.admin.insertRows(into: tableName, columns: ["id", "name"], values: [[.int(1), .nString("Alice")], [.int(2), .nString("Bob")]])
+        try await sqlserverClient.admin.createSynonym(name: synName, target: SQLServerObjectName(object: tableName))
 
         let result = try await query("SELECT * FROM dbo.[\(synName)] ORDER BY id")
         IntegrationTestHelpers.assertRowCount(result, expected: 2)
@@ -81,12 +69,8 @@ final class MSSQLSynonymTests: MSSQLDockerTestCase {
         let tableName = uniqueTableName(prefix: "syn_target")
         let synName = uniqueTableName(prefix: "syn_insert")
 
-        try await execute("CREATE TABLE dbo.[\(tableName)] (id INT, value NVARCHAR(50))")
-        try await execute("CREATE SYNONYM dbo.[\(synName)] FOR dbo.[\(tableName)]")
-        cleanupSQL(
-            "DROP SYNONYM dbo.[\(synName)]",
-            "DROP TABLE dbo.[\(tableName)]"
-        )
+        try await createTable(tableName, [.column("id", .int), .column("value", .nvarchar(length: .length(50)))])
+        try await sqlserverClient.admin.createSynonym(name: synName, target: SQLServerObjectName(object: tableName))
 
         try await execute("INSERT INTO dbo.[\(synName)] VALUES (1, N'test_value')")
 
@@ -102,15 +86,10 @@ final class MSSQLSynonymTests: MSSQLDockerTestCase {
         let viewName = uniqueTableName(prefix: "syn_view")
         let synName = uniqueTableName(prefix: "syn_vref")
 
-        try await execute("CREATE TABLE dbo.[\(tableName)] (id INT, active BIT)")
-        try await execute("INSERT INTO dbo.[\(tableName)] VALUES (1, 1), (2, 0), (3, 1)")
-        try await execute("CREATE VIEW dbo.[\(viewName)] AS SELECT id FROM dbo.[\(tableName)] WHERE active = 1")
-        try await execute("CREATE SYNONYM dbo.[\(synName)] FOR dbo.[\(viewName)]")
-        cleanupSQL(
-            "DROP SYNONYM dbo.[\(synName)]",
-            "DROP VIEW dbo.[\(viewName)]",
-            "DROP TABLE dbo.[\(tableName)]"
-        )
+        try await createTable(tableName, [.column("id", .int), .column("active", .bit)])
+        try await sqlserverClient.admin.insertRows(into: tableName, columns: ["id", "active"], values: [[.int(1), .bool(true)], [.int(2), .bool(false)], [.int(3), .bool(true)]])
+        try await sqlserverClient.views.createView(name: viewName, query: "SELECT id FROM dbo.[\(tableName)] WHERE active = 1")
+        try await sqlserverClient.admin.createSynonym(name: synName, target: SQLServerObjectName(object: viewName))
 
         let result = try await query("SELECT * FROM dbo.[\(synName)] ORDER BY id")
         IntegrationTestHelpers.assertRowCount(result, expected: 2)
@@ -122,19 +101,9 @@ final class MSSQLSynonymTests: MSSQLDockerTestCase {
         let procName = uniqueTableName(prefix: "syn_proc")
         let synName = uniqueTableName(prefix: "syn_pref")
 
-        try await execute("""
-            CREATE PROCEDURE dbo.[\(procName)]
-                @x INT
-            AS
-            BEGIN
-                SELECT @x * 2 AS result;
-            END
-        """)
-        try await execute("CREATE SYNONYM dbo.[\(synName)] FOR dbo.[\(procName)]")
-        cleanupSQL(
-            "DROP SYNONYM dbo.[\(synName)]",
-            "DROP PROCEDURE dbo.[\(procName)]"
-        )
+        try await sqlserverClient.routines.createStoredProcedure(
+            name: procName, parameters: [ProcedureParameter(name: "x", dataType: .int)], body: "SELECT @x * 2 AS result;")
+        try await sqlserverClient.admin.createSynonym(name: synName, target: SQLServerObjectName(object: procName))
 
         let result = try await query("EXEC dbo.[\(synName)] @x = 5")
         IntegrationTestHelpers.assertRowCount(result, expected: 1)
@@ -147,9 +116,8 @@ final class MSSQLSynonymTests: MSSQLDockerTestCase {
         let tableName = uniqueTableName(prefix: "syn_target")
         let synName = uniqueTableName(prefix: "syn_drop")
 
-        try await execute("CREATE TABLE dbo.[\(tableName)] (id INT)")
-        try await execute("CREATE SYNONYM dbo.[\(synName)] FOR dbo.[\(tableName)]")
-        cleanupSQL("DROP TABLE dbo.[\(tableName)]")
+        try await createTable(tableName, [.column("id", .int)])
+        try await sqlserverClient.admin.createSynonym(name: synName, target: SQLServerObjectName(object: tableName))
 
         // Verify synonym exists
         guard let metaSession = session as? DatabaseMetadataSession else {
@@ -163,7 +131,7 @@ final class MSSQLSynonymTests: MSSQLDockerTestCase {
         XCTAssertTrue(existsBefore, "Synonym should exist before drop")
 
         // Drop and verify removal
-        try await execute("DROP SYNONYM dbo.[\(synName)]")
+        try await sqlserverClient.admin.dropSynonym(name: synName)
 
         let schemaAfter = try await metaSession.loadSchemaInfo("dbo", progress: nil)
         let existsAfter = schemaAfter.objects.contains {
@@ -179,14 +147,9 @@ final class MSSQLSynonymTests: MSSQLDockerTestCase {
         let tableName = uniqueTableName(prefix: "syn_target")
         let synName = uniqueTableName(prefix: "syn_custom")
 
-        try await execute("CREATE SCHEMA [\(schemaName)]")
-        try await execute("CREATE TABLE [\(schemaName)].[\(tableName)] (id INT)")
-        try await execute("CREATE SYNONYM [\(schemaName)].[\(synName)] FOR [\(schemaName)].[\(tableName)]")
-        cleanupSQL(
-            "DROP SYNONYM [\(schemaName)].[\(synName)]",
-            "DROP TABLE [\(schemaName)].[\(tableName)]",
-            "DROP SCHEMA [\(schemaName)]"
-        )
+        try await sqlserverClient.security.createSchema(name: schemaName)
+        try await createTable(tableName, schema: schemaName, [.column("id", .int)])
+        try await sqlserverClient.admin.createSynonym(name: synName, schema: schemaName, target: SQLServerObjectName(schema: schemaName, object: tableName))
 
         guard let metaSession = session as? DatabaseMetadataSession else {
             throw XCTSkip("Session does not support DatabaseMetadataSession")

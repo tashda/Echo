@@ -7,19 +7,13 @@ import SQLServerKit
 /// Transaction tests require dedicated connections because transactions are session-local state.
 /// The pooled `SQLServerClient` dispatches each `withConnection` call to potentially different
 /// connections, so BEGIN/COMMIT/ROLLBACK cannot be reliably paired.
-final class MSSQLTransactionTests: MSSQLDedicatedDockerTestCase {
+final class MSSQLTransactionTests: MSSQLDedicatedLabTestCase {
 
     // MARK: - Basic Transactions
 
     func testBeginCommitTransaction() async throws {
         let tableName = uniqueTableName()
-        try await dedicatedExecute("""
-            CREATE TABLE [\(tableName)] (
-                id INT PRIMARY KEY,
-                name NVARCHAR(100)
-            )
-        """)
-        cleanupSQL("DROP TABLE [\(tableName)]")
+        try await createTable(tableName, [.column("id", .int, primaryKey: true), .column("name", .nvarchar(length: .length(100)))])
 
         try await dedicatedExecute("BEGIN TRANSACTION")
         try await dedicatedExecute("INSERT INTO [\(tableName)] (id, name) VALUES (1, N'Alice')")
@@ -32,13 +26,7 @@ final class MSSQLTransactionTests: MSSQLDedicatedDockerTestCase {
 
     func testBeginRollbackTransaction() async throws {
         let tableName = uniqueTableName()
-        try await dedicatedExecute("""
-            CREATE TABLE [\(tableName)] (
-                id INT PRIMARY KEY,
-                name NVARCHAR(100)
-            )
-        """)
-        cleanupSQL("DROP TABLE [\(tableName)]")
+        try await createTable(tableName, [.column("id", .int, primaryKey: true), .column("name", .nvarchar(length: .length(100)))])
 
         try await dedicatedExecute("INSERT INTO [\(tableName)] (id, name) VALUES (1, N'Before')")
         try await dedicatedExecute("BEGIN TRANSACTION")
@@ -53,13 +41,7 @@ final class MSSQLTransactionTests: MSSQLDedicatedDockerTestCase {
 
     func testSavepoint() async throws {
         let tableName = uniqueTableName()
-        try await dedicatedExecute("""
-            CREATE TABLE [\(tableName)] (
-                id INT PRIMARY KEY,
-                name NVARCHAR(100)
-            )
-        """)
-        cleanupSQL("DROP TABLE [\(tableName)]")
+        try await createTable(tableName, [.column("id", .int, primaryKey: true), .column("name", .nvarchar(length: .length(100)))])
 
         try await dedicatedExecute("BEGIN TRANSACTION")
         try await dedicatedExecute("INSERT INTO [\(tableName)] (id, name) VALUES (1, N'First')")
@@ -88,12 +70,7 @@ final class MSSQLTransactionTests: MSSQLDedicatedDockerTestCase {
 
     func testSerializableIsolation() async throws {
         let tableName = uniqueTableName()
-        try await dedicatedExecute("""
-            CREATE TABLE [\(tableName)] (
-                id INT PRIMARY KEY
-            )
-        """)
-        cleanupSQL("DROP TABLE [\(tableName)]")
+        try await createTable(tableName, [.column("id", .int, primaryKey: true)])
 
         try await dedicatedExecute("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE")
         try await dedicatedExecute("BEGIN TRANSACTION")
@@ -110,13 +87,7 @@ final class MSSQLTransactionTests: MSSQLDedicatedDockerTestCase {
 
     func testTransactionRollsBackOnError() async throws {
         let tableName = uniqueTableName()
-        try await dedicatedExecute("""
-            CREATE TABLE [\(tableName)] (
-                id INT PRIMARY KEY,
-                name NVARCHAR(100)
-            )
-        """)
-        cleanupSQL("DROP TABLE [\(tableName)]")
+        try await createTable(tableName, [.column("id", .int, primaryKey: true), .column("name", .nvarchar(length: .length(100)))])
 
         try await dedicatedExecute("INSERT INTO [\(tableName)] (id, name) VALUES (1, N'Existing')")
 

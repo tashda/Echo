@@ -7,6 +7,7 @@ struct AvailabilityGroupsView: View {
     var body: some View {
         VStack(spacing: 0) {
             AvailabilityGroupsToolbar(viewModel: viewModel)
+            Divider()
 
             if viewModel.loadingState == .loading && viewModel.groups.isEmpty {
                 loadingPlaceholder
@@ -20,6 +21,7 @@ struct AvailabilityGroupsView: View {
             }
         }
         .background(ColorTokens.Background.primary)
+        .tabContentFrame()
         .task {
             await viewModel.loadAll()
         }
@@ -45,59 +47,31 @@ struct AvailabilityGroupsView: View {
         TabInitializingPlaceholder(
             icon: "server.rack",
             title: "Loading Availability Groups",
-            subtitle: "Fetching availability group data..."
+            subtitle: "Fetching availability group data…"
         )
     }
 
     private func errorPlaceholder(_ message: String) -> some View {
-        VStack(spacing: SpacingTokens.md) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.title2)
-                .foregroundStyle(ColorTokens.Status.warning)
-            Text("Could not load Availability Groups")
-                .font(TypographyTokens.standard.weight(.semibold))
-                .foregroundStyle(ColorTokens.Text.primary)
+        TabContentUnavailableView("Could Not Load Availability Groups", systemImage: "exclamationmark.triangle") {
             Text(message)
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, SpacingTokens.xl)
+        } actions: {
+            Button("Try Again") { Task { await viewModel.refresh() } }
+                .buttonStyle(.bordered)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var hadrDisabledPlaceholder: some View {
-        VStack(spacing: SpacingTokens.md) {
-            Image(systemName: "server.rack")
-                .font(.title2)
-                .foregroundStyle(ColorTokens.Text.tertiary)
-            Text("Always On is not enabled")
-                .font(TypographyTokens.standard.weight(.semibold))
-                .foregroundStyle(ColorTokens.Text.primary)
+        TabContentUnavailableView("Always On Is Not Enabled", systemImage: "server.rack") {
             Text("HADR (High Availability Disaster Recovery) is not enabled on this server.")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, SpacingTokens.xl)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder
     private var contentView: some View {
         if viewModel.groups.isEmpty {
-            VStack(spacing: SpacingTokens.md) {
-                Image(systemName: "server.rack")
-                    .font(.title2)
-                    .foregroundStyle(ColorTokens.Text.tertiary)
-                Text("No Availability Groups")
-                    .font(TypographyTokens.standard.weight(.semibold))
-                    .foregroundStyle(ColorTokens.Text.primary)
+            TabContentUnavailableView("No Availability Groups", systemImage: "server.rack") {
                 Text("HADR is enabled but no availability groups are configured.")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.secondary)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: SpacingTokens.lg) {

@@ -46,6 +46,9 @@ struct BulkImportSheet: View {
         Form {
             fileSection
             configurationSection
+            if viewModel.databaseType == .microsoftSQL {
+                optionsSection
+            }
             columnMappingSection
             previewSection
             progressSection
@@ -124,18 +127,43 @@ struct BulkImportSheet: View {
             }
 
             PropertyRow(title: "Batch Size") {
-                TextField("", value: $viewModel.batchSize, format: .number, prompt: Text("1000"))
+                TextField("", value: $viewModel.batchSize, format: .number, prompt: Text(viewModel.databaseType == .microsoftSQL ? "10000" : "1000"))
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
             }
+        }
+    }
 
-            if viewModel.databaseType == .microsoftSQL {
-                PropertyRow(title: "Identity Insert") {
-                    Toggle("", isOn: $viewModel.identityInsert)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
+    // MARK: - Options (SQL Server bulk load, round 25)
+
+    private var optionsSection: some View {
+        Section("Options") {
+            PropertyRow(title: "Empty cells") {
+                Picker("", selection: $viewModel.emptyCells) {
+                    ForEach(BulkImportViewModel.EmptyCells.allCases) { option in
+                        Text(option.rawValue).tag(option)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
             }
+            optionToggle("Keep identity values", isOn: $viewModel.identityInsert)
+            optionToggle("Check constraints", isOn: $viewModel.checkConstraints)
+            optionToggle("Fire triggers", isOn: $viewModel.fireTriggers)
+            optionToggle("Lock the table", isOn: $viewModel.tableLock)
+            Text("Locking the table is faster; other sessions wait until each batch is done.")
+                .font(TypographyTokens.formDescription)
+                .foregroundStyle(ColorTokens.Text.secondary)
+                .listRowSeparator(.hidden)
+        }
+        .disabled(viewModel.isImporting)
+    }
+
+    private func optionToggle(_ title: String, isOn: Binding<Bool>) -> some View {
+        PropertyRow(title: title) {
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
         }
     }
 
@@ -147,13 +175,11 @@ struct BulkImportSheet: View {
                 ? "\(viewModel.mappedColumnCount) column(s) mapped"
                 : nil
         case .importing:
-            let elapsed = String(format: "%.1f", viewModel.elapsedTime)
-            return "Importing\u{2026} \(viewModel.importedRowCount) rows (\(viewModel.completedBatches)/\(viewModel.totalBatches) batches) \(elapsed)s"
-        case .completed(let count, let duration):
-            let dur = String(format: "%.2f", duration)
-            return "Completed: \(count) rows imported in \(dur)s"
-        case .failed(let message):
-            return "Failed: \(message)"
+            return "Importing\u{2026} \(viewModel.importedRowCount.formatted()) of \(viewModel.totalRowCount.formatted()) rows"
+        case .completed:
+            return "Done"
+        case .failed:
+            return "Failed"
         }
     }
 }

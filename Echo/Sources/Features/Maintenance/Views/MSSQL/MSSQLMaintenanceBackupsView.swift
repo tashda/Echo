@@ -3,8 +3,8 @@ import SQLServerKit
 
 struct MSSQLMaintenanceBackupsView: View {
     @Bindable var viewModel: MSSQLMaintenanceViewModel
-    @Environment(EnvironmentState.self) private var environmentState
-    @Environment(AppState.self) private var appState
+    @Environment(EnvironmentState.self) var environmentState
+    @Environment(AppState.self) var appState
 
     @State private var sortOrder = [KeyPathComparator(\SQLServerBackupHistoryEntry.finishDate, order: .reverse)]
     @State private var selection: Set<SQLServerBackupHistoryEntry.ID> = []
@@ -16,41 +16,42 @@ struct MSSQLMaintenanceBackupsView: View {
     }
 
     var body: some View {
-        if let permissionError = viewModel.backupPermissionError {
-            ContentUnavailableView {
-                Label("Insufficient Permissions", systemImage: "lock.shield")
-            } description: {
-                Text(permissionError)
-            }
-        } else {
-            VStack(spacing: 0) {
-                toolbar
-                Divider()
-                historyTable
-            }
-            .sheet(isPresented: $showBackupSheet) {
-                if let vm = viewModel.backupsVM {
-                    MSSQLBackupSidebarSheet(viewModel: vm) {
-                        showBackupSheet = false
-                        Task { await viewModel.refreshBackups() }
+        Group {
+            if let permissionError = viewModel.backupPermissionError {
+                TabContentUnavailableView("Insufficient Permissions", systemImage: "lock.shield") {
+                    Text(permissionError)
+                }
+            } else {
+                VStack(spacing: 0) {
+                    toolbar
+                    Divider()
+                    historyContent
+                }
+                .sheet(isPresented: $showBackupSheet) {
+                    if let vm = viewModel.backupsVM {
+                        MSSQLBackupSidebarSheet(viewModel: vm) {
+                            showBackupSheet = false
+                            Task { await viewModel.refreshBackups() }
+                        }
                     }
                 }
-            }
-            .sheet(isPresented: $showRestoreSheet) {
-                if let vm = viewModel.backupsVM {
-                    MSSQLRestoreSidebarSheet(viewModel: vm) {
-                        showRestoreSheet = false
-                        Task { await viewModel.refreshBackups() }
+                .sheet(isPresented: $showRestoreSheet) {
+                    if let vm = viewModel.backupsVM {
+                        MSSQLRestoreSidebarSheet(viewModel: vm) {
+                            showRestoreSheet = false
+                            Task { await viewModel.refreshBackups() }
+                        }
                     }
                 }
             }
         }
+        .tabContentFrame()
     }
 
     private var toolbar: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            Spacer()
-
+        TabSectionToolbar {
+            EmptyView()
+        } controls: {
             Button {
                 viewModel.backupsVM?.resetBackupState()
                 showBackupSheet = true
@@ -71,8 +72,30 @@ struct MSSQLMaintenanceBackupsView: View {
             .controlSize(.small)
             .disabled(!(session?.permissions?.canBackupRestore ?? true))
         }
-        .padding(.horizontal, SpacingTokens.md)
-        .padding(.vertical, SpacingTokens.xs)
+    }
+
+    @ViewBuilder
+    private var historyContent: some View {
+        if viewModel.isRefreshingBackups && viewModel.backupHistory.isEmpty {
+            TabInitializingPlaceholder(
+                icon: "externaldrive",
+                title: "Loading Backup History",
+                subtitle: "Fetching recent database backups…"
+            )
+        } else if viewModel.backupHistory.isEmpty {
+            TabContentUnavailableView("No Backup History", systemImage: "externaldrive") {
+                Text("No recent backups were found for the selected database.")
+            } actions: {
+                Button("New Backup") {
+                    viewModel.backupsVM?.resetBackupState()
+                    showBackupSheet = true
+                }
+                .buttonStyle(.bordered)
+                .disabled(!(session?.permissions?.canBackupRestore ?? true))
+            }
+        } else {
+            historyTable
+        }
     }
 
     private var historyTable: some View {
@@ -151,29 +174,4 @@ struct MSSQLMaintenanceBackupsView: View {
         }
     }
 
-    private func pushBackupInspector(_ entry: SQLServerBackupHistoryEntry, toggle: Bool) {
-        let fields: [DatabaseObjectInspectorContent.Field] = [
-            .init(label: "Database", value: entry.serverName),
-            .init(label: "Backup Type", value: entry.typeDescription),
-            .init(label: "Started", value: entry.startDate?.formatted(date: .abbreviated, time: .shortened) ?? "\u{2014}"),
-            .init(label: "Finished", value: entry.finishDate?.formatted(date: .abbreviated, time: .shortened) ?? "\u{2014}"),
-            .init(label: "Size", value: ByteCountFormatter.string(fromByteCount: entry.size, countStyle: .binary)),
-            .init(label: "Compressed Size", value: entry.compressedSize.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .binary) } ?? "N/A"),
-            .init(label: "Physical Device", value: entry.physicalPath),
-            .init(label: "Recovery Model", value: entry.recoveryModel),
-            .init(label: "Server", value: entry.serverName)
-        ]
-
-        let content = DatabaseObjectInspectorContent(
-            title: entry.name ?? "Backup #\(entry.id)",
-            subtitle: "Backup Entry",
-            fields: fields
-        )
-
-        if toggle {
-            environmentState.toggleDataInspector(content: .databaseObject(content), title: entry.name ?? "Backup #\(entry.id)", appState: appState)
-        } else {
-            environmentState.dataInspectorContent = .databaseObject(content)
-        }
-    }
 }

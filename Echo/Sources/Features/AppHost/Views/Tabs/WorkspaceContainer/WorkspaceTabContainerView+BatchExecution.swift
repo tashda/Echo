@@ -22,6 +22,13 @@ extension WorkspaceTabContainerView {
         )
 
         let activityHandle = AppDirector.shared.activityEngine.begin("Executing batch query", connectionSessionID: tab.connectionSessionID)
+        let isPostgresScript = resolvedSession is PostgresSession
+        let scriptOptions = PostgresScriptOptions(
+            stopOnError: !projectStore.globalSettings.postgresScriptsContinueAfterError,
+            asOneTransaction: queryState.runsScriptAsOneTransaction
+        )
+        // Which batch failed, so the editor can mark the error inside it (round 21 EM5, round 22 ED1).
+        let failedBatch = FailedBatchIndex()
         let task = Task { [weak queryState] in
             guard let state = await MainActor.run(body: { queryState }) else { return }
 
@@ -35,8 +42,11 @@ extension WorkspaceTabContainerView {
                     }
                 }
 
-                let batchResults = try await resolvedSession.executeBatches(batches) { [weak state] update in
+                // PostgreSQL scripts log one line per statement at the end instead (round 21, SP2).
+                let handler: BatchProgressHandler = { [weak state] update in
                     guard let state else { return }
+                    if case .failed = update.event { failedBatch.set(update.batchIndex) }
+                    if isPostgresScript, !update.event.isStreamUpdate { return }
                     Task { @MainActor in
                         switch update.event {
                         case .started:
@@ -70,14 +80,28 @@ extension WorkspaceTabContainerView {
                     }
                 }
 
+                var scriptRun: PostgresScriptRun?
+                let batchResults: [BatchResult]
+                if let postgres = resolvedSession as? PostgresSession {
+                    let run = try await postgres.executeScript(batches, options: scriptOptions, progressHandler: handler)
+                    scriptRun = run
+                    batchResults = run.results
+                } else {
+                    batchResults = try await resolvedSession.executeBatches(batches, progressHandler: handler)
+                }
+
                 try Task.checkCancellation()
                 await MainActor.run {
                     activityHandle.succeed()
-                    consumeBatchResults(batchResults, into: state, batchStartLines: batchStartLines)
+                    if let scriptRun {
+                        consumePostgresScript(scriptRun, statements: batches, into: state)
+                    } else {
+                        consumeBatchResults(batchResults, into: state, batchStartLines: batchStartLines)
+                    }
                     state.finishExecution()
 
                     appState.addToQueryHistory(
-                        batches.joined(separator: "\nGO\n"),
+                        batches.joined(separator: tab.connection.databaseType == .postgresql ? ";\n" : "\nGO\n"),
                         connectionID: tab.connection.id,
                         databaseName: tab.activeDatabaseName ?? tab.connection.database,
                         resultCount: state.results?.rows.count ?? 0,
@@ -115,7 +139,11 @@ extension WorkspaceTabContainerView {
                     } else {
                         activityHandle.fail(error.localizedDescription)
                         state.errorMessage = error.localizedDescription
+                        let failedSQL = failedBatch.value.flatMap { batches.indices.contains($0) ? batches[$0] : nil }
+                        if let failedSQL { presentServerMessages(of: error, sentSQL: failedSQL, state: state) }
                         state.failExecution(with: "Batch execution failed: \(error.localizedDescription)")
+                        if let failedSQL { presentErrorLocation(of: error, sentSQL: failedSQL, tab: tab, state: state) }
+                        reportQueryFailure(error.localizedDescription, tab: tab)
                     }
                 }
             }

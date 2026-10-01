@@ -13,15 +13,17 @@ final class SQLLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
         didSet { recalculateLineMetrics() }
     }
 
-    /// Extra spacing added between lines (on top of the font's natural line height).
-    var extraLineSpacing: CGFloat = 0 {
+    /// The line height as a multiple of the font size (round 28.1: 1.3, 1.55 or 1.75), never
+    /// less than the font's own line height.
+    var lineHeightMultiple: CGFloat = 1.55 {
         didSet { recalculateLineMetrics() }
     }
 
-    /// Multiplier applied to the font's natural line height.
-    var lineHeightMultiple: CGFloat = 1.0 {
-        didSet { recalculateLineMetrics() }
-    }
+    /// Round 28.3, 28.15: the selection's corners, from Settings › Editor › Marks › Corners.
+    var selectionCorners: EditorMarkCorners = .square
+    /// The text view's selection, handed over whenever it changes, so drawing can tell the
+    /// selection's background from other background fills.
+    var selectedRanges: [NSRange] = []
 
     /// The computed fixed line height used for every line fragment.
     private(set) var fixedLineHeight: CGFloat = 16
@@ -41,12 +43,38 @@ final class SQLLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
     func recalculateLineMetrics() {
         let naturalHeight = defaultLineHeight(for: textFont)
         let naturalBaseline = defaultBaselineOffset(for: textFont)
-        let targetHeight = ceil(naturalHeight * lineHeightMultiple + extraLineSpacing)
+        let targetHeight = Self.lineHeight(fontSize: textFont.pointSize, multiple: lineHeightMultiple, naturalHeight: naturalHeight)
 
         fixedLineHeight = targetHeight
         // Distribute extra space evenly above and below to center glyphs vertically.
         let extraSpace = targetHeight - naturalHeight
         fixedBaselineOffset = naturalBaseline + extraSpace * 0.5
+    }
+
+    /// A line `multiple` times the font size, rounded to whole points, so glyphs never clip.
+    static func lineHeight(fontSize: CGFloat, multiple: CGFloat, naturalHeight: CGFloat) -> CGFloat {
+        max((fontSize * multiple).rounded(), ceil(naturalHeight))
+    }
+
+    // MARK: - Rounded selection
+
+    /// Round 28.3: the selection is drawn with rounded corners. Other background fills (the
+    /// highlighted uses of a word) stay as they are.
+    override func fillBackgroundRectArray(_ rectArray: UnsafePointer<NSRect>, count rectCount: Int,
+                                          forCharacterRange charRange: NSRange, color: NSColor) {
+        guard selectionCorners != .square, isSelected(charRange) else {
+            super.fillBackgroundRectArray(rectArray, count: rectCount, forCharacterRange: charRange, color: color)
+            return
+        }
+        for index in 0..<rectCount {
+            let rect = rectArray[index]
+            let radius = min(selectionCorners.radius(forHeight: rect.height), rect.width / 2)
+            NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
+        }
+    }
+
+    private func isSelected(_ range: NSRange) -> Bool {
+        selectedRanges.contains { NSIntersectionRange($0, range).length > 0 }
     }
 
     // MARK: - Extra Line Fragment Override

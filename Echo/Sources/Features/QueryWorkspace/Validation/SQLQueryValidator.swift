@@ -55,6 +55,10 @@ struct SQLDiagnostic: Sendable, Equatable {
 /// Uses `SQLParserBridge` for syntax parsing and `EchoSenseDatabaseStructure` for semantic checks.
 /// Only returns high-confidence diagnostics to avoid false positives.
 struct SQLQueryValidator {
+    private struct ValidationStatement {
+        let sql: String
+        let utf16Offset: Int
+    }
 
     /// SQL keywords that indicate the user is still typing — don't validate incomplete statements
     private static let trailingKeywords: Set<String> = [
@@ -80,29 +84,46 @@ struct SQLQueryValidator {
             return []
         }
 
-        guard let parseResult = await SQLParserBridge.shared.parse(sql: sql, dialect: dialect) else {
-            return []
+        let statements = validationStatements(in: sql)
+        var parsedStatements: [(SQLParseResult, Int)] = []
+
+        for statement in statements {
+            let statementSQL = statement.sql.trimmingCharacters(in: .whitespacesAndNewlines)
+            if isIncompleteStatement(statementSQL) {
+                continue
+            }
+
+            let parserSQL = parserSQL(for: statement.sql, dialect: dialect)
+            guard let parseResult = await SQLParserBridge.shared.parse(sql: parserSQL, dialect: dialect) else {
+                continue
+            }
+
+            // Syntax error — only show if the statement looks "finished" (not just typing)
+            if !parseResult.success {
+                // Don't show syntax errors for very short queries — likely still composing
+                if statementSQL.count < 10 { continue }
+                // Don't show syntax errors if the SQL ends right where the error is
+                if let error = parseResult.error, let offset = error.offset,
+                   offset >= statementSQL.utf16.count - 2 {
+                    continue
+                }
+                if let error = parseResult.error {
+                    return [SQLDiagnostic(
+                        message: cleanErrorMessage(error.message),
+                        severity: .error,
+                        kind: .syntaxError,
+                        confidence: .high,
+                        token: "",
+                        offset: error.offset.map { statement.utf16Offset + $0 }
+                    )]
+                }
+                continue
+            }
+
+            parsedStatements.append((parseResult, statement.utf16Offset))
         }
 
-        // Syntax error — only show if the statement looks "finished" (not just typing)
-        if !parseResult.success {
-            // Don't show syntax errors for very short queries — likely still composing
-            if trimmed.count < 10 { return [] }
-            // Don't show syntax errors if the SQL ends right where the error is
-            if let error = parseResult.error, let offset = error.offset,
-               offset >= trimmed.count - 2 {
-                return []
-            }
-            if let error = parseResult.error {
-                return [SQLDiagnostic(
-                    message: cleanErrorMessage(error.message),
-                    severity: .error,
-                    kind: .syntaxError,
-                    confidence: .high,
-                    token: "",
-                    offset: error.offset
-                )]
-            }
+        guard !parsedStatements.isEmpty else {
             return []
         }
 
@@ -119,12 +140,14 @@ struct SQLQueryValidator {
             return []
         }
 
-        return semanticDiagnostics(
-            parseResult: parseResult,
-            index: index,
-            defaultSchema: defaultSchema,
-            dialect: dialect
-        )
+        return parsedStatements.flatMap { parseResult, _ in
+            semanticDiagnostics(
+                parseResult: parseResult,
+                index: index,
+                defaultSchema: defaultSchema,
+                dialect: dialect
+            )
+        }
     }
 
     /// Check if the SQL appears to be an incomplete statement the user is still typing
@@ -145,6 +168,208 @@ struct SQLQueryValidator {
             return firstLine
         }
         return String(message.prefix(200))
+    }
+
+    private func validationStatements(in sql: String) -> [ValidationStatement] {
+        let semicolonStatements = TSQLStatementSplitter.split(sql)
+        if semicolonStatements.count > 1 {
+            return semicolonStatements.map {
+                ValidationStatement(
+                    sql: $0.text,
+                    utf16Offset: sql.utf16.distance(from: sql.utf16.startIndex, to: $0.range.lowerBound.samePosition(in: sql.utf16) ?? sql.utf16.startIndex)
+                )
+            }
+        }
+
+        return splitImplicitLineStatements(in: sql)
+    }
+
+    private func splitImplicitLineStatements(in sql: String) -> [ValidationStatement] {
+        var statements: [ValidationStatement] = []
+        var currentStart = sql.startIndex
+        var currentUTF16Offset = 0
+        var index = sql.startIndex
+
+        while index < sql.endIndex {
+            if sql[index] == "\n" {
+                let nextLineStart = sql.index(after: index)
+                let nextLineOffset = sql.utf16.distance(from: sql.utf16.startIndex, to: nextLineStart.samePosition(in: sql.utf16) ?? sql.utf16.endIndex)
+
+                if nextLineStart < sql.endIndex,
+                   startsImplicitStatement(at: nextLineStart, in: sql),
+                   hasStatementText(sql[currentStart..<index]) {
+                    let text = String(sql[currentStart..<index]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !text.isEmpty {
+                        statements.append(ValidationStatement(sql: text, utf16Offset: currentUTF16Offset))
+                    }
+                    currentStart = nextLineStart
+                    currentUTF16Offset = nextLineOffset
+                }
+            }
+            index = sql.index(after: index)
+        }
+
+        let remaining = String(sql[currentStart..<sql.endIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
+        if !remaining.isEmpty {
+            statements.append(ValidationStatement(sql: remaining, utf16Offset: currentUTF16Offset))
+        }
+
+        return statements.isEmpty ? [ValidationStatement(sql: sql, utf16Offset: 0)] : statements
+    }
+
+    private func startsImplicitStatement(at position: String.Index, in sql: String) -> Bool {
+        var index = position
+        while index < sql.endIndex, sql[index] == " " || sql[index] == "\t" {
+            index = sql.index(after: index)
+        }
+
+        let statementStarters = ["select", "with", "insert", "update", "delete", "merge", "create", "alter", "drop", "truncate", "declare", "set", "exec", "execute"]
+        return statementStarters.contains { keyword in
+            matchesKeyword(keyword, in: sql, at: index)
+        }
+    }
+
+    private func hasStatementText(_ text: Substring) -> Bool {
+        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func matchesKeyword(_ keyword: String, in sql: String, at position: String.Index) -> Bool {
+        var keywordIndex = keyword.startIndex
+        var sqlIndex = position
+
+        while keywordIndex < keyword.endIndex, sqlIndex < sql.endIndex {
+            guard keyword[keywordIndex].lowercased() == sql[sqlIndex].lowercased() else { return false }
+            keywordIndex = keyword.index(after: keywordIndex)
+            sqlIndex = sql.index(after: sqlIndex)
+        }
+
+        guard keywordIndex == keyword.endIndex else { return false }
+        if sqlIndex < sql.endIndex {
+            let next = sql[sqlIndex]
+            if next.isLetter || next.isNumber || next == "_" { return false }
+        }
+        return true
+    }
+
+    private func parserSQL(for sql: String, dialect: EchoSenseDatabaseType) -> String {
+        guard dialect == .microsoftSQL else { return sql }
+        return replacingTSQLVariablesForParser(in: sql)
+    }
+
+    private func replacingTSQLVariablesForParser(in sql: String) -> String {
+        var output = String()
+        output.reserveCapacity(sql.count)
+
+        var index = sql.startIndex
+        while index < sql.endIndex {
+            if sql[index] == "'" {
+                let end = appendStringLiteral(from: index, in: sql, to: &output)
+                index = end
+                continue
+            }
+
+            if sql[index] == "-" {
+                let next = sql.index(after: index)
+                if next < sql.endIndex, sql[next] == "-" {
+                    let end = appendLineComment(from: index, in: sql, to: &output)
+                    index = end
+                    continue
+                }
+            }
+
+            if sql[index] == "/" {
+                let next = sql.index(after: index)
+                if next < sql.endIndex, sql[next] == "*" {
+                    let end = appendBlockComment(from: index, in: sql, to: &output)
+                    index = end
+                    continue
+                }
+            }
+
+            if sql[index] == "@" {
+                let variableEnd = tsqlVariableEnd(from: index, in: sql)
+                if variableEnd > sql.index(after: index) {
+                    output.append("0")
+                    let remainingLength = sql.distance(from: sql.index(after: index), to: variableEnd)
+                    output.append(String(repeating: " ", count: remainingLength))
+                    index = variableEnd
+                    continue
+                }
+            }
+
+            output.append(sql[index])
+            index = sql.index(after: index)
+        }
+
+        return output
+    }
+
+    private func appendStringLiteral(from start: String.Index, in sql: String, to output: inout String) -> String.Index {
+        var index = start
+        output.append(sql[index])
+        index = sql.index(after: index)
+
+        while index < sql.endIndex {
+            output.append(sql[index])
+            if sql[index] == "'" {
+                let next = sql.index(after: index)
+                if next < sql.endIndex, sql[next] == "'" {
+                    output.append(sql[next])
+                    index = sql.index(after: next)
+                    continue
+                }
+                return next
+            }
+            index = sql.index(after: index)
+        }
+
+        return index
+    }
+
+    private func appendLineComment(from start: String.Index, in sql: String, to output: inout String) -> String.Index {
+        var index = start
+        while index < sql.endIndex {
+            output.append(sql[index])
+            let next = sql.index(after: index)
+            if sql[index] == "\n" {
+                return next
+            }
+            index = next
+        }
+        return index
+    }
+
+    private func appendBlockComment(from start: String.Index, in sql: String, to output: inout String) -> String.Index {
+        var index = start
+        while index < sql.endIndex {
+            output.append(sql[index])
+            let next = sql.index(after: index)
+            if sql[index] == "*", next < sql.endIndex, sql[next] == "/" {
+                output.append(sql[next])
+                return sql.index(after: next)
+            }
+            index = next
+        }
+        return index
+    }
+
+    private func tsqlVariableEnd(from start: String.Index, in sql: String) -> String.Index {
+        var index = sql.index(after: start)
+        if index < sql.endIndex, sql[index] == "@" {
+            index = sql.index(after: index)
+        }
+
+        let nameStart = index
+        while index < sql.endIndex {
+            let character = sql[index]
+            if character.isLetter || character.isNumber || character == "_" {
+                index = sql.index(after: index)
+            } else {
+                break
+            }
+        }
+
+        return index > nameStart ? index : start
     }
 }
 

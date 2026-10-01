@@ -25,13 +25,13 @@ extension EchoSenseSettingsView {
         )
     }
 
-    var liveValidationBinding: Binding<Bool> {
+    var ghostTextBinding: Binding<Bool> {
         Binding(
-            get: { projectStore.globalSettings.editorEnableLiveValidation },
+            get: { projectStore.globalSettings.editorGhostTextCompletion },
             set: { newValue in
-                guard projectStore.globalSettings.editorEnableLiveValidation != newValue else { return }
+                guard projectStore.globalSettings.editorGhostTextCompletion != newValue else { return }
                 var settings = projectStore.globalSettings
-                settings.editorEnableLiveValidation = newValue
+                settings.editorGhostTextCompletion = newValue
                 Task { try? await projectStore.updateGlobalSettings(settings) }
             }
         )

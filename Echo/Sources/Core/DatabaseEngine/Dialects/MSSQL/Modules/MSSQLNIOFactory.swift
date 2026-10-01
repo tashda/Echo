@@ -38,6 +38,8 @@ struct MSSQLNIOFactory: DatabaseFactory {
                 throw DatabaseError.authenticationFailed("Access token is required for Entra ID authentication")
             }
             return .accessToken(token: token)
+        case .kerberos:
+            throw DatabaseError.authenticationFailed("Kerberos sign-in is only available for PostgreSQL")
         }
     }
 
@@ -49,7 +51,9 @@ struct MSSQLNIOFactory: DatabaseFactory {
         trustServerCertificate: Bool,
         sslRootCertPath: String?,
         mssqlEncryptionMode: MSSQLEncryptionMode,
+        hostNameInCertificate: String?,
         readOnlyIntent: Bool,
+        allowLegacyTLS: Bool = false,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int = 10
     ) throws -> SQLServerClient.Configuration {
@@ -61,15 +65,27 @@ struct MSSQLNIOFactory: DatabaseFactory {
         }()
         let sqlServerAuth = try makeAuthentication(from: authentication)
 
+        // The Encryption menu alone decides the TLS settings. sqlserver-nio
+        // never sends credentials unencrypted: Optional encrypts without
+        // checking the certificate (no TLS configuration is passed), Mandatory
+        // and Strict check it unless Trust Server Certificate is on (not
+        // offered under Strict). A legacy useTLS=false connection is Optional.
+        let effectiveMode: MSSQLEncryptionMode = tls ? mssqlEncryptionMode : .optional
+        let tlsActuallyEnabled = effectiveMode != .optional
+
         var config = SQLServerClient.Configuration(
             hostname: host,
             port: port,
             database: loginDatabase,
             authentication: sqlServerAuth,
-            tlsEnabled: tls,
+            tlsEnabled: tlsActuallyEnabled,
             trustServerCertificate: trustServerCertificate,
             caCertificatePath: sslRootCertPath,
-            encryptionMode: mssqlEncryptionMode.asSQLServerEncryptionMode,
+            encryptionMode: effectiveMode.asSQLServerEncryptionMode,
+            hostNameInCertificate: hostNameInCertificate.flatMap {
+                let trimmed = $0.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed.isEmpty ? nil : trimmed
+            },
             metadataConfiguration: .init(
                 includeSystemSchemas: false,
                 enableColumnCache: true,
@@ -81,6 +97,12 @@ struct MSSQLNIOFactory: DatabaseFactory {
             )
         )
         config.connection.readOnlyIntent = readOnlyIntent
+        config.connection.allowLegacyTLS = allowLegacyTLS
+        // Shown to DBAs as APP_NAME() and program_name (round 22, BG1).
+        config.connection.applicationName = "Echo"
+        // Round 29 (AO1): always ask SQL Server to describe Always Encrypted columns, so they show
+        // as encrypted instead of their ciphertext; servers before 2016 ignore it.
+        config.connection.columnEncryption = true
         config.connection.connectTimeoutSeconds = connectTimeoutSeconds
         return config
     }
@@ -93,7 +115,9 @@ struct MSSQLNIOFactory: DatabaseFactory {
         trustServerCertificate: Bool,
         sslRootCertPath: String?,
         mssqlEncryptionMode: MSSQLEncryptionMode,
+        hostNameInCertificate: String?,
         readOnlyIntent: Bool,
+        allowLegacyTLS: Bool = false,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int
     ) throws -> SQLServerConnection.Configuration {
@@ -105,7 +129,9 @@ struct MSSQLNIOFactory: DatabaseFactory {
             trustServerCertificate: trustServerCertificate,
             sslRootCertPath: sslRootCertPath,
             mssqlEncryptionMode: mssqlEncryptionMode,
+            hostNameInCertificate: hostNameInCertificate,
             readOnlyIntent: readOnlyIntent,
+            allowLegacyTLS: allowLegacyTLS,
             authentication: authentication,
             connectTimeoutSeconds: connectTimeoutSeconds
         )
@@ -125,7 +151,9 @@ struct MSSQLNIOFactory: DatabaseFactory {
         sslCertPath: String? = nil,
         sslKeyPath: String? = nil,
         mssqlEncryptionMode: MSSQLEncryptionMode = .optional,
+        hostNameInCertificate: String? = nil,
         readOnlyIntent: Bool = false,
+        allowLegacyTLS: Bool = false,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int = 10
     ) async throws -> DatabaseSession {
@@ -145,7 +173,9 @@ struct MSSQLNIOFactory: DatabaseFactory {
             trustServerCertificate: trustServerCertificate,
             sslRootCertPath: sslRootCertPath,
             mssqlEncryptionMode: mssqlEncryptionMode,
+            hostNameInCertificate: hostNameInCertificate,
             readOnlyIntent: readOnlyIntent,
+            allowLegacyTLS: allowLegacyTLS,
             authentication: authentication,
             connectTimeoutSeconds: connectTimeoutSeconds
         )

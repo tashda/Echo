@@ -1,14 +1,20 @@
 import XCTest
+import ServerLabClient
 @testable import Echo
 
 /// Tests DatabaseFactory.connect() behavior across dialects.
-/// SQLite tests run everywhere; MSSQL and Postgres tests are skipped without Docker.
+/// SQLite and refused-connection tests run everywhere; the others use the lab servers the suites
+/// share (`LabSharedServers`) and skip without the lab.
 final class FactoryConnectionTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private var isDockerAvailable: Bool {
-        ProcessInfo.processInfo.environment["USE_DOCKER"] == "1"
+    private func sqlServer() async throws -> LabServer {
+        try await labServer(MSSQLLabTestCase.recipe)
+    }
+
+    private func postgres() async throws -> LabServer {
+        try await labServer(LabRecipes.postgres)
     }
 
     private func defaultAuth(
@@ -343,22 +349,21 @@ final class FactoryConnectionTests: XCTestCase {
         }
     }
 
-    // MARK: - MSSQL: Docker-only Tests
+    // MARK: - MSSQL
 
     func testMSSQLFactoryRequiresValidCredentials() async throws {
-        try XCTSkipUnless(isDockerAvailable, "Skipped: set USE_DOCKER=1 to run Docker-dependent tests")
-
+        let server = try await sqlServer()
         let factory = MSSQLNIOFactory()
         do {
             _ = try await factory.connect(
-                host: "localhost",
-                port: 1433,
+                host: server.host,
+                port: server.port,
                 database: "master",
                 tls: false,
                 trustServerCertificate: true,
                 authentication: defaultAuth(
                     method: .sqlPassword,
-                    username: "sa",
+                    username: server.username,
                     password: "InvalidPassword123!"
                 ),
                 connectTimeoutSeconds: 5
@@ -370,8 +375,6 @@ final class FactoryConnectionTests: XCTestCase {
     }
 
     func testMSSQLFactoryConnectionRefused() async throws {
-        try XCTSkipUnless(isDockerAvailable, "Skipped: set USE_DOCKER=1 to run Docker-dependent tests")
-
         let factory = MSSQLNIOFactory()
         do {
             // Use a port that is unlikely to have anything listening
@@ -389,50 +392,43 @@ final class FactoryConnectionTests: XCTestCase {
         }
     }
 
+    /// Every TLS and encryption parameter at once still gives a working, encrypted session.
     func testMSSQLFactoryTLSParameters() async throws {
-        try XCTSkipUnless(isDockerAvailable, "Skipped: set USE_DOCKER=1 to run Docker-dependent tests")
-
-        // Verify TLS and encryption parameters are forwarded correctly
-        // This test just confirms the factory accepts all TLS-related parameters
-        let factory = MSSQLNIOFactory()
-        do {
-            _ = try await factory.connect(
-                host: "localhost",
-                port: 1433,
-                database: "master",
-                tls: true,
-                trustServerCertificate: true,
-                tlsMode: .require,
-                sslRootCertPath: nil,
-                sslCertPath: nil,
-                sslKeyPath: nil,
-                mssqlEncryptionMode: .mandatory,
-                readOnlyIntent: true,
-                authentication: defaultAuth(method: .sqlPassword, username: "sa", password: "test"),
-                connectTimeoutSeconds: 3
-            )
-        } catch {
-            // Connection may fail (no Docker), but the factory should not crash
-            // when given valid parameter combinations
-            XCTAssertFalse("\(error)".isEmpty)
-        }
+        let server = try await sqlServer()
+        let session = try await MSSQLNIOFactory().connect(
+            host: server.host,
+            port: server.port,
+            database: "master",
+            tls: true,
+            trustServerCertificate: true,
+            tlsMode: .require,
+            sslRootCertPath: nil,
+            sslCertPath: nil,
+            sslKeyPath: nil,
+            mssqlEncryptionMode: .mandatory,
+            readOnlyIntent: true,
+            authentication: defaultAuth(method: .sqlPassword, username: server.username, password: server.password),
+            connectTimeoutSeconds: 30
+        )
+        let result = try await session.simpleQuery("SELECT 1 AS v")
+        await session.close()
+        XCTAssertEqual(result.rows.first?.first, "1")
     }
 
-    // MARK: - Postgres: Docker-only Tests
+    // MARK: - Postgres
 
     func testPostgresFactoryRequiresValidCredentials() async throws {
-        try XCTSkipUnless(isDockerAvailable, "Skipped: set USE_DOCKER=1 to run Docker-dependent tests")
-
+        let server = try await postgres()
         let factory = PostgresNIOFactory()
         do {
             _ = try await factory.connect(
-                host: "localhost",
-                port: 5432,
+                host: server.host,
+                port: server.port,
                 database: "postgres",
                 tls: false,
                 authentication: defaultAuth(
                     method: .sqlPassword,
-                    username: "postgres",
+                    username: server.username,
                     password: "InvalidPassword123!"
                 ),
                 connectTimeoutSeconds: 5
@@ -444,8 +440,6 @@ final class FactoryConnectionTests: XCTestCase {
     }
 
     func testPostgresFactoryConnectionRefused() async throws {
-        try XCTSkipUnless(isDockerAvailable, "Skipped: set USE_DOCKER=1 to run Docker-dependent tests")
-
         let factory = PostgresNIOFactory()
         do {
             _ = try await factory.connect(
@@ -463,22 +457,21 @@ final class FactoryConnectionTests: XCTestCase {
     }
 
     func testPostgresFactoryTLSModeHandling() async throws {
-        try XCTSkipUnless(isDockerAvailable, "Skipped: set USE_DOCKER=1 to run Docker-dependent tests")
-
+        let server = try await postgres()
         let factory = PostgresNIOFactory()
         // Verify the factory accepts all TLS mode values
         for mode in TLSMode.allCases {
             do {
                 _ = try await factory.connect(
-                    host: "localhost",
-                    port: 5432,
+                    host: server.host,
+                    port: server.port,
                     database: "postgres",
                     tls: mode != .disable,
                     tlsMode: mode,
                     sslRootCertPath: nil,
                     sslCertPath: nil,
                     sslKeyPath: nil,
-                    authentication: defaultAuth(method: .sqlPassword, username: "postgres", password: "test"),
+                    authentication: defaultAuth(method: .sqlPassword, username: server.username, password: "test"),
                     connectTimeoutSeconds: 3
                 )
             } catch {

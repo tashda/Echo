@@ -8,6 +8,8 @@ final class ResultTableHeaderView: NSTableHeaderView {
     private var isDraggingColumns = false
     private var separatorLayers: [CALayer] = []
     private let resizeEdgeTolerance: CGFloat = 5
+    private var hoverTrackingArea: NSTrackingArea?
+    private var hoveredColumn: Int?
 
     init(coordinator: QueryResultsTableView.Coordinator?) {
         self.coordinator = coordinator
@@ -53,6 +55,14 @@ final class ResultTableHeaderView: NSTableHeaderView {
         let column = tableView.column(at: location)
         if column >= 0 {
             let columnRect = headerRect(ofColumn: column)
+            // The sort arrow sorts (plan R2); anywhere else selects the column.
+            let arrowRect = ResultTableHeaderCell.sortIndicatorRect(in: columnRect)
+                .insetBy(dx: -ResultsGridMetrics.sortIndicatorHitSlop, dy: -ResultsGridMetrics.sortIndicatorHitSlop)
+            if arrowRect.contains(location) {
+                isDraggingColumns = false
+                coordinator?.cycleSort(forVisibleColumn: column)
+                return
+            }
             let isNearLeftEdge = column > 0 && abs(location.x - columnRect.minX) <= resizeEdgeTolerance
             let isNearRightEdge = abs(location.x - columnRect.maxX) <= resizeEdgeTolerance
             if isNearLeftEdge || isNearRightEdge {
@@ -94,6 +104,43 @@ final class ResultTableHeaderView: NSTableHeaderView {
             super.mouseUp(with: event)
         }
         isDraggingColumns = false
+    }
+
+    // MARK: - Hover
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverTrackingArea { removeTrackingArea(hoverTrackingArea) }
+        let area = NSTrackingArea(
+            rect: .zero,
+            options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        hoverTrackingArea = area
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        guard let tableView else { return }
+        let column = tableView.column(at: convert(event.locationInWindow, from: nil))
+        setHoveredColumn(column >= 0 ? column : nil)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        setHoveredColumn(nil)
+    }
+
+    /// Shows the sort arrow on the column under the pointer.
+    private func setHoveredColumn(_ column: Int?) {
+        guard column != hoveredColumn, let tableView else { return }
+        for index in [hoveredColumn, column].compactMap({ $0 }) where index < tableView.tableColumns.count {
+            (tableView.tableColumns[index].headerCell as? ResultTableHeaderCell)?.isHovered = index == column
+            setNeedsDisplay(headerRect(ofColumn: index))
+        }
+        hoveredColumn = column
     }
 
     override func rightMouseDown(with event: NSEvent) {

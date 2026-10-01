@@ -49,17 +49,9 @@ actor ObjectBrowserCacheStore {
         from connection: SavedConnection,
         limitBytes: Int
     ) async {
-        guard let legacyStructure = connection.cachedStructure else { return }
-        if await entry(for: connection) != nil {
-            return
-        }
-        let entry = ObjectBrowserCacheEntry(
-            key: ObjectBrowserCacheKey(connectionID: connection.id),
-            connectionFingerprint: connection.objectBrowserCacheFingerprint,
-            updatedAt: connection.cachedStructureUpdatedAt ?? Date(),
-            structure: legacyStructure
-        )
-        try? await write(entry, limitBytes: limitBytes)
+        // Legacy structures did not carry a cache fingerprint. Migrating them can
+        // attach metadata from a previous server to an edited saved connection, so
+        // only explicitly versioned object-browser cache entries are trusted.
     }
 
     func stashStructure(

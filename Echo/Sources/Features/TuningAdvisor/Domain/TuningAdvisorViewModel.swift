@@ -9,6 +9,9 @@ final class TuningAdvisorViewModel {
     var indexUsageStats: [SQLServerTuningClient.SQLServerIndexUsageStat] = []
     var isRefreshing = false
     var isCreatingIndex = false
+    var hasLoadedRecommendations = false
+    var hasLoadedIndexUsage = false
+    var loadErrorMessage: String?
     var selectedRecommendationID: Int?
     var errorMessage: String?
     var selectedTab: TuningTab = .missingIndexes
@@ -31,31 +34,69 @@ final class TuningAdvisorViewModel {
     }
 
     func refresh() {
-        guard let client = tuningClient else { return }
+        refreshSelectedTab()
+    }
+
+    func refreshSelectedTab() {
+        switch selectedTab {
+        case .missingIndexes:
+            loadMissingIndexRecommendations()
+        case .indexUsage:
+            loadIndexUsageStats()
+        }
+    }
+
+    private func loadMissingIndexRecommendations() {
+        guard let client = tuningClient else {
+            loadErrorMessage = "Tuning data is not available for this connection."
+            return
+        }
+        guard !isRefreshing else { return }
         isRefreshing = true
+        loadErrorMessage = nil
+        let handle = activityEngine?.begin(
+            "Refreshing missing-index recommendations",
+            connectionSessionID: connectionSessionID
+        )
 
         Task {
             do {
                 recommendations = try await client.listMissingIndexRecommendations(minImpact: 0)
-                isRefreshing = false
+                hasLoadedRecommendations = true
+                handle?.succeed()
             } catch {
                 logger.error("Failed to load recommendations: \(error)")
-                isRefreshing = false
+                loadErrorMessage = error.localizedDescription
+                handle?.fail(error.localizedDescription)
             }
+            isRefreshing = false
         }
     }
 
     func loadIndexUsageStats() {
-        guard let client = tuningClient else { return }
+        guard let client = tuningClient else {
+            loadErrorMessage = "Tuning data is not available for this connection."
+            return
+        }
+        guard !isRefreshing else { return }
         isRefreshing = true
+        loadErrorMessage = nil
+        let handle = activityEngine?.begin(
+            "Refreshing index usage",
+            connectionSessionID: connectionSessionID
+        )
+
         Task {
             do {
                 indexUsageStats = try await client.indexUsageStats()
-                isRefreshing = false
+                hasLoadedIndexUsage = true
+                handle?.succeed()
             } catch {
                 logger.error("Failed to load index usage stats: \(error)")
-                isRefreshing = false
+                loadErrorMessage = error.localizedDescription
+                handle?.fail(error.localizedDescription)
             }
+            isRefreshing = false
         }
     }
 
@@ -73,7 +114,7 @@ final class TuningAdvisorViewModel {
             _ = try await session.simpleQuery(sql)
             handle?.succeed()
             isCreatingIndex = false
-            refresh()
+            loadMissingIndexRecommendations()
         } catch {
             handle?.fail(error.localizedDescription)
             errorMessage = error.localizedDescription

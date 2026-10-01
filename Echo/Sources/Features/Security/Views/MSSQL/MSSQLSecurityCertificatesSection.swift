@@ -13,16 +13,18 @@ struct MSSQLSecurityCertificatesSection: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker(selection: $selectedSubSection) {
-                ForEach(SubSection.allCases, id: \.self) { sub in
-                    Text(sub.rawValue).tag(sub)
+            CenteredTabSectionToolbar {
+                TabSectionPicker(
+                    "Certificate Section",
+                    selection: $selectedSubSection,
+                    itemCount: SubSection.allCases.count
+                ) {
+                    ForEach(SubSection.allCases, id: \.self) { sub in
+                        Text(sub.rawValue).tag(sub)
+                    }
                 }
-            } label: {
-                EmptyView()
             }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 280)
-            .padding(.vertical, SpacingTokens.xs)
+            Divider()
 
             switch selectedSubSection {
             case .certificates:

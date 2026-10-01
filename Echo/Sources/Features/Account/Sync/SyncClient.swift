@@ -125,7 +125,7 @@ nonisolated final class SyncClient: Sendable {
 
     private func shouldRecoverFromDuplicateDocument(_ error: PostgrestError) -> Bool {
         error.message.contains("sync_documents_pkey")
-            || (error.detail?.contains("sync_documents_pkey") ?? false)
+        || (error.details?.contains("sync_documents_pkey") ?? false)
     }
 
     private func removeStaleDocumentsConflicting(with changes: [SyncDocument], currentProjectID: UUID) async throws -> Int {

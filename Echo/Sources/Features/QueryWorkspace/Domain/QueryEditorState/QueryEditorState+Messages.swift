@@ -28,4 +28,46 @@ extension QueryEditorState {
         messages.append(entry)
         lastMessageTimestamp = timestamp
     }
+
+    /// A server message with what SSMS shows above it (round 22, EM1): number, level and state.
+    func appendServerMessage(_ message: ServerMessage) {
+        var metadata = message.metadata
+        if message.number != 0 {
+            metadata["messageNumber"] = "\(message.number)"
+            metadata["level"] = "\(message.severity)"
+            metadata["state"] = "\(message.state)"
+        }
+        if let serverName = message.serverName, !serverName.isEmpty {
+            metadata["server"] = serverName
+        }
+        appendMessage(
+            message: message.message,
+            severity: message.kind == .error ? .error : .info,
+            category: message.category ?? "Server Response",
+            procedure: message.procedureName,
+            line: message.lineNumber.flatMap { $0 > 0 ? Int($0) : nil },
+            metadata: metadata
+        )
+    }
+
+    /// J1 and LL1: puts the editor on a message's line, selecting the marked word when the message
+    /// is the error the editor marks.
+    func goToLine(of message: QueryExecutionMessage) {
+        guard let line = message.line else { return }
+        let editorLine = messageLineMapper?(line) ?? line
+        if let mark = errorMark, mark.line == editorLine || message.procedure.map({ !$0.isEmpty }) == true && message.severity == .error {
+            editorLineRequest = EditorLineRequest(line: mark.line, range: mark.range)
+        } else {
+            editorLineRequest = EditorLineRequest(line: editorLine)
+        }
+    }
+
+    /// The Go to Error button (round 21 J1, owner's note): the marked word, or the reported line.
+    func goToError() {
+        if let mark = errorMark {
+            editorLineRequest = EditorLineRequest(line: mark.line, range: mark.range)
+        } else if let message = messages.last(where: { $0.severity == .error && $0.line != nil }) {
+            goToLine(of: message)
+        }
+    }
 }

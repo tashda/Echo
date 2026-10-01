@@ -24,7 +24,8 @@ final class EnvironmentState {
     var sessionGroup = ActiveSessionGroup()
     var pinnedObjectIDs: [String] = []
     var recentConnections: [RecentConnectionRecord] = []
-    var searchSidebarCache: GlobalSearchSidebarCache = GlobalSearchSidebarCache()
+    /// Tables opened recently, for the empty query tab's starting points (QE6).
+    let recentTables = RecentTableStore()
     var detachedJobQueueViewModels: [UUID: JobQueueViewModel] = [:]
     var userEditorViewModels: [UserEditorWindowValue: UserEditorViewModel] = [:]
     var loginEditorViewModels: [LoginEditorWindowValue: LoginEditorViewModel] = [:]
@@ -42,6 +43,11 @@ final class EnvironmentState {
     var sequenceEditorViewModels: [SequenceEditorWindowValue: SequenceEditorViewModel] = [:]
     var typeEditorViewModels: [TypeEditorWindowValue: TypeEditorViewModel] = [:]
     var databaseMailEditorViewModels: [DatabaseMailEditorWindowValue: DatabaseMailEditorViewModel] = [:]
+    var windowsPrincipalPickerViewModels: [WindowsPrincipalPickerWindowValue: WindowsPrincipalPickerViewModel] = [:]
+    /// Callback registry — keyed by `WindowsPrincipalPickerWindowValue.requestID`.
+    /// The picker window invokes the callback with the selected principal (or
+    /// nil on cancel) and the registry entry is then released.
+    @ObservationIgnored var windowsPrincipalPickerCallbacks: [UUID: WindowsPrincipalPickerCallback] = [:]
     var activeLoginEditorValue: LoginEditorWindowValue?
     var activeUserEditorValue: UserEditorWindowValue?
     var activeDatabaseEditorValue: DatabaseEditorWindowValue?
@@ -135,6 +141,7 @@ final class EnvironmentState {
         self.objectBrowserCacheStore = objectBrowserCacheStore
 
         self.tabStore.delegate = self
+        self.tabStore.closeGuard = { [weak self] tab in self?.holdCloseForOpenTransaction(tab) ?? false }
         setupBindings()
         loadRecentConnections()
     }
@@ -232,17 +239,8 @@ final class EnvironmentState {
                     : (connection.database.isEmpty ? nil : connection.database)
 
                 let session = try await factory!.connect(
-                    host: connection.host,
-                    port: connection.port,
+                    to: connection,
                     database: connectDatabase,
-                    tls: connection.useTLS,
-                    trustServerCertificate: connection.trustServerCertificate,
-                    tlsMode: connection.tlsMode,
-                    sslRootCertPath: connection.sslRootCertPath,
-                    sslCertPath: connection.sslCertPath,
-                    sslKeyPath: connection.sslKeyPath,
-                    mssqlEncryptionMode: connection.mssqlEncryptionMode,
-                    readOnlyIntent: connection.readOnlyIntent,
                     authentication: credentials,
                     connectTimeoutSeconds: Int(connection.connectionTimeout)
                 )
@@ -262,11 +260,6 @@ final class EnvironmentState {
                     connectionSession.hydrateMetadataFreshnessFromCacheStructure()
                     connectionSession.structureLoadingState = .loading(progress: 0)
                     connectionSession.structureLoadingMessage = "Refreshing cached metadata…"
-                } else if let legacyStructure = connection.cachedStructure {
-                    connectionSession.databaseStructure = legacyStructure
-                    connectionSession.hydrateMetadataFreshnessFromCacheStructure()
-                    connectionSession.structureLoadingState = .loading(progress: 0)
-                    connectionSession.structureLoadingMessage = "Refreshing cached metadata…"
                 }
 
                 // Transition: pending → active session
@@ -282,6 +275,9 @@ final class EnvironmentState {
                 startStructureLoadTask(for: connectionSession)
                 Task { await connectionSession.refreshPermissions() }
                 connectionSession.startHealthCheck()
+                connectionSession.startServerWatch { [weak self] move in
+                    self?.announceServerMove(move, for: connectionSession)
+                }
                 connectionStates[connection.id] = .connected
                 recordRecentConnection(for: connection, databaseName: connectionSession.sidebarFocusedDatabase)
                 notificationEngine?.post(category: .connectionConnected, message: "Connected to \(displayName)")
@@ -347,6 +343,7 @@ final class EnvironmentState {
 
     internal func removeRecentConnections(for connectionID: UUID) {
         recentConnections.removeAll { $0.id == connectionID }
+        recentTables.forget(connectionID: connectionID)
         saveRecentConnections()
     }
 

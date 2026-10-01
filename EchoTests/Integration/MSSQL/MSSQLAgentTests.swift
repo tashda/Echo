@@ -7,7 +7,7 @@ import SQLServerKit
 /// SQL Server Agent may not be available in all environments (e.g., Express edition,
 /// containers without agent enabled). Tests wrap operations in do/catch to handle
 /// permission or availability failures gracefully.
-final class MSSQLAgentTests: MSSQLDockerTestCase {
+final class MSSQLAgentTests: MSSQLLabTestCase {
 
     // MARK: - Job Listing
 
@@ -121,105 +121,45 @@ final class MSSQLAgentTests: MSSQLDockerTestCase {
 
     func testCreateAndDeleteJob() async throws {
         let jobName = "echo_test_job_\(UUID().uuidString.prefix(8).lowercased())"
+        let agent = sqlserverClient.agent
 
-        do {
-            // Create a test job
-            try await execute("EXEC msdb.dbo.sp_add_job @job_name = N'\(jobName)'")
+        try await agent.createJob(named: jobName)
+        let created = try await agent.listJobs().first { $0.name == jobName }
+        XCTAssertEqual(created?.enabled, true)
 
-            // Verify it exists
-            let result = try await query("""
-                SELECT name, enabled FROM msdb.dbo.sysjobs
-                WHERE name = '\(jobName)'
-            """)
-            IntegrationTestHelpers.assertRowCount(result, expected: 1)
-            XCTAssertEqual(
-                IntegrationTestHelpers.firstRowValue(result, column: "name"),
-                jobName
-            )
-
-            // Clean up
-            try await execute("EXEC msdb.dbo.sp_delete_job @job_name = N'\(jobName)'")
-
-            // Verify deletion
-            let afterDelete = try await query("""
-                SELECT name FROM msdb.dbo.sysjobs WHERE name = '\(jobName)'
-            """)
-            XCTAssertEqual(afterDelete.rows.count, 0, "Job should be deleted")
-        } catch {
-            // Attempt cleanup even on failure
-            try? await execute("EXEC msdb.dbo.sp_delete_job @job_name = N'\(jobName)'")
-            throw XCTSkip("SQL Agent job operations not available: \(error.localizedDescription)")
-        }
+        try await agent.deleteJob(named: jobName)
+        let remaining = try await agent.listJobs()
+        XCTAssertFalse(remaining.contains { $0.name == jobName }, "Job should be deleted")
     }
 
     // MARK: - Job Step Management
 
     func testAddJobStep() async throws {
         let jobName = "echo_test_step_\(UUID().uuidString.prefix(8).lowercased())"
+        let agent = sqlserverClient.agent
+        try await agent.createJob(named: jobName)
 
-        do {
-            try await execute("EXEC msdb.dbo.sp_add_job @job_name = N'\(jobName)'")
-            cleanupSQL("EXEC msdb.dbo.sp_delete_job @job_name = N'\(jobName)'")
+        try await agent.addStep(jobName: jobName, stepName: "Test Step 1", subsystem: "TSQL", command: "SELECT 1", database: "master")
 
-            // Add a job step
-            try await execute("""
-                EXEC msdb.dbo.sp_add_jobstep
-                    @job_name = N'\(jobName)',
-                    @step_name = N'Test Step 1',
-                    @subsystem = N'TSQL',
-                    @command = N'SELECT 1',
-                    @database_name = N'master'
-            """)
-
-            // Verify step exists
-            let result = try await query("""
-                SELECT js.step_name, js.subsystem, js.command
-                FROM msdb.dbo.sysjobsteps js
-                JOIN msdb.dbo.sysjobs j ON js.job_id = j.job_id
-                WHERE j.name = '\(jobName)'
-            """)
-            IntegrationTestHelpers.assertRowCount(result, expected: 1)
-            XCTAssertEqual(
-                IntegrationTestHelpers.firstRowValue(result, column: "step_name"),
-                "Test Step 1"
-            )
-        } catch {
-            try? await execute("EXEC msdb.dbo.sp_delete_job @job_name = N'\(jobName)'")
-            throw XCTSkip("SQL Agent step operations not available: \(error.localizedDescription)")
-        }
+        let steps = try await agent.listSteps(jobName: jobName)
+        XCTAssertEqual(steps.map(\.name), ["Test Step 1"])
+        XCTAssertEqual(steps.first?.subsystem, "TSQL")
+        XCTAssertEqual(steps.first?.command, "SELECT 1")
+        XCTAssertEqual(steps.first?.databaseName, "master")
     }
 
     func testAddMultipleJobSteps() async throws {
         let jobName = "echo_test_multi_\(UUID().uuidString.prefix(8).lowercased())"
+        let agent = sqlserverClient.agent
+        try await agent.createJob(named: jobName)
 
-        do {
-            try await execute("EXEC msdb.dbo.sp_add_job @job_name = N'\(jobName)'")
-            cleanupSQL("EXEC msdb.dbo.sp_delete_job @job_name = N'\(jobName)'")
-
-            // Add multiple steps
-            for i in 1...3 {
-                try await execute("""
-                    EXEC msdb.dbo.sp_add_jobstep
-                        @job_name = N'\(jobName)',
-                        @step_name = N'Step \(i)',
-                        @step_id = \(i),
-                        @subsystem = N'TSQL',
-                        @command = N'SELECT \(i)'
-                """)
-            }
-
-            let result = try await query("""
-                SELECT js.step_id, js.step_name
-                FROM msdb.dbo.sysjobsteps js
-                JOIN msdb.dbo.sysjobs j ON js.job_id = j.job_id
-                WHERE j.name = '\(jobName)'
-                ORDER BY js.step_id
-            """)
-            IntegrationTestHelpers.assertRowCount(result, expected: 3)
-        } catch {
-            try? await execute("EXEC msdb.dbo.sp_delete_job @job_name = N'\(jobName)'")
-            throw XCTSkip("SQL Agent step operations not available: \(error.localizedDescription)")
+        for i in 1...3 {
+            try await agent.addStep(jobName: jobName, stepName: "Step \(i)", subsystem: "TSQL", command: "SELECT \(i)")
         }
+
+        let steps = try await agent.listSteps(jobName: jobName).sorted { $0.stepId < $1.stepId }
+        XCTAssertEqual(steps.map(\.stepId), [1, 2, 3])
+        XCTAssertEqual(steps.map(\.name), ["Step 1", "Step 2", "Step 3"])
     }
 
     // MARK: - Agent Status

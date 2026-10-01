@@ -1,7 +1,9 @@
 import SwiftUI
 
-struct WorkspaceToolbarItems: CustomizableToolbarContent {
-    var body: some CustomizableToolbarContent {
+struct WorkspaceToolbarItems: ToolbarContent {
+    @Environment(TabStore.self) private var tabStore
+
+    var body: some ToolbarContent {
         navigationItems
         centerItems
         contextActionItems
@@ -11,25 +13,25 @@ struct WorkspaceToolbarItems: CustomizableToolbarContent {
     // MARK: - Left Side (Navigation)
 
     @ToolbarContentBuilder
-    private var navigationItems: some CustomizableToolbarContent {
-        // Project — own glass group
-        ToolbarItem(id: "workspace.nav.project", placement: .navigation) {
-            ProjectContextMenuButton()
+    private var navigationItems: some ToolbarContent {
+        // Its own glass, apart from the connection group, like the sidebar button in Finder.
+        ToolbarItem(id: "workspace.navigation.sidebar", placement: .navigation) {
+            SidebarToggleToolbarButton()
                 .glassEffect(.regular.interactive())
         }
         .sharedBackgroundVisibility(.hidden)
 
-        // Recent Connections + Connections — shared glass group
-        ToolbarItem(id: "workspace.nav.recents", placement: .navigation) {
+        ToolbarSpacer(.fixed)
+
+        ToolbarItemGroup(placement: .navigation) {
+            ProjectContextMenuButton()
+        }
+
+        ToolbarSpacer(.fixed)
+
+        ToolbarItemGroup(placement: .navigation) {
+            // Saved connections open from the + in the rail's server pill.
             RecentConnectionsMenuButton()
-        }
-
-        ToolbarItem(id: "workspace.nav.connections", placement: .navigation) {
-            ConnectionsMenuButton()
-        }
-
-        // Quick Connect — own glass group
-        ToolbarItem(id: "workspace.nav.quickconnect", placement: .navigation) {
             Button {
                 AppDirector.shared.appState.showSheet(.quickConnect)
             } label: {
@@ -37,15 +39,13 @@ struct WorkspaceToolbarItems: CustomizableToolbarContent {
             }
             .labelStyle(.iconOnly)
             .help("Quick Connect")
-            .glassEffect(.regular.interactive())
         }
-        .sharedBackgroundVisibility(.hidden)
     }
 
     // MARK: - Center (Breadcrumb spacer)
 
     @ToolbarContentBuilder
-    private var centerItems: some CustomizableToolbarContent {
+    private var centerItems: some ToolbarContent {
         ToolbarItem(id: "workspace.principal.spacer", placement: .principal) {
             Color.clear
                 .frame(width: SpacingTokens.none, height: SpacingTokens.none)
@@ -53,75 +53,64 @@ struct WorkspaceToolbarItems: CustomizableToolbarContent {
         }
     }
 
-    // MARK: - Right Side: Context-Specific Actions
+    // MARK: - Right Side (plan K2)
 
+    /// [tab tools] [Run] [Format · Validate · Help · Plan] [MSSQL toggles], each one system glass
+    /// capsule, hidden when the active tab has no use for it.
     @ToolbarContentBuilder
-    private var contextActionItems: some CustomizableToolbarContent {
-        // Structure tab — Add/Script/Apply buttons
-        ToolbarItem(id: "workspace.primary.structure", placement: .primaryAction) {
+    private var contextActionItems: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
             TableStructureToolbarItem()
-        }
-        .sharedBackgroundVisibility(.hidden)
-
-        // Activity Monitor, Job Queue, Maintenance — tab-specific controls
-        ToolbarItem(id: "workspace.primary.activitymonitor", placement: .primaryAction) {
             ActivityMonitorToolbarItem()
-        }
-        .sharedBackgroundVisibility(.hidden)
-
-        ToolbarItem(id: "workspace.primary.jobqueueplay", placement: .primaryAction) {
             JobQueuePlayToolbarItem()
-        }
-
-        ToolbarItem(id: "workspace.primary.jobqueuepopout", placement: .primaryAction) {
             JobQueuePopOutToolbarItem()
-        }
-        .sharedBackgroundVisibility(.hidden)
-
-        ToolbarItem(id: "workspace.primary.errorlogcycle", placement: .primaryAction) {
             ErrorLogCycleToolbarItem()
-                .glassEffect(.regular.interactive())
-        }
-        .sharedBackgroundVisibility(.hidden)
-
-        ToolbarItem(id: "workspace.primary.tabcontext", placement: .primaryAction) {
             TabContextToolbarButton()
         }
-        .sharedBackgroundVisibility(.hidden)
+        .hidden(!toolbarContext.hasTabTools)
 
-        // Run — standalone, leftmost query action
+        ToolbarSpacer(.fixed, placement: .primaryAction)
+
         ToolbarItem(id: "workspace.primary.queryrun", placement: .primaryAction) {
             QueryRunToolbarItem()
         }
+        .hidden(!toolbarContext.isQuery)
+        // Run draws its own glass so it can turn red without swapping buttons (round 24).
         .sharedBackgroundVisibility(.hidden)
+        .keptOutOfOverflow()
 
-        // Format + Estimated Plan — "enhance" group
+        ToolbarSpacer(.fixed, placement: .primaryAction)
+
         ToolbarItem(id: "workspace.primary.queryenhance", placement: .primaryAction) {
             QueryEditorEnhanceToolbarControls()
         }
-        .sharedBackgroundVisibility(.hidden)
+        .hidden(!toolbarContext.isQuery)
 
-        // Database-specific mode toggles (SQLCMD, Statistics)
+        ToolbarSpacer(.fixed, placement: .primaryAction)
+
         ToolbarItem(id: "workspace.primary.querydb", placement: .primaryAction) {
             QueryEditorDatabaseToolbarControls()
         }
-        .sharedBackgroundVisibility(.hidden)
+        .hidden(!toolbarContext.hasDatabaseToggles)
+
+        ToolbarSpacer(.fixed, placement: .primaryAction)
     }
 
     // MARK: - Right Side: Workspace Actions
 
+    /// [Search · Overview · Refresh · Bell · Inspector] share one capsule; Inspector stays last.
     @ToolbarContentBuilder
-    private var workspaceActionItems: some CustomizableToolbarContent {
-        // Refresh — standalone with own glass
-        ToolbarItem(id: "workspace.primary.refresh", placement: .primaryAction) {
+    private var workspaceActionItems: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            SearchToolbarButton()
+            TabOverviewToolbarButton()
             RefreshToolbarButton()
-                .glassEffect(.regular.interactive())
-        }
-        .sharedBackgroundVisibility(.hidden)
-
-        // Inspector — standalone, rightmost
-        ToolbarItem(id: "workspace.primary.inspector", placement: .primaryAction) {
+            NotificationBellToolbarButton()
             InspectorToolbarButton()
         }
     }
+
+    /// Changes only when the active tab needs other groups, so the toolbar content isn't rebuilt on
+    /// every tab switch or while a tab's own state changes.
+    private var toolbarContext: WorkspaceToolbarContext { tabStore.activeTabToolbarContext }
 }

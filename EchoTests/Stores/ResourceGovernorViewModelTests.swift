@@ -16,6 +16,7 @@ struct ResourceGovernorViewModelTests {
         #expect(vm.errorMessage == nil)
         #expect(vm.selectedPoolID == nil)
         #expect(vm.selectedGroupID == nil)
+        #expect(!vm.hasLoaded)
     }
 
     @Test("selectedPool returns nil when no selection")
@@ -32,12 +33,13 @@ struct ResourceGovernorViewModelTests {
         #expect(vm.selectedGroup == nil)
     }
 
-    @Test("refresh does nothing with nil client")
+    @Test("refresh reports an unavailable client")
     @MainActor
     func refreshWithNilClient() {
         let vm = ResourceGovernorViewModel(rgClient: nil, connectionSessionID: .init())
         vm.refresh()
         #expect(!vm.isRefreshing)
+        #expect(vm.errorMessage != nil)
     }
 
     @Test("toggleEnabled does nothing with nil client")

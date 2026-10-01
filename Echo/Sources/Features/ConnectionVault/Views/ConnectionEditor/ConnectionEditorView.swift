@@ -7,6 +7,18 @@ struct ConnectionEditorView: View {
         case connect
     }
 
+    /// A sheet (Quick Connect, New Connection) or the detail pane of Manage Connections.
+    enum Presentation {
+        case sheet
+        case inline
+    }
+
+    enum EditorField: Hashable {
+        case host, port, username, domain, password, name, keyPassword
+        /// An extra PostgreSQL server row (round 23, FH1), by position.
+        case additionalHost(Int)
+    }
+
     static let colorPalette: [String] = [
         "5A9CDE", "6EAE72", "E8943A", "9B72CF", "D4687A"
     ]
@@ -37,10 +49,27 @@ struct ConnectionEditorView: View {
     @State internal var sslCertPath: String?
     @State internal var sslKeyPath: String?
     @State internal var mssqlEncryptionMode: MSSQLEncryptionMode
+    @State internal var hostNameInCertificate: String
     @State internal var readOnlyIntent: Bool
+    @State internal var allowLegacyTLS: Bool
     @State internal var connectionTimeout: TimeInterval
-    @State internal var queryTimeout: TimeInterval
+    /// The query time limit override in seconds (round 21, TW2): empty uses the Settings default.
+    @State internal var queryTimeLimit: TimeInterval?
     @State internal var colorHex: String
+    /// Round 23: several PostgreSQL servers (FH1), which to use (FT1), and load balancing from a
+    /// pasted URL (FL1).
+    @State internal var additionalHosts: [ConnectionHost]
+    @State internal var targetSessionAttributes: PostgresConnectTo
+    @State internal var loadBalanceHosts: Bool
+    /// Round 23, Kerberos: the service name (KS1; empty means postgres) and the ticket line (KT1).
+    @State internal var kerberosServiceName: String
+    @State internal var kerberosTicket: KerberosTicketStatus?
+    /// Round 23, client key: the key password (KW1, KK1).
+    @State internal var keyPassword = ""
+    @State internal var keyPasswordDirty = false
+    @State internal var hasSavedKeyPassword = false
+    /// Whether the chosen key or .p12 file is protected by a password (read from the file).
+    @State internal var keyNeedsPassword = false
 
     @State internal var passwordDirty = false
     @State internal var hasSavedPassword = false
@@ -49,15 +78,26 @@ struct ConnectionEditorView: View {
     @State internal var testTask: Task<Void, Never>?
     @State internal var testLogEntries: [TestLogEntry] = []
     @State internal var identityEditorState: IdentityEditorState?
+    @State internal var saveToConnections: Bool
+    @State internal var showsValidation = false
+    @State internal var isShowingTestLog = false
+    @FocusState internal var focusedField: EditorField?
+    @AppStorage("connectionEditor.optionsExpanded") internal var optionsExpanded = false
 
     internal let originalConnection: SavedConnection?
     internal let isQuickConnect: Bool
+    internal let presentation: Presentation
+    internal let onRevert: (() -> Void)?
     let onSave: (SavedConnection, String?, SaveAction) -> Void
 
-    init(connection: SavedConnection?, isQuickConnect: Bool = false, onSave: @escaping (SavedConnection, String?, SaveAction) -> Void) {
+    init(connection: SavedConnection?, isQuickConnect: Bool = false, presentation: Presentation = .sheet,
+         onRevert: (() -> Void)? = nil, onSave: @escaping (SavedConnection, String?, SaveAction) -> Void) {
         self.originalConnection = connection
         self.isQuickConnect = isQuickConnect
+        self.presentation = presentation
+        self.onRevert = onRevert
         self.onSave = onSave
+        _saveToConnections = State(initialValue: !isQuickConnect)
 
         let model = connection ?? SavedConnection(
             id: UUID(),
@@ -99,9 +139,15 @@ struct ConnectionEditorView: View {
         _sslCertPath = State(initialValue: model.sslCertPath)
         _sslKeyPath = State(initialValue: model.sslKeyPath)
         _mssqlEncryptionMode = State(initialValue: model.mssqlEncryptionMode)
+        _hostNameInCertificate = State(initialValue: model.hostNameInCertificate ?? "")
         _readOnlyIntent = State(initialValue: model.readOnlyIntent)
+        _allowLegacyTLS = State(initialValue: model.allowLegacyTLS)
         _connectionTimeout = State(initialValue: model.connectionTimeout)
-        _queryTimeout = State(initialValue: model.queryTimeout)
+        _queryTimeLimit = State(initialValue: model.queryTimeLimit)
+        _additionalHosts = State(initialValue: model.additionalHosts)
+        _targetSessionAttributes = State(initialValue: model.targetSessionAttributes)
+        _loadBalanceHosts = State(initialValue: model.loadBalanceHosts)
+        _kerberosServiceName = State(initialValue: model.kerberosServiceName ?? "")
         _colorHex = State(initialValue: model.colorHex.isEmpty ? (ConnectionEditorView.colorPalette.first ?? "") : model.colorHex)
     }
 
@@ -142,11 +188,15 @@ struct ConnectionEditorView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            detailView
+        Group {
+            if presentation == .sheet {
+                detailView
+                    .frame(width: 520)
+                    .frame(minHeight: 360, idealHeight: 520, maxHeight: 720)
+            } else {
+                detailView
+            }
         }
-        .frame(width: 520)
-        .frame(minHeight: 400, idealHeight: 580, maxHeight: 720)
         .onAppear {
             if originalConnection == nil && folderID == nil {
                 folderID = connectionStore.selectedFolderID
@@ -154,6 +204,10 @@ struct ConnectionEditorView: View {
             if let conn = originalConnection, conn.credentialSource == .manual {
                 hasSavedPassword = environmentState.identityRepository.password(for: conn) != nil
             }
+            if let conn = originalConnection, conn.sslCertPath != nil {
+                hasSavedKeyPassword = ConnectionKeyPasswordStore.password(for: conn.id) != nil
+            }
+            if authenticationMethod == .kerberos { refreshKerberosTicket() }
         }
         .onDisappear { cancelActiveTest() }
         .sheet(item: $identityEditorState) { state in
@@ -165,10 +219,12 @@ struct ConnectionEditorView: View {
         .onChange(of: selectedDatabaseType) { oldType, newType in
             handleDatabaseTypeChange(from: oldType, to: newType)
         }
+        .onChange(of: host) { _, newValue in applyPastedConnectionString(newValue) }
         .onChange(of: authenticationMethod) { _, newMethod in
             if newMethod == .windowsIntegrated {
                 credentialSource = .manual
             }
+            if newMethod == .kerberos { kerberosMethodChosen() }
         }
     }
 

@@ -52,6 +52,10 @@ final class AppDirector {
 
     // MARK: - Initialization State
     private(set) var isInitialized = false
+    /// Set as soon as `initialize()` starts: the window's content can appear twice at launch, and
+    /// both calls used to pass the `isInitialized` check before the first one finished, so
+    /// everything (stores, sign-in, sync, observers, automation) started twice.
+    private var isInitializing = false
 
     // MARK: - Private Init (Singleton)
     private init() {
@@ -155,6 +159,14 @@ final class AppDirector {
             toastPresenter: environmentState.toastPresenter,
             preferencesProvider: { [projectStoreRef] in
                 projectStoreRef.globalSettings.notificationPreferences
+            },
+            contextProvider: { [environmentState = self.environmentState, tabStore = self.tabStore] in
+                let session = environmentState.sessionGroup.activeSession
+                return NotificationContext(
+                    serverName: session.map { $0.connection.connectionName.isEmpty ? $0.connection.host : $0.connection.connectionName },
+                    connectionID: session?.connection.id,
+                    tabID: tabStore.activeTab?.id
+                )
             }
         )
         environmentState.notificationEngine = notificationEngine
@@ -195,7 +207,8 @@ final class AppDirector {
 
     // MARK: - Public Methods
     func initialize() async {
-        guard !isInitialized else { return }
+        guard !isInitialized, !isInitializing else { return }
+        isInitializing = true
 
         // Load foundational stores
         do {
@@ -218,6 +231,9 @@ final class AppDirector {
 
         isInitialized = true
         ensureInitialWorkspaceState()
+#if DEBUG
+        await runAutomationIfRequested()
+#endif
     }
 
     // MARK: - Theme Binding

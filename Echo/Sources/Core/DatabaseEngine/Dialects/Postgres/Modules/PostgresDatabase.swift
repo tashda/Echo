@@ -8,6 +8,7 @@ typealias PostgresQueryResult = PostgresRowSequence
 
 struct PostgresNIOFactory: DatabaseFactory {
     private let packageLogger = Logging.Logger(label: "dev.echodb.echo.postgres")
+    var packageLoggerForConnections: Logging.Logger { packageLogger }
 
     func connect(
         host: String,
@@ -20,11 +21,13 @@ struct PostgresNIOFactory: DatabaseFactory {
         sslCertPath: String? = nil,
         sslKeyPath: String? = nil,
         mssqlEncryptionMode: MSSQLEncryptionMode = .optional,
+        hostNameInCertificate: String? = nil,
         readOnlyIntent: Bool = false,
+        allowLegacyTLS: Bool = false,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int = 10
     ) async throws -> DatabaseSession {
-        guard authentication.method == .sqlPassword else {
+        guard authentication.method == .sqlPassword || authentication.method == .kerberos else {
             throw DatabaseError.authenticationFailed("Windows authentication is not supported for PostgreSQL")
         }
         let effectiveDatabase = (database?.isEmpty == false) ? database : "postgres"
@@ -45,7 +48,7 @@ struct PostgresNIOFactory: DatabaseFactory {
             port: port,
             database: effectiveDatabase ?? "postgres",
             username: authentication.username,
-            password: authentication.password,
+            password: authentication.method == .kerberos ? nil : authentication.password,
             sslMode: wireSslMode,
             sslRootCertPath: sslRootCertPath,
             sslCertPath: sslCertPath,
@@ -62,7 +65,8 @@ struct PostgresNIOFactory: DatabaseFactory {
         return PostgresSession(
             client: serverConnection.primaryClient,
             serverConnection: serverConnection,
-            packageLogger: packageLogger
+            packageLogger: packageLogger,
+            databaseName: serverConnection.connectedDatabase
         )
     }
 }
@@ -73,14 +77,46 @@ final class PostgresSession: DatabaseSession {
     let client: PostgresKit.PostgresClient
     let serverConnection: PostgresServerConnection?
     let packageLogger: Logging.Logger
+    /// The database this session's `client` is connected to.
+    let databaseName: String
+    /// Set for query-tab sessions: statements run on one pinned connection per database instead of the pool.
+    let pinnedStore: PostgresPinnedSessionStore?
 
-    init(client: PostgresKit.PostgresClient, serverConnection: PostgresServerConnection? = nil, packageLogger: Logging.Logger) {
+    init(
+        client: PostgresKit.PostgresClient,
+        serverConnection: PostgresServerConnection? = nil,
+        packageLogger: Logging.Logger,
+        databaseName: String = "postgres",
+        pinnedStore: PostgresPinnedSessionStore? = nil
+    ) {
         self.client = client
         self.serverConnection = serverConnection
         self.packageLogger = packageLogger
+        self.databaseName = databaseName
+        self.pinnedStore = pinnedStore
+    }
+
+    /// A copy of this session whose query execution runs on pinned connections (one per database),
+    /// so transactions and session state behave as in psql. Metadata calls keep using the pool.
+    func withPinnedQueries() -> PostgresSession {
+        guard pinnedStore == nil, let serverConnection else { return self }
+        return PostgresSession(
+            client: client,
+            serverConnection: serverConnection,
+            packageLogger: packageLogger,
+            databaseName: databaseName,
+            pinnedStore: PostgresPinnedSessionStore(serverConnection: serverConnection)
+        )
+    }
+
+    /// The pinned connection for this session's database, if this is a query-tab session.
+    func pinnedSession() async throws -> PostgresSessionConnection? {
+        guard let pinnedStore else { return nil }
+        return try await pinnedStore.session(for: databaseName)
     }
 
     func close() async {
+        await pinnedStore?.closeAll()
         if let serverConnection {
             await serverConnection.closeAll()
         } else {
@@ -101,7 +137,13 @@ final class PostgresSession: DatabaseSession {
         guard let serverConnection else { return self }
         let dbClient = try await serverConnection.client(for: database)
         if dbClient === client { return self }
-        return PostgresSession(client: dbClient, serverConnection: serverConnection, packageLogger: packageLogger)
+        return PostgresSession(
+            client: dbClient,
+            serverConnection: serverConnection,
+            packageLogger: packageLogger,
+            databaseName: database,
+            pinnedStore: pinnedStore
+        )
     }
 
     func makeActivityMonitor() throws -> any DatabaseActivityMonitoring {
@@ -109,36 +151,35 @@ final class PostgresSession: DatabaseSession {
     }
 
     func simpleQuery(_ sql: String) async throws -> QueryResultSet {
-        try await simpleQuery(sql, progressHandler: nil)
+        // Internal helper queries stay on the pool, never on the tab's pinned connection.
+        try await executeSimpleQuery(sql, usePinned: false)
     }
 
     func simpleQuery(_ sql: String, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
-        if QueryStatementClassifier.isLikelyMessageOnlyStatement(sql, databaseType: .postgresql) {
-            return try await executeSimpleQuery(sql)
-        }
-        if let progressHandler {
-            let sanitized = sanitizeSQL(sql)
-            return try await streamQuery(sanitizedSQL: sanitized, progressHandler: progressHandler, modeOverride: nil)
-        } else {
-            return try await executeSimpleQuery(sql)
-        }
+        try await simpleQuery(sql, executionMode: nil, progressHandler: progressHandler)
     }
 
+    /// The query-tab entry point: runs on the tab's pinned connection when this is a query-tab session.
     func simpleQuery(_ sql: String, executionMode: ResultStreamingExecutionMode?, progressHandler: QueryProgressHandler?) async throws -> QueryResultSet {
         if QueryStatementClassifier.isLikelyMessageOnlyStatement(sql, databaseType: .postgresql) {
-            return try await executeSimpleQuery(sql)
+            return try await executeSimpleQuery(sql, usePinned: true)
         }
         if let progressHandler {
             let sanitized = sanitizeSQL(sql)
             return try await streamQuery(sanitizedSQL: sanitized, progressHandler: progressHandler, modeOverride: executionMode)
         } else {
-            return try await executeSimpleQuery(sql)
+            return try await executeSimpleQuery(sql, usePinned: true)
         }
     }
 
-    private func executeSimpleQuery(_ sql: String) async throws -> QueryResultSet {
+    private func executeSimpleQuery(_ sql: String, usePinned: Bool) async throws -> QueryResultSet {
         do {
-            let result = try await client.simpleQueryResult(sql)
+            let result: WireQueryResult
+            if usePinned, let pinned = try await pinnedSession() {
+                result = try await pinned.queryResult(sql)
+            } else {
+                result = try await client.simpleQueryResult(sql)
+            }
 
             var columns: [ColumnInfo] = []
             var rows: [[String?]] = []

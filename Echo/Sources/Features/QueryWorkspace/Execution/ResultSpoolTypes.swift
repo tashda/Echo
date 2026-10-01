@@ -1,4 +1,5 @@
 import Foundation
+import SQLServerKit
 import NIOCore
 import PostgresWire
 
@@ -123,8 +124,7 @@ struct ResultBinaryRowCodec {
         }
     }
 
-    /// Type-aware decode: formats each cell using direct binary interpretation.
-    /// Avoids creating ByteBuffer/PostgresCell per cell — ~10x faster than PostgresPayloadFormatter path.
+    /// Type-aware decode: SQL Server columns (`wireType`) and Postgres `NAME(OID)` columns via their drivers.
     nonisolated static func decode(_ binaryRow: ResultBinaryRow, columns: [ColumnInfo]) -> [String?] {
         let data = binaryRow.data
         var result: [String?] = []
@@ -156,24 +156,15 @@ struct ResultBinaryRowCodec {
             let cellData = data[index..<end]
             index = end
 
-            let colType = columnIndex < columns.count ? columns[columnIndex].dataType : "text"
+            let column = columns[columnIndex]
+            let colType = column.dataType
 
-            // Check if this is a TDS (MSSQL) column type or Postgres
-            if TDSBinaryDecoder.isTDSType(colType) {
-                if let formatted = TDSBinaryDecoder.format(cellData, dataType: colType) {
-                    result.append(formatted)
-                } else {
-                    result.append(String(data: Data(cellData), encoding: .utf8))
-                }
+            if let wireType = column.wireType, let cellType = SQLServerCellType(encoded: wireType) {
+                result.append(SQLServerCellFormatter.string(data: Data(cellData), type: cellType))
+            } else if let oid = PostgresSpoolColumns.oid(for: colType) {
+                result.append(PostgresCellFormatter().stringValue(oid: oid, data: Data(cellData)))
             } else {
-                let oid = PostgresDataTypeOIDMap.oid(for: colType) ?? 25
-                if let formatted = DirectBinaryDecoder.format(cellData, oid: oid) {
-                    result.append(formatted)
-                } else {
-                    let slowFormatter = PostgresPayloadFormatter()
-                    let payload = ResultCellPayload(dataTypeOID: oid, format: .binary, bytes: Data(cellData))
-                    result.append(slowFormatter.stringValue(for: payload, columnIndex: columnIndex))
-                }
+                result.append(String(data: Data(cellData), encoding: .utf8))
             }
             columnIndex += 1
         }

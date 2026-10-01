@@ -22,13 +22,11 @@ struct EchoSenseSettingsView: View {
                     isOn: showSystemSchemasBinding,
                     topic: .systemSchemas
                 )
-            }
 
-            Section("Validation") {
                 EchoSenseToggleRow(
-                    title: "Live query validation",
-                    isOn: liveValidationBinding,
-                    topic: .liveValidation
+                    title: "Ghost text instead of the list",
+                    isOn: ghostTextBinding,
+                    topic: .ghostText
                 )
             }
 

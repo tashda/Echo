@@ -17,13 +17,26 @@ struct SQLEditorView: View {
     var ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration?
     var onSchemaLoadNeeded: ((String) -> Void)?
     var validationRequestGeneration: Int = 0
+    var editorLineRequest: EditorLineRequest?
     var onTextChange: (String) -> Void
     var onSelectionChange: (SQLEditorSelection) -> Void
     var onSelectionPreviewChange: (SQLEditorSelection) -> Void
     var clipboardMetadata: ClipboardHistoryStore.Entry.Metadata
     var onAddBookmark: (String) -> Void
+    var onRunStatement: () -> Void
+    var runNotes: [QueryRunNote]
+    /// Round 28.7: what is running now, for the gutter's breathing bracket.
+    var runningRange: NSRange?
+    /// Round 28.8: a pinch asks for the next zoom step up (+1) or down (-1).
+    var onZoomStep: (Int) -> Void
+    /// Where the last run's error is (round 21 EM5, round 22 ED1).
+    var errorMark: QueryErrorMark?
+    /// The statement of the result selected in a script's statement list (round 21, SK2).
+    var resultStatementRange: NSRange?
 
     @Environment(ClipboardHistoryStore.self) private var clipboardHistory
+    @Environment(\.keptAliveTabsActivity) private var tabsActivity
+    @Environment(\.keptAliveTabID) private var tabID
 
     init(
         text: Binding<String>,
@@ -34,11 +47,18 @@ struct SQLEditorView: View {
         ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration? = nil,
         onSchemaLoadNeeded: ((String) -> Void)? = nil,
         validationRequestGeneration: Int = 0,
+        editorLineRequest: EditorLineRequest? = nil,
         onTextChange: @escaping (String) -> Void,
         onSelectionChange: @escaping (SQLEditorSelection) -> Void,
         onSelectionPreviewChange: @escaping (SQLEditorSelection) -> Void,
         clipboardMetadata: ClipboardHistoryStore.Entry.Metadata = .empty,
-        onAddBookmark: @escaping (String) -> Void = { _ in }
+        onAddBookmark: @escaping (String) -> Void = { _ in },
+        onRunStatement: @escaping () -> Void = {},
+        runNotes: [QueryRunNote] = [],
+        runningRange: NSRange? = nil,
+        errorMark: QueryErrorMark? = nil,
+        resultStatementRange: NSRange? = nil,
+        onZoomStep: @escaping (Int) -> Void = { _ in }
     ) {
         _text = text
         self.theme = theme
@@ -48,11 +68,18 @@ struct SQLEditorView: View {
         self.ruleTraceConfig = ruleTraceConfig
         self.onSchemaLoadNeeded = onSchemaLoadNeeded
         self.validationRequestGeneration = validationRequestGeneration
+        self.editorLineRequest = editorLineRequest
         self.onTextChange = onTextChange
         self.onSelectionChange = onSelectionChange
         self.onSelectionPreviewChange = onSelectionPreviewChange
         self.clipboardMetadata = clipboardMetadata
         self.onAddBookmark = onAddBookmark
+        self.onRunStatement = onRunStatement
+        self.runNotes = runNotes
+        self.runningRange = runningRange
+        self.errorMark = errorMark
+        self.resultStatementRange = resultStatementRange
+        self.onZoomStep = onZoomStep
     }
 
     var body: some View {
@@ -68,10 +95,18 @@ struct SQLEditorView: View {
             clipboardHistory: clipboardHistory,
             clipboardMetadata: clipboardMetadata,
             onAddBookmark: onAddBookmark,
+            onRunStatement: onRunStatement,
+            runNotes: runNotes,
+            runningRange: runningRange,
+            errorMark: errorMark,
+            resultStatementRange: resultStatementRange,
+            onZoomStep: onZoomStep,
             completionContext: completionContext,
             ruleTraceConfig: ruleTraceConfig,
             onSchemaLoadNeeded: onSchemaLoadNeeded,
-            validationRequestGeneration: validationRequestGeneration
+            validationRequestGeneration: validationRequestGeneration,
+            editorLineRequest: editorLineRequest,
+            isActiveTab: KeptAliveTabsActivity.isActive(tabID, in: tabsActivity)
         )
 #else
         IOSSQLEditorRepresentable(

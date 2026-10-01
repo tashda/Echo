@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server string/binary data type round-trips through Echo's DatabaseSession layer.
-final class MSSQLDataTypeStringTests: MSSQLDockerTestCase {
+final class MSSQLDataTypeStringTests: MSSQLLabTestCase {
 
     // MARK: - Character Types
 
@@ -139,7 +139,6 @@ final class MSSQLDataTypeStringTests: MSSQLDockerTestCase {
             SQLServerColumnDefinition(name: "dt2_val", definition: .standard(.init(dataType: .datetime2(precision: 7)))),
             SQLServerColumnDefinition(name: "uid_val", definition: .standard(.init(dataType: .uniqueidentifier)))
         ])
-        cleanupSQL("DROP TABLE [\(tableName)]")
 
         _ = try await sqlserverClient.admin.insertRow(into: tableName, values: [
             "id": .int(1),

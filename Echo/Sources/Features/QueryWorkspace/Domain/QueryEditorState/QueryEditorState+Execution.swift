@@ -1,8 +1,13 @@
+import EchoSense
 import Foundation
 import OSLog
 
 extension QueryEditorState {
     func startExecution() {
+        // An idle drop reconnects on this run (round 21, I1); lost work waits for Reconnect.
+        if case .idle = connectionLoss { connectionLoss = nil }
+        timeLimitStop = nil
+        startLockWaitWatch()
         if rowDiagnosticsEnabled && !hasAnnouncedRowDiagnostics {
             hasAnnouncedRowDiagnostics = true
             Logger.query.debug("RowDiagnostics enabled for query '\(self.sql)'")
@@ -50,14 +55,21 @@ extension QueryEditorState {
         executingTask?.cancel(); executingTask = nil
 
         messages.removeAll()
+        runNote = nil
+        errorMark = nil
+        messageLineMapper = nil
         streamingColumns.removeAll(keepingCapacity: false)
         streamingRows.removeAll(keepingCapacity: false)
         rowProgress = RowProgress()
         streamingMode = .preview
         results = nil
         additionalResults.removeAll()
+        streamedAdditionalStates.removeAll()
         selectedResultSetIndex = 0
         batchResultMetadata = nil
+        scriptEntries = nil
+        selectedScriptEntryID = nil
+        highlightedStatementRange = nil
         dataClassification = nil
         markResultDataChanged()
 
@@ -77,6 +89,9 @@ extension QueryEditorState {
     func finishExecution() {
         if let startTime = executionStartTime { lastExecutionTime = Date().timeIntervalSince(startTime) }
         isExecuting = false; wasCancelled = false; isCancellationRequested = false; executingTask = nil
+        cancelPhase = nil; forceStopHandler = nil
+        stopLockWaitWatch()
+        refreshTransactionState()
         executionTimer?.invalidate(); executionTimer = nil
         streamingMode = .completed
         let endTime = Date()
@@ -97,10 +112,17 @@ extension QueryEditorState {
 
         finalizeSpoolOnCompletion(cancelled: false)
         finalizePerformanceMetrics(cancelled: false)
+        // The footer's count: every row the server sent, not only those already read back from the spool.
+        runNote = QueryRunNote.success(range: lastRunRange, rows: rowProgress.displayCount, hasResults: results != nil || !streamingColumns.isEmpty, duration: lastExecutionTime)
+        runEndedHandler?(true)
     }
 
     func failExecution(with error: String) {
         isExecuting = false; wasCancelled = false; isCancellationRequested = false; executingTask = nil
+        cancelPhase = nil; forceStopHandler = nil
+        stopLockWaitWatch()
+        noteTimeLimitStopIfNeeded(error)
+        refreshTransactionState()
         executionTimer?.invalidate(); executionTimer = nil
         let endTime = Date()
         if let startTime = executionStartTime { lastExecutionTime = endTime.timeIntervalSince(startTime) }
@@ -114,6 +136,8 @@ extension QueryEditorState {
         rowProgress = RowProgress(); materializedHighWaterMark = 0
         markResultDataChanged()
         finalizePerformanceMetrics(cancelled: true)
+        runNote = QueryRunNote.failure(range: lastRunRange, message: error)
+        runEndedHandler?(false)
     }
 
     func setExecutingTask(_ task: Task<Void, Never>) {
@@ -129,6 +153,9 @@ extension QueryEditorState {
 
     func markCancellationCompleted() {
         executingTask = nil; isExecuting = false; isCancellationRequested = false; executionTimer?.invalidate(); executionTimer = nil
+        cancelPhase = nil; forceStopHandler = nil
+        stopLockWaitWatch()
+        refreshTransactionState()
         streamingMode = .completed
         let endTime = Date()
         if let startTime = executionStartTime { lastExecutionTime = endTime.timeIntervalSince(startTime) }
@@ -140,7 +167,10 @@ extension QueryEditorState {
             rowProgress = RowProgress(materialized: count, reported: max(rowProgress.reported, count), received: max(streamedRowCount, count))
             visibleRowLimit = count; materializedHighWaterMark = count
         }
-        appendMessage(message: "Query execution canceled", severity: .warning, timestamp: endTime, duration: executionStartTime.map { endTime.timeIntervalSince($0) })
+        // Round 21, cancel CR2 (and round 22 CL1 for SQL Server): the run note and Messages.
+        let cancelledRows = streamingRows.isEmpty ? (results?.rows.count ?? 0) : streamingRows.count
+        appendMessage(message: QueryRunNote.cancelledText(duration: lastExecutionTime, rows: cancelledRows), severity: .warning, timestamp: endTime, duration: executionStartTime.map { endTime.timeIntervalSince($0) })
+        runNote = QueryRunNote.cancelled(range: lastRunRange, duration: lastExecutionTime, rows: cancelledRows)
         executionStartTime = nil; streamingColumns.removeAll(); streamingRows.removeAll()
         if results == nil { visibleRowLimit = nil; materializedHighWaterMark = 0; rowProgress = RowProgress() }
         if isResultsOnly, var preview = dataPreviewState { preview.isFetching = false; dataPreviewState = preview }

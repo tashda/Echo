@@ -26,12 +26,13 @@ struct TuningAdvisorTabTests {
         #expect(vm.indexUsageStats.isEmpty)
     }
 
-    @Test("loadIndexUsageStats does nothing with nil client")
+    @Test("loadIndexUsageStats reports an unavailable client")
     @MainActor
     func loadIndexUsageStatsNilClient() {
         let vm = TuningAdvisorViewModel(tuningClient: nil, session: nil, connectionSessionID: .init())
         vm.loadIndexUsageStats()
         #expect(!vm.isRefreshing)
         #expect(vm.indexUsageStats.isEmpty)
+        #expect(vm.loadErrorMessage != nil)
     }
 }

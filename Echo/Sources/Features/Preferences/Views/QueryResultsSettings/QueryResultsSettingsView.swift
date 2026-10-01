@@ -1,3 +1,4 @@
+import EchoSense
 import SwiftUI
 
 struct QueryResultsSettingsView: View {
@@ -21,6 +22,15 @@ struct QueryResultsSettingsView: View {
                     info: "Applies alternating background colors to result table rows for easier reading."
                 ) {
                     Toggle("", isOn: alternateRowShadingBinding)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+
+                PropertyRow(
+                    title: "Monospaced cells",
+                    info: "Shows every cell in the editor's monospaced font. Numbers always use aligned digits."
+                ) {
+                    Toggle("", isOn: projectStore.globalSettingBinding(\.resultsMonospacedCells))
                         .labelsHidden()
                         .toggleStyle(.switch)
                 }

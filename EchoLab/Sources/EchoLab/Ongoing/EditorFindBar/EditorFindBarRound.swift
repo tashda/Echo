@@ -1,0 +1,102 @@
+import SwiftUI
+
+/// Round 28.12 · Editor: the find bar (asked in the owner's notes on 28.5). Echo today
+/// (SQLTextView: usesFindBar, isIncrementalSearchingEnabled): NSTextView's find bar above the
+/// text, the card's full width, pushing the code down while open; Ignore Case and Contains /
+/// Starts With / Full Word in the magnifier's menu, no regular expressions; “2 found”; Replace
+/// opens a second row. The marks on the matches themselves are page 28.5.
+@MainActor
+enum EditorFindBarRound {
+    static let spec = RoundSpec(
+        controls: [
+            .of("findBar", "Where and how", LabQEFindBarPlace.self, default: .safari,
+                question: "Look at the Places gallery (rev 2: seven immersive glass bars, FB4 to FB10), then press through Finding and Replacing in the Proposal. Which find bar?",
+                recommend: .safari,
+                why: "You picked FB5 (“beautiful and perfect”). FB5 is how macOS 26 itself does it (Safari's bar): the search on glass, with its buttons as glass circles that melt into it, so it reads as one control without a white box. It floats over the code's top edge without pushing it. FB4 (one capsule) is the close runner-up and narrower; FB6 keeps your strip but spans the whole card. My first recommendation was the system's bar (FB0): taking a glass bar means rebuilding Replace, ⌘E and ⌘G ourselves.",
+                summary: \.summary, newChoices: (2, LabQEFindBarPlace.addedInRev2)),
+            .of("replaceStyle", "Replace", LabQEReplaceStyle.self, default: .expand,
+                question: "Which way should Replace sit in the bar? (How it opens, how the replacement shows while you type and its shortcuts are page 28.13.)",
+                recommend: .expand,
+                why: "You picked RP1, the chevron inside the capsule; page 28.13 refines it: its opening, the preview while you type and the shortcuts.",
+                summary: \.summary, addedIn: 2),
+            .of("findScope", "What it searches", LabQEFindScope.self, default: .selectionButton,
+                question: "Set The editor shows to Finding in a selection, then to Finding “orders”. How should find limit itself to the selected text?",
+                recommend: .selectionButton,
+                why: "Your design (SS1 and SS2 together): the button only exists when there is a selection, and comes on by itself, so the search stays inside what you selected and one click widens it to the script. Nothing to learn, nothing in the way when nothing is selected.",
+                summary: \.summary, addedIn: 2, newChoices: (3, [.selectionButton])),
+            .of("findOptions", "Options", LabQEFindOptions.self, default: .menu,
+                question: "How should Ignore Case, Whole Word and (with a bar of Echo's own) regular expressions be reached?",
+                recommend: .menu,
+                why: "With the system bar they live in the magnifier's menu and can't move. If you choose a bar of Echo's own, take the buttons (O1): Aa, ab and .* are what SSMS and VS Code users look for.",
+                summary: \.summary),
+            .of("findCount", "Match count", LabQEFindCount.self, default: .found,
+                question: "Should the count say how many matches there are, or where you are among them?",
+                recommend: .found,
+                why: "“2 found” is what the system bar shows and can't change. “1 of 2” is better while stepping with ⌘G; take it with a bar of Echo's own."),
+            .of("showReplace", "Show Replace", LabQEShowReplace.self, default: .open, addedIn: 4),
+            LabQERound.sceneControl(default: .find),
+            LabQERound.baseControl,
+        ],
+        exhibits: [
+            LabQERound.today("The system's find bar above the text, on “orders”; switch The editor shows to Replacing for its second row.", scene: .find),
+            LabQERound.proposal("Built from the controls; Show Replace (left) opens its Replace row.", scene: .find, sceneFor: findScene),
+            LabQERound.gallery("Places", "Every find bar, on the proposal (rev 2: FB4 to FB10, immersive glass).", LabQEFindBarPlace.self, \.findBar,
+                               scene: .find, cellHeight: 170, sceneFor: findScene),
+            .init(id: "replace0", title: "Replace: RP0 · a second row", summary: "Working: type, press Replace or All; ↺ resets.", addedIn: 3,
+                  designWidth: LabQEReplacePlayground.width, designHeight: LabQEReplacePlayground.height) { _ in LabQEReplacePlayground(style: .secondRow) },
+            .init(id: "replace1", title: "Replace: RP1 · a chevron opens it", summary: "Working: the chevron at the start shows and hides Replace.", addedIn: 3,
+                  designWidth: LabQEReplacePlayground.width, designHeight: LabQEReplacePlayground.height) { _ in LabQEReplacePlayground(style: .expand) },
+            .init(id: "replace2", title: "Replace: RP2 · its own capsule", summary: "Working: Replace in a second glass capsule.", addedIn: 3,
+                  designWidth: LabQEReplacePlayground.width, designHeight: LabQEReplacePlayground.height) { _ in LabQEReplacePlayground(style: .ownCapsule) },
+            .init(id: "replace3", title: "Replace: RP3 · preview every replacement", summary: "Working: each match shows its replacement before you press anything.", addedIn: 3,
+                  designWidth: LabQEReplacePlayground.width, designHeight: LabQEReplacePlayground.height) { _ in LabQEReplacePlayground(style: .preview) },
+        ],
+        questions: [
+            .init(id: "regex", title: "Regular expressions",
+                  question: "Should find support regular expressions? The system's bar can't; it needs a bar of Echo's own.",
+                  choices: [
+                      .init(id: "no", name: "RX0 · No (today)"),
+                      .init(id: "yes", name: "RX1 · Yes, with a .* button"),
+                  ],
+                  recommended: "no",
+                  why: "In SQL scripts you mostly search names and keywords, which Whole Word and Ignore Case cover; regular expressions alone don't justify replacing the Mac's find. Say Yes if you often rewrite many similar lines: then FB1 with O1 is the package."),
+            .init(id: "scope", title: "What it searches",
+                  question: "With the editor focused, ⌘F finds in the script. Should it also find in the results grid?",
+                  choices: [
+                      .init(id: "editor", name: "SC0 · The script only; the grid has its own ⌘F when it has the keyboard"),
+                      .init(id: "both", name: "SC1 · Script and results together"),
+                  ],
+                  recommended: "editor",
+                  why: "⌘F acts on what has the keyboard everywhere on the Mac; mixing script and rows in one count makes ⌘G jump between cards."),
+            .init(id: "selection", title: "Starting from a selection",
+                  question: "You select a table name and press ⌘F. What should the field hold?",
+                  choices: [
+                      .init(id: "native", name: "SE0 · The last search; ⌘E puts the selection in (the Mac's way, today)"),
+                      .init(id: "fill", name: "SE1 · The selection, every time"),
+                  ],
+                  recommended: "fill",
+                  why: "Selecting a word and pressing ⌘F to find its other uses is how almost everyone searches code; SSMS, Xcode and VS Code all do it. NSTextView can take the selection as the find string before showing the bar, so the native bar keeps everything else."),
+        ],
+        exhibitTopic: ("Which find bar?", "Find and replace in both. Is the proposal better than Echo today?", "proposal",
+                       "An immersive glass bar that floats over the code, previews every replacement, and searches the selection when you select lines."),
+        presets: [
+            .init(id: "recommended", name: "My recommendation", summary: "FB5 glass, options in the menu, “2 found”, replacements previewed, a Selection button that appears, on, with a selection.",
+                  values: ["findBar": LabQEFindBarPlace.safari.rawValue, "findOptions": LabQEFindOptions.menu.rawValue, "findCount": LabQEFindCount.found.rawValue,
+                           "replaceStyle": LabQEReplaceStyle.preview.rawValue, "findScope": LabQEFindScope.selectionButton.rawValue],
+                  isRecommended: true),
+            .init(id: "systemBar", name: "The system's bar", summary: "Today's bar, nothing rebuilt.",
+                  values: ["findBar": LabQEFindBarPlace.native.rawValue, "findOptions": LabQEFindOptions.menu.rawValue, "findCount": LabQEFindCount.found.rawValue,
+                           "replaceStyle": LabQEReplaceStyle.secondRow.rawValue, "findScope": LabQEFindScope.editor.rawValue]),
+            .init(id: "ssms", name: "Like SSMS and VS Code", summary: "A floating panel at the top right, option buttons, “1 of 2”.",
+                  values: ["findBar": LabQEFindBarPlace.floating.rawValue, "findOptions": LabQEFindOptions.toggles.rawValue, "findCount": LabQEFindCount.position.rawValue]),
+        ]
+    )
+
+    /// Rev 4: Show Replace decides the find bar's rows everywhere on this page, so a scene set
+    /// elsewhere can't hide them; Finding in a selection keeps its selection.
+    static func findScene(_ values: RoundValues) -> LabQEScene {
+        let replacing = (LabQEShowReplace(rawValue: values["showReplace"]) ?? .open) == .open
+        let inSelection = values["scene"] == LabQESceneChoice.findInSelection.rawValue
+        return LabQEScene(selection: inSelection, wordHighlight: false, find: true, showsReplace: replacing)
+    }
+}

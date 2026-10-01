@@ -20,11 +20,13 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
             colorProvider: { [weak self] index in self?.rowBackgroundColor(for: index) ?? .clear },
             highlightProvider: { [weak self, weak tableView] view, index in guard let self, let tableView else { return [] }; return self.selectionRenderInfos(forRow: index, rowView: view, tableView: tableView) }
         )
+        rowView.isHovered = row == hoveredRow
         return rowView
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         guard let tableColumn, let dataIndex = dataColumnIndex(for: tableColumn) else { return nil }
+        guard isLiveColumn(tableColumnIndex(of: tableColumn, in: tableView), in: tableView) else { return nil }
         let identifier = NSUserInterfaceItemIdentifier("data-cell-\(dataIndex)")
         let cellView = tableView.makeView(withIdentifier: identifier, owner: self) as? ResultTableDataCellView ?? makeDataCellView(identifier: identifier)
         configureCellView(cellView, dataIndex: dataIndex, tableView: tableView, row: row)
@@ -78,7 +80,7 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
 
     func dataColumnIndex(for tableColumn: NSTableColumn) -> Int? {
         guard let tableView else { return nil }
-        let tableIndex = tableView.column(withIdentifier: tableColumn.identifier)
+        let tableIndex = tableColumnIndex(of: tableColumn, in: tableView)
         guard tableIndex >= 0 else { return nil }
         return visibleDataIndex(for: tableIndex)
     }
@@ -101,9 +103,20 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
         let columnInfo = dataIndex < queryState.displayedColumns.count ? queryState.displayedColumns[dataIndex] : nil
         let kind = (rawValue == nil) ? .null : (dataIndex < cachedColumnKinds.count ? cachedColumnKinds[dataIndex] : ResultGridValueClassifier.kind(for: columnInfo, value: rawValue))
         let style = cachedResultGridStyles[kind] ?? { let s = fallbackResultGridStyle(for: kind); cachedResultGridStyles[kind] = s; return s }()
-        let font = resolvedFont(for: style); let displayText = rawValue ?? (kind == .null ? "NULL" : "")
+        // Plan R1: right-aligned tabular numbers and dates, ✓/✗ booleans (ResultCellPresentation).
+        let font = resolvedFont(for: style, tabularDigits: ResultCellPresentation.usesTabularDigits(kind))
+        // Round 21 (values in the grid): arrays, JSON, binary and decimals drawn by ResultCellValueForm.
+        if kind == .encrypted {
+            // Round 29 (EV1): a dimmed lock and "Encrypted" instead of the ciphertext.
+            cellView.apply(text: ResultCellPresentation.encryptedText, font: font, textColor: .tertiaryLabelColor)
+            cellView.applyLeadingSymbol("lock.fill")
+            cellView.configureIcon(nil)
+            return
+        }
+        let shown = shownValue(rawValue, kind: kind, dataIndex: dataIndex, tableView: tableView)
         let baseTextColor = cachedTextColors[kind] ?? { let c = dynamicNSColor(for: kind, style: style); cachedTextColors[kind] = c; return c }()
-        cellView.apply(text: displayText, font: font, textColor: baseTextColor)
+        cellView.apply(text: shown.text, font: font, textColor: baseTextColor, alignment: ResultCellPresentation.alignment(for: kind))
+        if shown.countLength > 0 { cellView.applyCountEmphasis(length: shown.countLength, color: .secondaryLabelColor) }
         let cellPosition = QueryResultsTableView.SelectedCell(row: row, column: dataIndex)
         if shouldShowForeignKeyIcon(forColumnInfo: columnInfo, value: rawValue) {
             cellView.configureIcon(symbolName: "arrow.up.right.square") { [weak self] in self?.activateForeignKey(at: cellPosition) }
