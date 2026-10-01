@@ -5,6 +5,8 @@ struct TableDataColumn: Identifiable, Sendable {
     let name: String
     let dataType: String
     let isPrimaryKey: Bool
+    /// SQL Server Always Encrypted (round 29): read-only, shown as encrypted.
+    var encryption: ColumnInfo.Encryption? = nil
 }
 
 enum TableDataCellValueMode: String, Sendable, Equatable {

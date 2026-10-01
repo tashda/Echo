@@ -63,7 +63,8 @@ extension TableDataViewModel {
                 TableDataColumn(
                     name: col.name,
                     dataType: col.dataType,
-                    isPrimaryKey: primaryKeyColumns.contains(col.name)
+                    isPrimaryKey: primaryKeyColumns.contains(col.name),
+                    encryption: col.encryption
                 )
             }
         }
