@@ -13,7 +13,7 @@ enum NotificationsArea {
         summary: "Toasts stack at the top right of the tab's first card. The bell opens the history in the inspector's column.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "d4659ef6", date: "2026-09-30",
+                level: .code, commit: "ec188205", date: "2026-10-01",
                 note: "Read from StatusToastRow, StatusToastStack, StatusToastPresenter, ToastOverlay, NotificationHistoryPanel and Card, NotificationBellToolbarButton, NotificationEngine (+LongQuery), NotificationEvent, NotificationHistory, NotificationRecord, OperationFinishNotifier, AppState and the Toast and Inspector tokens. 2026-10-01: checked the commits since d4659ef6 (toast buttons 6pt under the text, the long-query banner, notification actions, round 34's bell spinner and finish notices). The specimen copies them."),
             stageHeight: 560,
             behaviours: [
