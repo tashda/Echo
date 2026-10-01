@@ -169,7 +169,8 @@ struct LabInboxView: View {
                 }
                 HStack(spacing: 5) {
                     Text(areaTitle(page)).font(TypographyTokens.detail).foregroundStyle(.secondary)
-                    LabTag(text: "Rev \(store.revision(of: page))", symbol: "arrow.triangle.2.circlepath")
+                    if FastRoundStore.shared.round(forPage: page.id) != nil { LabTag(text: "Fast", symbol: "bolt") }
+                    else { LabTag(text: "Rev \(store.revision(of: page))", symbol: "arrow.triangle.2.circlepath") }
                     LabClaimTag(page: page)
                     if store.revision(of: page) > store.reviewedRevision(of: page) {
                         Text("New since rev \(store.reviewedRevision(of: page))")

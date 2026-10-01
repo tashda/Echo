@@ -28,6 +28,20 @@ struct FastRound: Codable, Equatable, Identifiable {
     /// What would change in Echo (files and behaviour) if the owner accepts.
     var changes: [String] = []
 
+    /// Only the title and the owner's words are required; an agent may leave the rest out.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        title = try c.decode(String.self, forKey: .title)
+        feedback = try c.decode(String.self, forKey: .feedback)
+        slug = try c.decodeIfPresent(String.self, forKey: .slug) ?? ""
+        area = try c.decodeIfPresent(String.self, forKey: .area) ?? ""
+        date = try c.decodeIfPresent(String.self, forKey: .date) ?? ""
+        summary = try c.decodeIfPresent(String.self, forKey: .summary) ?? ""
+        analysis = try c.decodeIfPresent([Section].self, forKey: .analysis) ?? []
+        recommendation = try c.decodeIfPresent(String.self, forKey: .recommendation) ?? ""
+        changes = try c.decodeIfPresent([String].self, forKey: .changes) ?? []
+    }
+
     var id: String { Self.pageID(slug: slug) }
     static func pageID(slug: String) -> String { "fast.\(slug)" }
 }
