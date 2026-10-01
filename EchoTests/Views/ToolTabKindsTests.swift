@@ -5,14 +5,16 @@ import Testing
 @MainActor
 @Suite("Tool tab header (TT2)")
 struct ToolTabKindsTests {
-    @Test func queryAndObjectEditorsHaveNoToolHeader() {
-        for kind: WorkspaceTab.Kind in [.query, .structure, .diagram, .psql, .extensionStructure] {
+    @Test func editorsHaveNoToolHeader() {
+        for kind: WorkspaceTab.Kind in [.query, .psql] {
             #expect(!kind.isToolTab)
         }
     }
 
+    /// Round 37.1: the structure editor, the diagram and extension details get the shared header too.
     @Test func toolsGetTheSharedHeader() {
-        for kind: WorkspaceTab.Kind in [.maintenance, .serverSecurity, .errorLog, .profiler, .serverProperties, .schemaDiff] {
+        for kind: WorkspaceTab.Kind in [.maintenance, .serverSecurity, .errorLog, .profiler, .serverProperties, .schemaDiff,
+                                        .structure, .diagram, .extensionStructure] {
             #expect(kind.isToolTab)
         }
     }
