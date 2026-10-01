@@ -27,27 +27,8 @@ extension LabQEEditor {
         }
     }
 
-    @ViewBuilder
     private func runNoteLabel(_ note: QueryRunNote) -> some View {
-        let tint = note.isError ? ColorTokens.Status.error : ColorTokens.Status.success
-        switch style.runNoteLook {
-        case .today:
-            Text(note.text).font(TypographyTokens.detail).foregroundStyle(tint)
-        case .quiet:
-            HStack(spacing: SpacingTokens.xxs) {
-                Text(note.isError ? "!" : "✓").foregroundStyle(tint).fontWeight(.semibold)
-                Text(String(note.text.dropFirst(2))).foregroundStyle(note.isError ? tint : ColorTokens.Text.secondary)
-            }
-            .font(TypographyTokens.detail)
-        case .capsule:
-            Text(note.text).font(TypographyTokens.detail).foregroundStyle(tint)
-                .padding(.horizontal, SpacingTokens.xxs2).padding(.vertical, SpacingTokens.micro)
-                .background(tint.opacity(0.12), in: Capsule())
-        case .glass:
-            Text(note.text).font(TypographyTokens.detail).foregroundStyle(tint)
-                .padding(.horizontal, SpacingTokens.xs).padding(.vertical, SpacingTokens.xxxs)
-                .glassEffect(.regular, in: .capsule)
-        }
+        LabQERunNoteLabel(look: style.runNoteLook, note: note)
     }
 
     @ViewBuilder

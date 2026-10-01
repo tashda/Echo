@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -277,6 +277,13 @@
         status: .judging,
         summary: "sqlserver-nio now says which result columns are Always Encrypted (real type, deterministic or randomized, key path), but Echo has no keys, so values stay ciphertext. How encrypted cells read, a header marker with details on hover, editing, Copy, and whether Echo always asks. Touches FTR-2.3 and the cell editor.",
         spec: MssqlAlwaysEncryptedRound.spec)
+
+    /// Round 28: Editor: the find bar.
+    static let editorFindBar = LabPage.round(
+        id: "ongoing.editor-find-bar-r28", group: "Editor and running", title: "Editor: the find bar · round 28", symbol: "magnifyingglass",
+        status: .judging,
+        summary: "The find bar itself, drawn: the system's bar above the text (today) against floating glass panels at the top right, along the top and at the bottom; its options, the match count and Replace. Asked in your notes on 28.5.",
+        spec: EditorFindBarRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

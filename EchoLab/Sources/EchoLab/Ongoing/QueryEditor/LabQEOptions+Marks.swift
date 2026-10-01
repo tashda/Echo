@@ -55,8 +55,28 @@ enum LabQEMarkCorner: String, CaseIterable {
     case c0 = "0pt (today)"
     case c3 = "3pt"
     case c5 = "5pt"
+    case c2 = "2pt"
+    case c4 = "4pt"
+    case c6 = "6pt"
+    case followSelection = "Follows Selection Corners"
 
-    var points: CGFloat { self == .c0 ? 0 : self == .c3 ? 3 : 5 }
+    /// Rev 2: the owner asked for more options. Following the selection's setting uses its
+    /// default (3pt) in the specimen.
+    var points: CGFloat {
+        switch self {
+        case .c0: 0
+        case .c2: 2
+        case .c3, .followSelection: 3
+        case .c4: 4
+        case .c5: 5
+        case .c6: 6
+        }
+    }
+
+    var summary: String {
+        self == .followSelection ? "Every mark on the text takes Settings › Selection Corners (Square, 2, 3, 4 or 6pt; 3pt by default), so marks and the selection always match."
+            : "A fixed radius for every mark on the text."
+    }
 }
 
 enum LabQEMarkHeight: String, CaseIterable {
@@ -107,9 +127,26 @@ enum LabQERunNoteLook: String, CaseIterable {
     case quiet = "R1 · Grey text, green ✓"
     case capsule = "R2 · Tinted capsule"
     case glass = "R3 · Glass capsule"
+    case faintCapsule = "R4 · Faint capsule, grey numbers"
+    case outlined = "R5 · Outlined capsule"
+    case solid = "R6 · Solid capsule"
+    case symbolCapsule = "R7 · Capsule with a symbol"
+    case tintedGlass = "R8 · Tinted glass"
+    case clearGlass = "R9 · Clear glass, coloured ✓"
+    case glassSymbol = "R10 · Glass with a symbol"
+
+    /// Rev 2: the owner asked for more capsules, glass among them.
+    static let addedInRev2: [LabQERunNoteLook] = [.faintCapsule, .outlined, .solid, .symbolCapsule, .tintedGlass, .clearGlass, .glassSymbol]
 
     var summary: String {
         switch self {
+        case .faintCapsule: "R2's capsule at half the tint, with only the ✓ coloured and the numbers grey."
+        case .outlined: "No fill: a hairline capsule in the result's colour."
+        case .solid: "A filled capsule in green or red with white text; the loudest."
+        case .symbolCapsule: "A faint capsule with checkmark.circle.fill (or the error symbol) instead of ✓."
+        case .tintedGlass: "Glass tinted with the result's colour."
+        case .clearGlass: "Clear glass over the code; the ✓ carries the colour."
+        case .glassSymbol: "Glass with the symbol and grey numbers."
         case .today: "“✓ 200 rows · 10.1 s” in 11pt green, 20pt after the last character."
         case .quiet: "Only the ✓ (or !) carries the colour; the numbers read as information, not as an alarm."
         case .capsule: "The note on a faint green or red capsule."
@@ -133,9 +170,24 @@ enum LabQERanHighlight: String, CaseIterable {
     case flash = "H1 · A short flash when it starts"
     case outline = "H2 · Outline until you edit"
     case tint = "H3 · Tint until you edit"
+    case bracketPulse = "H4 · The gutter bracket lights up"
+    case gentleTint = "H5 · A gentle tint that fades"
+    case outlineFade = "H6 · An outline that fades"
+    case sweep = "H7 · A light passes down what ran"
+    case edgeGlow = "H8 · A soft glow at the left edge"
+    case gutterLine = "H9 · A line in the gutter that fades"
+
+    /// Rev 2: the flash was too much; more, quieter options.
+    static let addedInRev2: [LabQERanHighlight] = [.bracketPulse, .gentleTint, .outlineFade, .sweep, .edgeGlow, .gutterLine]
 
     var summary: String {
         switch self {
+        case .bracketPulse: "The statement's bracket beside the numbers (28.4) turns solid and a little wider, then settles back; the text is never tinted."
+        case .gentleTint: "A third of the flash's tint, fading over 2 s."
+        case .outlineFade: "A thin accent outline round what ran, fading over 1.5 s."
+        case .sweep: "A soft band of light moves once from the first line to the last, as if reading it."
+        case .edgeGlow: "A soft accent glow along the left edge of the lines that ran, fading over 1.5 s."
+        case .gutterLine: "A 2pt accent line beside the numbers of what ran, fading over 2 s."
         case .nothing: "Only the note says what ran."
         case .flash: "What ran lights up in the accent for a moment as the run starts, then fades."
         case .outline: "A thin accent outline round what ran, gone on the first edit."

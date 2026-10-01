@@ -42,16 +42,19 @@ enum LabQERound {
     /// Every choice of one control side by side, each on the proposal.
     static func gallery<E: CaseIterable & RawRepresentable>(
         _ title: String, _ summary: String, _ type: E.Type, _ path: WritableKeyPath<LabQEStyle, E>,
-        scene fallback: LabQESceneChoice, id: String = "gallery"
+        scene fallback: LabQESceneChoice, id: String = "gallery", addedIn: Int? = nil, only: [E]? = nil,
+        cellHeight: CGFloat = LabQEGallery.cellHeight,
+        adjust: @escaping (inout LabQEStyle) -> Void = { _ in }
     ) -> RoundSpec.Exhibit where E.RawValue == String {
-        let count = E.allCases.count
-        return .init(id: id, title: title, summary: summary, designWidth: LabQEGallery.width,
-                     designHeight: LabQEGallery.height(count: count)) { values in
-            LabQEGallery(items: E.allCases.map { choice in
+        let choices = only ?? Array(E.allCases)
+        return .init(id: id, title: title, summary: summary, addedIn: addedIn, designWidth: LabQEGallery.width,
+                     designHeight: LabQEGallery.height(count: choices.count, cellHeight: cellHeight)) { values in
+            LabQEGallery(items: choices.map { choice in
                 var style = LabQEBase.proposal(values)
+                adjust(&style)
                 style[keyPath: path] = choice
                 return (choice.rawValue, style)
-            }, scene: scene(values, fallback))
+            }, scene: scene(values, fallback), cellHeight: cellHeight)
         }
     }
 }
@@ -60,12 +63,13 @@ enum LabQERound {
 struct LabQEGallery: View {
     static let width: CGFloat = 700
     static let cellHeight: CGFloat = 210
-    static func height(count: Int) -> CGFloat {
+    static func height(count: Int, cellHeight: CGFloat = cellHeight) -> CGFloat {
         CGFloat((count + 1) / 2) * (cellHeight + SpacingTokens.lg) + SpacingTokens.xs
     }
 
     let items: [(name: String, style: LabQEStyle)]
     let scene: LabQEScene
+    var cellHeight: CGFloat = Self.cellHeight
 
     var body: some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: SpacingTokens.md), GridItem(.flexible(), spacing: SpacingTokens.md)],
@@ -73,7 +77,7 @@ struct LabQEGallery: View {
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                 VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
                     Text(item.name).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary).lineLimit(1)
-                    LabQEEditor(style: item.style, scene: scene).frame(height: Self.cellHeight)
+                    LabQEEditor(style: item.style, scene: scene).frame(height: cellHeight)
                 }
             }
         }

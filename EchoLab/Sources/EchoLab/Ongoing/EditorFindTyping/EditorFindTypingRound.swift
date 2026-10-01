@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Round 28.9 · Editor: find, go to line and typing. Echo today (SQLTextView, +Internal): the
+/// Round 28.9 · Editor: find, go to line and typing (rev 2: the find question moved to 28.12, the
+/// owner's request for a find bar page). Echo today (SQLTextView, +Internal): the
 /// native find bar (usesFindBar, incremental), ⌘L opens an alert with a field, lines wrap with
 /// continuations indented 4 spaces (no switch in Settings), Tab types a tab character, nothing
 /// closes brackets or quotes, Return starts the new line at the left edge, and there is no ⌘/.
@@ -29,14 +30,6 @@ enum EditorFindTypingRound {
             },
         ],
         questions: [
-            .init(id: "findBar", title: "Find",
-                  question: "Keep the native find bar (⌘F, with Replace, ⌘G and ⇧⌘G)?",
-                  choices: [
-                      .init(id: "native", name: "FB0 · The native find bar (today)"),
-                      .init(id: "floating", name: "FB1 · A floating glass find field at the top right"),
-                  ],
-                  recommended: "native",
-                  why: "It is the Mac's find, with Replace, regular expressions and the find pasteboard for free, and it already sits inside the card. A floating field would be ours to build and keep up to date."),
             .init(id: "tab", title: "Tab",
                   question: "What should Tab type (when EchoSense isn't showing)?",
                   choices: [

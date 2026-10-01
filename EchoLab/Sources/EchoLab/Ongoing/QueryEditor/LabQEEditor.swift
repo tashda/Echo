@@ -21,6 +21,7 @@ struct LabQEEditor: View {
     @State var isHoveringEditor = false
     @State var showsBezel = false
     @State var flash: Double = 0
+    @State var sweep: CGFloat = 0
     let replay = LabQEReplay.shared
 
     let palette = LabQEPalette.echo
@@ -37,13 +38,14 @@ struct LabQEEditor: View {
 
     private var card: some View {
         VStack(spacing: SpacingTokens.none) {
-            if scene.find { findBar }
+            if scene.find, style.findBar == .native { findBar(.native) }
             GeometryReader { proxy in
                 let layout = layout
                 ZStack(alignment: .topLeading) {
                     gutterSurface(layout, height: proxy.size.height)
                     backgroundMarks(layout, width: proxy.size.width)
                     textLines(layout)
+                    findDimming(layout, size: proxy.size)
                     foregroundMarks(layout, width: proxy.size.width)
                     errorMarks(layout, width: proxy.size.width)
                     runNote(layout, width: proxy.size.width)
@@ -52,6 +54,9 @@ struct LabQEEditor: View {
                 }
                 .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                 .overlay(alignment: zoomAlignment) { zoomOverlay }
+                .overlay(alignment: findBarAlignment) {
+                    if scene.find, style.findBar != .native { findBar(style.findBar) }
+                }
                 .overlay { bezel }
             }
         }
@@ -67,38 +72,38 @@ struct LabQEEditor: View {
     /// Echo draws the window inactive with the text view's secondary selection.
     var isActive: Bool { scene.isWindowActive }
 
+    private var findBarAlignment: Alignment {
+        switch style.findBar {
+        case .floating: .topTrailing
+        case .bottom: .bottomTrailing
+        default: .top
+        }
+    }
+
+    private func findBar(_ place: LabQEFindBarPlace) -> some View {
+        LabQEFindBar(place: place, options: style.findOptions, count: style.findCount, showsReplace: scene.showsReplace)
+    }
+
     private var zoomAlignment: Alignment {
         style.zoomPlace == .bottomRight ? .bottomTrailing : .bottomLeading
     }
 
-    /// The native find bar NSTextView shows above the text (usesFindBar).
-    private var findBar: some View {
-        HStack(spacing: SpacingTokens.xs) {
-            HStack(spacing: SpacingTokens.xxs) {
-                Image(systemName: "magnifyingglass").foregroundStyle(ColorTokens.Text.secondary)
-                Text(verbatim: "orders")
-                Spacer(minLength: SpacingTokens.none)
-                Text(verbatim: "2 found").foregroundStyle(ColorTokens.Text.secondary)
-            }
-            .font(TypographyTokens.detail)
-            .padding(.horizontal, SpacingTokens.xs)
-            .padding(.vertical, SpacingTokens.xxxs)
-            .background(ColorTokens.Workspace.card, in: RoundedRectangle(cornerRadius: SpacingTokens.xxs2))
-            .overlay(RoundedRectangle(cornerRadius: SpacingTokens.xxs2).strokeBorder(ColorTokens.Separator.primary))
-            Image(systemName: "chevron.left").font(TypographyTokens.detail)
-            Image(systemName: "chevron.right").font(TypographyTokens.detail)
-            Text(verbatim: "Done").font(TypographyTokens.detail)
-        }
-        .padding(.horizontal, SpacingTokens.xs)
-        .padding(.vertical, SpacingTokens.xxs)
-        .background(.bar)
-        .overlay(alignment: .bottom) { Rectangle().fill(ColorTokens.Separator.primary).frame(height: LayoutTokens.EditorGutter.edgeWidth) }
-    }
-
+    /// Replays what-ran's motion (28.7): each look has its own length.
     private func startFlash() {
-        guard style.ranHighlight == .flash, scene.runNote != nil else { return }
+        guard scene.runNote != nil else { return }
+        let seconds: Double
+        switch style.ranHighlight {
+        case .flash, .bracketPulse: seconds = 1.2
+        case .outlineFade, .edgeGlow: seconds = 1.5
+        case .gentleTint, .gutterLine: seconds = 2
+        case .sweep:
+            sweep = 0
+            withAnimation(motion.reduceMotion ? nil : .easeInOut(duration: 0.9 * motion.durationScale).delay(0.1)) { sweep = 1 }
+            return
+        case .nothing, .outline, .tint: return
+        }
         flash = 1
-        withAnimation(motion.reduceMotion ? nil : .easeOut(duration: 1.2 * motion.durationScale).delay(0.15)) { flash = 0 }
+        withAnimation(motion.reduceMotion ? nil : .easeOut(duration: seconds * motion.durationScale).delay(0.15)) { flash = 0 }
     }
 
     private func showBezelBriefly() {

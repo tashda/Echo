@@ -46,9 +46,16 @@ extension LabQEEditor {
         let letters = layout.rect(span, lettersOnly: true)
         switch wordLook {
         case .glow:
-            LabQEGlow(reduceMotion: motion.reduceMotion)
-                .frame(width: letters.width + SpacingTokens.xs, height: letters.height + SpacingTokens.xxs)
-                .offset(x: letters.minX - SpacingTokens.xxs, y: letters.minY - SpacingTokens.xxxs)
+            if style.errorGlow == .today {
+                LabQEGlow(reduceMotion: motion.reduceMotion)
+                    .frame(width: letters.width + SpacingTokens.xs, height: letters.height + SpacingTokens.xxs)
+                    .offset(x: letters.minX - SpacingTokens.xxs, y: letters.minY - SpacingTokens.xxxs)
+            } else {
+                // Rev 2: the still glows sit just outside the letters, with the marks' corner.
+                LabQEStillGlow(glow: style.errorGlow, corner: style.markCorner.points)
+                    .frame(width: letters.width + SpacingTokens.xxs, height: letters.height + SpacingTokens.xxxs)
+                    .offset(x: letters.minX - SpacingTokens.xxxs, y: letters.minY - SpacingTokens.micro)
+            }
         case .squiggle:
             LabQESquiggle().stroke(ColorTokens.Status.error, lineWidth: 1)
                 .frame(width: letters.width, height: SpacingTokens.nano)

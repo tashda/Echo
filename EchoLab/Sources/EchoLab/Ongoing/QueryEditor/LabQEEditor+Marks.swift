@@ -98,6 +98,27 @@ extension LabQEEditor {
             case .flash: shape.fill(ColorTokens.accent.opacity(0.22 * flash)).frame(width: rect.width, height: rect.height).offset(x: rect.minX, y: rect.minY)
             case .outline: shape.strokeBorder(ColorTokens.accent.opacity(0.6), lineWidth: 1).frame(width: rect.width, height: rect.height).offset(x: rect.minX, y: rect.minY)
             case .tint: shape.fill(ColorTokens.accent.opacity(0.08)).frame(width: rect.width, height: rect.height).offset(x: rect.minX, y: rect.minY)
+            case .gentleTint: shape.fill(ColorTokens.accent.opacity(0.08 * flash)).frame(width: rect.width, height: rect.height).offset(x: rect.minX, y: rect.minY)
+            case .outlineFade:
+                shape.strokeBorder(ColorTokens.accent.opacity(0.7 * flash), lineWidth: 1).frame(width: rect.width, height: rect.height).offset(x: rect.minX, y: rect.minY)
+            case .sweep:
+                LinearGradient(colors: [.clear, ColorTokens.accent.opacity(0.14), .clear], startPoint: .top, endPoint: .bottom)
+                    .frame(width: rect.width, height: layout.lineHeight * 3)
+                    .offset(y: -layout.lineHeight * 3 + (rect.height + layout.lineHeight * 3) * sweep)
+                    .frame(width: rect.width, height: rect.height, alignment: .top)
+                    .clipped()
+                    .offset(x: rect.minX, y: rect.minY)
+            case .edgeGlow:
+                LinearGradient(colors: [ColorTokens.accent.opacity(0.25 * flash), .clear], startPoint: .leading, endPoint: .trailing)
+                    .frame(width: SpacingTokens.xl, height: rect.height).offset(x: rect.minX, y: rect.minY)
+            case .gutterLine:
+                Capsule().fill(ColorTokens.accent.opacity(flash))
+                    .frame(width: LayoutTokens.EditorGutter.statementBracketWidth, height: max(rect.height - SpacingTokens.xxs, 0))
+                    .offset(x: layout.numbersRight + LayoutTokens.EditorGutter.statementBracketGap, y: rect.minY + SpacingTokens.xxxs)
+            case .bracketPulse:
+                Capsule().fill(ColorTokens.accent.opacity(flash))
+                    .frame(width: LayoutTokens.EditorGutter.statementBracketWidth + SpacingTokens.xxxs * flash, height: max(rect.height - SpacingTokens.xxs, 0))
+                    .offset(x: layout.numbersRight + LayoutTokens.EditorGutter.statementBracketGap - SpacingTokens.micro * flash, y: rect.minY + SpacingTokens.xxxs)
             }
         }
     }
@@ -121,16 +142,57 @@ extension LabQEEditor {
         }
     }
 
+    /// Round 28.5 rev 2: every way of marking find matches; the first match is the current one.
     @ViewBuilder
     private func findMatches(_ layout: LabQELayout) -> some View {
         if scene.find {
+            let yellow = Color(nsColor: .findHighlightColor)
+            let corner = style.findLook == .native ? SpacingTokens.nano : style.markCorner.points
             ForEach(Array(LabQESample.findMatches.enumerated()), id: \.offset) { index, span in
                 let rect = layout.rect(span, lettersOnly: true)
-                RoundedRectangle(cornerRadius: SpacingTokens.nano, style: .continuous)
-                    .fill(Color(nsColor: .findHighlightColor).opacity(index == 0 ? 1 : 0.4))
-                    .shadow(color: .black.opacity(index == 0 ? 0.25 : 0), radius: 2, y: 1)
-                    .frame(width: rect.width, height: rect.height).offset(x: rect.minX, y: rect.minY)
+                let isCurrent = index == 0
+                let shape = RoundedRectangle(cornerRadius: corner, style: .continuous)
+                Group {
+                    switch style.findLook {
+                    case .native:
+                        shape.fill(isCurrent ? yellow : ColorTokens.Workspace.card)
+                            .shadow(color: .black.opacity(isCurrent ? 0.25 : 0), radius: 2, y: 1)
+                    case .echo:
+                        shape.fill(isCurrent ? yellow : ColorTokens.Text.primary.opacity(0.09))
+                    case .yellow:
+                        shape.fill(yellow.opacity(isCurrent ? 1 : 0.35))
+                    case .accent:
+                        shape.fill(ColorTokens.accent.opacity(isCurrent ? 0.3 : 0.12))
+                            .overlay(shape.strokeBorder(ColorTokens.accent.opacity(isCurrent ? 0.8 : 0), lineWidth: 1))
+                    case .underline:
+                        if isCurrent {
+                            shape.fill(yellow)
+                        } else {
+                            Rectangle().fill(yellow).frame(height: SpacingTokens.xxxs).frame(maxHeight: .infinity, alignment: .bottom)
+                        }
+                    }
+                }
+                .frame(width: rect.width, height: rect.height).offset(x: rect.minX, y: rect.minY)
             }
+        }
+    }
+
+    /// The system's incremental find dims everything but the matches while its field has the keyboard.
+    @ViewBuilder
+    func findDimming(_ layout: LabQELayout, size: CGSize) -> some View {
+        if scene.find, style.findLook == .native {
+            ZStack(alignment: .topLeading) {
+                Rectangle().fill(Color.black.opacity(0.28))
+                ForEach(Array(LabQESample.findMatches.enumerated()), id: \.offset) { _, span in
+                    let rect = layout.rect(span, lettersOnly: true)
+                    RoundedRectangle(cornerRadius: SpacingTokens.nano, style: .continuous)
+                        .frame(width: rect.width, height: rect.height).offset(x: rect.minX, y: rect.minY)
+                        .blendMode(.destinationOut)
+                }
+            }
+            .frame(width: size.width, height: size.height, alignment: .topLeading)
+            .compositingGroup()
+            .allowsHitTesting(false)
         }
     }
 
