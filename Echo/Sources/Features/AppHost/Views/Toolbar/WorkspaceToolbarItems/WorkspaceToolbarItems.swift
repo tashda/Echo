@@ -60,6 +60,15 @@ struct WorkspaceToolbarItems: ToolbarContent {
     /// tool's actions live in its own tab (round 45).
     @ToolbarContentBuilder
     private var contextActionItems: some ToolbarContent {
+        // The owner, 2026-10-01: Open in New Window is its own group at the start of the right-hand
+        // side, not in the tab's header.
+        ToolbarItem(id: "workspace.primary.openinwindow", placement: .primaryAction) {
+            OpenInWindowToolbarButton()
+        }
+        .hidden(!toolbarContext.canOpenInWindow)
+
+        ToolbarSpacer(.fixed, placement: .primaryAction)
+
         ToolbarItem(id: "workspace.primary.queryrun", placement: .primaryAction) {
             QueryRunToolbarItem()
         }

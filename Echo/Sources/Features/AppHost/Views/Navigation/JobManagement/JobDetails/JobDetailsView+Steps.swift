@@ -6,35 +6,19 @@ extension JobDetailsView {
 
     var stepsTab: some View {
         VStack(spacing: 0) {
-            List {
+            List(selection: $selectedStepID) {
                 ForEach(viewModel.steps) { step in
                     stepListRow(step)
-                        .contextMenu {
-                            Button {
-                                editingStep = step
-                            } label: {
-                                Label("Edit Step", systemImage: "pencil")
-                            }
-
-                            if step.command != nil {
-                                Button {
-                                    openCommandEditor(text: step.command ?? "", stepName: step.name)
-                                } label: {
-                                    Label("Open Command in Editor", systemImage: "arrow.up.right.square")
-                                }
-                            }
-
-                            Divider()
-
-                            Button(role: .destructive) {
-                                pendingDeleteStepName = step.name
-                                showDeleteStepAlert = true
-                            } label: {
-                                Label("Delete Step", systemImage: "trash")
-                            }
-                        }
                 }
                 .onMove(perform: moveSteps)
+            }
+            // A double-click (or Return) on a step opens Edit Step.
+            .contextMenu(forSelectionType: Int.self) { ids in
+                if let step = ids.first.flatMap({ id in viewModel.steps.first { $0.id == id } }) {
+                    stepMenu(step)
+                }
+            } primaryAction: { ids in
+                editingStep = ids.first.flatMap { id in viewModel.steps.first { $0.id == id } }
             }
             .listStyle(.inset(alternatesRowBackgrounds: false))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -125,6 +109,29 @@ extension JobDetailsView {
         let error = viewModel.errorMessage
         viewModel.errorMessage = nil
         return error
+    }
+
+    @ViewBuilder
+    func stepMenu(_ step: JobQueueViewModel.StepRow) -> some View {
+        Button {
+            editingStep = step
+        } label: {
+            Label("Edit Step", systemImage: "pencil")
+        }
+        if step.command != nil {
+            Button {
+                openCommandEditor(text: step.command ?? "", stepName: step.name)
+            } label: {
+                Label("Open Command in Editor", systemImage: "arrow.up.right.square")
+            }
+        }
+        Divider()
+        Button(role: .destructive) {
+            pendingDeleteStepName = step.name
+            showDeleteStepAlert = true
+        } label: {
+            Label("Delete Step", systemImage: "trash")
+        }
     }
 
     func stepListRow(_ step: JobQueueViewModel.StepRow) -> some View {

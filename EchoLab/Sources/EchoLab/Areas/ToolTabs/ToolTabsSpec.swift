@@ -79,6 +79,7 @@ enum ToolTabsSpec {
                            .row("Maximise", "double-click the gap, or ⌥⇧⌘Y (View › Maximize Bottom Panel): a one-line content card stays"),
                            .row("Status bar", "floats in the content card while the panel is closed; rests on the canvas below cards side by side")),
                 .motion(.row("Curve", "house spring out, smooth in, 0.45s")),
+                .material(.row("Under the status bar", "a light card tint towards the bottom; only query tabs soften into the system's material (round 44, owner's note)", token: "ContentPanelCards.softensUnderFooter")),
             ], files: [panels]),
         ]),
         SpecPart(number: "6", name: "Pane header", summary: "The header at the top of a pane inside a tool tab's card (round 33, JH1).", elements: [
@@ -127,6 +128,16 @@ enum ToolTabsSpec {
                            .row("Edges and button", "one surface, no hairline (SE1); Add Step prominent while it can be pressed (PB1)", token: "SheetLayout.primaryButton")),
             ], files: ["\(jobs)/Sheets/AgentJobStepEditorSheet.swift", "\(jobs)/Sheets/AgentJobStepEditorSheet+Sidebar.swift",
                        "\(jobs)/Sheets/AgentJobStepEditorSheet+Command.swift", "\(jobs)/AgentJobStepOutcome.swift"]),
+            SpecElement(number: "7.8", name: "Header and window", summary: "The sidebar's Agent Jobs clock, in the jobs colour; Refresh on the header line.", groups: [
+                .material(.row("Symbol", "clock, as the Agent Jobs folder in the tree", token: "ExplorerNodeKind.agentJobs.symbol"),
+                          .row("Tint", "orange", token: "ColorTokens.Explorer.jobs")),
+                .behaviour(.row("In its own window", "the window toolbar has Refresh and the inspector; Start/Stop and New Job stay on the Jobs pane (JA1)")),
+            ], files: ["\(jobs)/JobQueue/JobQueueHeader.swift", "\(jobs)/JobQueueWindow.swift"]),
+            SpecElement(number: "7.9", name: "Opening a step or a schedule", summary: "A double-click (or Return) opens Edit Step or Edit Schedule.", groups: [
+                .behaviour(.row("Steps", "the right-click menu's first item is Edit Step"),
+                           .row("Schedules", "Edit Schedule opens the schedule sheet on the schedule; it changes in place, so every job it is attached to follows", token: "AgentJobScheduleFields"),
+                           .row("Not editable", "monthly-relative, Agent-start and idle schedules: Edit Schedule is dimmed")),
+            ], files: ["\(jobs)/JobDetails/JobDetailsView+Steps.swift", "\(jobs)/JobDetails/JobDetailsView+Schedules.swift"]),
         ]),
         SpecPart(number: "8", name: "Controls", summary: "The header line's controls, in the editor's glass language (round 37.3).", elements: [
             SpecElement(number: "8.1", name: "Main action", summary: "A glass capsule: its symbol in the accent colour, its word in grey (PA1).", groups: [
@@ -179,9 +190,14 @@ enum ToolTabsSpec {
             ], rounds: ["ongoing.tool-tab-themes-r37"], files: [controls + "/CanvasFloatingBar.swift"]),
         ]),
         SpecPart(number: "10", name: "Window toolbar", summary: "A tool adds nothing to the window toolbar (round 45): only the query editor uses Run.", elements: [
-            SpecElement(number: "10.1", name: "No tool group", summary: "The structure editor's Add, Script and Apply, Activity Monitor's pause, Start Job, Open in Window, Cycle Log and Maintenance's database menu moved into their tabs.", groups: [
+            SpecElement(number: "10.1", name: "No tool group", summary: "The structure editor's Add, Script and Apply, Activity Monitor's pause, Start Job, Cycle Log and Maintenance's database menu moved into their tabs.", groups: [
                 .behaviour(.row("Why", "the owner: actions for these tabs belong in the tabs; it is clearer what you are doing")),
             ], rounds: ["ongoing.tool-tab-main-action-r45"], files: ["Echo/Sources/Features/AppHost/Views/Toolbar/WorkspaceToolbarItems/WorkspaceToolbarItems.swift"]),
+            SpecElement(number: "10.2", name: "Open in New Window", summary: "Agent Jobs' one toolbar item: its own glass group at the start of the right-hand side.", groups: [
+                .behaviour(.row("Shown", "only while Agent Jobs is the front tab", token: "WorkspaceToolbarContext.canOpenInWindow"),
+                           .row("Why", "the owner, 2026-10-01: it moves the tab, so it belongs with the window, not in the tab's header")),
+                .material(.row("Symbol", "rectangle.portrait.and.arrow.right")),
+            ], files: ["Echo/Sources/Features/AppHost/Views/Toolbar/WorkspaceToolbarItems/OpenInWindowToolbarButton.swift"]),
         ]),
     ]
 }

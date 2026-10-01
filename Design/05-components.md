@@ -180,6 +180,7 @@ Decided 2026-09-30.
 - **Monitoring tools** open on dashboard tiles: the key figures as cards with sparklines above the detail. *Decided.*
 - Configuration stays in the tab; read-only detail such as a job's history may use the Inspector. *Decided.*
 - **Panes inside a tool tab share one pane header** (round 33, JH1): the title (13pt semibold), a grey count, the pane's actions at the right, on one 36pt line (`PaneHeader`). *Decided.*
+- **Agent Jobs, after checking it in Echo** (owner, 2026-10-01): Open in New Window is a toolbar item of its own at the start of the right-hand side while Agent Jobs is in front; the header uses the tree's clock in the jobs colour; a double-click opens Edit Step or Edit Schedule, and schedules can be edited. *Decided.*
 - **New Step and Edit Step** (round 33.2): the command full height at the left in Echo's SQL editor with Parse (T-SQL), the settings in a sidebar at the right (Step; When it finishes: On success, On failure, retries); Edit Step adds the step's last run under the title. *Decided.*
 - **Sheets are one surface** (round 33.2, SE1): no hairline between the content and the buttons; the default button is prominent while it can be pressed (`SheetLayout`). *Decided.*
 - **Five families** (round 37.1, 2026-10-01): Monitor, Manage, Health (Query Store included), Properties, Canvas; the psql console follows the editor instead. **One theme for all:** one header, the same pane cards, tables and empty states. *Decided.*

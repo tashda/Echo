@@ -20,6 +20,7 @@ struct JobDetailsView: View {
     // Schedule editing
     @State var showAddScheduleSheet = false
     @State var selectedScheduleID: Set<String> = []
+    @State var editingSchedule: JobQueueViewModel.ScheduleRow?
 
     enum DetailSection: String, CaseIterable, Identifiable {
         case properties = "Properties"

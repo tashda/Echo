@@ -37,6 +37,8 @@ enum ToolTabsArea {
                 .init(trigger: "Monitoring tool", result: "Opens on dashboard tiles: the key figures with sparklines above the detail."),
                 .init(trigger: "Agent Jobs", result: "Jobs the full height on the left, Details over History on the right; each pane with the one pane header (round 33)."),
                 .init(trigger: "New Step or Edit Step", result: "A wide sheet: the command full height in the SQL editor with Parse, the step's settings and what it does when it finishes in a sidebar at the right; Edit Step shows how the step last ran (round 33.2)."),
+                .init(trigger: "Agent Jobs in front", result: "Open in New Window is the toolbar's first item on the right, in its own glass; the header shows the tree's clock."),
+                .init(trigger: "Double-click a step or a schedule", result: "Edit Step or Edit Schedule opens on it."),
                 .init(trigger: "A job runs", result: "Its symbol spins and Last Run counts up from when the Agent started it; the list reloads when it ends."),
             ],
             motions: [

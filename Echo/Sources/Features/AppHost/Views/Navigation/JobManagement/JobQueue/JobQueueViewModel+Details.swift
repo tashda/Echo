@@ -52,7 +52,11 @@ extension JobQueueViewModel {
                     enabled: sch.enabled,
                     freqType: sch.freqType,
                     freqInterval: sch.freqInterval ?? 0,
-                    next: nextRunStr
+                    next: nextRunStr,
+                    freqRecurrenceFactor: sch.freqRecurrenceFactor,
+                    activeStartDate: sch.activeStartDate,
+                    activeStartTime: sch.activeStartTime,
+                    activeEndDate: sch.activeEndDate
                 )
             }
         } catch {

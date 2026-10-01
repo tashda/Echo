@@ -10,10 +10,13 @@ struct WorkspaceToolbarContext: Equatable {
     var hasDatabaseToggles = false
     /// Refresh, only while the front tab can reload (round 34, RL1).
     var canReload = false
+    /// Open in New Window, for a tool that can live in a window of its own (Agent Jobs).
+    var canOpenInWindow = false
 
     init(kind: WorkspaceTab.Kind?, databaseType: DatabaseType?) {
         guard let kind else { return }
         canReload = TabReloader.canReload(kind)
+        canOpenInWindow = kind == .jobQueue
         if kind == .query {
             isQuery = true
             hasDatabaseToggles = databaseType == .microsoftSQL

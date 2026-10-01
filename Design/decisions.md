@@ -2,6 +2,16 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Agent Jobs after checking it in Echo
+
+The owner, after trying rounds 33 and 33.2 in Echo ("apart from that it looks good"):
+
+- **Open in New Window is in the window toolbar**, its own glass group at the start of the right-hand side, shown only while Agent Jobs is in front; it left the tool's header. This takes Open in Window back out of round 45's "every tool action in the tab". → TLT-10.2
+- **Agent Jobs in its own window** shows no ▶ Start and no New Job in the toolbar: they are on the Jobs pane, as in the tab (JA1). Refresh and the inspector stay.
+- **The header uses the tree's symbol**: Agent Jobs' clock, in the jobs colour (it was a gear in the accent colour). → TLT-7.8
+- **A double-click opens a step or a schedule** (Edit Step, Edit Schedule). **Schedules can be edited**: the schedule sheet opens on the schedule, which changes in place for every job it is attached to; monthly-relative, Agent-start and idle schedules can't be edited in Echo yet. sqlserver-nio's `updateSchedule` had never worked (`sp_update_schedule` takes `@name`), and now also sets the active window's end. → TLT-7.9
+- **Refresh in the toolbar stays for now**: the owner has another idea for it, for another agent.
+
 ## 2026-10-01 · The blur only in the results: taken back everywhere else
 
 The owner, after round 44: the blur in other tables, such as SQL Server Agent Jobs, looked awful; for now it belongs only in the result panel. This takes back round 27's "every scroll bar in a card" and the owner's later ask for the same blur behind every horizontal bar in Echo. `ScrollBarBlur` now only serves the results grid and the editor (`FooterScrollOverlay`), and the footer's material (round 44) is only under a query tab's footer and the editor's bottom; every other tab's footer keeps the light card tint (35%, easing in). Built in bd137299. → FTR-2.2, FTR-4.6

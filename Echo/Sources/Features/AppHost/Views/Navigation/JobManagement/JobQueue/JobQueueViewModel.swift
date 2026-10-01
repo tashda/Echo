@@ -20,6 +20,11 @@ final class JobQueueViewModel {
     }
     struct ScheduleRow: Identifiable, Hashable {
         let id: String; let name: String; let enabled: Bool; let freqType: Int; let freqInterval: Int; let next: String?
+        /// What Edit Schedule needs to open on the schedule as it is.
+        var freqRecurrenceFactor: Int?
+        var activeStartDate: Int?
+        var activeStartTime: Int?
+        var activeEndDate: Int?
         var enabledSortKey: String { enabled ? "1" : "0" }
         var nextSortKey: String { next ?? "" }
     }

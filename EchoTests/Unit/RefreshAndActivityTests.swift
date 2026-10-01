@@ -19,6 +19,12 @@ struct RefreshAndActivityTests {
         #expect(WorkspaceToolbarContext(kind: kind, databaseType: .microsoftSQL).canReload)
     }
 
+    @Test func onlyAgentJobsOpensInAWindowFromTheToolbar() {
+        #expect(WorkspaceToolbarContext(kind: .jobQueue, databaseType: .microsoftSQL).canOpenInWindow)
+        #expect(!WorkspaceToolbarContext(kind: .activityMonitor, databaseType: .microsoftSQL).canOpenInWindow)
+        #expect(!WorkspaceToolbarContext(kind: .query, databaseType: .microsoftSQL).canOpenInWindow)
+    }
+
     @Test func aReloaderStartsAtRest() {
         let reloader = TabReloader()
         #expect(reloader.phase == .idle)
