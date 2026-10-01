@@ -4,6 +4,11 @@ import PostgresWire
 import os
 
 extension PostgresSession {
+    /// Off the main actor: the query tab awaits this from the main actor, and a nonisolated async
+    /// function runs on its caller's actor (SE-0461), so every row was decoded and formatted on
+    /// the main thread while results streamed in (traced 2026-10-01). The batch worker already
+    /// hands its updates to the main actor from its own queue.
+    @concurrent
     func streamQuery(
         sanitizedSQL: String,
         progressHandler: @escaping QueryProgressHandler,

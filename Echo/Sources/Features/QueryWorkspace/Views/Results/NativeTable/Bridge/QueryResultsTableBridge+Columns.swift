@@ -142,19 +142,41 @@ extension QueryResultsTableView.Coordinator {
         let sampleCount = isSplitResizing ? min(tableView.numberOfRows, 32) : min(tableView.numberOfRows, ResultsGridMetrics.maxAutoWidthSampleCount)
         if sampleCount == 0 { return ceil(maxWidth) + padding + 6 }
         let sampledRows = makeSampledRows(total: tableView.numberOfRows, count: sampleCount)
+        // The kind follows the column's type, so only NULL differs from row to row: classify and
+        // resolve the font once per kind, not per sampled value (a wide result spent most of its
+        // column sizing here).
+        let valueKind = ResultGridValueClassifier.kind(for: columnInfo, value: "")
+        let form = column < cachedColumnForms.count ? cachedColumnForms[column] : .plain
+        var candidates: [(text: NSString, kind: ResultGridValueKind)] = []
+        candidates.reserveCapacity(sampledRows.count)
         for row in sampledRows {
             let sourceRow = resolvedRowIndex(for: row)
             guard sourceRow >= 0 else { continue }
             let value = queryState.valueForDisplay(row: sourceRow, column: column)
-            let kind = ResultGridValueClassifier.kind(for: columnInfo, value: value)
-            let style = fallbackResultGridStyle(for: kind)
-            let form = column < cachedColumnForms.count ? cachedColumnForms[column] : .plain
+            let kind = value == nil ? ResultGridValueKind.null : valueKind
             let shown = value.map { form == .decimal ? $0 : ResultCellValueForm.shown($0, form: form).text }
-            let displayString = (shown ?? (kind == .null ? "NULL" : "")) as NSString
-            let measured = displayString.size(withAttributes: [.font: resolvedFont(for: style)]).width
-            maxWidth = max(maxWidth, measured)
+            candidates.append(((shown ?? (kind == .null ? "NULL" : "")) as NSString, kind))
+        }
+        let longest = Self.longestValues(candidates, limit: Self.measuredValueCount)
+        var attributesByKind: [ResultGridValueKind: [NSAttributedString.Key: Any]] = [:]
+        for candidate in longest {
+            let attributes = attributesByKind[candidate.kind] ?? {
+                let made: [NSAttributedString.Key: Any] = [.font: resolvedFont(for: fallbackResultGridStyle(for: candidate.kind))]
+                attributesByKind[candidate.kind] = made
+                return made
+            }()
+            maxWidth = max(maxWidth, candidate.text.size(withAttributes: attributes).width)
         }
         return ceil(maxWidth) + padding + 6
+    }
+
+    /// How many of a column's longest sampled values are measured to size it.
+    static let measuredValueCount = 24
+
+    /// The widest value is among the longest ones, so only those are measured.
+    static func longestValues<Value>(_ values: [(text: NSString, kind: Value)], limit: Int) -> ArraySlice<(text: NSString, kind: Value)> {
+        guard values.count > limit else { return values[...] }
+        return values.sorted { $0.text.length > $1.text.length }.prefix(limit)
     }
 
     private func makeSampledRows(total: Int, count: Int) -> [Int] {

@@ -71,74 +71,80 @@ struct CenteredTabSectionLayout<CenterContent: View, Controls: View>: View {
     }
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            CenteredTabSectionBarLayout(spacing: SpacingTokens.sm) {
-                HStack {
-                    centerContent()
-                }
-
-                HStack(spacing: SpacingTokens.sm) {
-                    controls()
-                }
+        // One layout that centres or stacks, rather than a `ViewThatFits` holding both: that built
+        // and measured the navigation twice, which made opening a tool tab stall for 0.3-0.6 s.
+        CenteredTabSectionBarLayout(spacing: SpacingTokens.sm, stackedSpacing: SpacingTokens.xs) {
+            HStack {
+                centerContent()
             }
 
-            VStack(spacing: SpacingTokens.xs) {
-                centerContent()
-
-                HStack(spacing: SpacingTokens.sm) {
-                    Spacer(minLength: 0)
-                    controls()
-                }
+            HStack(spacing: SpacingTokens.sm) {
+                controls()
             }
         }
         .frame(maxWidth: .infinity)
     }
 }
 
-/// Keeps the navigation exactly centered while reserving equal clearance for
-/// contextual controls on both sides. `ViewThatFits` selects the stacked
-/// alternative above when that clearance is unavailable.
-private struct CenteredTabSectionBarLayout: Layout {
+/// Keeps the navigation exactly centered while reserving equal clearance for contextual controls
+/// on both sides. Without room for that clearance, the controls go below, at the trailing edge.
+/// Each subview is measured once per layout pass (the cache).
+struct CenteredTabSectionBarLayout: Layout {
     let spacing: CGFloat
+    let stackedSpacing: CGFloat
 
-    func sizeThatFits(
-        proposal: ProposedViewSize,
-        subviews: Subviews,
-        cache: inout ()
-    ) -> CGSize {
-        guard subviews.count == 2 else { return .zero }
+    struct Sizes {
+        var center: CGSize
+        var controls: CGSize
+    }
 
-        let centerSize = subviews[0].sizeThatFits(.unspecified)
-        let controlsSize = subviews[1].sizeThatFits(.unspecified)
-        let requiredWidth = centerSize.width + ((controlsSize.width + spacing) * 2)
+    func makeCache(subviews: Subviews) -> Sizes? {
+        guard subviews.count == 2 else { return nil }
+        return Sizes(center: subviews[0].sizeThatFits(.unspecified), controls: subviews[1].sizeThatFits(.unspecified))
+    }
 
+    func updateCache(_ cache: inout Sizes?, subviews: Subviews) {
+        cache = makeCache(subviews: subviews)
+    }
+
+    /// The width that keeps the navigation centred with the controls clear of it.
+    static func centredWidth(_ sizes: Sizes, spacing: CGFloat) -> CGFloat {
+        sizes.center.width + (sizes.controls.width + spacing) * 2
+    }
+
+    static func isStacked(_ sizes: Sizes, width: CGFloat?, spacing: CGFloat) -> Bool {
+        guard let width, sizes.controls.width > 0 else { return false }
+        return width < centredWidth(sizes, spacing: spacing)
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Sizes?) -> CGSize {
+        guard let sizes = cache else { return .zero }
+        if Self.isStacked(sizes, width: proposal.width, spacing: spacing) {
+            return CGSize(
+                width: proposal.width ?? max(sizes.center.width, sizes.controls.width),
+                height: sizes.center.height + stackedSpacing + sizes.controls.height
+            )
+        }
+        let requiredWidth = Self.centredWidth(sizes, spacing: spacing)
         return CGSize(
             width: max(proposal.width ?? requiredWidth, requiredWidth),
-            height: max(centerSize.height, controlsSize.height)
+            height: max(sizes.center.height, sizes.controls.height)
         )
     }
 
-    func placeSubviews(
-        in bounds: CGRect,
-        proposal: ProposedViewSize,
-        subviews: Subviews,
-        cache: inout ()
-    ) {
-        guard subviews.count == 2 else { return }
-
-        let centerSize = subviews[0].sizeThatFits(.unspecified)
-        let controlsSize = subviews[1].sizeThatFits(.unspecified)
-
-        subviews[0].place(
-            at: CGPoint(x: bounds.midX, y: bounds.midY),
-            anchor: .center,
-            proposal: ProposedViewSize(width: centerSize.width, height: centerSize.height)
-        )
-        subviews[1].place(
-            at: CGPoint(x: bounds.maxX, y: bounds.midY),
-            anchor: .trailing,
-            proposal: ProposedViewSize(width: controlsSize.width, height: controlsSize.height)
-        )
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Sizes?) {
+        guard let sizes = cache else { return }
+        let center = ProposedViewSize(sizes.center)
+        let controls = ProposedViewSize(sizes.controls)
+        if Self.isStacked(sizes, width: bounds.width, spacing: spacing) {
+            // The full width, so a picker that doesn't fit can turn into its menu.
+            subviews[0].place(at: CGPoint(x: bounds.midX, y: bounds.minY), anchor: .top,
+                              proposal: ProposedViewSize(width: bounds.width, height: sizes.center.height))
+            subviews[1].place(at: CGPoint(x: bounds.maxX, y: bounds.maxY), anchor: .bottomTrailing, proposal: controls)
+        } else {
+            subviews[0].place(at: CGPoint(x: bounds.midX, y: bounds.midY), anchor: .center, proposal: center)
+            subviews[1].place(at: CGPoint(x: bounds.maxX, y: bounds.midY), anchor: .trailing, proposal: controls)
+        }
     }
 }
 

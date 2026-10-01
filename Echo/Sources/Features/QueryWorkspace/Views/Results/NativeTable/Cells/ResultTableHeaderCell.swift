@@ -27,6 +27,19 @@ final class ResultTableHeaderCell: NSTableHeaderCell {
         lineBreakMode = .byTruncatingTail
     }
 
+    /// `NSCell` copies itself byte by byte, so a copy's Swift properties would point at this
+    /// cell's values without owning them, and freeing the copy over-released them. AppKit copies
+    /// the last header cell to draw the empty header past the last column, which crashed while
+    /// results streamed in (EXC_BREAKPOINT in `drawInterior`, 2026-10-01). The copy takes
+    /// ownership here: `initialize` writes without releasing the byte-copied value.
+    override func copy(with zone: NSZone? = nil) -> Any {
+        let copy = super.copy(with: zone)
+        guard let cell = copy as? ResultTableHeaderCell else { return copy }
+        withUnsafeMutablePointer(to: &cell.typeName) { $0.initialize(to: typeName) }
+        withUnsafeMutablePointer(to: &cell.columnSensitivity) { $0.initialize(to: columnSensitivity) }
+        return cell
+    }
+
     /// Where the sort arrow sits inside a header cell's frame.
     static func sortIndicatorRect(in cellFrame: NSRect) -> NSRect {
         let size = ResultsGridMetrics.sortIndicatorSize
