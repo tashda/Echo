@@ -13,7 +13,7 @@ enum LabUFDock: String, CaseIterable {
         switch self {
         case .atOnce: "What Echo does now: the capsule is there the moment the edge starts moving."
         case .fade: "The capsule fades in over the edge's 0.22 s."
-        case .grow: "The capsule scales up from 92% under the header, fading in and coming into focus, like glass taking shape."
+        case .grow: "The capsule scales up from 92% under the header and comes into focus as the edge uncovers it, like glass taking shape. It doesn't fade, so the glass blurs what's behind it from the first frame."
         case .slide: "The capsule drops 10pt from under the name as it fades in, as if it were tucked behind the header."
         case .unfold: "An empty capsule widens from its middle, then the icons fade in one after another, left to right."
         }

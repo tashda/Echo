@@ -27,9 +27,11 @@ public struct ExplorerTreeCardsLayer<CardBackground: View>: View {
         self.card = card
     }
 
+    /// A folding card may also be marked as switching (its rows come in under the switch's veil,
+    /// round 46); its edge still moves with the fold, on the rows' curve.
     private func animation(for card: ExplorerTreeCard) -> Animation? {
-        if switchingCardIDs.contains(card.id) { return edgeAnimation }
         if foldingCardIDs.contains(card.id) { return foldAnimation }
+        if switchingCardIDs.contains(card.id) { return edgeAnimation }
         return nil
     }
 

@@ -134,7 +134,9 @@ private struct LabUFDockArrival: ViewModifier {
         case .atOnce, .fade:
             content.opacity(isShown ? 1 : 0)
         case .grow:
-            content.opacity(isShown ? 1 : 0)
+            // No fade: the glass keeps its blur from the first frame and the card's edge uncovers
+            // it (the owner's note when accepting round 46).
+            content
                 .scaleEffect(isShown ? 1 : 0.92, anchor: .top)
                 .blur(radius: isShown ? 0 : SpacingTokens.xxxs)
         case .slide:

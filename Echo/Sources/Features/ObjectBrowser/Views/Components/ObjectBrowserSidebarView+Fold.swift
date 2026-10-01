@@ -1,32 +1,74 @@
 import SwiftUI
 
-/// Round 30.2, CM2: a server card folds while its rows fade, and opens the same way.
+/// Opening and closing a server's card (rounds 30.2 and 46): the card's edge glides on `expand`,
+/// the dock grows out of the header (DA2), and the card's rows come and go the way a section
+/// switch swaps them (RA1, CL2): under a veil in the card's colour.
 extension ObjectBrowserSidebarView {
-    /// Opens or closes a server's card in two steps:
-    /// 1. the cards are marked as folding with nothing moving, so the rows about to leave are
-    ///    drawn once with the fold's transition (a leaving row keeps the transition it last had);
-    /// 2. the server opens or closes on `expand`: the card's edge glides and its rows fade and are
-    ///    cut by the edge (ObjectBrowserOutlineView+Fold). The mark is cleared when it ends.
+    /// Opening:
+    /// 1. every card is marked as folding, and this one's rows will arrive hidden under an opaque
+    ///    veil, nothing moving yet (the veil exists at the closed card's size, so it can grow);
+    /// 2. the server opens on `expand`: the edge and the veil glide down together while the dock
+    ///    grows out of the header, cut by the edge;
+    /// 3. the rows show under the veil, and the veil fades away (the switch's fade in).
+    ///
+    /// Closing:
+    /// 1. the veil fades over the rows (the switch's fade out); every card is marked as folding,
+    ///    so the dock leaves with the fold's transition (a leaving row keeps the one it last had);
+    /// 2. the server closes on `expand`: the rows go at once under the veil, the edge glides up and
+    ///    the dock shrinks back into the header.
+    ///
     /// Every server is marked, since opening one can close the others (one server at a time).
     func foldServerCard(of session: ConnectionSession, isExpanded: Bool) {
         let connectionID = session.connection.id
         viewModel.foldGeneration += 1
         let generation = viewModel.foldGeneration
-        WindowDragPause.pauseWorkspace(for: 0.22 * motion.durationScale + 0.15)
-        withAnimation(.linear(duration: 0)) {
-            viewModel.foldingConnectionIDs = Set(sessions.map(\.connection.id))
-        } completion: {
-            withAnimation(motion.expand) {
-                viewModel.setServerExpanded(
-                    isExpanded,
-                    connectionID: connectionID,
-                    sessions: sessions,
-                    collapseOthers: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
-                )
+        let timing = ExplorerDockSwitchTiming(motion: motion)
+        let everyCard = Set(sessions.map(\.connection.id))
+        WindowDragPause.pauseWorkspace(for: timing.totalDuration + 0.15)
+
+        let toggle = {
+            viewModel.setServerExpanded(
+                isExpanded,
+                connectionID: connectionID,
+                sessions: sessions,
+                collapseOthers: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
+            )
+        }
+        let finish = {
+            withoutAnimation {
+                _ = viewModel.dockHiddenRowsConnectionIDs.remove(connectionID)
+                _ = viewModel.dockFadingConnectionIDs.remove(connectionID)
+                _ = viewModel.dockSwitchingConnectionIDs.remove(connectionID)
+            }
+            if viewModel.foldGeneration == generation { viewModel.foldingConnectionIDs = [] }
+        }
+
+        if isExpanded {
+            withAnimation(.linear(duration: 0)) {
+                viewModel.foldingConnectionIDs = everyCard
+                _ = viewModel.dockSwitchingConnectionIDs.insert(connectionID)
+                _ = viewModel.dockFadingConnectionIDs.insert(connectionID)
+                _ = viewModel.dockHiddenRowsConnectionIDs.insert(connectionID)
             } completion: {
-                guard viewModel.foldGeneration == generation else { return }
-                viewModel.foldingConnectionIDs = []
+                withAnimation(motion.expand) { toggle() } completion: {
+                    withoutAnimation { _ = viewModel.dockHiddenRowsConnectionIDs.remove(connectionID) }
+                    withAnimation(timing.fadeIn) { _ = viewModel.dockFadingConnectionIDs.remove(connectionID) } completion: { finish() }
+                }
+            }
+        } else {
+            withAnimation(timing.fadeOut) {
+                viewModel.foldingConnectionIDs = everyCard
+                _ = viewModel.dockSwitchingConnectionIDs.insert(connectionID)
+                _ = viewModel.dockFadingConnectionIDs.insert(connectionID)
+            } completion: {
+                withAnimation(motion.expand) { toggle() } completion: { finish() }
             }
         }
+    }
+
+    private func withoutAnimation(_ change: () -> Void) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction, change)
     }
 }

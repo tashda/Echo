@@ -72,6 +72,9 @@ struct ObjectBrowserOutlineView: View {
         let layout = ObjectBrowserTreeLayout(roots: roots, expandedNodeIDs: expandedNodeIDs, baseRowHeight: baseRowHeight)
         let rowIDs = layout.rows.map(\.id)
         let dockSelections = layout.dockSelections
+        // Opening or closing a docked server adds or removes its dock, which changes the
+        // selections too; that is a fold, not a switch, so it keeps its animation (round 46).
+        let dockSwitchKey = foldingConnectionIDs.isEmpty ? dockSelections : [:]
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
 
         ScrollView(.vertical) {
@@ -99,7 +102,7 @@ struct ObjectBrowserOutlineView: View {
                 // scroll view changes size frame by frame (which made AppKit recheck the window's
                 // regions every frame). Only the card's background and veil move its edge. This is
                 // the inner modifier, so it wins over `expand` when both change.
-                .animation(nil, value: dockSelections)
+                .animation(nil, value: dockSwitchKey)
                 .animation(motion.expand, value: rowIDs)
                 ExplorerTreeHoldSpacer(scroll: scroll, contentHeight: layout.contentHeight)
             }
@@ -113,7 +116,8 @@ struct ObjectBrowserOutlineView: View {
         .overlay(alignment: .top) {
             ExplorerTreeVeilLayer(veils: layout.veils(switching: switchingConnectionIDs, opaque: fadingConnectionIDs),
                                   scroll: scroll, cornerRadius: cornerRadius)
-                .animation(motion.dockEdge, value: dockSelections)
+                // In a fold the veil grows and shrinks with the card's edge (round 46).
+                .animation(foldingConnectionIDs.isEmpty ? motion.dockEdge : motion.expand, value: dockSelections)
         }
         .overlay {
             ExplorerTreeContextMenuHost(target: { contextTarget(at: $0, in: layout) }, onMenu: { contextMenuNodeID = $0 })
@@ -146,7 +150,7 @@ struct ObjectBrowserOutlineView: View {
                 // The editor card's modifier, so the tree's cards match it exactly.
                 Color.clear.workspaceCard()
             }
-                .animation(nil, value: dockSelections)
+                .animation(nil, value: dockSwitchKey)
                 .animation(motion.expand, value: rowIDs)
         }
         .frame(minHeight: SpacingTokens.none)

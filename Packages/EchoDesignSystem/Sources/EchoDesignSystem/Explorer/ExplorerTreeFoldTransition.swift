@@ -14,26 +14,41 @@ public struct ExplorerTreeFold: Sendable, Equatable {
         self.cornerRadius = cornerRadius
     }
 
+    /// Round 46, DA2: the dock starts 8% smaller and this far out of focus.
+    public static let growScale: CGFloat = 0.08
+    public static let growBlur: CGFloat = SpacingTokens.xxxs
+
     /// Where the edge is when the fold is `progress` of the way closed (0 open, 1 closed).
     public func edge(at progress: Double) -> CGFloat {
         openBottom - CGFloat(progress) * (openBottom - closedBottom)
     }
 }
 
-/// A row of a folding card leaves (or arrives) by fading while the card's edge passes over it,
-/// cut by the edge and the card's rounded corners, so it never shows outside the card. It runs
-/// on the fold's own animation, the same one that moves the edge.
+/// A row of a folding card leaves (or arrives) while the card's edge passes over it, cut by the
+/// edge and the card's rounded corners, so it never shows outside the card. It runs on the fold's
+/// own animation, the same one that moves the edge.
 public struct ExplorerTreeFoldTransition: Transition {
+    /// How the row itself changes while the edge passes it.
+    public enum Style: Sendable {
+        /// It fades.
+        case fade
+        /// Round 46, DA2: it grows out of the header, from 92% and out of focus, without fading,
+        /// so glass keeps its blur from the first frame.
+        case grow
+    }
+
     let fold: ExplorerTreeFold
     let rowTop: CGFloat
+    let style: Style
 
-    public init(fold: ExplorerTreeFold, rowTop: CGFloat) {
+    public init(fold: ExplorerTreeFold, rowTop: CGFloat, style: Style = .fade) {
         self.fold = fold
         self.rowTop = rowTop
+        self.style = style
     }
 
     public func body(content: Content, phase: TransitionPhase) -> some View {
-        content.modifier(ExplorerTreeFoldCut(fold: fold, rowTop: rowTop, progress: phase.isIdentity ? 0 : 1))
+        content.modifier(ExplorerTreeFoldCut(fold: fold, rowTop: rowTop, style: style, progress: phase.isIdentity ? 0 : 1))
     }
 }
 
@@ -41,6 +56,7 @@ public struct ExplorerTreeFoldTransition: Transition {
 private struct ExplorerTreeFoldCut: ViewModifier, Animatable {
     let fold: ExplorerTreeFold
     let rowTop: CGFloat
+    let style: ExplorerTreeFoldTransition.Style
     var progress: Double
 
     nonisolated var animatableData: Double {
@@ -49,8 +65,11 @@ private struct ExplorerTreeFoldCut: ViewModifier, Animatable {
     }
 
     func body(content: Content) -> some View {
+        let grows = style == .grow
         content
-            .opacity(1 - progress)
+            .scaleEffect(grows ? 1 - ExplorerTreeFold.growScale * progress : 1, anchor: .top)
+            .blur(radius: grows ? ExplorerTreeFold.growBlur * progress : 0)
+            .opacity(grows ? 1 : 1 - progress)
             .clipShape(ExplorerTreeFoldEdge(edge: fold.edge(at: progress) - rowTop, cornerRadius: fold.cornerRadius))
     }
 }
