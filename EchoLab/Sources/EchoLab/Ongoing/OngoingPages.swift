@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity , tabOverviewDirection , tabOverviewCard , tabOverviewGrouping , tabOverviewMotion , toolTabPages , toolTabPagesWhere , toolTabFamilies , toolTabHeader , toolTabControls , toolTabThemes , treeToolRows , railTools , railBookmarks , railSnippets , railHistory , railClipboard , railClickHiddenTree , resultsHeaderLines , resultsSelectionSummary , resultsErrorPage , resultsMessages , resultsPillPopovers /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity , tabOverviewDirection , tabOverviewCard , tabOverviewGrouping , tabOverviewMotion , toolTabPages , toolTabPagesWhere , toolTabFamilies , toolTabHeader , toolTabControls , toolTabThemes , treeToolRows , railTools , railBookmarks , railSnippets , railHistory , railClipboard , railClickHiddenTree , resultsHeaderLines , resultsSelectionSummary , resultsErrorPage , resultsMessages , resultsPillPopovers , contextMenuAnatomy , contextMenuServer , contextMenuDatabase , contextMenuTable , contextMenuColumn , contextMenuFolder /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -522,6 +522,48 @@
         status: .judging,
         summary: "Rows, time and status each open their own popover with what that pill is about, instead of one general one.",
         spec: ResultsPillPopoversRound.spec)
+
+    /// Round 42: Context menus: the rules.
+    static let contextMenuAnatomy = LabPage.round(
+        id: "ongoing.context-menu-anatomy-r42", group: "Explorer tree", title: "Context menus: the rules · round 42", symbol: "contextualmenu.and.cursorarrow",
+        status: .judging,
+        summary: "One set of rules for every menu, from Apple's guidelines (short, about three groups, most used first, one level of submenus, hide what doesn't apply, no shortcuts, destructive last, familiar icons): order, icons, where Properties and Drop go, a title, Copy Name. Pages 42.2 to 42.6 apply them object by object.",
+        spec: ContextMenuAnatomyRound.spec)
+
+    /// Round 42: Context menus: server.
+    static let contextMenuServer = LabPage.round(
+        id: "ongoing.context-menu-server-r42", group: "Explorer tree", title: "Context menus: server · round 42", symbol: "server.rack",
+        status: .judging,
+        summary: "The server's menu: today Refresh All, New Query, Activity Monitor, five tools, Manage Connection, Disconnect, Properties in six groups.",
+        spec: ContextMenuServerRound.spec)
+
+    /// Round 42: Context menus: database.
+    static let contextMenuDatabase = LabPage.round(
+        id: "ongoing.context-menu-database-r42", group: "Explorer tree", title: "Context menus: database · round 42", symbol: "cylinder",
+        status: .judging,
+        summary: "The database's menu: today Refresh Schema, New Query, Maintenance, Tasks (up to 14 items), Advanced Objects, Drop and Properties.",
+        spec: ContextMenuDatabaseRound.spec)
+
+    /// Round 42: Context menus: tables and views.
+    static let contextMenuTable = LabPage.round(
+        id: "ongoing.context-menu-table-r42", group: "Explorer tree", title: "Context menus: tables and views · round 42", symbol: "tablecells",
+        status: .judging,
+        summary: "The table's and view's menu, as in your screenshot: New Query, Data, Structure, Diagram, Script as, Tasks, Drop Table, Properties in five groups.",
+        spec: ContextMenuTableRound.spec)
+
+    /// Round 42: Context menus: columns, routines and the rest.
+    static let contextMenuColumn = LabPage.round(
+        id: "ongoing.context-menu-column-r42", group: "Explorer tree", title: "Context menus: columns, routines and the rest · round 42", symbol: "list.bullet.indent",
+        status: .judging,
+        summary: "Columns have no menu today; procedures, functions, logins and jobs each have their own. What each should offer.",
+        spec: ContextMenuColumnRound.spec)
+
+    /// Round 42: Context menus: folders and sections.
+    static let contextMenuFolder = LabPage.round(
+        id: "ongoing.context-menu-folder-r42", group: "Explorer tree", title: "Context menus: folders and sections · round 42", symbol: "folder",
+        status: .judging,
+        summary: "Tables, Security, Agent Jobs and the other folders: what right-clicking a folder offers.",
+        spec: ContextMenuFolderRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

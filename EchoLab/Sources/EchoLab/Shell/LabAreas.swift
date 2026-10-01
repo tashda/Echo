@@ -134,6 +134,12 @@ enum LabAreas {
         "ongoing.results-error-page-r41": "footer-results",
         "ongoing.results-messages-r41": "footer-results",
         "ongoing.results-pill-popovers-r41": "footer-results",
+        "ongoing.context-menu-anatomy-r42": "explorer-tree",
+        "ongoing.context-menu-server-r42": "explorer-tree",
+        "ongoing.context-menu-database-r42": "explorer-tree",
+        "ongoing.context-menu-table-r42": "explorer-tree",
+        "ongoing.context-menu-column-r42": "explorer-tree",
+        "ongoing.context-menu-folder-r42": "explorer-tree",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 
