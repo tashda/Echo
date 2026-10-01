@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -193,6 +193,83 @@
         status: .judging,
         summary: "Changes FTR-4.6. The grid's horizontal scroll bar floats over the last rows above the footer; where should it sit so it blends in with the footer? Asked 2026-10-01 alongside the results smoothness work.",
         spec: ResultsScrollersRound.spec)
+
+    /// Round 28: Editor: text and line height.
+    static let editorText = LabPage.round(
+        id: "ongoing.editor-text-r28", group: "Editor and running", title: "Editor: text and line height · round 28", symbol: "textformat.size",
+        status: .judging,
+        summary: "The editor's font, size, ligatures, line height and margins. Today a line is 31pt for 13pt text because the Line Spacing setting is applied twice. Changes EDT-1.2.",
+        spec: EditorTextRound.spec)
+
+    /// Round 28: Editor: gutter.
+    static let editorGutter = LabPage.round(
+        id: "ongoing.editor-gutter-r28", group: "Editor and running", title: "Editor: gutter · round 28", symbol: "list.number",
+        status: .judging,
+        summary: "The line numbers: their font, colour and size, the caret line's number (today the faintest one), the surface and where the error dot and Run arrow sit. Changes EDT-2.1 to 2.3.",
+        spec: EditorGutterRound.spec)
+
+    /// Round 28: Editor: caret, current line and selection.
+    static let editorCaretLine = LabPage.round(
+        id: "ongoing.editor-caret-line-r28", group: "Editor and running", title: "Editor: caret, current line and selection · round 28", symbol: "character.cursor.ibeam",
+        status: .judging,
+        summary: "The current-line band, the selection's colour and shape, and the caret's colour. Changes EDT-2.4.",
+        spec: EditorCaretLineRound.spec)
+
+    /// Round 28: Editor: the statement at the caret.
+    static let editorStatement = LabPage.round(
+        id: "ongoing.editor-statement-r28", group: "Editor and running", title: "Editor: the statement at the caret · round 28", symbol: "text.line.first.and.arrowtriangle.forward",
+        status: .judging,
+        summary: "How the statement at the caret shows (today a 6% accent band) and how its Run arrow looks. Changes EDT-3.1 and 3.2.",
+        spec: EditorStatementRound.spec)
+
+    /// Round 28: Editor: highlights and marks.
+    static let editorMarks = LabPage.round(
+        id: "ongoing.editor-marks-r28", group: "Editor and running", title: "Editor: highlights and marks · round 28", symbol: "highlighter",
+        status: .judging,
+        summary: "One shape language for everything drawn on the text: the word at the caret, find matches, matching brackets; corner, height, colour, and no glass on text.",
+        spec: EditorMarksRound.spec)
+
+    /// Round 28: Editor: errors in the text.
+    static let editorErrors = LabPage.round(
+        id: "ongoing.editor-errors-r28", group: "Editor and running", title: "Editor: errors in the text · round 28", symbol: "exclamationmark.octagon",
+        status: .judging,
+        summary: "The red marking: today a glowing frame and a pill while typing, a squiggle and a bubble after a run. One look for both, its message and the gutter dot. Changes EDT-2.3 and adds the live check.",
+        spec: EditorErrorsRound.spec)
+
+    /// Round 28: Editor: after a run.
+    static let editorRunNote = LabPage.round(
+        id: "ongoing.editor-run-note-r28", group: "Editor and running", title: "Editor: after a run · round 28", symbol: "checkmark.circle",
+        status: .judging,
+        summary: "The “✓ 200 rows · 10.1 s” note: its look and place, whether what ran lights up, and the row count (fixed: it counted only the rows in memory). Changes EDT-3.3.",
+        spec: EditorRunNoteRound.spec)
+
+    /// Round 28: Editor: zoom.
+    static let editorZoom = LabPage.round(
+        id: "ongoing.editor-zoom-r28", group: "Editor and running", title: "Editor: zoom · round 28", symbol: "plus.magnifyingglass",
+        status: .judging,
+        summary: "A new zoom control for the editor: where it sits, how it looks, when it shows, what it zooms and its keys. New in EDT.",
+        spec: EditorZoomRound.spec)
+
+    /// Round 28: Editor: find, go to line and typing.
+    static let editorFindTyping = LabPage.round(
+        id: "ongoing.editor-find-typing-r28", group: "Editor and running", title: "Editor: find, go to line and typing · round 28", symbol: "magnifyingglass",
+        status: .judging,
+        summary: "Find, Go to Line (an alert today), wrapping, Tab, closing brackets and keeping the indent on a new line.",
+        spec: EditorFindTypingRound.spec)
+
+    /// Round 28: Editor: empty tab and the right edge.
+    static let editorEmpty = LabPage.round(
+        id: "ongoing.editor-empty-r28", group: "Editor and running", title: "Editor: empty tab and the right edge · round 28", symbol: "doc",
+        status: .judging,
+        summary: "Where the starting points sit in an empty tab, and the outline edge against the scroll bar. Changes EDT-1.3.",
+        spec: EditorEmptyRound.spec)
+
+    /// Round 28: Editor: settings.
+    static let editorSettings = LabPage.round(
+        id: "ongoing.editor-settings-r28", group: "Editor and running", title: "Editor: settings · round 28", symbol: "gearshape",
+        status: .judging,
+        summary: "Every editor setting Echo has today, spread over three panes with five more hidden, and which should stay a setting, in one Editor pane.",
+        spec: EditorSettingsRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

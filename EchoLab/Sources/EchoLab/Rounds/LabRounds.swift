@@ -19,6 +19,10 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r28", label: "Round 28", title: "Query editor", date: "1 Oct 2026",
+             asked: "Everything about the query editor, decided page by page: the text and its line height, the gutter, the caret, current line and selection, the statement at the caret, highlights and marks, errors, the run note, a new zoom control, find and typing, the empty tab, and which of it stays a setting.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.editor-text-r28", "ongoing.editor-gutter-r28", "ongoing.editor-caret-line-r28", "ongoing.editor-statement-r28", "ongoing.editor-marks-r28", "ongoing.editor-errors-r28", "ongoing.editor-run-note-r28", "ongoing.editor-zoom-r28", "ongoing.editor-find-typing-r28", "ongoing.editor-empty-r28", "ongoing.editor-settings-r28"]),
         Info(id: "r27", label: "Round 27", title: "Results scroll bars and the footer", date: "1 Oct 2026",
              asked: "Where should the results grid's horizontal scroll bar sit so it blends in with the footer instead of floating over the rows above it?",
              outcome: "Being judged.",
