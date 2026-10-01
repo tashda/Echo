@@ -1894,6 +1894,43 @@
     "status": "In Echo",
     "verdicts": {}
   },
+  "ongoing.refresh-and-activity-r34": {
+    "comments": [
+      {
+        "date": "2026-10-01T14:27:38Z",
+        "id": "54291FD7-2C69-4CA6-ADB5-00FF7340A23E",
+        "text": "Review of Refresh and the activity signal\n1. Activity: picked AS2 · Refresh shows only its own reload; long operations report through the bell\n2. Refresh: picked RL1 · In the toolbar only while the front tab can reload\n3. Refresh on a query tab: picked QR1 · Nothing; the schema reloads from the tree's menu and after DDL\n4. ⌘R: picked KR0 · Reload the front tool tab"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T14:27:38Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:32:06Z",
+        "text": "Taken by agent-jobs-r33"
+      },
+      {
+        "date": "2026-10-01T14:51:10Z",
+        "text": "Built into Echo: Refresh only while the front tab can reload and only its own reload; ⌘R reloads the front tool tab; the bell spins for long operations, query runs off it (8fad4a2d)"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "place": "RL1 · In the toolbar only while the front tab can reload",
+      "queryTab": "nothing",
+      "shortcut": "tab",
+      "signal": "AS2 · Refresh shows only its own reload; long operations report through the bell"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {}
+  },
   "ongoing.results-scrollers-r27": {
     "comments": [
       {
