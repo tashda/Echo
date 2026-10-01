@@ -239,27 +239,16 @@ final class LineNumberRulerView: NSRulerView {
         let gutterWidth: CGFloat
     }
 
-    /// Column: a faint full-height column in the theme's gutter colour with an edge towards the
-    /// text; the card's rounded corners cut it. Lane: the same colour as a rounded, inset lane.
+    /// The lane, the one surface the gutter draws itself.
     private func drawBackground(width: CGFloat) {
-        switch gutterStyle {
-        case .subtle:
-            return
-        case .tinted:
-            theme.surfaces.gutterBackground.nsColor.setFill()
-            NSRect(x: 0, y: bounds.minY, width: width, height: bounds.height).fill()
-            NSColor.separatorColor.setFill()
-            NSRect(x: width - LayoutTokens.EditorGutter.edgeWidth, y: bounds.minY, width: LayoutTokens.EditorGutter.edgeWidth, height: bounds.height).fill()
-        case .hairline:
-            NSColor.separatorColor.setFill()
-            NSRect(x: width - LayoutTokens.EditorGutter.edgeWidth, y: bounds.minY, width: LayoutTokens.EditorGutter.edgeWidth, height: bounds.height).fill()
-        case .lane:
-            let inset = LayoutTokens.EditorGutter.laneInset
-            let lane = NSRect(x: inset, y: bounds.minY + inset, width: max(width - inset * 2, 0), height: max(bounds.height - inset * 2, 0))
-            let radius = LayoutTokens.EditorGutter.laneCornerRadius
-            theme.surfaces.gutterBackground.nsColor.setFill()
-            NSBezierPath(roundedRect: lane, xRadius: radius, yRadius: radius).fill()
-        }
+        // Column and Hairline are drawn behind the editor, the card's full height
+        // (EditorGutterSurface); only the lane is the gutter's own (round 28.14 decides its look).
+        guard gutterStyle == .lane else { return }
+        let inset = LayoutTokens.EditorGutter.laneInset
+        let lane = NSRect(x: inset, y: bounds.minY + inset, width: max(width - inset * 2, 0), height: max(bounds.height - inset * 2, 0))
+        let radius = LayoutTokens.EditorGutter.laneCornerRadius
+        theme.surfaces.gutterBackground.nsColor.setFill()
+        NSBezierPath(roundedRect: lane, xRadius: radius, yRadius: radius).fill()
     }
 
     private func drawLabel(_ lineNumber: Int, atFragmentMinY fragmentMinY: CGFloat, context: LabelContext) {
