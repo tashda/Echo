@@ -32,9 +32,10 @@ enum LabQERound {
     }
 
     static func proposal(_ summary: String, scene fallback: LabQESceneChoice, outlineEdge: Bool = false,
-                         hints: ((RoundValues) -> LabQEHintsPlace?)? = nil) -> RoundSpec.Exhibit {
+                         hints: ((RoundValues) -> LabQEHintsPlace?)? = nil,
+                         sceneFor: (@MainActor (RoundValues) -> LabQEScene)? = nil) -> RoundSpec.Exhibit {
         .init(id: "proposal", title: "Proposal", summary: summary, designWidth: width, designHeight: height) { values in
-            LabQEEditor(style: LabQEBase.proposal(values), scene: scene(values, fallback),
+            LabQEEditor(style: LabQEBase.proposal(values), scene: sceneFor?(values) ?? scene(values, fallback),
                         onZoom: { values["zoom"] = $0.rawValue }, outlineEdge: outlineEdge, hints: hints?(values))
         }
     }
@@ -43,7 +44,7 @@ enum LabQERound {
     static func gallery<E: CaseIterable & RawRepresentable>(
         _ title: String, _ summary: String, _ type: E.Type, _ path: WritableKeyPath<LabQEStyle, E>,
         scene fallback: LabQESceneChoice, id: String = "gallery", addedIn: Int? = nil, only: [E]? = nil,
-        cellHeight: CGFloat = LabQEGallery.cellHeight,
+        cellHeight: CGFloat = LabQEGallery.cellHeight, sceneFor: (@MainActor (RoundValues) -> LabQEScene)? = nil,
         adjust: @escaping (inout LabQEStyle) -> Void = { _ in }
     ) -> RoundSpec.Exhibit where E.RawValue == String {
         let choices = only ?? Array(E.allCases)
@@ -54,7 +55,7 @@ enum LabQERound {
                 adjust(&style)
                 style[keyPath: path] = choice
                 return (choice.rawValue, style)
-            }, scene: scene(values, fallback), cellHeight: cellHeight)
+            }, scene: sceneFor?(values) ?? scene(values, fallback), cellHeight: cellHeight)
         }
     }
 }

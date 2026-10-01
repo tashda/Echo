@@ -43,9 +43,9 @@ enum EditorErrorsRound {
             LabQERound.gallery("Marks", "Every way of marking the wrong word, on the proposal (rev 3: nine without a glow).", LabQEErrorWord.self, \.errorWord,
                                scene: .liveError, cellHeight: 120),
             LabQERound.gallery("Glows", "Every glow round custmers, all still except today's.", LabQEErrorGlow.self, \.errorGlow,
-                               scene: .liveError, id: "glowGallery", addedIn: 2, cellHeight: 120) { $0.errorWord = .glow },
+                               scene: .liveError, id: "glowGallery", addedIn: 2, cellHeight: 120, adjust: { $0.errorWord = .glow }),
             LabQERound.gallery("Bubbles", "Every bubble, with the caret on custmers's line.", LabQEErrorBubbleLook.self, \.errorBubble,
-                               scene: .liveErrorCaret, id: "bubbleGallery", addedIn: 3, cellHeight: 190) { $0.errorMessage = .hover },
+                               scene: .liveErrorCaret, id: "bubbleGallery", addedIn: 3, cellHeight: 190, adjust: { $0.errorMessage = .hover }),
         ],
         questions: [
             .init(id: "sameLook", title: "While typing and after a run",

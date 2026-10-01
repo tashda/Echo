@@ -123,6 +123,11 @@
         "date": "2026-10-01T11:45:57Z",
         "id": "92344FE1-E773-4DBA-B4E8-01E83CB7F529",
         "text": "Review of Editor: errors in the text\n1. Which error marks?: picked Proposal\n2. The wrong word: picked E0 \u00b7 Glowing frame (today, while typing); NEEDS MORE OPTIONS; note: Still need more options - i like the glowing frame today, but need several more options - also with \"no glow\" but just give me everything you got.\n3. The message: picked M3 \u00b7 In a bubble, on hover or with the caret on the line; NEEDS MORE OPTIONS; note: I also need way more options for the bubble that appears - I don't like the look of it now\n4. Glow: picked GW2 \u00b7 Hairline with a halo; NEEDS MORE OPTIONS\n5. In the gutter: picked D0 \u00b7 Red dot by the number (today)\n6. While typing and after a run: picked SL0 \u00b7 The same mark and bubble\n7. When it appears: picked T1 \u00b7 When you leave the line or stop for 2 s\n8. Movement: picked MO0 \u00b7 Still\n9. Run note for an error: picked EN0 \u00b7 ! Error (today, RN1)"
+      },
+      {
+        "date": "2026-10-01T12:17:02Z",
+        "id": "5F1F3C07-DC11-4E25-876B-EB88A831E984",
+        "text": "Review of Editor: errors in the text\n1. Which error marks?: picked Proposal\n2. The wrong word: picked E10 \u00b7 Tinted pill\n3. The message: picked M3 \u00b7 In a bubble, on hover or with the caret on the line\n4. Glow: picked GW0 \u00b7 Three shifting strokes (today); note: No glow, I selected Tinted pill\n5. Bubble: picked BB3 \u00b7 Glass with a pointer\n6. In the gutter: picked D0 \u00b7 Red dot by the number (today)\n7. While typing and after a run: picked SL0 \u00b7 The same mark and bubble\n8. When it appears: picked T1 \u00b7 When you leave the line or stop for 2 s\n9. Movement: picked MO0 \u00b7 Still\n10. Run note for an error: picked EN0 \u00b7 ! Error (today, RN1)"
       }
     ],
     "generalNote": "",
@@ -146,30 +151,30 @@
       {
         "date": "2026-10-01T11:57:46Z",
         "text": "Revision 3: Everything for the wrong word, more glows, and new bubbles"
+      },
+      {
+        "date": "2026-10-01T12:17:02Z",
+        "text": "Accepted with picks"
       }
     ],
-    "needsMore": [
-      "errorWord",
-      "errorMessage",
-      "errorGlow"
-    ],
+    "needsMore": [],
     "optionNotes": {},
     "pickNotes": {
-      "errorMessage": "I also need way more options for the bubble that appears - I don't like the look of it now",
-      "errorWord": "Still need more options - i like the glowing frame today, but need several more options - also with \"no glow\" but just give me everything you got."
+      "errorGlow": "No glow, I selected Tinted pill"
     },
     "picks": {
+      "errorBubble": "BB3 \u00b7 Glass with a pointer",
       "errorDot": "D0 \u00b7 Red dot by the number (today)",
-      "errorGlow": "GW2 \u00b7 Hairline with a halo",
+      "errorGlow": "GW0 \u00b7 Three shifting strokes (today)",
       "errorMessage": "M3 \u00b7 In a bubble, on hover or with the caret on the line",
-      "errorWord": "E0 \u00b7 Glowing frame (today, while typing)",
+      "errorWord": "E10 \u00b7 Tinted pill",
       "exhibit": "proposal",
       "motion": "still",
       "sameLook": "same",
       "showMessage": "short",
       "timing": "leave"
     },
-    "reviewedRevision": 2,
+    "reviewedRevision": 3,
     "revisions": [
       {
         "changes": [
@@ -191,7 +196,7 @@
         "summary": "Everything for the wrong word, more glows, and new bubbles"
       }
     ],
-    "status": "Judging",
+    "status": "Accepted",
     "verdicts": {}
   },
   "ongoing.editor-find-bar-r28": {
@@ -224,6 +229,10 @@
       {
         "date": "2026-10-01T12:11:02Z",
         "text": "Revision 3: Replace that works, and your Selection button"
+      },
+      {
+        "date": "2026-10-01T12:24:10Z",
+        "text": "Revision 4: Replace you can see"
       }
     ],
     "needsMore": [
@@ -246,7 +255,7 @@
       "scope": "editor",
       "selection": "fill"
     },
-    "reviewedRevision": 2,
+    "reviewedRevision": 3,
     "revisions": [
       {
         "changes": [
@@ -267,6 +276,16 @@
         "date": "2026-10-01T12:11:02Z",
         "number": 3,
         "summary": "Replace that works, and your Selection button"
+      },
+      {
+        "changes": [
+          "New control on the left: Show Replace (Find and Replace, or Find only); the Proposal and the Places gallery follow it, whatever The editor shows says",
+          "Replace and Replace All are tinted pills in every bar; the playgrounds' Replace All is the prominent button",
+          "FB5 shrinks to fit narrow cards instead of being cut off on the left"
+        ],
+        "date": "2026-10-01T12:24:10Z",
+        "number": 4,
+        "summary": "Replace you can see"
       }
     ],
     "status": "Judging",
