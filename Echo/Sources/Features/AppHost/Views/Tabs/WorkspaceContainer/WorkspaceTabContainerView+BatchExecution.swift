@@ -22,7 +22,8 @@ extension WorkspaceTabContainerView {
         )
 
         let activityHandle = AppDirector.shared.activityEngine.begin("Executing batch query", connectionSessionID: tab.connectionSessionID)
-        let isPostgresScript = resolvedSession is PostgresSession
+        // MySQL scripts read like PostgreSQL's (round 21, script results; #36).
+        let isPostgresScript = resolvedSession is PostgresSession || resolvedSession is MySQLSession
         let scriptOptions = PostgresScriptOptions(
             stopOnError: !projectStore.globalSettings.postgresScriptsContinueAfterError,
             asOneTransaction: queryState.runsScriptAsOneTransaction
@@ -88,6 +89,9 @@ extension WorkspaceTabContainerView {
                     batchResults = run.results
                 } else {
                     batchResults = try await resolvedSession.executeBatches(batches, progressHandler: handler)
+                    if resolvedSession is MySQLSession {
+                        scriptRun = PostgresScriptRun(results: batchResults, transaction: .notRequested)
+                    }
                 }
 
                 try Task.checkCancellation()
@@ -101,7 +105,7 @@ extension WorkspaceTabContainerView {
                     state.finishExecution()
 
                     appState.addToQueryHistory(
-                        batches.joined(separator: tab.connection.databaseType == .postgresql ? ";\n" : "\nGO\n"),
+                        batches.joined(separator: tab.connection.databaseType == .microsoftSQL ? "\nGO\n" : ";\n"),
                         connectionID: tab.connection.id,
                         databaseName: tab.activeDatabaseName ?? tab.connection.database,
                         resultCount: state.results?.rows.count ?? 0,

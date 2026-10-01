@@ -43,6 +43,9 @@ nonisolated enum QueryErrorMarker {
         if let pointer = PostgresPointer(error) {
             return postgresMark(pointer, in: located)
         }
+        if let pointer = MySQLPointer(error) {
+            return mysqlMark(pointer, in: located)
+        }
         return nil
     }
 
@@ -232,7 +235,7 @@ nonisolated enum QueryErrorMarker {
 
     // MARK: - Text helpers
 
-    private static func make(range: NSRange, in located: Located, message: String, detail: String?, fix: QueryErrorMark.Fix?) -> QueryErrorMark {
+    static func make(range: NSRange, in located: Located, message: String, detail: String?, fix: QueryErrorMark.Fix?) -> QueryErrorMark {
         QueryErrorMark(
             range: range,
             line: editorLineNumber(at: range.location, in: located.editorText),
@@ -257,7 +260,7 @@ nonisolated enum QueryErrorMarker {
     }
 
     /// The line without leading and trailing whitespace (the whole line when it is blank).
-    private static func trimmedLine(_ line: NSRange, in text: NSString) -> NSRange {
+    static func trimmedLine(_ line: NSRange, in text: NSString) -> NSRange {
         let content = text.substring(with: line)
         let leading = content.prefix { $0.isWhitespace }.utf16.count
         let trailing = content.reversed().prefix { $0.isWhitespace }.map { String($0) }.joined().utf16.count

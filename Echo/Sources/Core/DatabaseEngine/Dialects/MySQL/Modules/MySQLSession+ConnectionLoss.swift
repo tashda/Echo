@@ -39,7 +39,12 @@ extension MySQLSession {
             handler?(databaseName, true, true)
             return MySQLSessionError.awaitingReconnect(database: databaseName)
         }
-        if (error as? MySQLError)?.isConnectionLost == true { await checkConnection() }
+        if let mysql = error as? MySQLError {
+            if mysql.isConnectionLost { await checkConnection() }
+            // The error number and SQLSTATE, and the error itself for the editor's mark (#39).
+            let state = mysql.sqlState.map { ", SQLSTATE \($0)" } ?? ""
+            return DatabaseError.queryError("\(mysql.message)\nError \(mysql.code)\(state)", underlyingError: mysql)
+        }
         return DatabaseError.queryError(error.localizedDescription)
     }
 }

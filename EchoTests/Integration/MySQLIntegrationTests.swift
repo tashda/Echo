@@ -4,12 +4,6 @@ import ServerLabClient
 
 @MainActor
 final class MySQLIntegrationTests: XCTestCase {
-    override func setUp() async throws {
-        try await super.setUp()
-        // Remove when the suite passes (an expected failure that does not happen fails the test).
-        XCTExpectFailure("Echo cannot log in to MySQL 8.4 without TLS: tashda/Echo#31")
-    }
-
     private struct MySQLConfig {
         let host: String
         let port: Int
@@ -25,18 +19,34 @@ final class MySQLIntegrationTests: XCTestCase {
                            username: server.username, password: server.password)
     }
 
-    private func connect(config: MySQLConfig) async throws -> DatabaseSession {
+    /// TLS Required: MySQL 8.4 signs in with caching_sha2_password, which needs TLS (decision D18).
+    private func connect(config: MySQLConfig, tls: Bool = true) async throws -> DatabaseSession {
         let factory = MySQLNIOFactory()
         return try await factory.connect(
             host: config.host,
             port: config.port,
             database: config.database,
-            tls: false,
+            tls: tls,
+            tlsMode: .require,
             authentication: DatabaseAuthenticationConfiguration(
                 username: config.username,
                 password: config.password
             )
         )
+    }
+
+    /// Without TLS, the first caching_sha2_password sign-in is refused rather than fetch the
+    /// server's RSA key in plaintext, and the error says what to do (#31, decision D18).
+    func testSignInWithoutTLSSaysItNeedsTLS() async throws {
+        let config = try await loadConfig()
+        do {
+            let session = try await connect(config: config, tls: false)
+            _ = try await session.simpleQuery("SELECT 1")
+            await session.close()
+            // The account may already be in the server's cache from a TLS sign-in: then it works.
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("needs TLS"), error.localizedDescription)
+        }
     }
 
     // MARK: - Basic Connectivity
@@ -58,8 +68,9 @@ final class MySQLIntegrationTests: XCTestCase {
         let session = try await connect(config: config)
         defer { Task { @MainActor in await session.close() } }
 
+        // The lab server is empty: only system databases, which the explorer hides.
         let databases = try await session.listDatabases()
-        XCTAssertFalse(databases.isEmpty)
+        XCTAssertFalse(databases.contains { ["mysql", "sys", "information_schema", "performance_schema"].contains($0) }, "\(databases)")
     }
 
     func testListTablesAndViews() async throws {
@@ -84,5 +95,24 @@ final class MySQLIntegrationTests: XCTestCase {
             offset: 0
         )
         XCTAssertEqual(result.rows.count, 2)
+    }
+
+    // MARK: - Scripts
+
+    /// #36: a script runs statement by statement on one connection, each with its own result,
+    /// and stops at the first failure, reporting the rest as not run.
+    func testScriptStopsAtTheFirstFailure() async throws {
+        let config = try await loadConfig()
+        let session = try await connect(config: config)
+        defer { Task { @MainActor in await session.close() } }
+
+        let results = try await session.executeBatches([
+            "SET @echo_script = 41", "SELECT @echo_script + 1 AS answer", "SELECT * FROM missing_table_xyz", "SELECT 3",
+        ], progressHandler: nil)
+        XCTAssertEqual(results.count, 4)
+        XCTAssertTrue(results[0].succeeded)
+        XCTAssertEqual(results[1].resultSets.first?.rows.first?.first ?? nil, "42")
+        XCTAssertNotNil(results[2].error)
+        XCTAssertTrue(results[3].skipped)
     }
 }

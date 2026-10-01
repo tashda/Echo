@@ -1,6 +1,7 @@
 import SwiftUI
 import EchoSense
 import PostgresKit
+import MySQLKit
 
 extension WorkspaceTabContainerView {
     func runQuery(tabId: UUID, sql: String) async {
@@ -123,6 +124,31 @@ extension WorkspaceTabContainerView {
                     tabId: tabId,
                     batches: statements.map(\.text),
                     batchStartLines: startLines,
+                    queryState: queryState,
+                    resolvedSession: session,
+                    tab: tab,
+                    trimmedSQL: trimmedSQL
+                )
+                return
+            }
+        }
+
+        // MySQL and MariaDB: a script with several statements, or DELIMITER lines (a client
+        // command), runs statement by statement on the tab's connection, as PostgreSQL's (#36).
+        if tab.connection.databaseType == .mysql {
+            let statements = MySQLScript.statements(baseSQL)
+            if statements.count > 1 || MySQLScriptLines.hasDelimiterCommand(baseSQL) {
+                let session: DatabaseSession
+                do {
+                    session = tab.isAwaitingDedicatedSession ? try await tab.awaitDedicatedSession() : tab.session
+                } catch {
+                    queryState.errorMessage = "No dedicated connection. Click \"Retry Connection\" to reconnect."
+                    return
+                }
+                await runBatchQuery(
+                    tabId: tabId,
+                    batches: statements,
+                    batchStartLines: MySQLScriptLines.startLines(of: statements, in: baseSQL),
                     queryState: queryState,
                     resolvedSession: session,
                     tab: tab,

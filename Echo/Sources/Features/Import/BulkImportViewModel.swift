@@ -70,11 +70,11 @@ final class BulkImportViewModel {
     // Error state
     var parseError: String?
 
-    @ObservationIgnored private let session: DatabaseSession
+    @ObservationIgnored internal let session: DatabaseSession
     @ObservationIgnored private let connectionSession: ConnectionSession
     @ObservationIgnored private var importTask: Task<Void, Never>?
-    @ObservationIgnored private var timerTask: Task<Void, Never>?
-    @ObservationIgnored private var activityHandle: OperationHandle?
+    @ObservationIgnored internal var timerTask: Task<Void, Never>?
+    @ObservationIgnored internal var activityHandle: OperationHandle?
     @ObservationIgnored var activityEngine: ActivityEngine?
 
     init(session: DatabaseSession, connectionSession: ConnectionSession, databaseType: DatabaseType, schema: String, tableName: String) {
@@ -91,6 +91,8 @@ final class BulkImportViewModel {
     }
 
     var isImporting: Bool { phase == .importing }
+    /// Whether a failed or cancelled import leaves the table as it was (round 25, FA1).
+    var importsInOneTransaction: Bool { databaseType == .microsoftSQL || databaseType == .mysql }
     var canImport: Bool {
         fileURL != nil
         && !fileHeaders.isEmpty
@@ -244,7 +246,9 @@ final class BulkImportViewModel {
             switch databaseType {
             case .microsoftSQL:
                 try await executeMSSQLImport(rows: mappedRows, columns: targetColumnNames)
-            case .postgresql, .sqlite, .mysql:
+            case .mysql:
+                try await executeMySQLImport(rows: mappedRows, columns: targetColumnNames)
+            case .postgresql, .sqlite:
                 try await executeGenericImport(rows: mappedRows, columns: targetColumnNames)
             }
 
@@ -252,13 +256,13 @@ final class BulkImportViewModel {
             activityHandle = nil
         } catch is CancellationError {
             timerTask?.cancel()
-            // SQL Server imports run in one transaction, so a cancelled one leaves nothing behind.
-            phase = .failed(message: databaseType == .microsoftSQL ? "Import cancelled. Nothing was imported." : "Import cancelled")
+            // SQL Server and MySQL imports run in one transaction, so a cancelled one leaves nothing behind.
+            phase = .failed(message: importsInOneTransaction ? "Import cancelled. Nothing was imported." : "Import cancelled")
             activityHandle?.cancel()
             activityHandle = nil
         } catch {
             timerTask?.cancel()
-            if databaseType == .microsoftSQL {
+            if importsInOneTransaction {
                 phase = .failed(message: "Nothing was imported. \(qualifiedTargetName) is as it was.")
                 failureDetail = error.localizedDescription
             } else {
