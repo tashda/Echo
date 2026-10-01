@@ -191,7 +191,7 @@ enum FooterResultsSpec {
                         .row("Length", "as wide as the footer: from its left padding, over the row numbers, to its right padding (round 27, L2)", token: "SpacingTokens.sm"),
                         .row("How", "the footer's room as the content inset, and a 1pt scroller inset on top (AppKit adds them; the thumb sits 3pt inside its frame)", token: "LayoutTokens.Footer.scrollerInset(overFooter:)"),
                         .row("Vertical", "runs down to the horizontal bar"),
-                        .row("Soft edges", "the rows fade 32pt into the card's colour at a side where more columns wait, in proportion to how much waits: gone at the end, so the last column is never veiled", token: "LayoutTokens.EdgeBlur.sideFadeWidth"),
+                        .row("Sides", "no soft edge: the rows stay sharp at both sides (round 27's X1 was removed after round 47: it veiled the first and last column)"),
                         .row("After the last column", "44pt of empty room, so its right edge can be grabbed and widened", token: "ResultsGridMetrics.trailingColumnRoom")),
                 .material(.row("Look", "the system's overlay bar, no track (T1)")),
                 .motion(.row("Blur rises", "under a footer, nothing rises: the footer's material already reaches past the bar (round 44); elsewhere, while the bar shows, the blur rises past its widest thumb in 0.32s and settles 0.9s after the last scroll, in 0.5s (U5)", token: "LayoutTokens.EdgeBlur.raiseDuration / settleDuration / raisedHold")),
@@ -201,8 +201,7 @@ enum FooterResultsSpec {
                            .row("Same footer placement", "the editor, Messages and Extended Events place their bars the same way (footerScrollRoom for SwiftUI)")),
             ], rounds: ["ongoing.results-scrollers-r27"],
                files: [grid + "ResultTableContainerView.swift", "Echo/Sources/Shared/DesignSystem/Components/FooterScrollOverlay.swift",
-                       "Echo/Sources/Shared/DesignSystem/Components/ScrollBarBlur.swift", "Echo/Sources/Shared/DesignSystem/Components/ScrollSideFades.swift",
-                       "Echo/Sources/Shared/DesignSystem/Components/FooterScrollRoom.swift"]),
+                       "Echo/Sources/Shared/DesignSystem/Components/ScrollBarBlur.swift", "Echo/Sources/Shared/DesignSystem/Components/FooterScrollRoom.swift"]),
         ]),
         SpecPart(number: "5", name: "Messages", summary: "What the server said, by statement (round 41.4).", elements: [
             SpecElement(number: "5.1", name: "Top", summary: "No strip: the counts, which filter, and a ⋯ menu (MT1).", groups: [

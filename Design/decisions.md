@@ -6,6 +6,10 @@ The owner accepted RT2 / KB0 / KS2 / KH0 / KC0 in #39.1, HG0 / HR0 / HK1 / HA1 /
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · The soft side edges of the results grid are removed
+
+The owner asked why a white glow covers the left and right of the results ("I want it removed"). It was round 27's X1, soft edges where more columns wait: a 32pt gradient in the card's colour over each side that could still scroll, which veiled the first and last column's text. **Removed entirely** (`ScrollSideFades`, `LayoutTokens.EdgeBlur.sideFadeWidth`): the rows stay sharp at both sides, and the scroll bar shows that more columns wait. The 44pt of room after the last column stays, so its right edge can be grabbed. This supersedes X1 and the entry above that made the edges follow the scroll position. → FTR-4.6
+
 ## 2026-10-01 · After round 47: two gutter settings, one header line for real, sorting that doesn't freeze
 
 The owner's notes on the running app, decided in chat. These change what round 47's entry says where they differ.

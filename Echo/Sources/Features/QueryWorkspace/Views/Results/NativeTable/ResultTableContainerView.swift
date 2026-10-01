@@ -8,7 +8,7 @@ final class ResultTableContainerView: NSView {
     private var backgroundColor: NSColor
     private var showRowNumbers: Bool
     private var reservedRowNumberCount: Int = 0
-    private lazy var footerOverlay = FooterScrollOverlay(scrollView: scrollView, softEdges: true,
+    private lazy var footerOverlay = FooterScrollOverlay(scrollView: scrollView,
                                                          barLeadingInCard: leadingWidthConstraint?.constant ?? 0)
 
     init(scrollView: NSScrollView, showRowNumbers: Bool) {
@@ -96,7 +96,6 @@ final class ResultTableContainerView: NSView {
     func updateBackgroundColor(_ color: NSColor) {
         backgroundColor = color
         rowNumberView.layer?.backgroundColor = color.cgColor
-        footerOverlay.update(edgeColor: color)
     }
 
     func setRowNumberCallbacks(

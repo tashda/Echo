@@ -141,8 +141,6 @@ public enum LayoutTokens {
         public static let materialTintOpacity: Double = 0.15
         /// Card-coloured tint over the blur, so the control on it stays readable.
         public static let tintOpacity: Double = 0.35
-        /// How wide the rows fade at a side where more columns wait (round 27, X1).
-        public static let sideFadeWidth: CGFloat = SpacingTokens.xl
     }
 
     /// The SQL editor's line-number gutter (Design/05-components.md › Editor card).
