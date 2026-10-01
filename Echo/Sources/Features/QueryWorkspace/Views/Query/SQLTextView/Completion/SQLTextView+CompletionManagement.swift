@@ -10,6 +10,7 @@ extension SQLTextView {
         completionTask?.cancel()
         completionTask = nil
         completionController?.hide()
+        hideGhostText()
         updateCompletionIndicator()
     }
 

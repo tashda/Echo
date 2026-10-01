@@ -39,7 +39,7 @@ extension ObjectBrowserSidebarViewModel {
         )
 
         guard let encoded = try? JSONEncoder().encode(payloads) else { return }
-        UserDefaults.standard.set(encoded, forKey: Self.sidebarStateDefaultsKey)
+        ExplorerStateStore.set(encoded, forKey: Self.sidebarStateDefaultsKey)
     }
 
     private func persistenceStorageKey(for projectID: UUID?) -> String {
@@ -47,7 +47,7 @@ extension ObjectBrowserSidebarViewModel {
     }
 
     private func loadPersistedStatePayloads() -> [String: PersistedSidebarState] {
-        guard let data = UserDefaults.standard.data(forKey: Self.sidebarStateDefaultsKey),
+        guard let data = ExplorerStateStore.data(forKey: Self.sidebarStateDefaultsKey),
               let decoded = try? JSONDecoder().decode([String: PersistedSidebarState].self, from: data) else {
             return [:]
         }

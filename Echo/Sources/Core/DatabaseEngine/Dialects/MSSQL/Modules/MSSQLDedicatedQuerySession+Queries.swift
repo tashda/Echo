@@ -4,18 +4,10 @@ import SQLServerKit
 extension MSSQLDedicatedQuerySession {
     func simpleQuery(_ sql: String) async throws -> QueryResultSet {
         let connection = try await readyConnection()
-        let executionResult = try await withThrowingTaskGroup(of: SQLServerExecutionResult.self) { group in
-            group.addTask {
-                try await connection.execute(sql)
-            }
-            group.addTask {
-                try await Task.sleep(for: .seconds(45))
-                throw DatabaseError.queryError("Connection timed out: query did not complete within 45s")
-            }
-            let result = try await group.next()!
-            group.cancelAll()
-            return result
-        }
+        // No fixed time limit (round 22, TO1 with the Postgres decision TD2:
+        // no limit unless set). Cancelling the task cancels the statement on
+        // the server and keeps the session.
+        let executionResult = try await runRecoveringLostConnection { try await connection.execute(sql) }
         var queryResult = convertSQLServerRowsToEcho(executionResult.rows)
         if let raw = connection.decodeLastSensitivityClassification() {
             queryResult.dataClassification = extractClassification(from: raw, columnCount: queryResult.columns.count)
@@ -31,7 +23,9 @@ extension MSSQLDedicatedQuerySession {
         guard let progressHandler else {
             return try await simpleQuery(sql)
         }
-        return try await streamQueryWithProgress(sql, progressHandler: progressHandler)
+        return try await runRecoveringLostConnection {
+            try await streamQueryWithProgress(sql, progressHandler: progressHandler)
+        }
     }
 
     func simpleQuery(
@@ -64,16 +58,17 @@ extension MSSQLDedicatedQuerySession {
         }
     }
 
+    /// Off the main actor, like Postgres's streaming: the query tab awaits this from the main
+    /// actor, and a nonisolated async function runs on its caller's actor (SE-0461), so every
+    /// row was read and handed to the batch worker on the main thread while results streamed in,
+    /// stalling scrolling for up to a quarter of a second (traced 2026-10-01).
+    @concurrent
     private func streamQueryWithProgress(
         _ sql: String,
         progressHandler: @escaping QueryProgressHandler
     ) async throws -> QueryResultSet {
         let connection = try await readyConnection()
         let operationStart = CFAbsoluteTimeGetCurrent()
-        let initialPreviewBatch = 200
-        let maxFlushLatency: TimeInterval = 0.015
-        let batchEnqueueSize = 512
-
         let bridgedHandler: QueryProgressHandler = { update in
             Task { @MainActor in
                 progressHandler(update)
@@ -81,187 +76,62 @@ extension MSSQLDedicatedQuerySession {
         }
 
         let stream = connection.streamQuery(sql)
-        var resultSetIndex = -1
-        var primaryColumns: [ColumnInfo] = []
-        // Whether all primary columns can be decoded from raw TDS bytes at display time.
-        // If false (datetime/decimal columns present), use toStringArray() for all rows.
-        var canUseRawPath = true
-        var primaryPreviewRows: [[String?]] = []
-        primaryPreviewRows.reserveCapacity(initialPreviewBatch)
-        var primaryRowCount = 0
-        var worker: ResultStreamBatchWorker?
-        var pendingPayloads: [ResultStreamBatchWorker.Payload] = []
-        pendingPayloads.reserveCapacity(batchEnqueueSize)
+        var primary: SQLServerResultSetSink?
+        var current: SQLServerResultSetSink?
+        var resultSetCount = 0
         var additionalResults: [QueryResultSet] = []
-        var currentAdditionalColumns: [ColumnInfo] = []
-        var currentAdditionalRows: [[String?]] = []
-        var errorMessage: SQLServerStreamMessage?
-        var infoMessages: [SQLServerStreamMessage] = []
+        // Every message of the batch in order (EM1): PRINT and informational messages, then errors.
+        var serverMessages: [SQLServerStreamMessage] = []
 
         for try await event in stream {
             switch event {
             case .metadata(let columnDescriptions):
-                if resultSetIndex > 0 && !currentAdditionalColumns.isEmpty {
-                    additionalResults.append(
-                        QueryResultSet(
-                            columns: currentAdditionalColumns,
-                            rows: currentAdditionalRows,
-                            totalRowCount: currentAdditionalRows.count
-                        )
-                    )
+                if let current, current !== primary {
+                    additionalResults.append(await current.finish())
                 }
-
-                resultSetIndex += 1
-                let columns = columnDescriptions.map { column in
-                    ColumnInfo(
-                        name: column.name,
-                        dataType: column.typeName,
-                        isPrimaryKey: false,
-                        isNullable: (column.flags & 0x01) != 0,
-                        maxLength: column.length > 0 ? column.length : nil
-                    )
-                }
-
-                if resultSetIndex == 0 {
-                    primaryColumns = columns
-                    canUseRawPath = columns.allSatisfy { TDSBinaryDecoder.canDecodeRaw($0.dataType) }
-                    worker = ResultStreamBatchWorker(
-                        label: "dev.echodb.echo.mssql.streamWorker",
-                        columns: columns,
-                        streamingPreviewLimit: initialPreviewBatch,
-                        maxFlushLatency: maxFlushLatency,
-                        operationStart: operationStart,
-                        progressHandler: bridgedHandler
-                    )
-                } else {
-                    currentAdditionalColumns = columns
-                    currentAdditionalRows = []
-                }
+                let sink = SQLServerResultSetSink(
+                    columnDescriptions: columnDescriptions,
+                    resultSetIndex: resultSetCount,
+                    operationStart: operationStart,
+                    progressHandler: bridgedHandler
+                )
+                resultSetCount += 1
+                if primary == nil { primary = sink }
+                current = sink
 
             case .row(let row):
-                if resultSetIndex == 0 {
-                    primaryRowCount += 1
-
-                    if primaryRowCount <= initialPreviewBatch {
-                        // Preview rows: convert to strings for immediate display
-                        let stringValues = row.toStringArray()
-                        primaryPreviewRows.append(stringValues)
-                        pendingPayloads.append(
-                            ResultStreamBatchWorker.Payload(
-                                previewValues: stringValues,
-                                storage: .stringValues(stringValues),
-                                totalRowCount: primaryRowCount,
-                                decodeDuration: 0
-                            )
-                        )
-                    } else if canUseRawPath {
-                        // Fast path: capture raw ByteBuffer references (zero-copy).
-                        // String conversion happens at display time via TDSBinaryDecoder.
-                        let (buffers, lengths, totalLength) = row.rawColumnBuffers()
-                        pendingPayloads.append(
-                            ResultStreamBatchWorker.Payload(
-                                previewValues: nil,
-                                storage: .raw(ResultStreamBatchWorker.RawRow(
-                                    buffers: buffers,
-                                    lengths: lengths,
-                                    totalLength: totalLength
-                                )),
-                                totalRowCount: primaryRowCount,
-                                decodeDuration: 0
-                            )
-                        )
-                    } else {
-                        // Fallback for tables with datetime/decimal columns that
-                        // need scale metadata for correct decoding.
-                        let stringValues = row.toStringArray()
-                        pendingPayloads.append(
-                            ResultStreamBatchWorker.Payload(
-                                previewValues: nil,
-                                storage: .stringValues(stringValues),
-                                totalRowCount: primaryRowCount,
-                                decodeDuration: 0
-                            )
-                        )
-                    }
-
-                    if pendingPayloads.count >= batchEnqueueSize {
-                        worker?.enqueueBatch(pendingPayloads)
-                        pendingPayloads.removeAll(keepingCapacity: true)
-                    }
-                } else {
-                    currentAdditionalRows.append(row.toStringArray())
-                }
+                current?.append(row)
 
             case .message(let message):
-                if message.kind == .error {
-                    errorMessage = message
-                } else {
-                    infoMessages.append(message)
-                }
+                serverMessages.append(message)
 
             case .done:
                 break
             }
         }
 
-        if resultSetIndex > 0 && !currentAdditionalColumns.isEmpty {
-            additionalResults.append(
-                QueryResultSet(
-                    columns: currentAdditionalColumns,
-                    rows: currentAdditionalRows,
-                    totalRowCount: currentAdditionalRows.count
-                )
-            )
+        if let current, current !== primary {
+            additionalResults.append(await current.finish())
         }
 
-        if let errorMessage {
-            throw DatabaseError.queryError(errorMessage.message)
+        // The driver's structured error keeps number, severity, line, procedure and every
+        // message of the batch (round 22, errors); SQLServerFailure reads them back.
+        if let failure = SQLServerError.fromServerMessages(serverMessages) {
+            throw DatabaseError.from(sqlServerError: failure)
         }
 
-        if !pendingPayloads.isEmpty {
-            worker?.enqueueBatch(pendingPayloads)
-        }
-
-        if let worker {
-            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                worker.finish(totalRowCount: primaryRowCount) {
-                    Task { @MainActor in
-                        continuation.resume()
-                    }
-                }
-            }
-        }
-
-        let resolvedColumns = primaryColumns.isEmpty
-            ? [ColumnInfo(name: "result", dataType: "text")]
-            : primaryColumns
-
+        let first = await primary?.finish()
+        let columns = first?.columns ?? []
         return QueryResultSet(
-            columns: resolvedColumns,
-            rows: primaryPreviewRows,
-            totalRowCount: primaryRowCount,
+            columns: columns.isEmpty ? [ColumnInfo(name: "result", dataType: "text")] : columns,
+            rows: first?.rows ?? [],
+            totalRowCount: first?.totalRowCount ?? 0,
             additionalResults: additionalResults,
             dataClassification: extractClassification(
                 from: connection.decodeLastSensitivityClassification(),
-                columnCount: primaryColumns.count
+                columnCount: columns.count
             ),
-            serverMessages: infoMessages.map { message in
-                ServerMessage(
-                    kind: .info,
-                    number: message.number,
-                    message: message.message,
-                    state: message.state,
-                    severity: message.severity,
-                    serverName: message.serverName,
-                    procedureName: message.procedureName,
-                    lineNumber: message.lineNumber,
-                    category: "Server Response",
-                    metadata: [
-                        "source": "sqlserver-nio",
-                        "token": "INFO"
-                    ]
-                )
-            }
+            serverMessages: serverMessages.map(\.echoServerMessage)
         )
     }
 

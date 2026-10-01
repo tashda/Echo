@@ -18,6 +18,16 @@ extension QueryResultsTableView {
         var menuColumnIndex: Int?
         var cachedColumnIDs: [String] = []
         var cachedColumnKinds: [ResultGridValueKind] = []
+        /// How each column draws its values (ResultCellValueForm), and its widest fraction so far.
+        var cachedColumnForms: [ResultCellValueForm] = []
+        var cachedFractionDigits: [Int] = []
+        var fractionRefreshScheduled = false
+        /// The table columns that get cells, and what they were worked out for
+        /// (QueryResultsTableBridge+LiveColumns).
+        var liveColumns = IndexSet()
+        var liveColumnsKey: ResultGridLiveColumnsKey?
+        /// Each table column's position by identifier (QueryResultsTableBridge+ColumnLookup).
+        var tableColumnPositions: [NSUserInterfaceItemIdentifier: Int] = [:]
         var cachedRowOrder: [Int] = []
         var cachedSort: SortCriteria?
         var lastRowCount: Int = 0
@@ -33,8 +43,20 @@ extension QueryResultsTableView {
         var contextMenuCell: QueryResultsTableView.SelectedCell?
         weak var activeSelectableField: NSTextField?
         var cachedPaletteSignature: String?
-        var cachedFontStyles: [SQLEditorTokenPalette.ResultGridStyle: NSFont] = [:]
-        let cellBaseFont = NSFont.systemFont(ofSize: 12)
+        var cachedFontStyles: [FontKey: NSFont] = [:]
+        /// The row under the pointer, tinted (plan R4).
+        var hoveredRow: Int?
+        /// Monospaced when the "Monospaced cells" setting is on (Settings › Query Results).
+        var cellBaseFont: NSFont {
+            parent.monospacedCells
+                ? .monospacedSystemFont(ofSize: ResultsGridMetrics.cellFontSize, weight: .regular)
+                : .systemFont(ofSize: ResultsGridMetrics.cellFontSize)
+        }
+
+        struct FontKey: Hashable {
+            let style: SQLEditorTokenPalette.ResultGridStyle
+            let tabularDigits: Bool
+        }
         var lastForeignKeySelection: QueryResultsTableView.ForeignKeySelection?
         var lastJsonSelection: QueryResultsTableView.JsonSelection?
         var cachedViewportSize: CGSize = .zero
@@ -115,6 +137,9 @@ extension QueryResultsTableView {
             // Clear column caches
             cachedColumnIDs.removeAll()
             cachedColumnKinds.removeAll()
+            cachedColumnForms.removeAll()
+            cachedFractionDigits.removeAll()
+            liveColumns.removeAll(); liveColumnsKey = nil; tableColumnPositions.removeAll()
 
             // Clear row state
             cachedRowOrder.removeAll()
@@ -174,6 +199,7 @@ extension QueryResultsTableView {
             while tableView.tableColumns.count > 0 {
                 tableView.removeTableColumn(tableView.tableColumns[0])
             }
+            invalidateTableColumnPositions()
             addDataColumns(to: tableView)
             applyHeaderStyle(to: tableView)
             tableView.reloadData()
@@ -191,7 +217,7 @@ extension QueryResultsTableView {
             tableView.dataSource = self
             tableView.menu = cellMenu
             tableView.headerView?.menu = headerMenu
-            tableView.headerView?.frame.size.height = max(tableView.headerView?.frame.size.height ?? 0, SpacingTokens.lg)
+            tableView.headerView?.frame.size.height = ResultsGridMetrics.headerHeight
             tableView.headerView?.isHidden = false
             tableView.selectionHighlightStyle = .regular
             tableView.usesAlternatingRowBackgroundColors = parent.alternateRowShading
@@ -224,20 +250,22 @@ extension QueryResultsTableView {
         }
 
         // Helper methods
-        func resolvedFont(for style: SQLEditorTokenPalette.ResultGridStyle) -> NSFont {
-            if let cached = cachedFontStyles[style] {
+        func resolvedFont(for style: SQLEditorTokenPalette.ResultGridStyle, tabularDigits: Bool = false) -> NSFont {
+            let key = FontKey(style: style, tabularDigits: tabularDigits && !parent.monospacedCells)
+            if let cached = cachedFontStyles[key] {
                 return cached
             }
             var traits: NSFontTraitMask = []
             if style.isBold { traits.insert(.boldFontMask) }
             if style.isItalic { traits.insert(.italicFontMask) }
-            let font: NSFont
-            if traits.isEmpty {
-                font = cellBaseFont
-            } else {
-                font = NSFontManager.shared.convert(cellBaseFont, toHaveTrait: traits)
+            var font = cellBaseFont
+            if key.tabularDigits {
+                font = .monospacedDigitSystemFont(ofSize: font.pointSize, weight: .regular)
             }
-            cachedFontStyles[style] = font
+            if !traits.isEmpty {
+                font = NSFontManager.shared.convert(font, toHaveTrait: traits)
+            }
+            cachedFontStyles[key] = font
             return font
         }
 
@@ -247,6 +275,7 @@ extension QueryResultsTableView {
             let appearance = AppearanceStore.shared.effectiveColorScheme == .dark ? "dark" : "light"
             return [
                 appearance,
+                parent.monospacedCells ? "mono" : "proportional",
                 overrides.nullHex ?? "",
                 overrides.numericHex ?? "",
                 overrides.booleanHex ?? "",

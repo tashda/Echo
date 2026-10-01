@@ -11,64 +11,41 @@ extension ObjectBrowserSidebarView {
     }
 
     func loadAgentJobs(session: ConnectionSession) {
-        let connID = session.connection.id
         guard let mssql = session.session as? MSSQLSession else { return }
-        viewModel.agentJobsLoadingBySession[connID] = true
+        let key = ExplorerSourceKey(connectionID: session.connection.id, source: .agentJobs)
+        viewModel.beginLoading(key)
 
         Task {
-            defer { viewModel.agentJobsLoadingBySession[connID] = false }
-
+            var jobs: [ExplorerItem] = []
             do {
-                let detailed = try await mssql.agent.listJobDetails()
-                viewModel.agentJobsBySession[connID] = detailed.map { job in
-                    .init(
-                        id: job.jobId,
-                        name: job.name,
-                        enabled: job.enabled,
-                        lastOutcome: job.lastRunOutcome
-                    )
+                jobs = try await mssql.agent.listJobDetails().map {
+                    ExplorerItem(id: $0.jobId, name: $0.name, detail: $0.lastRunOutcome, isDisabled: !$0.enabled)
                 }
             } catch {
-                do {
-                    let basic = try await mssql.agent.listJobs()
-                    viewModel.agentJobsBySession[connID] = basic.map { job in
-                        .init(
-                            id: job.name,
-                            name: job.name,
-                            enabled: job.enabled,
-                            lastOutcome: job.lastRunOutcome
-                        )
-                    }
-                } catch {
-                    viewModel.agentJobsBySession[connID] = []
-                }
+                jobs = (try? await mssql.agent.listJobs().map {
+                    ExplorerItem(id: $0.name, name: $0.name, detail: $0.lastRunOutcome, isDisabled: !$0.enabled)
+                }) ?? []
             }
+            viewModel.finishLoading(key, items: [.agentJobs: jobs])
         }
     }
 
     func loadLinkedServers(session: ConnectionSession) {
-        let connID = session.connection.id
         guard let mssql = session.session as? MSSQLSession else { return }
-        viewModel.linkedServersLoadingBySession[connID] = true
+        let key = ExplorerSourceKey(connectionID: session.connection.id, source: .linkedServers)
+        viewModel.beginLoading(key)
 
         Task {
-            defer { viewModel.linkedServersLoadingBySession[connID] = false }
-
-            do {
-                let servers = try await mssql.linkedServers.list()
-                viewModel.linkedServersBySession[connID] = servers.map { server in
-                    .init(
-                        id: server.name,
-                        name: server.name,
-                        provider: server.provider,
-                        dataSource: server.dataSource,
-                        product: server.product,
-                        isDataAccessEnabled: server.isDataAccessEnabled
-                    )
-                }
-            } catch {
-                viewModel.linkedServersBySession[connID] = []
-            }
+            let servers = (try? await mssql.linkedServers.list()) ?? []
+            viewModel.finishLoading(key, items: [.linkedServers: servers.map {
+                ExplorerItem(
+                    id: $0.name,
+                    name: $0.name,
+                    detail: $0.dataSource.isEmpty ? nil : $0.dataSource,
+                    isDisabled: !$0.isDataAccessEnabled,
+                    payload: .linkedServer
+                )
+            }])
         }
     }
 
@@ -78,13 +55,15 @@ extension ObjectBrowserSidebarView {
         Task {
             do {
                 let success = try await mssql.linkedServers.test(name: name)
-                environmentState.toastPresenter.show(
+                environmentState.notificationEngine?.post(
+                    category: success ? .generalSuccess : .generalError,
                     icon: success ? "checkmark.circle" : "xmark.circle",
                     message: success ? "Connection to \"\(name)\" succeeded." : "Connection to \"\(name)\" failed.",
                     style: success ? .success : .error
                 )
             } catch {
-                environmentState.toastPresenter.show(
+                environmentState.notificationEngine?.post(
+                    category: .generalError,
                     icon: "xmark.circle",
                     message: "Connection test failed: \(error.localizedDescription)",
                     style: .error
@@ -99,44 +78,38 @@ extension ObjectBrowserSidebarView {
             try await mssql.linkedServers.drop(name: target.serverName, dropLogins: true)
             loadLinkedServers(session: session)
         } catch {
-            environmentState.toastPresenter.show(
-                icon: "xmark.circle",
-                message: "Failed to drop linked server: \(error.localizedDescription)",
-                style: .error
-            )
+            environmentState.notificationEngine?.post(
+                    category: .generalError,
+                    icon: "xmark.circle",
+                    message: "Failed to drop linked server: \(error.localizedDescription)",
+                    style: .error
+                )
         }
     }
 
     func loadSSISFoldersAsync(session: ConnectionSession) async {
-        let connID = session.connection.id
         guard let mssql = session.session as? MSSQLSession else { return }
+        let key = ExplorerSourceKey(connectionID: session.connection.id, source: .integrationServices)
+        viewModel.beginLoading(key)
 
-        viewModel.ssisLoadingBySession[connID] = true
-        defer { viewModel.ssisLoadingBySession[connID] = false }
-
-        do {
-            if try await mssql.ssis.isSSISCatalogAvailable() {
-                viewModel.ssisFoldersBySession[connID] = try await mssql.ssis.listFolders()
-            } else {
-                viewModel.ssisFoldersBySession[connID] = []
-            }
-        } catch {
-            viewModel.ssisFoldersBySession[connID] = []
+        var folders: [SQLServerSSISFolder] = []
+        if (try? await mssql.ssis.isSSISCatalogAvailable()) == true {
+            folders = (try? await mssql.ssis.listFolders()) ?? []
         }
+        viewModel.finishLoading(key, items: [.integrationServices: folders.map {
+            ExplorerItem(id: $0.name, name: $0.name, payload: .ssisFolder($0))
+        }])
     }
 
     func loadDatabaseSnapshots(session: ConnectionSession) {
-        let connID = session.connection.id
-        viewModel.databaseSnapshotsLoadingBySession[connID] = true
+        let key = ExplorerSourceKey(connectionID: session.connection.id, source: .databaseSnapshots)
+        viewModel.beginLoading(key)
 
         Task {
-            defer { viewModel.databaseSnapshotsLoadingBySession[connID] = false }
-
-            do {
-                viewModel.databaseSnapshotsBySession[connID] = try await session.session.listDatabaseSnapshots()
-            } catch {
-                viewModel.databaseSnapshotsBySession[connID] = []
-            }
+            let snapshots = (try? await session.session.listDatabaseSnapshots()) ?? []
+            viewModel.finishLoading(key, items: [.databaseSnapshots: snapshots.map {
+                ExplorerItem(id: $0.name, name: $0.name, detail: $0.sourceDatabaseName, payload: .snapshot($0))
+            }])
         }
     }
 
@@ -188,27 +161,21 @@ extension ObjectBrowserSidebarView {
     }
 
     func loadServerTriggers(session: ConnectionSession) {
-        let connID = session.connection.id
         guard let mssql = session.session as? MSSQLSession else { return }
-        viewModel.serverTriggersLoadingBySession[connID] = true
+        let key = ExplorerSourceKey(connectionID: session.connection.id, source: .serverTriggers)
+        viewModel.beginLoading(key)
 
         Task {
-            defer { viewModel.serverTriggersLoadingBySession[connID] = false }
-
-            do {
-                let triggers = try await mssql.triggers.listServerTriggers()
-                viewModel.serverTriggersBySession[connID] = triggers.map { trigger in
-                    .init(
-                        id: trigger.name,
-                        name: trigger.name,
-                        isDisabled: trigger.isDisabled,
-                        typeDescription: trigger.typeDescription,
-                        events: trigger.events
-                    )
-                }
-            } catch {
-                viewModel.serverTriggersBySession[connID] = []
-            }
+            let triggers = (try? await mssql.triggers.listServerTriggers()) ?? []
+            viewModel.finishLoading(key, items: [.serverTriggers: triggers.map {
+                ExplorerItem(
+                    id: $0.name,
+                    name: $0.name,
+                    detail: $0.isDisabled ? "Disabled" : nil,
+                    isDisabled: $0.isDisabled,
+                    payload: .serverTrigger
+                )
+            }])
         }
     }
 
@@ -223,7 +190,8 @@ extension ObjectBrowserSidebarView {
                 }
                 loadServerTriggers(session: session)
             } catch {
-                environmentState.toastPresenter.show(
+                environmentState.notificationEngine?.post(
+                    category: .generalError,
                     icon: "xmark.circle",
                     message: "Failed to \(enabled ? "enable" : "disable") trigger: \(error.localizedDescription)",
                     style: .error
@@ -239,7 +207,8 @@ extension ObjectBrowserSidebarView {
                 try await mssql.triggers.dropServerTrigger(name: name)
                 loadServerTriggers(session: session)
             } catch {
-                environmentState.toastPresenter.show(
+                environmentState.notificationEngine?.post(
+                    category: .generalError,
                     icon: "xmark.circle",
                     message: "Failed to drop trigger: \(error.localizedDescription)",
                     style: .error
@@ -256,7 +225,8 @@ extension ObjectBrowserSidebarView {
                     environmentState.openQueryTab(for: session, presetQuery: definition)
                 }
             } catch {
-                environmentState.toastPresenter.show(
+                environmentState.notificationEngine?.post(
+                    category: .generalError,
                     icon: "xmark.circle",
                     message: "Failed to get trigger definition: \(error.localizedDescription)",
                     style: .error

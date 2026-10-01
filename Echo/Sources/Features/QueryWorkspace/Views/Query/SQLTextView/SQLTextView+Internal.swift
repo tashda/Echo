@@ -38,6 +38,7 @@ extension SQLTextView {
         if let scrollView = enclosingScrollView as? SQLScrollView {
             scrollView.setRulerVisible(displayOptions.showLineNumbers)
         }
+        refreshStatements()
         
         let container = textContainer
         if displayOptions.wrapLines {
@@ -106,16 +107,16 @@ extension SQLTextView {
         }
     }
 
+    /// What typing this asks of the completion popup. The rules are EchoSense's (`SQLEditorTriggerPolicy`),
+    /// so the scenarios in Echo Labs and the package's tests check exactly what the editor does.
     func determineCompletionTrigger(for string: Any) -> CompletionTriggerKind {
-        guard let inserted = (string as? String) ?? (string as? NSAttributedString)?.string, inserted.count == 1 else {
-            return .none
+        guard let inserted = (string as? String) ?? (string as? NSAttributedString)?.string else { return .none }
+        switch SQLEditorTriggerPolicy.trigger(forInsertedText: inserted) {
+        case .none: return .none
+        case .standard: return .standard
+        case .immediate: return .immediate
+        case .evaluateSpace: return .evaluateSpace
         }
-        guard let scalar = inserted.unicodeScalars.first else { return .none }
-        if CharacterSet.letters.contains(scalar) { return .standard }
-        if inserted == "_" { return .standard }
-        if inserted == "." { return .immediate }
-        if inserted == " " { return .evaluateSpace }
-        return .none
     }
 
     func handleCompletionTrigger(_ trigger: CompletionTriggerKind, insertedText: String) {
@@ -146,10 +147,7 @@ extension SQLTextView {
     }
 
     func shouldTriggerAfterKeywordSpace() -> Bool {
-        let linePrefix = currentLinePrefix()
-        guard !linePrefix.isEmpty else { return false }
-        let pattern = #"(?i)(from|join|update|call|exec|execute|into)\s*$"#
-        return linePrefix.range(of: pattern, options: .regularExpression) != nil
+        SQLEditorTriggerPolicy.shouldTriggerAfterKeywordSpace(linePrefix: currentLinePrefix())
     }
 
     func currentLinePrefix() -> String {

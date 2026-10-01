@@ -6,19 +6,19 @@ struct SidebarMenu: View {
     
     @Environment(ProjectStore.self) private var projectStore
     @Environment(ConnectionStore.self) var connectionStore
-    @Environment(NavigationStore.self) private var navigationStore
+    @Environment(NavigationStore.self) var navigationStore
 
     @Environment(EnvironmentState.self) var environmentState
     @Environment(AppState.self) var appState
+    /// Shared with the rail beside the tree, so the rail follows the tree's scrolling.
+    let railBridge: ServerRailBridge
     let onAddConnection: () -> Void
 
-    @State var selectedNavSection: NavSection = .folder
     @State var pendingDuplicateConnection: SavedConnection?
 
     enum NavSection: String, CaseIterable {
         case folder = "Explorer"
         case bookmark = "Bookmarks"
-        case search = "Search"
         case clipboard = "Clipboard"
         case snippets = "Snippets"
         case history = "History"
@@ -28,7 +28,6 @@ struct SidebarMenu: View {
             switch self {
             case .folder: return "folder"
             case .bookmark: return "bookmark"
-            case .search: return "magnifyingglass"
             case .clipboard: return "clipboard"
             case .snippets: return "curlybraces"
             case .history: return "clock"
@@ -40,14 +39,24 @@ struct SidebarMenu: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            SidebarSectionTabs(selection: $selectedNavSection)
-                .padding(.horizontal, LayoutTokens.Sidebar.navigationHorizontalPadding)
+        ZStack {
+            // The Explorer stays alive behind the other tools so it keeps its scroll
+            // position and expansion, and switching back is instant.
+            ObjectBrowserSidebarView(
+                selectedConnectionID: $selectedConnectionID,
+                railBridge: railBridge
+            )
+            .opacity(navigationStore.sidebarSection == .folder ? 1 : 0)
+            .allowsHitTesting(navigationStore.sidebarSection == .folder)
+            .accessibilityHidden(navigationStore.sidebarSection != .folder)
 
-            contentView
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if navigationStore.sidebarSection != .folder {
+                contentView(for: navigationStore.sidebarSection)
+                    .id(navigationStore.sidebarSection)
+                    .transition(.opacity.combined(with: .offset(y: SpacingTokens.xxs)))
+            }
         }
-        .padding(.top, appState.workspaceTabBarStyle.chromeTopPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .confirmationDialog(
             "Duplicate Connection",
             isPresented: Binding(
@@ -73,26 +82,23 @@ struct SidebarMenu: View {
         }
         .onChange(of: navigationStore.pendingExplorerFocus) { _, focus in
             guard focus != nil else { return }
+            // The tree stays alive while hidden, so focus and search requests still arrive here.
+            appState.isWorkspaceTreeVisible = true
             withAnimation(.easeInOut(duration: 0.2)) {
-                selectedNavSection = .folder
+                navigationStore.sidebarSection = .folder
             }
         }
         .onChange(of: navigationStore.pendingExplorerRevealRequestID) { _, _ in
             guard navigationStore.pendingExplorerRevealConnectionID != nil else { return }
             withAnimation(.easeInOut(duration: 0.2)) {
-                selectedNavSection = .folder
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .activateSidebarSearch)) { _ in
-            withAnimation(.easeInOut(duration: 0.2)) {
-                selectedNavSection = .search
+                navigationStore.sidebarSection = .folder
             }
         }
     }
 
     func connectAndNavigate(to connection: SavedConnection) {
         selectedConnectionID = connection.id
-        selectedNavSection = .folder
+        navigationStore.sidebarSection = .folder
 
         environmentState.connect(to: connection)
     }

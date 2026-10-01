@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server database administration through Echo's DatabaseSession layer.
-final class MSSQLDatabaseAdminTests: MSSQLDockerTestCase {
+final class MSSQLDatabaseAdminTests: MSSQLLabTestCase {
 
     // MARK: - Create Database
 

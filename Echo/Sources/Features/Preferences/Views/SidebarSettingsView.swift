@@ -17,6 +17,23 @@ struct SidebarSettingsView: View {
                 Text("Collapse other connections when opening a server.")
             }
 
+            Section {
+                Toggle("Show empty folders", isOn: emptyFoldersToggle)
+                Toggle("Show scroll bar", isOn: scrollBarToggle)
+            } footer: {
+                Text("Empty folders such as Views or Functions with nothing in them are hidden unless shown here. The scroll bar is hidden unless shown here; the rail shows which server you're in.")
+            }
+
+            Section {
+                Picker("Clicking a server while the Explorer is hidden", selection: projectStore.globalSettingBinding(\.collapsedServerClick)) {
+                    ForEach(CollapsedServerClickBehavior.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                }
+            } header: {
+                Text("Server Rail")
+            } footer: {
+                Text("Peek slides that server's tree out over your work; click anywhere else to close it.")
+            }
+
             Section("Databases") {
                 Toggle("Hide offline databases by default", isOn: hideOfflineToggle)
             }
@@ -63,6 +80,28 @@ struct SidebarSettingsView: View {
             set: { enabled in
                 var updated = settings
                 updated.sidebarExpandOneConnectionAtATime = enabled
+                Task { try? await projectStore.updateGlobalSettings(updated) }
+            }
+        )
+    }
+
+    private var emptyFoldersToggle: Binding<Bool> {
+        Binding(
+            get: { settings.sidebarShowsEmptyFolders },
+            set: { enabled in
+                var updated = settings
+                updated.sidebarShowsEmptyFolders = enabled
+                Task { try? await projectStore.updateGlobalSettings(updated) }
+            }
+        )
+    }
+
+    private var scrollBarToggle: Binding<Bool> {
+        Binding(
+            get: { settings.sidebarShowsScrollBar },
+            set: { enabled in
+                var updated = settings
+                updated.sidebarShowsScrollBar = enabled
                 Task { try? await projectStore.updateGlobalSettings(updated) }
             }
         )

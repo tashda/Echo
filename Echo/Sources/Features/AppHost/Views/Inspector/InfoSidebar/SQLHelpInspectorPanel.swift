@@ -6,55 +6,41 @@ struct SQLHelpInspectorPanel: View {
     @Environment(EnvironmentState.self) private var environmentState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.md) {
-            header
+        InspectorSection(title: content.title, subtitle: content.category, systemImage: "text.book.closed") {
+            VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+                header
 
-            if let syntax = content.syntax, !syntax.isEmpty {
-                InspectorSQLBlock(sql: syntax) {
-                    environmentState.openQueryTab(presetQuery: syntax)
-                }
-            }
-
-            if let example = content.example, !example.isEmpty {
-                exampleSection(example)
-            }
-
-            if !content.sections.isEmpty {
-                VStack(alignment: .leading, spacing: SpacingTokens.sm) {
-                    ForEach(content.sections) { section in
-                        valueSection(title: section.title, value: section.value)
+                if let syntax = content.syntax, !syntax.isEmpty {
+                    InspectorSQLBlock(sql: syntax) {
+                        environmentState.openQueryTab(presetQuery: syntax)
                     }
                 }
-            }
 
-            if !content.notes.isEmpty {
-                notesSection
-            }
+                if let example = content.example, !example.isEmpty {
+                    exampleSection(example)
+                }
 
-            if !content.relatedTopics.isEmpty {
-                relatedSection
+                if !content.sections.isEmpty {
+                    VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+                        ForEach(content.sections) { section in
+                            valueSection(title: section.title, value: section.value)
+                        }
+                    }
+                }
+
+                if !content.notes.isEmpty {
+                    notesSection
+                }
+
+                if !content.relatedTopics.isEmpty {
+                    relatedSection
+                }
             }
         }
-        .padding(.top, SpacingTokens.xxs)
-        .padding(.bottom, SpacingTokens.xxs)
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
-            HStack(alignment: .firstTextBaseline, spacing: SpacingTokens.xs) {
-                Text(content.title)
-                    .font(TypographyTokens.title3.weight(.semibold))
-                Text(content.category)
-                    .font(TypographyTokens.caption.weight(.semibold))
-                    .foregroundStyle(ColorTokens.Text.secondary)
-                    .padding(.horizontal, SpacingTokens.xs2)
-                    .padding(.vertical, SpacingTokens.xxxs)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(ColorTokens.Background.secondary)
-                    )
-            }
-
             Text(content.summary)
                 .font(TypographyTokens.subheadline)
                 .foregroundStyle(ColorTokens.Text.secondary)

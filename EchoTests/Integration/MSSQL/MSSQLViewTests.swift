@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server view operations through Echo's DatabaseSession layer.
-final class MSSQLViewTests: MSSQLDockerTestCase {
+final class MSSQLViewTests: MSSQLLabTestCase {
 
     // MARK: - Create View
 

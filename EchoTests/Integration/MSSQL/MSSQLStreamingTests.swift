@@ -4,9 +4,9 @@ import SQLServerKit
 
 /// Tests SQL Server query streaming through Echo's dedicated query session layer.
 ///
-/// Uses `MSSQLDedicatedDockerTestCase` to match how Echo actually streams queries:
+/// Uses `MSSQLDedicatedLabTestCase` to match how Echo actually streams queries:
 /// streaming always happens through a dedicated `SQLServerConnection` per query tab.
-final class MSSQLStreamingTests: MSSQLDedicatedDockerTestCase {
+final class MSSQLStreamingTests: MSSQLDedicatedLabTestCase {
 
     // MARK: - Streaming with Progress
 

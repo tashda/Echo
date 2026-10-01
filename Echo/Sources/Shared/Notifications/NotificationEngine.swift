@@ -1,30 +1,35 @@
 import SwiftUI
 import UserNotifications
 
-/// Central notification router that dispatches to in-app toasts
-/// and/or native macOS notifications based on user preferences.
-@Observable
+/// Central notification router: records every event in the history behind the toolbar bell, then
+/// shows an in-app toast and/or a native notification as the user's preferences allow (plan N3).
+@MainActor @Observable
 final class NotificationEngine: NSObject, UNUserNotificationCenterDelegate {
     @ObservationIgnored private let toastPresenter: StatusToastPresenter
     @ObservationIgnored private let preferencesProvider: () -> NotificationPreferences
+    /// Where events come from when the caller doesn't say: the active server and tab.
+    @ObservationIgnored private let contextProvider: () -> NotificationContext?
     @ObservationIgnored private var hasRequestedAuthorization = false
-    @ObservationIgnored private var lastMessageTimestamp: Date?
 
-    /// All notifications posted through the engine, displayed in the Notifications panel segment.
-    var notificationMessages: [QueryExecutionMessage] = []
+    let history: NotificationHistory
 
     init(
         toastPresenter: StatusToastPresenter,
-        preferencesProvider: @escaping () -> NotificationPreferences
+        history: NotificationHistory = NotificationHistory(),
+        preferencesProvider: @escaping () -> NotificationPreferences,
+        contextProvider: @escaping () -> NotificationContext? = { nil }
     ) {
         self.toastPresenter = toastPresenter
+        self.history = history
         self.preferencesProvider = preferencesProvider
+        self.contextProvider = contextProvider
         super.init()
         UNUserNotificationCenter.current().delegate = self
     }
 
     /// Post a typed notification event. Messages are centralized in ``NotificationEvent``.
-    func post(_ event: NotificationEvent) {
+    /// Callable from any isolation; delivery hops to the main actor.
+    nonisolated func post(_ event: NotificationEvent) {
         let category = event.category
         let icon = event.icon ?? category.defaultIcon
         let style = event.style ?? category.defaultStyle
@@ -34,72 +39,63 @@ final class NotificationEngine: NSObject, UNUserNotificationCenterDelegate {
 
     /// Post a notification using the category's default icon and style.
     /// - Note: Prefer ``post(_:)`` with a ``NotificationEvent`` for new code.
-    func post(category: NotificationCategory, message: String, duration: TimeInterval = 3.0) {
+    nonisolated func post(category: NotificationCategory, message: String, duration: TimeInterval = 3.0) {
         post(category: category, icon: category.defaultIcon, message: message, style: category.defaultStyle, duration: duration)
     }
 
     /// Post a notification with explicit icon and style overrides.
-    func post(
+    nonisolated func post(
         category: NotificationCategory,
         icon: String,
         message: String,
         style: StatusToastView.StatusToastStyle = .info,
-        duration: TimeInterval = 3.0
+        duration: TimeInterval = 3.0,
+        context: NotificationContext? = nil,
+        showsToast: Bool = true
     ) {
-        let preferences = preferencesProvider()
-        guard preferences.isEnabled(category) else { return }
+        Task { @MainActor in
+            self.deliver(
+                category: category, icon: icon, message: message, style: style,
+                duration: duration, context: context, showsToast: showsToast
+            )
+        }
+    }
 
-        // Store in notification messages for the panel
-        appendNotificationMessage(message, category: category.group.displayName, style: style)
+    private func deliver(
+        category: NotificationCategory,
+        icon: String,
+        message: String,
+        style: StatusToastView.StatusToastStyle,
+        duration: TimeInterval,
+        context: NotificationContext?,
+        showsToast: Bool
+    ) {
+        let context = context ?? contextProvider()
+        // Every event is recorded, even when its toast is muted.
+        history.append(NotificationRecord(category: category, message: message, severity: style.severity, context: context))
+
+        let preferences = preferencesProvider()
+        guard showsToast, preferences.isEnabled(category) else { return }
 
         switch preferences.delivery {
         case .inApp:
-            showToast(icon: icon, message: message, style: style, duration: duration)
+            toastPresenter.show(icon: icon, message: message, style: style, duration: duration, context: context)
         case .native:
             sendNativeNotification(category: category, message: message)
         case .both:
-            showToast(icon: icon, message: message, style: style, duration: duration)
+            toastPresenter.show(icon: icon, message: message, style: style, duration: duration, context: context)
             sendNativeNotification(category: category, message: message)
         }
-    }
-
-    func clearNotifications() {
-        notificationMessages.removeAll()
-        lastMessageTimestamp = nil
-    }
-
-    // MARK: - Notification Message Storage
-
-    private func appendNotificationMessage(_ text: String, category: String, style: StatusToastView.StatusToastStyle) {
-        let now = Date()
-        let delta = lastMessageTimestamp.map { now.timeIntervalSince($0) } ?? 0
-        let severity: QueryExecutionMessage.Severity = switch style {
-        case .success: .success
-        case .error: .error
-        case .warning: .warning
-        case .info: .info
-        }
-        let message = QueryExecutionMessage(
-            index: notificationMessages.count + 1,
-            category: category,
-            message: text,
-            timestamp: now,
-            severity: severity,
-            delta: delta
-        )
-        notificationMessages.append(message)
-        lastMessageTimestamp = now
-    }
-
-    // MARK: - In-App
-
-    private func showToast(icon: String, message: String, style: StatusToastView.StatusToastStyle, duration: TimeInterval) {
-        toastPresenter.show(icon: icon, message: message, style: style, duration: duration)
     }
 
     // MARK: - Native macOS
 
     private func sendNativeNotification(category: NotificationCategory, message: String) {
+        sendNativeNotification(title: category.group.displayName, body: message)
+    }
+
+    /// A macOS Notification Center banner, whatever the delivery preference says.
+    func sendNativeNotification(title: String, body: String) {
         let center = UNUserNotificationCenter.current()
 
         if !hasRequestedAuthorization {
@@ -108,8 +104,8 @@ final class NotificationEngine: NSObject, UNUserNotificationCenterDelegate {
         }
 
         let content = UNMutableNotificationContent()
-        content.title = category.group.displayName
-        content.body = message
+        content.title = title
+        content.body = body
         content.sound = .default
 
         let request = UNNotificationRequest(
@@ -130,5 +126,16 @@ final class NotificationEngine: NSObject, UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         completionHandler([.banner, .sound])
+    }
+}
+
+extension StatusToastView.StatusToastStyle {
+    var severity: NotificationRecord.Severity {
+        switch self {
+        case .success: .success
+        case .info: .info
+        case .warning: .warning
+        case .error: .error
+        }
     }
 }

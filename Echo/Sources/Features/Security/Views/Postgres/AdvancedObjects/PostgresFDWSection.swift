@@ -12,10 +12,13 @@ struct PostgresFDWSection: View {
     @State private var pendingDropServer: String?
     @State private var pendingFDWEdit: PendingEdit?
     @State private var pendingServerEdit: PendingEdit?
+    @State private var wrapperFraction: CGFloat = 0.5
 
     var body: some View {
-        VSplitView {
+        // TT1: wrappers and servers are two cards.
+        CardSplitView(axis: .vertical, fraction: $wrapperFraction, minFraction: 0.25) {
             fdwTable
+        } second: {
             serverTable
         }
         .dropConfirmationAlert(objectType: "Foreign Data Wrapper", objectName: $pendingDropFDW, cascade: true) { name in

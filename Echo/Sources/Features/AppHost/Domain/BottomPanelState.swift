@@ -56,7 +56,10 @@ enum PanelSegment: String, Hashable, Identifiable, CaseIterable {
 @Observable
 final class BottomPanelState {
     var isOpen: Bool
+    /// The share of the height the editor card takes while results show.
     var splitRatio: CGFloat
+    /// Results take all but a one-line editor card (double-click the gap between the cards).
+    var isResultsMaximized = false
     var selectedSegment: PanelSegment
     var availableSegments: [PanelSegment]
     var messages: [QueryExecutionMessage] = []

@@ -14,6 +14,8 @@ struct BottomPanelStatusBarConfiguration {
     var metrics: Metrics?
     var statusBubble: StatusBubble?
     var modeIndicators: [ModeIndicator] = []
+    /// How the status, selection, rows and time sit on the right (round 10, judged in the lab).
+    var metricsStyle: FooterMetricsStyle = .pillPerEntry
     var statisticsPopover: AnyView?
     var showStatisticsPopover: Binding<Bool>?
 
@@ -46,116 +48,142 @@ struct BottomPanelStatusBarConfiguration {
         let rowCountText: String
         let rowCountLabel: String
         let durationText: String?
+        /// The selected cells' count, sum and average (plan R5).
+        var selectionText: String? = nil
     }
 
     struct StatusBubble {
         let label: String
         let tint: Color
         let isPulsing: Bool
+        /// Drawn in `tint` instead of the dot, with the label in `tint` too (round 21, TL2).
+        var icon: String?
+        /// Shows how long since this date after the label once it passes a minute (round 21, TT2).
+        var since: Date?
+        /// Clicking the status opens these (round 21, TA2).
+        var menu: [MenuItem] = []
+        /// Shown on hover (round 21, LF3: who holds the lock).
+        var help: String?
+
+        struct MenuItem: Identifiable {
+            let title: String
+            let systemImage: String
+            var isDestructive = false
+            let action: () -> Void
+            var id: String { title }
+        }
     }
 
     struct ModeIndicator: Identifiable {
         let id: String
         let label: String
         let icon: String
+        var help: String?
     }
 }
 
-/// Universal 24pt status bar at the bottom of every tab.
+/// The footer at the bottom of every tab's card (Design/05-components.md › Results card, FT1a).
+/// No strip and no divider: the server and database float as a glass chip at the leading edge
+/// (click it for the database switcher, in a popover), the result views sit in their own glass
+/// pill right beside it, and the status, row count and duration are quiet text at the trailing edge.
 struct BottomPanelStatusBar: View {
     let configuration: BottomPanelStatusBarConfiguration
 
+    @Environment(\.echoMotion) private var motion
+
     var body: some View {
-        VStack(spacing: 0) {
-            Divider()
-            HStack(spacing: 0) {
-                connectionLabel
-                segmentToggles
-                modeIndicatorChips
-                Spacer(minLength: SpacingTokens.sm)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        configuration.onTogglePanel()
-                    }
-                metricsSection
-            }
-            .padding(.leading, SpacingTokens.sm)
-            .padding(.trailing, SpacingTokens.md1)
-            .frame(height: 24)
+        HStack(spacing: SpacingTokens.xs) {
+            connectionChip
+                .zIndex(1)
+            segmentPill
+            modeIndicatorChips
+            Spacer(minLength: SpacingTokens.sm)
+                .contentShape(Rectangle())
+                .onTapGesture { configuration.onTogglePanel() }
+            metricsSection
         }
-        .background(.bar)
+        .padding(.horizontal, SpacingTokens.sm)
+        .frame(height: LayoutTokens.Footer.height)
     }
 
-    private var connectionLabel: some View {
-        HStack(spacing: 0) {
-            Text(configuration.serverName)
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Text.secondary)
-                .lineLimit(1)
+    // MARK: - Connection
 
-            if let dbName = configuration.databaseName {
-                Text(" • ")
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.quaternary)
+    private var connectionText: String {
+        guard let databaseName = configuration.databaseName else { return configuration.serverName }
+        return "\(configuration.serverName) · \(databaseName)"
+    }
 
-                databaseLabel(dbName)
-            }
+    private var canSwitchDatabase: Bool {
+        configuration.availableDatabases != nil && configuration.onSwitchDatabase != nil
+    }
+
+    private var isSwitcherOpen: Bool {
+        configuration.showDatabasePicker?.wrappedValue ?? false
+    }
+
+    private func setSwitcherOpen(_ isOpen: Bool) {
+        withAnimation(motion.standard) {
+            configuration.showDatabasePicker?.wrappedValue = isOpen
         }
     }
 
-    @ViewBuilder
-    private func databaseLabel(_ dbName: String) -> some View {
-        let hasSwitcher = configuration.availableDatabases != nil
-        Text(dbName)
+    /// The server · database chip. Clicking it opens the database switcher in a system popover
+    /// above the chip: the popover brings the system's Liquid Glass, theming and dismissal
+    /// (click outside, Esc), so the card only holds the filter and the list.
+    private var connectionChip: some View {
+        Button {
+            setSwitcherOpen(true)
+        } label: {
+            chipLabel
+        }
+        .buttonStyle(.plain)
+        .glassEffect(canSwitchDatabase ? .regular.interactive() : .regular, in: .capsule)
+        .disabled(!canSwitchDatabase)
+        .help(canSwitchDatabase ? "Switch Database" : connectionText)
+        .accessibilityLabel(connectionText)
+        .popover(isPresented: configuration.showDatabasePicker ?? .constant(false), arrowEdge: .top) {
+            if let databases = configuration.availableDatabases {
+                DatabaseSwitcherCard(
+                    databases: databases,
+                    currentDatabase: configuration.databaseName,
+                    chipLabel: connectionText,
+                    onSelect: { selected in
+                        setSwitcherOpen(false)
+                        configuration.onSwitchDatabase?(selected)
+                    },
+                    onDismiss: { setSwitcherOpen(false) },
+                    showsChipLabel: false,
+                    handlesDismissal: false
+                )
+            }
+        }
+    }
+
+    private var chipLabel: some View {
+        Text(connectionText)
             .font(TypographyTokens.detail)
-            .foregroundStyle(hasSwitcher ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
+            .foregroundStyle(ColorTokens.Text.primary)
             .lineLimit(1)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                if let binding = configuration.showDatabasePicker {
-                    binding.wrappedValue.toggle()
-                }
-            }
-            .popover(isPresented: configuration.showDatabasePicker ?? .constant(false)) {
-                if let databases = configuration.availableDatabases,
-                   let onSwitch = configuration.onSwitchDatabase {
-                    DatabasePickerPopover(
-                        databases: databases,
-                        currentDatabase: dbName,
-                        onSelect: { selected in
-                            configuration.showDatabasePicker?.wrappedValue = false
-                            onSwitch(selected)
-                        }
-                    )
-                }
-            }
+            .truncationMode(.middle)
+            .padding(.horizontal, LayoutTokens.Footer.chipHorizontalPadding)
+            .frame(height: LayoutTokens.Footer.chipHeight)
+            .contentShape(Capsule())
     }
 
+    // MARK: - Views
+
     @ViewBuilder
-    private var segmentToggles: some View {
+    private var segmentPill: some View {
         if !configuration.availableSegments.isEmpty {
-            ForEach(Array(configuration.availableSegments.enumerated()), id: \.element) { index, segment in
-                segmentButton(segment)
-                    .padding(.leading, index == 0 ? SpacingTokens.xs : SpacingTokens.xxs)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var modeIndicatorChips: some View {
-        if !configuration.modeIndicators.isEmpty {
-            Divider()
-                .frame(height: 12)
-                .padding(.leading, SpacingTokens.xs)
-            ForEach(configuration.modeIndicators) { indicator in
-                HStack(spacing: SpacingTokens.xxxs) {
-                    Image(systemName: indicator.icon)
-                    Text(indicator.label)
+            HStack(spacing: SpacingTokens.none) {
+                ForEach(configuration.availableSegments, id: \.self) { segment in
+                    segmentButton(segment)
                 }
-                .font(TypographyTokens.detail)
-                .foregroundStyle(ColorTokens.Status.modeIndicator)
-                .padding(.leading, SpacingTokens.xs)
             }
+            .padding(LayoutTokens.Footer.pillPadding)
+            .glassEffect(.regular, in: .capsule)
+            .animation(motion.press, value: configuration.selectedSegment)
+            .animation(motion.press, value: configuration.isPanelOpen)
         }
     }
 
@@ -167,115 +195,38 @@ struct BottomPanelStatusBar: View {
         } label: {
             Image(systemName: segment.icon)
                 .font(TypographyTokens.detail)
-                .foregroundStyle(isActive ? ColorTokens.accent : ColorTokens.Text.secondary)
+                .foregroundStyle(isActive ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
+                .frame(width: LayoutTokens.Footer.segmentWidth, height: LayoutTokens.Footer.chipHeight - LayoutTokens.Footer.pillPadding * 2)
+                .background {
+                    if isActive {
+                        Capsule()
+                            .fill(ColorTokens.Workspace.card)
+                            .shadow(ShadowTokens.railSelection)
+                    }
+                }
+                .contentShape(Capsule())
         }
-        .buttonStyle(.borderless)
+        .buttonStyle(.plain)
         .opacity(isDisabled ? 0.3 : 1)
         .disabled(isDisabled)
-        .help(isDisabled ? segment.label : (isActive ? "Show Results" : "Show \(segment.label)"))
+        .help(isDisabled ? segment.label : (isActive ? "Hide \(segment.label)" : "Show \(segment.label)"))
         .accessibilityLabel(segment.label)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
     @ViewBuilder
-    private var metricsSection: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            if let metrics = configuration.metrics {
-                HStack(spacing: SpacingTokens.xxxs) {
-                    Text(metrics.rowCountText)
-                        .font(TypographyTokens.detail.monospaced().weight(.medium))
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                    Text(metrics.rowCountLabel)
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                }
-
-                if let duration = metrics.durationText {
-                    Text(duration)
-                        .font(TypographyTokens.detail.monospaced().weight(.medium))
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
+    private var modeIndicatorChips: some View {
+        ForEach(configuration.modeIndicators) { indicator in
+            HStack(spacing: SpacingTokens.xxxs) {
+                Image(systemName: indicator.icon)
+                Text(indicator.label)
             }
-
-            if let bubble = configuration.statusBubble {
-                HStack(spacing: SpacingTokens.xxs) {
-                    PulsingStatusDot(tint: bubble.tint, isPulsing: bubble.isPulsing)
-                    Text(bubble.label)
-                        .font(TypographyTokens.detail)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                }
-            }
+            .font(TypographyTokens.detail)
+            .foregroundStyle(ColorTokens.Status.modeIndicator)
+            .padding(.horizontal, LayoutTokens.Footer.chipHorizontalPadding)
+            .frame(height: LayoutTokens.Footer.chipHeight)
+            .background(ColorTokens.Sidebar.hoverFill, in: Capsule())
+            .help(indicator.help ?? "")
         }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if configuration.statisticsPopover != nil,
-               let binding = configuration.showStatisticsPopover {
-                binding.wrappedValue.toggle()
-            } else {
-                configuration.onTogglePanel()
-            }
-        }
-        .popover(isPresented: configuration.showStatisticsPopover ?? .constant(false)) {
-            if let popoverView = configuration.statisticsPopover {
-                popoverView
-            }
-        }
-    }
-}
-
-// MARK: - Database Picker Popover
-
-private struct DatabasePickerPopover: View {
-    let databases: [String]
-    let currentDatabase: String
-    let onSelect: (String) -> Void
-
-    var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(databases, id: \.self) { db in
-                    DatabasePickerRow(
-                        name: db,
-                        isCurrent: db.caseInsensitiveCompare(currentDatabase) == .orderedSame,
-                        onSelect: { onSelect(db) }
-                    )
-                }
-            }
-            .padding(.vertical, SpacingTokens.xxs)
-        }
-        .frame(width: 220)
-        .frame(maxHeight: 300)
-    }
-}
-
-private struct DatabasePickerRow: View {
-    let name: String
-    let isCurrent: Bool
-    let onSelect: () -> Void
-
-    @State private var isHovered = false
-
-    var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: SpacingTokens.xs) {
-                Image(systemName: "checkmark")
-                    .font(TypographyTokens.compact)
-                    .frame(width: 14)
-                    .foregroundStyle(ColorTokens.accent)
-                    .opacity(isCurrent ? 1 : 0)
-
-                Text(name)
-                    .font(TypographyTokens.caption)
-                    .foregroundStyle(ColorTokens.Text.primary)
-                    .lineLimit(1)
-
-                Spacer()
-            }
-            .padding(.horizontal, SpacingTokens.sm)
-            .padding(.vertical, SpacingTokens.xxs)
-            .contentShape(Rectangle())
-            .background(isHovered ? ColorTokens.Text.primary.opacity(0.06) : .clear)
-        }
-        .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
     }
 }

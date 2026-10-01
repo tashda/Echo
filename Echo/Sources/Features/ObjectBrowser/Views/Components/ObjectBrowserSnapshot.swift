@@ -7,39 +7,23 @@ enum ObjectBrowserSnapshotBuilder {
         sessions: [ConnectionSession],
         settings: GlobalSettings,
         viewModel: ObjectBrowserSidebarViewModel,
-        selectedConnectionID: UUID? = nil,
-        connectionDockHeight: CGFloat = SpacingTokens.none
+        selectedConnectionID: UUID? = nil
     ) -> [ObjectBrowserNode] {
         let connectionLayoutMode = ObjectBrowserConnectionLayoutMode(
             expandOneConnectionAtATime: settings.sidebarExpandOneConnectionAtATime
         )
         let topSpacer = ObjectBrowserNode(
             id: "explorer-lab#top-spacer",
-            row: .topSpacer(
-                connectionLayoutMode.outlineTopSpacerHeight(
-                    connectionDockHeight: connectionDockHeight
-                )
-            )
+            row: .topSpacer(connectionLayoutMode.outlineTopSpacerHeight)
         )
 
         var rows: [ObjectBrowserNode] = [topSpacer]
-
-        for pending in pendingConnections {
-            rows.append(
-                ObjectBrowserNode(
-                    id: "\(pending.id.uuidString)#pending",
-                    row: .pendingConnection(pending)
-                )
-            )
-        }
-
-        if !pendingConnections.isEmpty && !sessions.isEmpty {
-            rows.append(
-                ObjectBrowserNode(
-                    id: "explorer-lab#pending-gap",
-                    row: .topSpacer(SpacingTokens.xs)
-                )
-            )
+        // Each server sits on its own card; cards are one gutter apart (the Spacing Between
+        // Panes setting), plus the room left below a card's last row.
+        let cardSpacing = settings.workspaceGutter.points + LayoutTokens.Workspace.treeCardBottomPadding
+        func appendGap(before key: String) {
+            guard rows.count > 1 else { return }
+            rows.append(ObjectBrowserNode(id: "explorer-lab#gap#\(key)", row: .topSpacer(cardSpacing)))
         }
 
         if !connectionLayoutMode.showsServerNameInOutline,
@@ -49,29 +33,31 @@ enum ObjectBrowserSnapshotBuilder {
                 settings: settings,
                 viewModel: viewModel
             ))
-            return rows
-        }
-
-        for (index, session) in sessions.enumerated() {
-            if index > 0 {
+        } else {
+            for session in sessions {
+                appendGap(before: session.connection.id.uuidString)
+                let serverID = ObjectBrowserSidebarViewModel.serverNodeID(connectionID: session.connection.id)
                 rows.append(
                     ObjectBrowserNode(
-                        id: "explorer-lab#server-gap#\(session.connection.id.uuidString)",
-                        row: .topSpacer(SpacingTokens.xs)
+                        id: serverID,
+                        row: .server(session),
+                        children: serverChildren(
+                            for: session,
+                            settings: settings,
+                            viewModel: viewModel
+                        )
                     )
                 )
             }
+        }
 
-            let serverID = ObjectBrowserSidebarViewModel.serverNodeID(connectionID: session.connection.id)
+        // Servers still connecting, or that failed to, come last, in the rail's order.
+        for pending in pendingConnections {
+            appendGap(before: "pending#\(pending.id.uuidString)")
             rows.append(
                 ObjectBrowserNode(
-                    id: serverID,
-                    row: .server(session),
-                    children: serverChildren(
-                        for: session,
-                        settings: settings,
-                        viewModel: viewModel
-                    )
+                    id: "\(pending.id.uuidString)#pending",
+                    row: .pendingConnection(pending)
                 )
             )
         }
@@ -95,167 +81,26 @@ enum ObjectBrowserSnapshotBuilder {
         settings: GlobalSettings,
         viewModel: ObjectBrowserSidebarViewModel
     ) -> [ObjectBrowserNode] {
+        let connectionID = session.connection.id.uuidString
         switch session.structureLoadingState {
         case .failed(let message):
-            return [
-                ObjectBrowserNode(
-                    id: "\(session.connection.id.uuidString)#failed",
-                    row: .message(message ?? "Failed to load", systemImage: "exclamationmark.triangle.fill", depth: 1)
-                )
-            ]
-        case .idle:
-            return [
-                ObjectBrowserNode(
-                    id: "\(session.connection.id.uuidString)#server-loading",
-                    row: .loading("Loading server…", depth: 1)
-                )
-            ]
-        case .loading where session.databaseStructure == nil:
-            return [
-                ObjectBrowserNode(
-                    id: "\(session.connection.id.uuidString)#server-loading",
-                    row: .loading("Loading server…", depth: 1)
-                )
-            ]
+            return [ObjectBrowserNode(
+                id: "\(connectionID)#failed",
+                row: .message(message ?? "Failed to load", systemImage: "exclamationmark.triangle.fill")
+            )]
         default:
-            let structure = session.databaseStructure
-            let visibleDatabases = visibleDatabases(
-                for: session,
-                structure: structure,
-                settings: settings,
-                hideOffline: viewModel.hideOfflineDatabasesBySession[session.connection.id] ?? false
-            )
-            let folderID = ObjectBrowserSidebarViewModel.databasesFolderNodeID(connectionID: session.connection.id)
-            let folderChildren = visibleDatabases.map {
-                databaseNode(
-                    for: session,
-                    database: $0,
-                    settings: settings,
-                    expandedNodeIDs: viewModel.expandedNodeIDs,
-                    viewModel: viewModel
-                )
+            // Folders first (round 16): while the server's structure loads, its sections are
+            // already there and Databases says it is loading.
+            let isLoadingServer: Bool = switch session.structureLoadingState {
+            case .idle: true
+            case .loading: session.databaseStructure == nil
+            default: false
             }
-
-            var children = [
-                ObjectBrowserNode(
-                    id: folderID,
-                    row: .databasesFolder(session, count: visibleDatabases.count),
-                    children: folderChildren
-                )
-            ]
-            children.append(contentsOf: serverSupplementaryChildren(for: session, viewModel: viewModel))
-            return children
-        }
-    }
-
-    private static func databaseNode(
-        for session: ConnectionSession,
-        database: DatabaseInfo,
-        settings: GlobalSettings,
-        expandedNodeIDs: Set<String>,
-        viewModel: ObjectBrowserSidebarViewModel
-    ) -> ObjectBrowserNode {
-        let databaseID = ObjectBrowserSidebarViewModel.databaseNodeID(
-            connectionID: session.connection.id,
-            databaseName: database.name
-        )
-
-        let isLoading = session.schemaLoadsInFlight.contains(session.schemaLoadKey(database.name))
-        let children = databaseChildren(
-            for: session,
-            database: database,
-            settings: settings,
-            expandedNodeIDs: expandedNodeIDs,
-            isLoading: isLoading,
-            viewModel: viewModel
-        )
-
-        return ObjectBrowserNode(
-            id: databaseID,
-            row: .database(session, database, isLoading: isLoading),
-            children: children
-        )
-    }
-
-    private static func databaseChildren(
-        for session: ConnectionSession,
-        database: DatabaseInfo,
-        settings: GlobalSettings,
-        expandedNodeIDs: Set<String>,
-        isLoading: Bool,
-        viewModel: ObjectBrowserSidebarViewModel
-    ) -> [ObjectBrowserNode] {
-        if isLoading {
-            return [
-                ObjectBrowserNode(
-                    id: ObjectBrowserSidebarViewModel.loadingNodeID(
-                        parentID: ObjectBrowserSidebarViewModel.databaseNodeID(
-                            connectionID: session.connection.id,
-                            databaseName: database.name
-                        )
-                    ),
-                    row: .loading("Loading schema…", depth: 2)
-                )
-            ]
-        }
-
-        guard session.hasLoadedSchema(forDatabase: database.name) else {
-            return [
-                ObjectBrowserNode(
-                    id: ObjectBrowserSidebarViewModel.loadingNodeID(
-                        parentID: ObjectBrowserSidebarViewModel.databaseNodeID(
-                            connectionID: session.connection.id,
-                            databaseName: database.name
-                        )
-                    ),
-                    row: .loading(session.metadataFreshness(forDatabase: database.name) == .failed ? "Schema refresh failed" : "Expand to load objects…", depth: 2)
-                )
-            ]
-        }
-
-        let supportedTypes = SchemaObjectInfo.ObjectType.supported(for: session.connection.databaseType)
-        let snapshot = groupedObjects(for: database, supportedTypes: supportedTypes)
-
-        let objectGroupNodes = supportedTypes.map { type in
-            let objects = snapshot[type] ?? []
-            let groupID = ObjectBrowserSidebarViewModel.objectGroupNodeID(
-                connectionID: session.connection.id,
-                databaseName: database.name,
-                objectType: type
-            )
-            let showsColumns = type == .table || type == .view || type == .materializedView
-            let groupChildren = objects.map { object -> ObjectBrowserNode in
-                let objectID = ExplorerSidebarIdentity.object(
-                    connectionID: session.connection.id,
-                    databaseName: database.name,
-                    objectID: object.id
-                )
-                let columnChildren: [ObjectBrowserNode] = showsColumns && !object.columns.isEmpty
-                    ? object.columns.map { col in
-                        ObjectBrowserNode(
-                            id: "\(objectID)#col#\(col.name)",
-                            row: .column(col, objectType: type, depth: 4)
-                        )
-                    }
-                    : []
-                return ObjectBrowserNode(
-                    id: objectID,
-                    row: .object(session, database.name, object),
-                    children: columnChildren
-                )
-            }
-
-            return ObjectBrowserNode(
-                id: groupID,
-                row: .objectGroup(session, database.name, type, count: objects.count),
-                children: groupChildren
+            let builder = ExplorerBlueprintWalker(session: session, settings: settings, viewModel: viewModel, isLoadingServer: isLoadingServer)
+            return builder.nodes(
+                for: ExplorerBlueprint.blueprint(for: session.connection.databaseType).server,
+                in: .server
             )
         }
-
-        return objectGroupNodes + databaseSupplementaryChildren(
-            for: session,
-            database: database,
-            viewModel: viewModel
-        )
     }
 }

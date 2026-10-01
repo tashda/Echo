@@ -14,6 +14,7 @@ struct QueryResultsGridView: View {
     var gridState: QueryResultsGridState?
 
     @Environment(AppearanceStore.self) private var appearanceStore
+    @Environment(ProjectStore.self) private var projectStore
 
     var body: some View {
         QueryResultsTableView(
@@ -45,7 +46,11 @@ struct QueryResultsGridView: View {
             onForeignKeyEvent: { _ in },
             onJsonEvent: { _ in },
             persistedState: gridState,
-            isDarkMode: appearanceStore.effectiveColorScheme == .dark
+            alternateRowShading: projectStore.globalSettings.resultsAlternateRowShading,
+            showRowNumbers: projectStore.globalSettings.resultsShowRowNumbers,
+            colorOverrides: projectStore.globalSettings.resultGridColorOverrides,
+            isDarkMode: appearanceStore.effectiveColorScheme == .dark,
+            monospacedCells: projectStore.globalSettings.resultsMonospacedCells
         )
     }
 }

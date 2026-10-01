@@ -8,6 +8,42 @@ final class ResultTableView: NSTableView {
 
     override var acceptsFirstResponder: Bool { true }
 
+    private var hoverTrackingArea: NSTrackingArea?
+
+    // MARK: - Hover (plan R4)
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverTrackingArea { removeTrackingArea(hoverTrackingArea) }
+        let area = NSTrackingArea(
+            rect: .zero,
+            options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        hoverTrackingArea = area
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        let hovered = row(at: convert(event.locationInWindow, from: nil))
+        selectionDelegate?.setHoveredRow(hovered >= 0 ? hovered : nil, in: self)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        selectionDelegate?.setHoveredRow(nil, in: self)
+    }
+
+    override func scrollWheel(with event: NSEvent) {
+        super.scrollWheel(with: event)
+        // The row under a still pointer changes as the rows move.
+        guard let window else { return }
+        let hovered = row(at: convert(window.mouseLocationOutsideOfEventStream, from: nil))
+        selectionDelegate?.setHoveredRow(hovered >= 0 ? hovered : nil, in: self)
+    }
+
     override func highlightSelection(inClipRect clipRect: NSRect) {
         if selectionDelegate?.hasActiveCellSelection == true {
             return

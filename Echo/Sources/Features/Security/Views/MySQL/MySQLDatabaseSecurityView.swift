@@ -4,6 +4,7 @@ struct MySQLDatabaseSecurityView: View {
     @Bindable var viewModel: MySQLDatabaseSecurityViewModel
     @Bindable var panelState: BottomPanelState
     @Environment(TabStore.self) private var tabStore
+    @Environment(\.workspaceTab) private var hostTab
 
     @State private var showNewUserSheet = false
     @State private var showNewRoleSheet = false
@@ -93,10 +94,10 @@ struct MySQLDatabaseSecurityView: View {
         }
         .sheet(isPresented: $showGrantPrivilegesSheet) {
             MySQLGrantPrivilegesSheet(
-                databaseName: tabStore.activeTab?.activeDatabaseName ?? tabStore.activeTab?.connection.database ?? "",
+                databaseName: hostTab?.activeDatabaseName ?? hostTab?.connection.database ?? "",
                 grantees: viewModel.privilegeGrantees
             ) { grantee, privileges, withGrantOption in
-                let databaseName = tabStore.activeTab?.activeDatabaseName ?? tabStore.activeTab?.connection.database ?? ""
+                let databaseName = hostTab?.activeDatabaseName ?? hostTab?.connection.database ?? ""
                 Task {
                     await viewModel.grantSchemaPrivileges(
                         on: databaseName,
@@ -112,8 +113,8 @@ struct MySQLDatabaseSecurityView: View {
     }
 
     private var connectionText: String {
-        let connText = tabStore.activeTab?.connection.connectionName ?? "Server"
-        let db = tabStore.activeTab?.activeDatabaseName
+        let connText = hostTab?.connection.connectionName ?? "Server"
+        let db = hostTab?.activeDatabaseName
         return db.map { "\(connText) \u{2022} \($0)" } ?? connText
     }
 

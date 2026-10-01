@@ -69,6 +69,8 @@ public protocol DatabaseSession: Sendable {
 
     // Multi-batch execution (GO batch separator support)
     func executeBatches(_ batches: [String], progressHandler: BatchProgressHandler?) async throws -> [BatchResult]
+    /// Cancels the running statement on the server. Returns whether a cancel was sent.
+    func cancelRunningQuery() async -> Bool
 
     /// Checks whether the connection to the database is still alive.
     /// Returns `true` if a lightweight query succeeds, `false` otherwise.
@@ -105,9 +107,47 @@ protocol DatabaseFactory: Sendable {
         mssqlEncryptionMode: MSSQLEncryptionMode,
         hostNameInCertificate: String?,
         readOnlyIntent: Bool,
+        allowLegacyTLS: Bool,
         authentication: DatabaseAuthenticationConfiguration,
         connectTimeoutSeconds: Int
     ) async throws -> DatabaseSession
+
+    /// Connects with everything a saved connection holds. Engines with options beyond the
+    /// parameters above (PostgreSQL: several servers, Kerberos, a key password) implement this;
+    /// the others get the default, which passes the common settings on.
+    func connect(
+        to connection: SavedConnection,
+        database: String?,
+        authentication: DatabaseAuthenticationConfiguration,
+        connectTimeoutSeconds: Int
+    ) async throws -> DatabaseSession
+}
+
+extension DatabaseFactory {
+    func connect(
+        to connection: SavedConnection,
+        database: String?,
+        authentication: DatabaseAuthenticationConfiguration,
+        connectTimeoutSeconds: Int
+    ) async throws -> DatabaseSession {
+        try await connect(
+            host: connection.host,
+            port: connection.port,
+            database: database,
+            tls: connection.useTLS,
+            trustServerCertificate: connection.trustServerCertificate,
+            tlsMode: connection.tlsMode,
+            sslRootCertPath: connection.sslRootCertPath,
+            sslCertPath: connection.sslCertPath,
+            sslKeyPath: connection.sslKeyPath,
+            mssqlEncryptionMode: connection.mssqlEncryptionMode,
+            hostNameInCertificate: connection.hostNameInCertificate,
+            readOnlyIntent: connection.readOnlyIntent,
+            allowLegacyTLS: connection.allowLegacyTLS,
+            authentication: authentication,
+            connectTimeoutSeconds: connectTimeoutSeconds
+        )
+    }
 }
 
 public protocol DatabaseMetadataSession: DatabaseSession {
@@ -322,6 +362,8 @@ public extension DatabaseSession {
     func executeBatches(_ batches: [String], progressHandler: BatchProgressHandler?) async throws -> [BatchResult] {
         throw DatabaseError.queryError("Batch execution is not supported for this database type")
     }
+
+    func cancelRunningQuery() async -> Bool { false }
 }
 
 protocol ExecutionPlanProviding: DatabaseSession {

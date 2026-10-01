@@ -17,7 +17,10 @@ struct MySQLActivityMonitorView: View {
     @Environment(EnvironmentState.self) var environmentState
     @State var selectedSQLContext: SQLPopoutContext?
     @State var selectedProcessIDs: Set<Int> = []
-    @State var selectedSection: MySQLActivitySection = .overview
+    /// The page, chosen in the tab (ST2) and kept in the view model.
+    var selectedSection: MySQLActivitySection {
+        viewModel.selectedSection.flatMap(MySQLActivitySection.init(rawValue:)) ?? .overview
+    }
 
     var body: some View {
         ActivityMonitorTabFrame(
@@ -29,8 +32,6 @@ struct MySQLActivityMonitorView: View {
                 environmentState.openFormattedQueryTab(sql: sql, database: db, connectionID: viewModel.connectionID, dialect: .mysql)
             }
         ) {
-            MySQLActivitySectionPicker(selection: $selectedSection)
-        } sparklines: {
             ActivityMonitorSparklineStrip(metrics: sparklineMetrics)
         } sectionContent: {
             sectionContentView

@@ -62,7 +62,12 @@ enum SQLEditorThemeResolver {
             autoCompletionEnabled: globalSettings.editorEnableAutocomplete,
             qualifyTableCompletions: globalSettings.editorQualifyTableCompletions,
             showSystemSchemasInCompletion: globalSettings.editorShowSystemSchemas,
-            liveValidationEnabled: globalSettings.editorEnableLiveValidation
+            liveValidationEnabled: globalSettings.editorEnableLiveValidation,
+            statementFocusEnabled: globalSettings.editorStatementFocus,
+            outlineEdgeEnabled: globalSettings.editorOutlineEdge,
+            ghostTextEnabled: globalSettings.editorGhostTextCompletion,
+            gutterStyle: globalSettings.editorGutterStyle,
+            cardCornerRadius: globalSettings.workspaceCornerRadius.points
         )
     }
 
@@ -100,10 +105,6 @@ enum SQLEditorThemeResolver {
         switch trimmed {
         case SQLEditorTheme.systemFontIdentifier, "System", "system", "MonospacedSystem", ".monospacedSystemFont", ".SystemMonospaced":
             return SQLEditorTheme.systemFontIdentifier
-        case "IBMPlexMono-Regular":
-            return "IBMPlexMono"
-        case "Iosevka-Regular":
-            return "Iosevka"
         default:
             return trimmed
         }

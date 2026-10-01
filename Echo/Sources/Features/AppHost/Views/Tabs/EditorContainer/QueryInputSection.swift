@@ -12,6 +12,9 @@ struct QueryInputSection: View {
     let onAddBookmark: (String) -> Void
     let completionContext: SQLEditorCompletionContext?
     let onSchemaLoadNeeded: ((String) -> Void)?
+    var onRunStatement: () -> Void = {}
+    /// The empty tab's recent tables (QE6), read only while the tab is empty.
+    var tableStarts: () -> [EmptyQueryHints.TableStart] = { [] }
 
     @Environment(AppState.self) var appState
     @Environment(EnvironmentState.self) private var environmentState
@@ -49,21 +52,37 @@ struct QueryInputSection: View {
             completionContext: completionContext,
             onSchemaLoadNeeded: onSchemaLoadNeeded,
             validationRequestGeneration: query.validationRequestGeneration,
+            editorLineRequest: query.editorLineRequest,
             onTextChange: { newText in
                 if query.sql != newText {
                     query.sql = newText
+                    query.runNote = nil
+                    query.errorMark = nil
+                    query.highlightedStatementRange = nil
                 }
             },
             onSelectionChange: handleSelectionChange,
             onSelectionPreviewChange: handleSelectionChange,
             clipboardMetadata: query.clipboardMetadata,
-            onAddBookmark: onAddBookmark
+            onAddBookmark: onAddBookmark,
+            onRunStatement: onRunStatement,
+            runNote: query.runNote,
+            errorMark: query.errorMark,
+            resultStatementRange: query.highlightedStatementRange
         )
         .padding(.leading, leadingPadding)
         .padding(.trailing, trailingPadding)
         .padding(.top, topPadding)
         .padding(.bottom, bottomPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .overlay(alignment: .topLeading) {
+            if query.sql.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                EmptyQueryHints(databaseType: completionContext?.databaseType, tableStarts: tableStarts()) { query.sql = $0 }
+                    .padding(.leading, LayoutTokens.EmptyQueryHints.leadingInset)
+                    .padding(.top, LayoutTokens.EmptyQueryHints.topInset)
+                    .transition(.opacity)
+            }
+        }
         .background(editorBackground)
     }
 
@@ -73,6 +92,8 @@ struct QueryInputSection: View {
         Task {
             currentSelection = selection
             query.selectedText = selection.selectedText
+            query.caretLocation = selection.range.location
+            query.selectionRange = selection.range
             // Always sync to QueryEditorState so toolbar stays correct
             query.hasActiveSelection = hasSelection
             syncSQLHelpInspector(using: trimmed)

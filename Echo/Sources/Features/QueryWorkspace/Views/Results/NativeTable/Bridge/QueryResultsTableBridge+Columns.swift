@@ -12,6 +12,7 @@ extension QueryResultsTableView.Coordinator {
 
         if columnsChanged {
             while tableView.tableColumns.count > 0 { tableView.removeTableColumn(tableView.tableColumns[0]) }
+            invalidateTableColumnPositions()
             addDataColumns(to: tableView)
             headerNeedsRefresh = true
         } else {
@@ -29,9 +30,11 @@ extension QueryResultsTableView.Coordinator {
                 tableColumn.headerCell.alignment = .left
             }
         }
-        tableView.headerView?.needsDisplay = true
+        // Only a change redraws the header (applyHeaderStyle marks it): this runs on every update
+        // pass, and redrawing it each time was a steady cost while results streamed (traced 2026-10-01).
         if headerNeedsRefresh { applyHeaderStyle(to: tableView) }
         cachedColumnKinds = parent.displayedColumns.map { ResultGridValueClassifier.kind(for: $0, value: "") }
+        refreshColumnForms(parent.displayedColumns)
         cachedColumnIDs = columnIDs
         return columnsChanged
     }
@@ -50,9 +53,10 @@ extension QueryResultsTableView.Coordinator {
             tableColumn.resizingMask = [.userResizingMask]
             let headerCell = ResultTableHeaderCell(textCell: column.name)
             headerCell.columnSensitivity = classification?.classification(forColumnAt: index)
+            headerCell.typeName = column.dataType
             tableColumn.headerCell = headerCell
             tableColumn.headerCell.controlSize = .regular; tableColumn.headerCell.alignment = .left
-            tableColumn.headerCell.font = NSFont.systemFont(ofSize: 12, weight: .medium)
+            tableColumn.headerCell.font = ResultTableHeaderCell.nameFont
             if let sensitivity = headerCell.columnSensitivity {
                 tableColumn.headerToolTip = sensitivity.summary + " (\(sensitivity.effectiveRank.displayName))"
             }
@@ -125,8 +129,11 @@ extension QueryResultsTableView.Coordinator {
             attributes = [.font: column.headerCell.font ?? NSFont.systemFont(ofSize: 12, weight: .semibold)]
         }
         let size = baseString.size(withAttributes: attributes)
-        let indicatorWidth: CGFloat = tableView.indicatorImage(in: column) != nil ? 16 : 0
-        return ceil(size.width) + (ResultsGridMetrics.contentHorizontalPadding * 2) + indicatorWidth + 4
+        // The type line may be wider than the name; the sort arrow always has room.
+        let typeName = (column.headerCell as? ResultTableHeaderCell)?.typeName ?? ""
+        let typeWidth = (typeName as NSString).size(withAttributes: [.font: ResultTableHeaderCell.typeFont]).width
+        let indicatorWidth = ResultsGridMetrics.sortIndicatorSize + SpacingTokens.xxs
+        return ceil(max(size.width, typeWidth)) + (ResultsGridMetrics.contentHorizontalPadding * 2) + indicatorWidth + 4
     }
 
     func widestCellWidth(forColumn column: Int, tableView: NSTableView) -> CGFloat {
@@ -137,17 +144,41 @@ extension QueryResultsTableView.Coordinator {
         let sampleCount = isSplitResizing ? min(tableView.numberOfRows, 32) : min(tableView.numberOfRows, ResultsGridMetrics.maxAutoWidthSampleCount)
         if sampleCount == 0 { return ceil(maxWidth) + padding + 6 }
         let sampledRows = makeSampledRows(total: tableView.numberOfRows, count: sampleCount)
+        // The kind follows the column's type, so only NULL differs from row to row: classify and
+        // resolve the font once per kind, not per sampled value (a wide result spent most of its
+        // column sizing here).
+        let valueKind = ResultGridValueClassifier.kind(for: columnInfo, value: "")
+        let form = column < cachedColumnForms.count ? cachedColumnForms[column] : .plain
+        var candidates: [(text: NSString, kind: ResultGridValueKind)] = []
+        candidates.reserveCapacity(sampledRows.count)
         for row in sampledRows {
             let sourceRow = resolvedRowIndex(for: row)
             guard sourceRow >= 0 else { continue }
             let value = queryState.valueForDisplay(row: sourceRow, column: column)
-            let kind = ResultGridValueClassifier.kind(for: columnInfo, value: value)
-            let style = fallbackResultGridStyle(for: kind)
-            let displayString = (value ?? (kind == .null ? "NULL" : "")) as NSString
-            let measured = displayString.size(withAttributes: [.font: resolvedFont(for: style)]).width
-            maxWidth = max(maxWidth, measured)
+            let kind = value == nil ? ResultGridValueKind.null : valueKind
+            let shown = value.map { form == .decimal ? $0 : ResultCellValueForm.shown($0, form: form).text }
+            candidates.append(((shown ?? (kind == .null ? "NULL" : "")) as NSString, kind))
+        }
+        let longest = Self.longestValues(candidates, limit: Self.measuredValueCount)
+        var attributesByKind: [ResultGridValueKind: [NSAttributedString.Key: Any]] = [:]
+        for candidate in longest {
+            let attributes = attributesByKind[candidate.kind] ?? {
+                let made: [NSAttributedString.Key: Any] = [.font: resolvedFont(for: fallbackResultGridStyle(for: candidate.kind))]
+                attributesByKind[candidate.kind] = made
+                return made
+            }()
+            maxWidth = max(maxWidth, candidate.text.size(withAttributes: attributes).width)
         }
         return ceil(maxWidth) + padding + 6
+    }
+
+    /// How many of a column's longest sampled values are measured to size it.
+    static let measuredValueCount = 24
+
+    /// The widest value is among the longest ones, so only those are measured.
+    static func longestValues<Value>(_ values: [(text: NSString, kind: Value)], limit: Int) -> ArraySlice<(text: NSString, kind: Value)> {
+        guard values.count > limit else { return values[...] }
+        return values.sorted { $0.text.length > $1.text.length }.prefix(limit)
     }
 
     private func makeSampledRows(total: Int, count: Int) -> [Int] {
@@ -175,19 +206,44 @@ extension QueryResultsTableView.Coordinator {
             column.headerCell.controlSize = .regular
             column.headerCell.alignment = .left
             column.headerCell.title = column.title
-            column.headerCell.font = NSFont.systemFont(ofSize: 12, weight: .medium)
+            column.headerCell.font = ResultTableHeaderCell.nameFont
             column.headerCell.isHighlighted = false
+            let dataIndex = visibleDataIndex(for: offset)
+            if let headerCell = column.headerCell as? ResultTableHeaderCell,
+               dataIndex >= 0, dataIndex < parent.displayedColumns.count {
+                headerCell.typeName = parent.displayedColumns[dataIndex].dataType
+            }
+        }
+        updateHeaderIndicators()
+        tableView.headerView?.needsDisplay = true
+    }
+
+    /// Marks the sorted column's header; its cell draws an SF chevron (plan R2).
+    func updateHeaderIndicators() {
+        guard let tableView else { return }
+        let sortedName = parent.activeSort?.column
+        for (offset, column) in tableView.tableColumns.enumerated() {
+            guard let headerCell = column.headerCell as? ResultTableHeaderCell else { continue }
+            let dataIndex = visibleDataIndex(for: offset)
+            let isSorted = dataIndex >= 0 && dataIndex < parent.displayedColumns.count
+                && parent.displayedColumns[dataIndex].name == sortedName
+            headerCell.sortState = isSorted ? ((parent.activeSort?.ascending ?? true) ? .ascending : .descending) : .none
         }
         tableView.headerView?.needsDisplay = true
     }
 
-    func updateHeaderIndicators() {
-        guard let tableView else { return }
-        for col in tableView.tableColumns { tableView.setIndicatorImage(nil, in: col) }
-        if let sort = parent.activeSort, let idx = parent.displayedColumns.firstIndex(where: { $0.name == sort.column }), idx < tableView.tableColumns.count {
-            let col = tableView.tableColumns[idx]; let img = NSImage(named: sort.ascending ? NSImage.touchBarGoUpTemplateName : NSImage.touchBarGoDownTemplateName)
-            tableView.setIndicatorImage(img, in: col)
+    /// A click on a header's sort arrow: ascending, then descending, then no sort.
+    func cycleSort(forVisibleColumn column: Int) {
+        let dataIndex = visibleDataIndex(for: column)
+        guard dataIndex >= 0, dataIndex < parent.displayedColumns.count else { return }
+        let name = parent.displayedColumns[dataIndex].name
+        let action: QueryResultsTableView.HeaderSortAction
+        if let sort = parent.activeSort, sort.column == name {
+            action = sort.ascending ? .descending : .clear
+        } else {
+            action = .ascending
         }
+        parent.onSort(dataIndex, action)
     }
 }
 #endif

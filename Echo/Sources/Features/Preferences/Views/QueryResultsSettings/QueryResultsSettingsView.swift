@@ -1,3 +1,4 @@
+import EchoSense
 import SwiftUI
 
 struct QueryResultsSettingsView: View {
@@ -21,6 +22,15 @@ struct QueryResultsSettingsView: View {
                     info: "Applies alternating background colors to result table rows for easier reading."
                 ) {
                     Toggle("", isOn: alternateRowShadingBinding)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+
+                PropertyRow(
+                    title: "Monospaced cells",
+                    info: "Shows every cell in the editor's monospaced font. Numbers always use aligned digits."
+                ) {
+                    Toggle("", isOn: projectStore.globalSettingBinding(\.resultsMonospacedCells))
                         .labelsHidden()
                         .toggleStyle(.switch)
                 }
@@ -50,6 +60,17 @@ struct QueryResultsSettingsView: View {
                     info: "Automatically open and close the inspector panel based on cell selection."
                 ) {
                     Toggle("", isOn: autoOpenInspectorBinding)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+            }
+
+            Section("Errors") {
+                PropertyRow(
+                    title: "Full message at the statement",
+                    info: "Off: a failed statement shows “! Error” where it ends, and the red squiggle carries the message. On: the statement shows the message itself."
+                ) {
+                    Toggle("", isOn: projectStore.globalSettingBinding(\.editorErrorRunNoteShowsMessage))
                         .labelsHidden()
                         .toggleStyle(.switch)
                 }

@@ -26,7 +26,9 @@ struct ObjectBrowserCacheStoreTests {
         #expect(entry == nil)
     }
 
-    @Test func migratesLegacyInlineCacheWhenStoreEntryIsMissing() async throws {
+    /// Legacy inline caches carry no fingerprint, so they could belong to the server a saved
+    /// connection pointed at before it was edited: they are never moved into the store.
+    @Test func doesNotMigrateLegacyInlineCache() async throws {
         let store = ObjectBrowserCacheStore(configuration: .init(rootDirectory: try makeTempDirectory()))
         let structure = TestFixtures.databaseStructure(databaseCount: 1, schemasPerDatabase: 1, tablesPerSchema: 2)
         let connection = SavedConnection(
@@ -43,9 +45,7 @@ struct ObjectBrowserCacheStoreTests {
 
         await store.migrateLegacyCacheIfNeeded(from: connection, limitBytes: 512 * 1_024 * 1_024)
 
-        let entry = await store.entry(for: connection)
-        #expect(entry?.structure == structure)
-        #expect(entry?.updatedAt == connection.cachedStructureUpdatedAt)
+        #expect(await store.entry(for: connection) == nil)
     }
 
     @Test func prunesOldestEntriesFirstWhenOverLimit() async throws {

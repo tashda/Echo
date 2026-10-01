@@ -28,6 +28,17 @@ extension DatabasesSettingsView {
             }
         }
 
+        Section("Scripts") {
+            PropertyRow(
+                title: "Continue after a failed statement",
+                info: "A script stops at the first statement that fails, so later statements never run on a half-finished state. Turn this on to run the rest anyway, as psql does."
+            ) {
+                Toggle("", isOn: binding(for: \.postgresScriptsContinueAfterError))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
+        }
+
         Section("Backup & Restore Tools") {
             PropertyRow(
                 title: "Tool Path",

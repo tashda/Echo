@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server schema discovery through Echo's DatabaseSession layer.
-final class MSSQLSchemaDiscoveryTests: MSSQLDockerTestCase {
+final class MSSQLSchemaDiscoveryTests: MSSQLLabTestCase {
 
     // MARK: - List Databases
 

@@ -1,4 +1,5 @@
 #if os(macOS)
+import EchoSense
 import AppKit
 import SwiftUI
 
@@ -236,11 +237,19 @@ extension QueryResultsTableView.Coordinator {
         guard sourceRow >= 0 else { return }
         let rawValue = queryState.valueForDisplay(row: sourceRow, column: cell.column) ?? "NULL"
         let kind = ResultGridValueClassifier.kind(for: columnInfo, value: rawValue == "NULL" ? nil : rawValue)
+        let rowFields = queryState.displayedColumns.indices.map { column in
+            CellValueInspectorContent.RowField(
+                name: queryState.displayedColumns[column].name,
+                value: queryState.valueForDisplay(row: sourceRow, column: column) ?? "NULL"
+            )
+        }
         let content = CellValueInspectorContent(
             columnName: columnInfo.name,
             dataType: columnInfo.dataType,
             rawValue: rawValue,
-            valueKind: kind
+            valueKind: kind,
+            rowNumber: cell.row + 1,
+            rowFields: rowFields
         )
         parent.onCellInspect?(content)
     }

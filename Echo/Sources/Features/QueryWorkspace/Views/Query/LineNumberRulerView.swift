@@ -5,10 +5,31 @@ import Combine
 
 final class LineNumberRulerView: NSRulerView {
     weak var sqlTextView: SQLTextView?
-    var highlightedLines: IndexSet = []
+    /// Lines holding the selection or the cursor; their numbers take the gutter accent.
+    var highlightedLines: IndexSet = [] {
+        didSet { if oldValue != highlightedLines { needsDisplay = true } }
+    }
+    /// Lines with a validation error; each gets a red dot beside its number.
+    var errorLines: IndexSet = [] {
+        didSet { if oldValue != errorLines { needsDisplay = true } }
+    }
+    /// The first line of the statement at the caret, which gets a Run arrow (QE1).
+    var runArrowLine: Int? {
+        didSet { if oldValue != runArrowLine { needsDisplay = true } }
+    }
+    /// Runs the statement at the caret when its arrow is clicked.
+    var onRunStatement: (() -> Void)?
+    /// Where the Run arrow was last drawn, for clicks.
+    var runArrowRect: NSRect?
+    /// Subtle (numbers only), a tinted column with an edge, or a tinted inset lane, from Settings.
+    var gutterStyle: EditorGutterStyle = .subtle {
+        didSet { if oldValue != gutterStyle { needsDisplay = true } }
+    }
     var theme: SQLEditorTheme {
         didSet { needsDisplay = true }
     }
+    /// Digits the gutter is currently sized for; it widens as the script grows.
+    private var sizedDigitCount = 0
 
     private let paragraphStyle: NSMutableParagraphStyle = {
         let style = NSMutableParagraphStyle()
@@ -21,7 +42,7 @@ final class LineNumberRulerView: NSRulerView {
         super.init(scrollView: textView.enclosingScrollView, orientation: .verticalRuler)
         self.sqlTextView = textView
         self.clientView = textView
-        self.ruleThickness = SpacingTokens.xl
+        self.ruleThickness = Self.thickness(forDigits: LayoutTokens.EditorGutter.minimumDigits)
         translatesAutoresizingMaskIntoConstraints = true
         autoresizingMask = [.height]
         setFrameSize(NSSize(width: ruleThickness, height: frame.size.height))
@@ -44,7 +65,30 @@ final class LineNumberRulerView: NSRulerView {
     }
 
     @objc private func textDidChange(_ notification: Notification) {
+        updateThickness()
         needsDisplay = true
+    }
+
+    /// Widens or narrows the gutter to fit the last line's number.
+    func updateThickness() {
+        let lineCount = (sqlTextView?.string as NSString?)?.lineNumber(at: Int.max) ?? 1
+        let digits = max(String(lineCount).count, LayoutTokens.EditorGutter.minimumDigits)
+        guard digits != sizedDigitCount else { return }
+        sizedDigitCount = digits
+        ruleThickness = Self.thickness(forDigits: digits)
+    }
+
+    private static let numberFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+    private static let currentNumberFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .semibold)
+
+    /// Room for the error dot, the digits, and the gap before the text.
+    static func thickness(forDigits digits: Int) -> CGFloat {
+        let digitWidth = ("0" as NSString).size(withAttributes: [.font: numberFont]).width
+        return ceil(
+            LayoutTokens.EditorGutter.markerLeading + LayoutTokens.EditorGutter.markerSize
+                + LayoutTokens.EditorGutter.markerSpacing + digitWidth * CGFloat(digits)
+                + LayoutTokens.EditorGutter.numberTrailing
+        )
     }
 
     override func setFrameSize(_ newSize: NSSize) {
@@ -59,115 +103,149 @@ final class LineNumberRulerView: NSRulerView {
 
     override var isOpaque: Bool { false }
     override func draw(_ dirtyRect: NSRect) {
+        runArrowRect = nil
         drawHashMarksAndLabels(in: dirtyRect)
+    }
+
+    /// QE1: a small accent triangle at the leading edge of the statement's first line.
+    private func drawRunArrow(labelY: CGFloat, labelHeight: CGFloat) {
+        let size = LayoutTokens.EditorGutter.runArrowSize
+        let rect = NSRect(x: LayoutTokens.EditorGutter.markerLeading, y: labelY + (labelHeight - size) / 2, width: size * 0.85, height: size)
+        let path = NSBezierPath()
+        path.move(to: NSPoint(x: rect.minX, y: rect.minY))
+        path.line(to: NSPoint(x: rect.maxX, y: rect.midY))
+        path.line(to: NSPoint(x: rect.minX, y: rect.maxY))
+        path.close()
+        NSColor.controlAccentColor.setFill()
+        path.fill()
+        runArrowRect = rect
     }
 
     override func drawHashMarksAndLabels(in rect: NSRect) {
         let gutterWidth = max(0, ruleThickness)
+        drawBackground(width: gutterWidth)
 
         guard let textView = sqlTextView,
               let layoutManager = textView.layoutManager,
               let textContainer = textView.textContainer else { return }
 
-        // Get the fixed baseline offset from SQLLayoutManager (bulletproof, same for every line).
-        let sqlLayout = layoutManager as? SQLLayoutManager
-        let fixedBaseline = sqlLayout?.fixedBaselineOffset
+        // The fixed baseline from SQLLayoutManager, the same for every line.
+        let fixedBaseline = (layoutManager as? SQLLayoutManager)?.fixedBaselineOffset
+        let context = LabelContext(
+            containerOriginY: textView.textContainerOrigin.y,
+            scrollOffsetY: textView.visibleRect.origin.y,
+            baselineOffset: fixedBaseline ?? (textView.font ?? NSFont.systemFont(ofSize: 13)).ascender,
+            gutterWidth: gutterWidth
+        )
 
-        let rulerFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
-        let rulerLabelHeight = ceil(rulerFont.ascender - rulerFont.descender + rulerFont.leading)
-
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: rulerFont,
-            .foregroundColor: theme.surfaces.gutterText.nsColor,
-            .paragraphStyle: paragraphStyle
-        ]
-
-        let glyphCount = layoutManager.numberOfGlyphs
         let nsString = textView.string as NSString
-        let containerOriginY = textView.textContainerOrigin.y
-        let scrollOffsetY = textView.visibleRect.origin.y
-
+        let glyphCount = layoutManager.numberOfGlyphs
         if glyphCount == 0 || nsString.length == 0 {
-            drawLineLabel(1, at: 0, containerOriginY: containerOriginY, scrollOffsetY: scrollOffsetY,
-                          fixedBaseline: fixedBaseline, textView: textView, rulerFont: rulerFont,
-                          rulerLabelHeight: rulerLabelHeight, gutterWidth: gutterWidth, attributes: attributes)
+            drawLabel(1, atFragmentMinY: 0, context: context)
             return
         }
 
         layoutManager.ensureLayout(for: textContainer)
-
         var visibleGlyphRange = layoutManager.glyphRange(forBoundingRect: textView.visibleRect, in: textContainer)
         if visibleGlyphRange.location == NSNotFound {
             visibleGlyphRange = NSRange(location: 0, length: glyphCount)
         }
-
-        let initialGlyph = min(visibleGlyphRange.location, max(glyphCount - 1, 0))
-        let maxGlyphIndex = min(NSMaxRange(visibleGlyphRange), glyphCount)
-
-        if maxGlyphIndex <= initialGlyph {
-            drawLineLabel(1, at: 0, containerOriginY: containerOriginY, scrollOffsetY: scrollOffsetY,
-                          fixedBaseline: fixedBaseline, textView: textView, rulerFont: rulerFont,
-                          rulerLabelHeight: rulerLabelHeight, gutterWidth: gutterWidth, attributes: attributes)
+        let firstGlyph = min(visibleGlyphRange.location, max(glyphCount - 1, 0))
+        let endGlyph = min(NSMaxRange(visibleGlyphRange), glyphCount)
+        guard endGlyph > firstGlyph else {
+            drawLabel(1, atFragmentMinY: 0, context: context)
             return
         }
 
-        var glyphIndex = initialGlyph
-        while glyphIndex < maxGlyphIndex {
-            var lineRange = NSRange(location: 0, length: 0)
-            let lineFragmentRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: &lineRange, withoutAdditionalLayout: true)
-
-            let lineNumber = nsString.lineNumber(at: layoutManager.characterIndexForGlyph(at: glyphIndex))
-
-            drawLineLabel(lineNumber, at: lineFragmentRect.minY, containerOriginY: containerOriginY,
-                          scrollOffsetY: scrollOffsetY, fixedBaseline: fixedBaseline, textView: textView,
-                          rulerFont: rulerFont, rulerLabelHeight: rulerLabelHeight,
-                          gutterWidth: gutterWidth, attributes: attributes)
-
-            let next = NSMaxRange(lineRange)
+        // Count lines once for the first visible fragment, then step: counting from the top of
+        // the script for every fragment made long scripts slow to scroll.
+        var lineNumber = nsString.lineNumber(at: layoutManager.characterIndexForGlyph(at: firstGlyph))
+        var glyphIndex = firstGlyph
+        var isFirstFragment = true
+        while glyphIndex < endGlyph {
+            var fragmentGlyphs = NSRange(location: 0, length: 0)
+            let fragmentRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: &fragmentGlyphs, withoutAdditionalLayout: true)
+            let characterIndex = layoutManager.characterIndexForGlyph(at: fragmentGlyphs.location)
+            let startsLine = Self.startsLogicalLine(characterIndex, in: nsString)
+            if startsLine && !isFirstFragment {
+                lineNumber += 1
+            }
+            // One number per logical line: wrapped continuations stay blank.
+            if startsLine {
+                drawLabel(lineNumber, atFragmentMinY: fragmentRect.minY, context: context)
+            }
+            isFirstFragment = false
+            let next = NSMaxRange(fragmentGlyphs)
             if next <= glyphIndex { break }
             glyphIndex = next
         }
 
-        // Draw the extra line fragment (trailing empty line after final newline).
+        // The empty line after a final newline.
         if layoutManager.extraLineFragmentTextContainer != nil {
             let extraRect = layoutManager.extraLineFragmentRect
             if extraRect.height > 0 {
-                let lastLineNumber = nsString.lineNumber(at: nsString.length)
-                drawLineLabel(lastLineNumber, at: extraRect.minY, containerOriginY: containerOriginY,
-                              scrollOffsetY: scrollOffsetY, fixedBaseline: fixedBaseline, textView: textView,
-                              rulerFont: rulerFont, rulerLabelHeight: rulerLabelHeight,
-                              gutterWidth: gutterWidth, attributes: attributes)
+                drawLabel(nsString.lineNumber(at: nsString.length), atFragmentMinY: extraRect.minY, context: context)
             }
         }
     }
 
-    /// Draws a single line number label using the fixed baseline offset from SQLLayoutManager.
-    /// `lineFragmentMinY` is the top of the line fragment in text container coordinates.
-    private func drawLineLabel(
-        _ lineNumber: Int,
-        at lineFragmentMinY: CGFloat,
-        containerOriginY: CGFloat,
-        scrollOffsetY: CGFloat,
-        fixedBaseline: CGFloat?,
-        textView: NSTextView,
-        rulerFont: NSFont,
-        rulerLabelHeight: CGFloat,
-        gutterWidth: CGFloat,
-        attributes: [NSAttributedString.Key: Any]
-    ) {
-        let baselineOffset: CGFloat
-        if let fixedBaseline {
-            baselineOffset = fixedBaseline
-        } else {
-            // Fallback: use the text font's ascender.
-            let textFont = textView.font ?? NSFont.systemFont(ofSize: 13)
-            baselineOffset = textFont.ascender
-        }
+    /// Whether the character at `index` begins a line (rather than continuing a wrapped one).
+    static func startsLogicalLine(_ index: Int, in string: NSString) -> Bool {
+        guard index > 0, index <= string.length else { return true }
+        let previous = string.character(at: index - 1)
+        return previous == 10 || previous == 13
+    }
 
-        let baselineY = lineFragmentMinY + baselineOffset + containerOriginY - scrollOffsetY
-        let labelY = baselineY - rulerFont.ascender
-        let labelRect = NSRect(x: 0, y: labelY, width: gutterWidth - SpacingTokens.xxs1, height: rulerLabelHeight)
-        ("\(lineNumber)" as NSString).draw(in: labelRect, withAttributes: attributes)
+    private struct LabelContext {
+        let containerOriginY: CGFloat
+        let scrollOffsetY: CGFloat
+        let baselineOffset: CGFloat
+        let gutterWidth: CGFloat
+    }
+
+    /// Column: a faint full-height column in the theme's gutter colour with an edge towards the
+    /// text; the card's rounded corners cut it. Lane: the same colour as a rounded, inset lane.
+    private func drawBackground(width: CGFloat) {
+        switch gutterStyle {
+        case .subtle:
+            return
+        case .tinted:
+            theme.surfaces.gutterBackground.nsColor.setFill()
+            NSRect(x: 0, y: bounds.minY, width: width, height: bounds.height).fill()
+            NSColor.separatorColor.setFill()
+            NSRect(x: width - LayoutTokens.EditorGutter.edgeWidth, y: bounds.minY, width: LayoutTokens.EditorGutter.edgeWidth, height: bounds.height).fill()
+        case .lane:
+            let inset = LayoutTokens.EditorGutter.laneInset
+            let lane = NSRect(x: inset, y: bounds.minY + inset, width: max(width - inset * 2, 0), height: max(bounds.height - inset * 2, 0))
+            let radius = LayoutTokens.EditorGutter.laneCornerRadius
+            theme.surfaces.gutterBackground.nsColor.setFill()
+            NSBezierPath(roundedRect: lane, xRadius: radius, yRadius: radius).fill()
+        }
+    }
+
+    private func drawLabel(_ lineNumber: Int, atFragmentMinY fragmentMinY: CGFloat, context: LabelContext) {
+        let isCurrent = highlightedLines.contains(lineNumber)
+        let font = isCurrent ? Self.currentNumberFont : Self.numberFont
+        let color = isCurrent ? theme.surfaces.gutterAccent.nsColor : theme.surfaces.gutterText.nsColor
+        let labelHeight = ceil(font.ascender - font.descender + font.leading)
+        let baselineY = fragmentMinY + context.baselineOffset + context.containerOriginY - context.scrollOffsetY
+        let labelY = baselineY - font.ascender
+        let labelRect = NSRect(x: 0, y: labelY, width: context.gutterWidth - LayoutTokens.EditorGutter.numberTrailing, height: labelHeight)
+        ("\(lineNumber)" as NSString).draw(in: labelRect, withAttributes: [
+            .font: font,
+            .foregroundColor: color,
+            .paragraphStyle: paragraphStyle
+        ])
+
+        if lineNumber == runArrowLine, !errorLines.contains(lineNumber) {
+            drawRunArrow(labelY: labelY, labelHeight: labelHeight)
+        }
+        if errorLines.contains(lineNumber) {
+            let size = LayoutTokens.EditorGutter.markerSize
+            let dot = NSRect(x: LayoutTokens.EditorGutter.markerLeading, y: labelY + (labelHeight - size) / 2, width: size, height: size)
+            NSColor(ColorTokens.Status.error).setFill()
+            NSBezierPath(ovalIn: dot).fill()
+        }
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
@@ -178,6 +256,11 @@ final class LineNumberRulerView: NSRulerView {
     private var anchorLine: Int?
 
     override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        if let runArrowRect, runArrowRect.insetBy(dx: -LayoutTokens.EditorGutter.markerSpacing, dy: -LayoutTokens.EditorGutter.markerSpacing).contains(point) {
+            onRunStatement?()
+            return
+        }
         guard let line = lineAtEvent(event) else { return }
         anchorLine = line
         sqlTextView?.selectLineRange(line...line)

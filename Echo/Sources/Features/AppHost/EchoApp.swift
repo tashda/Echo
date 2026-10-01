@@ -13,6 +13,10 @@ import AppKit
 @main
 struct EchoApp: App {
     @State private var coordinator = AppDirector.shared
+    #if os(macOS)
+    /// Asks before quitting drops open PostgreSQL transactions (round 21).
+    @NSApplicationDelegateAdaptor(EchoAppDelegate.self) private var appDelegate
+    #endif
 
     init() {
         EchoApp.raiseFileDescriptorLimit()
@@ -34,6 +38,7 @@ struct EchoApp: App {
     var body: some Scene {
         SwiftUI.WindowGroup {
             WorkspaceView()
+                .providesEchoMotion()
                 .environment(coordinator.projectStore)
                 .environment(coordinator.connectionStore)
                 .environment(coordinator.navigationStore)
@@ -48,7 +53,12 @@ struct EchoApp: App {
                 .environment(coordinator.notificationEngine)
                 .environment(coordinator.activityEngine)
                 .environment(coordinator.authState)
-                .task { await coordinator.initialize() }
+                .task {
+                    // Xcode launches the app to host SwiftUI previews; skip the heavy start-up
+                    // there so the canvas doesn't time out.
+                    guard ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != "1" else { return }
+                    await coordinator.initialize()
+                }
         }
         .defaultLaunchBehavior(.presented)
         .windowToolbarStyle(.unified(showsTitle: false))
@@ -60,6 +70,13 @@ struct EchoApp: App {
                 tabStore: coordinator.tabStore,
                 projectStore: coordinator.projectStore
             )
+#if os(macOS)
+            QueryMenuCommands(
+                tabStore: coordinator.tabStore,
+                navigationStore: coordinator.navigationStore,
+                projectStore: coordinator.projectStore
+            )
+#endif
             AboutCommands()
             AppSettingsCommands()
             SparkleCommands()
@@ -72,6 +89,7 @@ struct EchoApp: App {
             )
             ViewMenuCommands(
                 appState: coordinator.appState,
+                environmentState: coordinator.environmentState,
                 navigationStore: coordinator.navigationStore,
                 tabStore: coordinator.tabStore
             )

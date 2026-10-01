@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Shared container for all maintenance views. Wraps `TabContentWithPanel` with a section toolbar,
 /// loading placeholder, execution console, and status bar — so each database-specific maintenance
-/// view only needs to supply its section picker and section content.
+/// view only needs to supply its section picker and section content. Panes are cards (TT1).
 struct MaintenanceTabFrame<SectionPicker: View, Content: View>: View {
     @Bindable var panelState: BottomPanelState
     let serverName: String
@@ -11,27 +11,33 @@ struct MaintenanceTabFrame<SectionPicker: View, Content: View>: View {
     @ViewBuilder let sectionPicker: () -> SectionPicker
     @ViewBuilder let content: () -> Content
 
+    @Environment(ProjectStore.self) private var projectStore
+
     var body: some View {
-        TabContentWithPanel(
-            panelState: panelState,
-            statusBarConfiguration: statusBarConfig
-        ) {
-            if !isInitialized {
-                TabInitializingPlaceholder(
-                    icon: "wrench.and.screwdriver",
-                    title: "Initializing Maintenance",
-                    subtitle: "Loading database health data\u{2026}"
-                )
-            } else {
-                VStack(spacing: 0) {
-                    CenteredTabSectionToolbar { sectionPicker() }
-                    Divider()
+        // TT1: the section toolbar sits on the canvas above the cards; the section is one card,
+        // or its own cards when it has several panes, with the Messages panel below.
+        VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
+            if isInitialized {
+                CenteredTabSectionToolbar { sectionPicker() }
+                    .tabSectionToolbarOnCanvas()
+            }
+            TabContentWithPanel(
+                panelState: panelState,
+                statusBarConfiguration: statusBarConfig
+            ) {
+                if !isInitialized {
+                    TabInitializingPlaceholder(
+                        icon: "wrench.and.screwdriver",
+                        title: "Initializing Maintenance",
+                        subtitle: "Loading database health data\u{2026}"
+                    )
+                } else {
                     content()
                 }
-            }
-        } panelContent: {
-            ExecutionConsoleView(executionMessages: panelState.messages) {
-                panelState.clearMessages()
+            } panelContent: {
+                ExecutionConsoleView(executionMessages: panelState.messages) {
+                    panelState.clearMessages()
+                }
             }
         }
     }

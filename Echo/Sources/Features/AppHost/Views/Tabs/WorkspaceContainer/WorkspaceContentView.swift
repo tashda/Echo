@@ -14,14 +14,20 @@ struct WorkspaceContentView: View {
     @Environment(AppearanceStore.self) private var appearanceStore
     
     @State private var selectedSQLContext: SQLPopoutContext?
+    @Environment(\.keptAliveTabsActivity) private var tabsActivity
+    @Environment(\.keptAliveTabID) private var tabID
 
     var body: some View {
         ZStack {
-            ColorTokens.Background.primary
-                .ignoresSafeArea()
+            // Query tabs draw their own cards on the canvas, so nothing fills behind them.
+            if !tab.drawsOwnCards {
+                ColorTokens.Background.primary
+                    .ignoresSafeArea()
+            }
 
             tabContentView
         }
+        .environment(\.workspaceTab, tab)
         .sheet(item: $selectedSQLContext) { context in
             SQLInspectorSheet(context: context) { sql, database in
                 if let session = environmentState.sessionGroup.sessionForConnection(tab.connection.id) {
@@ -31,9 +37,16 @@ struct WorkspaceContentView: View {
                 }
             }
         }
+        // The tab presents only its own sheet (the structure script preview), and only while it is
+        // on screen: every kept-mounted tab carries this modifier, and the window presents the
+        // other sheets (connection editor, Quick Connect) itself.
         .sheet(
-            item: Binding(
-                get: { appState.activeSheet },
+            item: Binding<ActiveSheet?>(
+                get: {
+                    guard appState.activeSheet == .structureScriptPreview,
+                          KeptAliveTabsActivity.isActive(tabID, in: tabsActivity) else { return nil }
+                    return appState.activeSheet
+                },
                 set: { newValue in
                     if let newValue {
                         appState.activeSheet = newValue
@@ -84,7 +97,7 @@ struct WorkspaceContentView: View {
             }
         case .jobQueue:
             if let vm = tab.jobQueue {
-                JobQueueView(viewModel: vm).background(ColorTokens.Background.primary)
+                JobQueueView(viewModel: vm)
             }
         case .psql:
             if let vm = tab.psql {
@@ -100,7 +113,7 @@ struct WorkspaceContentView: View {
             }
         case .activityMonitor:
             if let vm = tab.activityMonitor {
-                ActivityMonitorView(viewModel: vm).background(ColorTokens.Background.primary)
+                ActivityMonitorView(viewModel: vm)
             }
         case .maintenance, .mssqlMaintenance:
             MaintenanceView(tab: tab).background(ColorTokens.Background.primary)

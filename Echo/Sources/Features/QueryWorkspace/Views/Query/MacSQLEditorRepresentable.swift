@@ -14,10 +14,21 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
     var clipboardHistory: ClipboardHistoryStore
     var clipboardMetadata: ClipboardHistoryStore.Entry.Metadata
     var onAddBookmark: (String) -> Void
+    /// The gutter's Run arrow on the statement at the caret (QE1).
+    var onRunStatement: () -> Void = {}
+    /// QE2: rows and time (or the error) at the end of what last ran.
+    var runNote: QueryRunNote?
+    /// Round 21 EM5 / round 22 ED1: where the last run's error is.
+    var errorMark: QueryErrorMark?
+    /// Round 21, SK2: the selected script result's statement, drawn as a band.
+    var resultStatementRange: NSRange?
     var completionContext: SQLEditorCompletionContext?
     var ruleTraceConfig: SQLAutocompleteRuleTraceConfiguration?
     var onSchemaLoadNeeded: ((String) -> Void)?
     var validationRequestGeneration: Int = 0
+    var editorLineRequest: EditorLineRequest?
+    /// False while its tab is kept mounted but not shown (`KeptAliveTabsView`).
+    var isActiveTab = true
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
@@ -34,6 +45,7 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
         textView.clipboardHistory = clipboardHistory
         textView.clipboardMetadata = clipboardMetadata
         textView.string = text
+        textView.refreshStatements()
         textView.reapplyHighlighting()
         textView.completionContext = completionContext
         if let ruleTraceConfig {
@@ -54,6 +66,18 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: SQLScrollView, context: Context) {
+        nsView.setFooterOverlay(height: context.environment.cardFooterOverlayHeight)
+        if nsView.sqlTextView.runNote != runNote { nsView.sqlTextView.runNote = runNote }
+        if nsView.sqlTextView.errorMark != errorMark { nsView.sqlTextView.errorMark = errorMark }
+        if nsView.sqlTextView.resultStatementRange != resultStatementRange { nsView.sqlTextView.resultStatementRange = resultStatementRange }
+        // A kept-alive tab coming back takes the keyboard again (KeptAliveTabsView).
+        if isActiveTab && !context.coordinator.wasActiveTab, let textView = context.coordinator.textView {
+            Task { @MainActor [weak textView] in
+                guard let textView else { return }
+                textView.window?.makeFirstResponder(textView)
+            }
+        }
+        context.coordinator.wasActiveTab = isActiveTab
         nsView.updateTheme(theme)
         nsView.updateDisplay(display)
         nsView.updateBackgroundOverride(backgroundColor.map(NSColor.init))
@@ -77,10 +101,24 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
             textView.validateNow()
         }
 
+        if let request = editorLineRequest, request != context.coordinator.lastLineRequest {
+            context.coordinator.lastLineRequest = request
+            Task { @MainActor [weak textView] in
+                guard let textView else { return }
+                textView.goToLine(request.line)
+                if let range = request.range, NSMaxRange(range) <= (textView.string as NSString).length {
+                    textView.setSelectedRange(range)
+                    textView.scrollRangeToVisible(range)
+                }
+                textView.window?.makeFirstResponder(textView)
+            }
+        }
+
         if textView.string != text {
             context.coordinator.isUpdatingFromBinding = true
             let currentSelection = textView.selectedRange()
             textView.string = text
+            textView.refreshStatements()
             textView.reapplyHighlighting()
             let maxLen = (text as NSString).length
             let restored = NSRange(
@@ -112,9 +150,12 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
     final class Coordinator: NSObject, SQLTextViewDelegate {
         var parent: MacSQLEditorRepresentable
         weak var textView: SQLTextView?
+        /// Whether this editor's tab was the one on screen at the last update.
+        var wasActiveTab = true
         var theme: SQLEditorTheme
         var isUpdatingFromBinding = false
         var lastValidationGeneration = 0
+        var lastLineRequest: EditorLineRequest?
 
         init(parent: MacSQLEditorRepresentable) {
             self.parent = parent
@@ -138,6 +179,10 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
         func sqlTextView(_ view: SQLTextView, didRequestBookmarkWithContent content: String) {
             parent.onAddBookmark(content)
         }
+
+        func sqlTextViewDidRequestRunStatement(_ view: SQLTextView) {
+            parent.onRunStatement()
+        }
     }
 }
 
@@ -146,10 +191,12 @@ protocol SQLTextViewDelegate: AnyObject {
     func sqlTextView(_ view: SQLTextView, didChangeSelection selection: SQLEditorSelection)
     func sqlTextView(_ view: SQLTextView, didPreviewSelection selection: SQLEditorSelection)
     func sqlTextView(_ view: SQLTextView, didRequestBookmarkWithContent content: String)
+    func sqlTextViewDidRequestRunStatement(_ view: SQLTextView)
 }
 
 extension SQLTextViewDelegate {
     func sqlTextView(_ view: SQLTextView, didPreviewSelection selection: SQLEditorSelection) {}
     func sqlTextView(_ view: SQLTextView, didRequestBookmarkWithContent content: String) {}
+    func sqlTextViewDidRequestRunStatement(_ view: SQLTextView) {}
 }
 #endif

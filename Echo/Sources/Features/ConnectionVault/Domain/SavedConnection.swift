@@ -60,6 +60,8 @@ enum DatabaseType: String, Sendable, Codable, CaseIterable {
         switch self {
         case .microsoftSQL:
             return [.sqlPassword, .windowsIntegrated, .accessToken]
+        case .postgresql:
+            return [.sqlPassword, .kerberos]
         default:
             return [.sqlPassword]
         }
@@ -76,12 +78,15 @@ public struct DatabaseAuthenticationConfiguration: Sendable, Hashable {
     public var username: String
     public var password: String?
     public var domain: String?
+    /// The password of an encrypted client key or .p12 file (PostgreSQL), from the Keychain.
+    public var sslKeyPassword: String?
 
-    public init(method: DatabaseAuthenticationMethod = .sqlPassword, username: String, password: String?, domain: String? = nil) {
+    public init(method: DatabaseAuthenticationMethod = .sqlPassword, username: String, password: String?, domain: String? = nil, sslKeyPassword: String? = nil) {
         self.method = method
         self.username = username
         self.password = password
         self.domain = domain
+        self.sslKeyPassword = sslKeyPassword
     }
 }
 
@@ -122,14 +127,31 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
     var mssqlEncryptionMode: MSSQLEncryptionMode
     var hostNameInCertificate: String?
     var readOnlyIntent: Bool
+    var allowLegacyTLS: Bool
     var connectionTimeout: TimeInterval
+    /// The old Query Timeout (60 s by default). It was never applied; round 21 (M3) resets every
+    /// connection to the Settings default, so it is only kept for older copies and sync.
     var queryTimeout: TimeInterval
+    /// The query time limit for this connection in seconds (round 21, TW2): nil uses Settings ›
+    /// Databases › Query time limit, 0 means no limit.
+    var queryTimeLimit: TimeInterval?
+    /// PostgreSQL servers after `host`/`port`, tried in order (Echo Labs round 23, failover: FH1).
+    var additionalHosts: [ConnectionHost] = []
+    /// Which of the servers to use (FT1); only meaningful with additional hosts.
+    var targetSessionAttributes: PostgresConnectTo = .any
+    /// Spread connections over the servers (FL1: set only by a pasted URL's load_balance_hosts).
+    var loadBalanceHosts = false
+    /// Kerberos service name (libpq krbsrvname); nil means "postgres".
+    var kerberosServiceName: String?
     var databaseType: DatabaseType
     var serverVersion: String?
     var colorHex: String
     var logo: Data?
     var cachedStructure: DatabaseStructure?
     var cachedStructureUpdatedAt: Date?
+    /// This server's own section dock (round 16): the sections shown, in order, as section
+    /// keys. Nil uses its database type's dock from Settings.
+    var explorerDockSections: [String]?
 
     static func == (lhs: SavedConnection, rhs: SavedConnection) -> Bool {
         lhs.id == rhs.id
@@ -165,14 +187,21 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         case mssqlEncryptionMode
         case hostNameInCertificate
         case readOnlyIntent
+        case allowLegacyTLS
         case connectionTimeout
         case queryTimeout
+        case queryTimeLimit
+        case additionalHosts
+        case targetSessionAttributes
+        case loadBalanceHosts
+        case kerberosServiceName
         case databaseType
         case serverVersion
         case colorHex
         case logo
         case cachedStructure
         case cachedStructureUpdatedAt
+        case explorerDockSections
     }
 
     init(
@@ -195,11 +224,13 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         sslRootCertPath: String? = nil,
         sslCertPath: String? = nil,
         sslKeyPath: String? = nil,
-        mssqlEncryptionMode: MSSQLEncryptionMode = .optional,
+        mssqlEncryptionMode: MSSQLEncryptionMode = .mandatory,
         hostNameInCertificate: String? = nil,
         readOnlyIntent: Bool = false,
+        allowLegacyTLS: Bool = false,
         connectionTimeout: TimeInterval = 30,
         queryTimeout: TimeInterval = 60,
+        queryTimeLimit: TimeInterval? = nil,
         databaseType: DatabaseType = .postgresql,
         serverVersion: String? = nil,
         colorHex: String = "",
@@ -229,8 +260,10 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         self.mssqlEncryptionMode = mssqlEncryptionMode
         self.hostNameInCertificate = hostNameInCertificate
         self.readOnlyIntent = readOnlyIntent
+        self.allowLegacyTLS = allowLegacyTLS
         self.connectionTimeout = connectionTimeout
         self.queryTimeout = queryTimeout
+        self.queryTimeLimit = queryTimeLimit
         self.databaseType = databaseType
         self.serverVersion = serverVersion
         self.colorHex = colorHex
@@ -263,14 +296,21 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         mssqlEncryptionMode = try container.decodeIfPresent(MSSQLEncryptionMode.self, forKey: .mssqlEncryptionMode) ?? .optional
         hostNameInCertificate = try container.decodeIfPresent(String.self, forKey: .hostNameInCertificate)
         readOnlyIntent = try container.decodeIfPresent(Bool.self, forKey: .readOnlyIntent) ?? false
+        allowLegacyTLS = try container.decodeIfPresent(Bool.self, forKey: .allowLegacyTLS) ?? false
         connectionTimeout = try container.decodeIfPresent(TimeInterval.self, forKey: .connectionTimeout) ?? 30
         queryTimeout = try container.decodeIfPresent(TimeInterval.self, forKey: .queryTimeout) ?? 60
+        queryTimeLimit = try container.decodeIfPresent(TimeInterval.self, forKey: .queryTimeLimit)
+        additionalHosts = (try? container.decodeIfPresent([ConnectionHost].self, forKey: .additionalHosts)) ?? []
+        targetSessionAttributes = (try? container.decodeIfPresent(PostgresConnectTo.self, forKey: .targetSessionAttributes)) ?? .any
+        loadBalanceHosts = try container.decodeIfPresent(Bool.self, forKey: .loadBalanceHosts) ?? false
+        kerberosServiceName = try container.decodeIfPresent(String.self, forKey: .kerberosServiceName)
         databaseType = try container.decodeIfPresent(DatabaseType.self, forKey: .databaseType) ?? .postgresql
         serverVersion = try container.decodeIfPresent(String.self, forKey: .serverVersion)
         colorHex = try container.decodeIfPresent(String.self, forKey: .colorHex) ?? ""
         logo = try container.decodeIfPresent(Data.self, forKey: .logo)
         cachedStructure = try container.decodeIfPresent(DatabaseStructure.self, forKey: .cachedStructure)
         cachedStructureUpdatedAt = try container.decodeIfPresent(Date.self, forKey: .cachedStructureUpdatedAt)
+        explorerDockSections = try? container.decodeIfPresent([String].self, forKey: .explorerDockSections)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -297,14 +337,21 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         try container.encode(mssqlEncryptionMode, forKey: .mssqlEncryptionMode)
         try container.encodeIfPresent(hostNameInCertificate, forKey: .hostNameInCertificate)
         try container.encode(readOnlyIntent, forKey: .readOnlyIntent)
+        try container.encode(allowLegacyTLS, forKey: .allowLegacyTLS)
         try container.encode(connectionTimeout, forKey: .connectionTimeout)
         try container.encode(queryTimeout, forKey: .queryTimeout)
+        try container.encodeIfPresent(queryTimeLimit, forKey: .queryTimeLimit)
+        if !additionalHosts.isEmpty { try container.encode(additionalHosts, forKey: .additionalHosts) }
+        if targetSessionAttributes != .any { try container.encode(targetSessionAttributes, forKey: .targetSessionAttributes) }
+        if loadBalanceHosts { try container.encode(loadBalanceHosts, forKey: .loadBalanceHosts) }
+        try container.encodeIfPresent(kerberosServiceName, forKey: .kerberosServiceName)
         try container.encode(databaseType, forKey: .databaseType)
         try container.encodeIfPresent(serverVersion, forKey: .serverVersion)
         try container.encode(colorHex, forKey: .colorHex)
         try container.encodeIfPresent(logo, forKey: .logo)
         try container.encodeIfPresent(cachedStructure, forKey: .cachedStructure)
         try container.encodeIfPresent(cachedStructureUpdatedAt, forKey: .cachedStructureUpdatedAt)
+        try container.encodeIfPresent(explorerDockSections, forKey: .explorerDockSections)
     }
 
     static let example = SavedConnection(

@@ -50,55 +50,24 @@ private enum SQLAutoCompletionPreviewData {
 
 private struct AutoCompletionListPreview: View {
     private let data = SQLAutoCompletionPreviewData.suggestions
-    private let resetID = UUID()
+    var isChoosing = false
 
     var body: some View {
         AutoCompletionListView(
             suggestions: data,
             selectedID: data[1].id,
-            onSelect: { _ in },
-            detailResetID: resetID,
-            statusMessage: nil
+            isChoosing: isChoosing,
+            typed: "da",
+            nameFont: .monospacedSystemFont(ofSize: 13, weight: .regular),
+            cardCornerRadius: LayoutTokens.Workspace.cardCornerRadius,
+            statusMessage: nil,
+            onSelect: { _ in }
         )
         .padding(SpacingTokens.lg)
-#if os(macOS)
-        .background(Color(NSColor.windowBackgroundColor))
-#else
-        .background(Color(UIColor.systemBackground))
-#endif
-        .previewDisplayName("AutoCompletion Popover")
-        .previewLayout(.sizeThatFits)
+        .background(ColorTokens.Workspace.canvas)
     }
 }
 
-private struct AutoCompletionDetailPreview: View {
-    private let suggestion = SQLAutoCompletionPreviewData.suggestions[1]
-
-    var body: some View {
-        AutoCompletionDetailView(suggestion: suggestion)
-            .padding()
-#if os(macOS)
-            .background(Color(NSColor.windowBackgroundColor))
-#else
-            .background(Color(UIColor.systemBackground))
-#endif
-            .previewDisplayName("AutoCompletion Detail")
-            .previewLayout(.sizeThatFits)
-    }
-}
-
-struct SQLAutoCompletionPreviews_Previews: PreviewProvider {
-    static var previews: some View {
-        Group {
-            AutoCompletionListPreview()
-                .environment(\.colorScheme, .light)
-            AutoCompletionListPreview()
-                .environment(\.colorScheme, .dark)
-            AutoCompletionDetailPreview()
-                .environment(\.colorScheme, .light)
-            AutoCompletionDetailPreview()
-                .environment(\.colorScheme, .dark)
-        }
-    }
-}
+#Preview("EchoSense · typing") { AutoCompletionListPreview() }
+#Preview("EchoSense · choosing") { AutoCompletionListPreview(isChoosing: true) }
 #endif

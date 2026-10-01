@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server string/binary data type round-trips through Echo's DatabaseSession layer.
-final class MSSQLDataTypeStringTests: MSSQLDockerTestCase {
+final class MSSQLDataTypeStringTests: MSSQLLabTestCase {
 
     // MARK: - Character Types
 

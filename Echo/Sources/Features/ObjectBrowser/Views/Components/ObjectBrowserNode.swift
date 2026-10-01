@@ -1,138 +1,40 @@
 import Foundation
-import SQLServerKit
 
-enum ObjectBrowserServerFolderKind: String {
-    case security
-    case databaseSnapshots
-    case agentJobs
-    case management
-    case ssis
-    case linkedServers
-    case serverTriggers
+/// A folder row: a section heading at server level, or a folder inside it.
+struct ExplorerFolder {
+    let kind: ExplorerNodeKind
+    let session: ConnectionSession
+    let databaseName: String?
+    /// Items listed directly in the folder; hidden when zero or unknown.
+    let count: Int?
+    let isLoading: Bool
+    /// Where the folder's items load from, its own or its parent's.
+    let source: ExplorerChildSource?
 
-    var title: String {
-        switch self {
-        case .security: "Security"
-        case .databaseSnapshots: "Database Snapshots"
-        case .agentJobs: "Agent Jobs"
-        case .management: "Management"
-        case .ssis: "Integration Services Catalogs"
-        case .linkedServers: "Linked Servers"
-        case .serverTriggers: "Server Triggers"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .security: "shield"
-        case .databaseSnapshots: "camera.aperture"
-        case .agentJobs: "clock"
-        case .management: "gearshape"
-        case .ssis: "shippingbox"
-        case .linkedServers: "link"
-        case .serverTriggers: "bolt.badge.clock"
-        }
+    var sourceKey: ExplorerSourceKey? {
+        source.map { ExplorerSourceKey(connectionID: session.connection.id, databaseName: databaseName, source: $0) }
     }
 }
 
-enum ObjectBrowserSecuritySectionKind: String {
-    case logins
-    case certificateLogins
-    case serverRoles
-    case credentials
-    case pgLoginRoles
-    case pgGroupRoles
-
-    var title: String {
-        switch self {
-        case .logins: "Logins"
-        case .certificateLogins: "Certificate Logins"
-        case .serverRoles: "Server Roles"
-        case .credentials: "Credentials"
-        case .pgLoginRoles: "Login Roles"
-        case .pgGroupRoles: "Group Roles"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .logins: "person.2"
-        case .certificateLogins: "doc.badge.lock"
-        case .serverRoles: "shield"
-        case .credentials: "key"
-        case .pgLoginRoles: "person.crop.circle"
-        case .pgGroupRoles: "person.2.circle"
-        }
-    }
+/// A loaded item row (a login, a job, a queue…).
+struct ExplorerItemRow {
+    let kind: ExplorerNodeKind
+    let session: ConnectionSession
+    let databaseName: String?
+    let item: ExplorerItem
 }
 
-enum ObjectBrowserActionKind: String {
-    case maintenance
-    case serverProperties
-    case activityMonitor
-    case extendedEvents
-    case databaseMail
-    case sqlProfiler
-    case resourceGovernor
-    case tuningAdvisor
-    case policyManagement
-    case sqlServerLogs
-    case openJobQueue
+/// How a loading row looks (round 16): a section's first load shows one spinner row (folders
+/// first); a folder or database loading its contents shows a quiet skeleton.
+enum ExplorerLoadingStyle {
+    case spinnerRow
+    case skeleton
 
-    var title: String {
+    /// How many row slots it takes.
+    var rowSlots: Int {
         switch self {
-        case .maintenance: "Maintenance"
-        case .serverProperties: "Server Properties"
-        case .activityMonitor: "Activity Monitor"
-        case .extendedEvents: "Extended Events"
-        case .databaseMail: "Database Mail"
-        case .sqlProfiler: "SQL Profiler"
-        case .resourceGovernor: "Resource Governor"
-        case .tuningAdvisor: "Tuning Advisor"
-        case .policyManagement: "Policy Management"
-        case .sqlServerLogs: "SQL Server Logs"
-        case .openJobQueue: "Agent Jobs Overview"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .maintenance: "wrench.and.screwdriver"
-        case .serverProperties: "gearshape.2"
-        case .activityMonitor: "gauge.high"
-        case .extendedEvents: "list.bullet.rectangle"
-        case .databaseMail: "envelope"
-        case .sqlProfiler: "chart.line.uptrend.xyaxis"
-        case .resourceGovernor: "slider.horizontal.3"
-        case .tuningAdvisor: "wand.and.stars"
-        case .policyManagement: "checkmark.shield"
-        case .sqlServerLogs: "doc.text"
-        case .openJobQueue: "list.bullet.rectangle"
-        }
-    }
-}
-
-enum ObjectBrowserDatabaseFolderKind: String {
-    case security
-    case databaseTriggers
-    case serviceBroker
-    case externalResources
-
-    var title: String {
-        switch self {
-        case .security: "Security"
-        case .databaseTriggers: "Database Triggers"
-        case .serviceBroker: "Service Broker"
-        case .externalResources: "External Resources"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .security: "shield"
-        case .databaseTriggers: "bolt.horizontal"
-        case .serviceBroker: "tray.2"
-        case .externalResources: "externaldrive"
+        case .spinnerRow: 1
+        case .skeleton: LayoutTokens.Shimmer.explorerRowCount
         }
     }
 }
@@ -143,28 +45,21 @@ final class ObjectBrowserNode: NSObject {
         case topSpacer(CGFloat)
         case pendingConnection(PendingConnection)
         case server(ConnectionSession)
-        case databasesFolder(ConnectionSession, count: Int)
+        /// A server-level folder drawn as a heading (Databases, Security…).
+        case section(ExplorerFolder)
         case database(ConnectionSession, DatabaseInfo, isLoading: Bool)
-        case objectGroup(ConnectionSession, String, SchemaObjectInfo.ObjectType, count: Int)
+        case folder(ExplorerFolder)
         case object(ConnectionSession, String, SchemaObjectInfo)
-        case column(ColumnInfo, objectType: SchemaObjectInfo.ObjectType, depth: Int)
-        case serverFolder(ConnectionSession, ObjectBrowserServerFolderKind, count: Int?)
-        case databaseFolder(ConnectionSession, String, ObjectBrowserDatabaseFolderKind, count: Int?, isLoading: Bool)
-        case databaseSubfolder(ConnectionSession, String, title: String, systemImage: String, paletteTitle: String, count: Int?)
-        case databaseNamedItem(ConnectionSession, String, title: String, systemImage: String, paletteTitle: String, detail: String?)
-        case securitySection(ConnectionSession, ObjectBrowserSecuritySectionKind, count: Int, isLoading: Bool)
-        case securityLogin(ConnectionSession, ObjectBrowserSidebarViewModel.SecurityLoginItem)
-        case securityServerRole(ConnectionSession, ObjectBrowserSidebarViewModel.SecurityServerRoleItem)
-        case securityCredential(ConnectionSession, ObjectBrowserSidebarViewModel.SecurityCredentialItem)
-        case agentJob(ConnectionSession, ObjectBrowserSidebarViewModel.AgentJobItem)
-        case databaseSnapshot(ConnectionSession, SQLServerDatabaseSnapshot)
-        case linkedServer(ConnectionSession, ObjectBrowserSidebarViewModel.LinkedServerItem)
-        case ssisFolder(ConnectionSession, SQLServerSSISFolder)
-        case serverTrigger(ConnectionSession, ObjectBrowserSidebarViewModel.ServerTriggerItem)
-        case action(ConnectionSession, ObjectBrowserActionKind, depth: Int)
-        case infoLeaf(String, systemImage: String, paletteTitle: String, depth: Int)
-        case loading(String, depth: Int)
-        case message(String, systemImage: String, depth: Int)
+        case column(ColumnInfo)
+        case item(ExplorerItemRow)
+        case action(ConnectionSession, ExplorerNodeKind)
+        /// Says a folder is empty ("No logins").
+        case placeholder(String, kind: ExplorerNodeKind?)
+        /// Something still loading: one spinner row, or skeleton rows (round 16).
+        case loading(String, style: ExplorerLoadingStyle)
+        case message(String, systemImage: String)
+        /// The section dock under a server's name (TC1): which of the server's sections it shows.
+        case dock(ConnectionSession, ExplorerDockLayout, selectedID: String)
     }
 
     let id: String
@@ -179,29 +74,17 @@ final class ObjectBrowserNode: NSObject {
 }
 
 extension ObjectBrowserNode.Row {
-    /// Finder-style section label rendered above this row when it begins a
-    /// new group. Currently always `nil` — sections were tried at the server
-    /// level (Security / Operations / Extensibility) but a single-item
-    /// section above "Security" looked structurally weak, so the whole
-    /// pattern was dropped. Mechanism preserved for future use.
-    var groupSectionTitle: String? { nil }
+    /// Extra height of a server header row over an ordinary row: its top padding and the
+    /// product line under the name (round 16).
+    static let serverHeaderExtraHeight: CGFloat = SpacingTokens.xs + SpacingTokens.sm
 
-    /// Extra height the row needs to render its section label above its
-    /// content. Sized for 12pt semibold text + Finder-style padding above
-    /// (10pt) and below (4pt).
-    var groupSectionHeaderHeight: CGFloat {
-        groupSectionTitle == nil ? 0 : 26
-    }
-
-    /// Backwards-compatible alias retained for callers that still ask for
-    /// padding-only group spacing. New code should use `groupSectionTitle`.
-    var groupTopPadding: CGFloat { groupSectionHeaderHeight }
-
-    /// Extra row-slot height for connection group headers.
+    /// Extra row-slot height for connection group headers and server-level section headings.
     var extraSlotHeight: CGFloat {
         switch self {
-        case .server: return SpacingTokens.xs
+        case .server: return Self.serverHeaderExtraHeight
         case .pendingConnection: return SpacingTokens.xs
+        case .section: return LayoutTokens.Workspace.treeSectionTopPadding
+        case .dock: return LayoutTokens.ExplorerDock.extraHeight
         default: return 0
         }
     }

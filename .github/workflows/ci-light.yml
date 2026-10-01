@@ -30,14 +30,14 @@ env:
 jobs:
   build-and-test:
     name: "Build & Test"
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
     - uses: actions/checkout@v4
 
     - name: Select Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '26'
+        xcode-version: '27'
 
     - name: Install PostgreSQL tools
       run: ${{ env.PG_TOOLS_SCRIPT }}
@@ -46,6 +46,14 @@ jobs:
       run: |
         rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
         rm -rf ~/Library/Developer/Xcode/DerivedData/*/SourcePackages
+
+    - name: Access to echo-server-lab
+      uses: ./.github/actions/lab-repo-access
+      with:
+        deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
+
+    - name: Placeholder secrets for test builds
+      run: cp Echo/Configuration/Secrets.xcconfig.example Echo/Configuration/Secrets.xcconfig
 
     - name: Resolve packages
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo

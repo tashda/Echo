@@ -15,8 +15,20 @@ enum SidebarIconColorMode: String, Codable, CaseIterable, Sendable {
     case colorful, monochrome
     var displayName: String {
         switch self {
-        case .colorful: return "Colorful"
-        case .monochrome: return "Monochrome"
+        case .colorful: return "Duotone"
+        case .monochrome: return "Mono"
+        }
+    }
+}
+
+/// The section dock's icons (round 16): mono (grey, the current one in the accent colour) or
+/// duotone like the tree's.
+enum SidebarDockIconStyle: String, Codable, CaseIterable, Sendable {
+    case mono, duotone
+    var displayName: String {
+        switch self {
+        case .mono: return "Mono"
+        case .duotone: return "Duotone"
         }
     }
 }

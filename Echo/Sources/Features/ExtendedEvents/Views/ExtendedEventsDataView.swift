@@ -8,6 +8,8 @@ struct ExtendedEventsDataView: View {
     
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(AppState.self) private var appState
+    /// The panel card's floating footer, so the last event scrolls clear of it.
+    @Environment(\.cardFooterOverlayHeight) private var footerOverlayHeight
     
     @State private var selection: Set<SQLServerXEEventData.ID> = []
     @State private var eventSortOrder: [KeyPathComparator<SQLServerXEEventData>] = [KeyPathComparator(\.sortableTimestamp, order: .reverse)]
@@ -108,6 +110,7 @@ struct ExtendedEventsDataView: View {
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .contentMargins(.bottom, footerOverlayHeight, for: .scrollContent)
         .tableColumnAutoResize()
         .contextMenu(forSelectionType: SQLServerXEEventData.ID.self) { ids in
             Button {

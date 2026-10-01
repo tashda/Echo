@@ -8,14 +8,18 @@ struct ResourceGovernorView: View {
     @State var showNewGroupSheet = false
     @State var pendingDropPool: String?
     @State var pendingDropGroup: String?
+    @State private var poolsFraction: CGFloat = 0.5
+    @Environment(ProjectStore.self) private var projectStore
 
     var body: some View {
-        VStack(spacing: 0) {
+        // TT1: the toolbar on the canvas, pools and workload groups as two cards.
+        VStack(spacing: projectStore.globalSettings.workspaceGutter.points) {
             toolbar
-            Divider()
+                .tabSectionToolbarOnCanvas()
             content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .adaptiveWorkspaceCard()
         }
-        .background(ColorTokens.Background.primary)
         .tabContentFrame()
         .onAppear {
             viewModel.refresh()
@@ -106,9 +110,10 @@ struct ResourceGovernorView: View {
         if !viewModel.hasLoaded {
             initialState
         } else {
-            VSplitView {
-                poolsSection.frame(minHeight: LayoutTokens.SplitView.minimumPaneHeight)
-                groupsSection.frame(minHeight: LayoutTokens.SplitView.minimumPaneHeight)
+            CardSplitView(axis: .vertical, fraction: $poolsFraction, minFraction: 0.25) {
+                poolsSection
+            } second: {
+                groupsSection
             }
         }
     }

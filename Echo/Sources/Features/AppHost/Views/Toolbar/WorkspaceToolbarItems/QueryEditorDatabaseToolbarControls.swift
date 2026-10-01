@@ -7,7 +7,7 @@ struct QueryEditorDatabaseToolbarControls: View {
     @Environment(TabStore.self) private var tabStore
 
     var body: some View {
-        if let tab = tabStore.activeTab, let query = tab.query {
+        if tabStore.activeTabToolbarContext.hasDatabaseToggles, let tab = tabStore.activeTab, let query = tab.query {
             switch tab.connection.databaseType {
             case .microsoftSQL:
                 MSSQLQueryToolbarControls(query: query)
@@ -30,7 +30,6 @@ private struct MSSQLQueryToolbarControls: View {
             sqlcmdModeButton
             statisticsButton
         }
-        .glassEffect(.regular.interactive())
     }
 
     private var sqlcmdModeButton: some View {

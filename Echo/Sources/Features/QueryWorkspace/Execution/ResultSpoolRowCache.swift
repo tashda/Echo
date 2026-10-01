@@ -2,12 +2,17 @@ import Foundation
 
 final class ResultSpoolRowCache: @unchecked Sendable {
     private struct Page {
-        var rows: ContiguousArray<[String?]?>
+        private(set) var rows: ContiguousArray<[String?]?>
         var terminalCount: Int?
+        /// Slots still empty, so a full page answers `contains` without walking its rows: the grid
+        /// asks on every scrolled frame, and walking every page in the prefetch window was a fifth
+        /// of the main thread while scrolling a large result (traced 2026-10-01).
+        private(set) var emptySlots: Int
 
         init(pageSize: Int) {
             self.rows = ContiguousArray(repeating: nil, count: pageSize)
             self.terminalCount = nil
+            self.emptySlots = pageSize
         }
 
         mutating func insert(rows slice: ArraySlice<[String?]>, startingAt offset: Int) {
@@ -15,6 +20,7 @@ final class ResultSpoolRowCache: @unchecked Sendable {
             var index = offset
             for row in slice {
                 guard index < rows.count else { break }
+                if rows[index] == nil { emptySlots -= 1 }
                 rows[index] = row
                 index += 1
             }
@@ -30,7 +36,17 @@ final class ResultSpoolRowCache: @unchecked Sendable {
                 updated[index] = newRows[index]
             }
             rows = updated
+            emptySlots = updated.count - limit
             terminalCount = isTerminal ? newRows.count : nil
+        }
+
+        /// Empties every slot from `start` on.
+        mutating func clear(from start: Int) {
+            guard start < rows.count else { return }
+            for index in max(start, 0)..<rows.count where rows[index] != nil {
+                rows[index] = nil
+                emptySlots += 1
+            }
         }
 
         func row(at offset: Int) -> [String?]? {
@@ -47,6 +63,7 @@ final class ResultSpoolRowCache: @unchecked Sendable {
             if let terminal = terminalCount, offsetRange.upperBound > terminal {
                 return false
             }
+            if emptySlots == 0 { return true }
             let clippedUpper = min(offsetRange.upperBound, rows.count)
             if clippedUpper <= offsetRange.lowerBound { return true }
             for index in offsetRange.lowerBound..<clippedUpper {
@@ -254,11 +271,7 @@ final class ResultSpoolRowCache: @unchecked Sendable {
             }
 
             if var lastPage = pages[lastPageIndex] {
-                if lastPageLimit < lastPage.rows.count {
-                    for index in lastPageLimit..<lastPage.rows.count {
-                        lastPage.rows[index] = nil
-                    }
-                }
+                lastPage.clear(from: lastPageLimit)
                 lastPage.terminalCount = lastPageLimit
                 pages[lastPageIndex] = lastPage
             }

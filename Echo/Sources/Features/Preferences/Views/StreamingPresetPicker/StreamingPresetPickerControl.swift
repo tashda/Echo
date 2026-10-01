@@ -83,7 +83,7 @@ struct StreamingPresetPickerControl: View {
                 onSubmit: applyCustomValue,
                 onCancel: { showCustomPopover = false }
             )
-            .frame(width: 240)
+            .frame(width: FloatingSurfaceSize.small.width)
         }
     }
 

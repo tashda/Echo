@@ -15,6 +15,7 @@ extension QueryResultsTableView.Coordinator {
         if let scrollView {
             registerScrollObservation(for: scrollView)
         }
+        refreshLiveColumns(tableView)
 
         // Detect new query execution and reset all cached state instead of
         // relying on SwiftUI .id() to destroy/recreate the entire view.
@@ -33,7 +34,7 @@ extension QueryResultsTableView.Coordinator {
             scheduleRowCountUpdate(for: tableView)
         }
         tableView.headerView?.menu = headerMenu
-        tableView.headerView?.frame.size.height = max(tableView.headerView?.frame.size.height ?? 0, SpacingTokens.lg)
+        tableView.headerView?.frame.size.height = ResultsGridMetrics.headerHeight
         tableView.headerView?.isHidden = false
         isPerformingUpdatePass = true
         defer {
@@ -144,9 +145,10 @@ extension QueryResultsTableView.Coordinator {
                 }
 
                 if !rowIndexes.isEmpty {
-                    let columnIndexes = IndexSet(0..<tableView.tableColumns.count)
-                    reloadWorkItem = DispatchWorkItem { [weak tableView] in
-                        guard let tableView else { return }
+                    reloadWorkItem = DispatchWorkItem { [weak self, weak tableView] in
+                        guard let self, let tableView else { return }
+                        let columnIndexes = self.liveColumnIndexes(in: tableView)
+                        guard !columnIndexes.isEmpty else { return }
                         tableView.reloadData(forRowIndexes: rowIndexes, columnIndexes: columnIndexes)
                     }
                 }

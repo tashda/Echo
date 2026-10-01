@@ -191,41 +191,14 @@ extension SQLTextView {
                                             replacementRange baseRange: NSRange,
                                             insertion: String,
                                             snippetPlaceholders: [NSRange] = []) -> CompletionInsertionResult? {
-        var range = baseRange
         guard let textStorage else { return nil }
-        let nsString = string as NSString
-
-        if suggestion.kind != .column {
-            var lowerBound = range.location
-            let period: unichar = 46
-            while lowerBound > 0 {
-                let character = nsString.character(at: lowerBound - 1)
-                if character == period { break }
-                if !isCompletionCharacter(character) { break }
-                lowerBound -= 1
-            }
-            let upperBound = NSMaxRange(range)
-            range = NSRange(location: lowerBound, length: upperBound - lowerBound)
-        }
-
-        let maxRange = nsString.length
-        var upperBound = NSMaxRange(range)
-        while upperBound < maxRange {
-            let character = nsString.character(at: upperBound)
-            if !isCompletionCharacter(character) { break }
-            upperBound += 1
-        }
-        range.length = upperBound - range.location
-
-        let originalText = nsString.substring(with: range)
-        let finalInsertion: String
-        if snippetPlaceholders.isEmpty {
-            finalInsertion = adjustedInsertion(for: suggestion,
-                                               originalText: originalText,
-                                               proposedInsertion: insertion)
-        } else {
-            finalInsertion = insertion
-        }
+        // Which characters are replaced and what goes in are EchoSense's rules (SQLEditorAcceptance), so the
+        // scenarios in Echo Labs and the package's tests check exactly this.
+        let plan = SQLEditorAcceptance.plan(for: suggestion, replacementRange: baseRange, in: string,
+                                            insertion: insertion, isSnippet: !snippetPlaceholders.isEmpty)
+        let range = plan.range
+        let originalText = plan.originalText
+        let finalInsertion = plan.insertion
 
         guard shouldChangeText(in: range, replacementString: finalInsertion) else { return nil }
 

@@ -1,4 +1,5 @@
 import Foundation
+import SQLServerKit
 import NIOCore
 import OSLog
 
@@ -23,6 +24,14 @@ actor ResultSpoolHandle {
     var lastTransientEmission: UInt64 = 0
     let transientDispatchInterval: UInt64 = 80_000_000 // 80 ms trailing flush
     let transientImmediateInterval: UInt64 = 25_000_000  // 25 ms (~40 Hz)
+    /// Postgres column OIDs, resolved on first decode (see `postgresColumnOIDs()`).
+    var cachedPostgresOIDs: CachedOIDs?
+
+    struct CachedOIDs { let value: [UInt32]? }
+    /// SQL Server cell types, resolved on first decode (see `sqlServerCellTypes()`).
+    var cachedSQLServerCellTypes: CachedCellTypes?
+
+    struct CachedCellTypes { let value: [SQLServerCellType]? }
 
     func debugLog(_ message: String) {
         Logger.spool.debug("\(message)")

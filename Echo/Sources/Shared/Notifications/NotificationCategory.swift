@@ -54,6 +54,7 @@ enum NotificationCategory: String, CaseIterable, Identifiable, Codable, Sendable
     // General
     case generalSuccess
     case generalError
+    case queryFailed
     case generalInfo
 
     var id: String { rawValue }
@@ -73,7 +74,8 @@ enum NotificationCategory: String, CaseIterable, Identifiable, Codable, Sendable
              .databaseSwitchFailed,
              .databasePropertiesError,
              .jobError,
-             .generalError:
+             .generalError,
+             .queryFailed:
             return true
         default:
             return false
@@ -98,7 +100,7 @@ enum NotificationCategory: String, CaseIterable, Identifiable, Codable, Sendable
             return .database
         case .jobStarted, .jobStopped, .jobError, .jobScheduleCreated, .jobNotificationSaved, .jobPropertiesSaved:
             return .jobs
-        case .generalSuccess, .generalError, .generalInfo:
+        case .generalSuccess, .generalError, .generalInfo, .queryFailed:
             return .general
         }
     }
@@ -139,6 +141,7 @@ enum NotificationCategory: String, CaseIterable, Identifiable, Codable, Sendable
         case .jobPropertiesSaved: return "Properties Saved"
         case .generalSuccess: return "Success"
         case .generalError: return "Error"
+        case .queryFailed: return "Query Failed"
         case .generalInfo: return "Info"
         }
     }
@@ -177,6 +180,7 @@ enum NotificationCategory: String, CaseIterable, Identifiable, Codable, Sendable
         case .jobPropertiesSaved: return "When job properties are saved"
         case .generalSuccess: return "When an operation succeeds"
         case .generalError: return "When an unexpected error occurs"
+        case .queryFailed: return "When a query fails in a tab that isn\u{2019}t in front"
         case .generalInfo: return "General informational alerts"
         }
     }
@@ -217,6 +221,7 @@ enum NotificationCategory: String, CaseIterable, Identifiable, Codable, Sendable
         case .jobPropertiesSaved: return "checkmark.circle.fill"
         case .generalSuccess: return "checkmark.circle.fill"
         case .generalError: return "exclamationmark.triangle.fill"
+        case .queryFailed: return "exclamationmark.octagon.fill"
         case .generalInfo: return "info.circle"
         }
     }
@@ -231,7 +236,7 @@ enum NotificationCategory: String, CaseIterable, Identifiable, Codable, Sendable
             return .success
         case .connectionFailed, .extensionFailed, .maintenanceFailed, .securityToggleFailed,
              .indexRebuildFailed, .databaseCreationFailed, .databaseSwitchFailed, .databasePropertiesError,
-             .jobError, .generalError:
+             .jobError, .generalError, .queryFailed:
             return .error
         case .connectionDisconnected, .databaseSwitched, .generalInfo:
             return .info

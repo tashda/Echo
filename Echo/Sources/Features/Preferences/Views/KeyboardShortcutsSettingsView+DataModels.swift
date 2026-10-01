@@ -108,10 +108,14 @@ struct ShortcutSectionData: Identifiable {
         ShortcutSectionData(
             title: "Query Editing",
             items: [
-                .init(title: "Run Selected Query", context: "Execute the highlighted SQL in the query editor.", keys: ["⌘", "Return"]),
+                .init(title: "Run Selected Query", context: "Run the selection, or the whole script when nothing is selected.", keys: ["⌘", "Return"]),
+                .init(title: "Run Statement at Cursor", context: "Run only the statement the caret is in.", keys: ["⌘", "⇧", "Return"]),
+                .init(title: "Explain", context: "Show the estimated plan without running.", keys: ["⌘", "⌥", "E"]),
+                .init(title: "Explain Analyze", context: "Run and show the actual plan.", keys: ["⌘", "⌥", "⇧", "E"]),
+                .init(title: "Cancel Query", context: "Stop the running query.", keys: ["⌘", "⌥", "."]),
                 .init(title: "Format Query", context: "Format the current SQL using the configured style.", keys: ["⌘", "⇧", "F"]),
-                .init(title: "Show EchoSense Suggestions", context: "Reopen the EchoSense popover after dismissal.", keys: ["⌘", "."]),
-                .init(title: "Manual EchoSense Trigger", context: "Force suggestions even when auto-popup is suppressed.", keys: ["Ctrl", "Space"])
+                .init(title: "Validate Query", context: "Check the SQL for errors.", keys: ["⌘", "⇧", "B"]),
+                .init(title: "Show EchoSense Suggestions", context: "Show suggestions, even after dismissing them. Esc works too.", keys: ["⌘", "."]),
             ]
         ),
         ShortcutSectionData(

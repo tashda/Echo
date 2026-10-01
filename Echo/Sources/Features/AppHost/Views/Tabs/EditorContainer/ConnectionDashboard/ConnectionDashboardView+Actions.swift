@@ -13,17 +13,32 @@ struct ConnectionDashboardTools: View {
     }
 
     var body: some View {
-        HStack(spacing: SpacingTokens.xs) {
-            switch session.connection.databaseType {
-            case .postgresql:
-                postgresTools
-            case .microsoftSQL:
-                mssqlTools
-            case .mysql:
-                mysqlTools
-            case .sqlite:
-                sqliteTools
-            }
+        // One row when it fits; otherwise the buttons wrap.
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: SpacingTokens.xs) { buttons }
+            FlowLayout(spacing: SpacingTokens.xs) { buttons }
+        }
+        .controlSize(.large)
+    }
+
+    @ViewBuilder
+    private var buttons: some View {
+        Button {
+            environmentState.openQueryTab(for: session, database: defaultDatabase.isEmpty ? nil : defaultDatabase)
+        } label: {
+            Label("New Query", systemImage: "plus")
+        }
+        .buttonStyle(.glassProminent)
+
+        switch session.connection.databaseType {
+        case .postgresql:
+            postgresTools
+        case .microsoftSQL:
+            mssqlTools
+        case .mysql:
+            mysqlTools
+        case .sqlite:
+            sqliteTools
         }
     }
 
@@ -31,23 +46,23 @@ struct ConnectionDashboardTools: View {
 
     @ViewBuilder
     private var postgresTools: some View {
-        DashboardToolCard(icon: "gauge.with.dots.needle.33percent", label: "Activity Monitor") {
+        DashboardToolButton(icon: "gauge.with.dots.needle.33percent", label: "Activity Monitor") {
             environmentState.openActivityMonitorTab(connectionID: session.connection.id)
         }
 
-        DashboardToolCard(icon: "wrench.and.screwdriver", label: "Maintenance", menuItems: databases.map(\.name)) { db in
+        DashboardToolButton(icon: "wrench.and.screwdriver", label: "Maintenance", menuItems: databases.map(\.name)) { db in
             environmentState.openMaintenanceTab(connectionID: session.connection.id, databaseName: db)
         } directAction: {
             environmentState.openMaintenanceTab(connectionID: session.connection.id, databaseName: defaultDatabase)
         }
 
-        DashboardToolCard(icon: "terminal", label: "Console", menuItems: databases.map(\.name)) { db in
+        DashboardToolButton(icon: "terminal", label: "Console", menuItems: databases.map(\.name)) { db in
             environmentState.openPSQLTab(for: session, database: db)
         } directAction: {
             environmentState.openPSQLTab(for: session)
         }
 
-        DashboardToolCard(icon: "apple.terminal", label: "psql", menuItems: databases.map(\.name)) { db in
+        DashboardToolButton(icon: "apple.terminal", label: "psql", menuItems: databases.map(\.name)) { db in
             environmentState.openInPsql(for: session, database: db)
         } directAction: {
             environmentState.openInPsql(for: session)
@@ -58,11 +73,11 @@ struct ConnectionDashboardTools: View {
 
     @ViewBuilder
     private var mysqlTools: some View {
-        DashboardToolCard(icon: "gauge.with.dots.needle.33percent", label: "Activity Monitor") {
+        DashboardToolButton(icon: "gauge.with.dots.needle.33percent", label: "Activity Monitor") {
             environmentState.openActivityMonitorTab(connectionID: session.connection.id)
         }
 
-        DashboardToolCard(icon: "wrench.and.screwdriver", label: "Maintenance", menuItems: databases.map(\.name)) { db in
+        DashboardToolButton(icon: "wrench.and.screwdriver", label: "Maintenance", menuItems: databases.map(\.name)) { db in
             environmentState.openMaintenanceTab(connectionID: session.connection.id, databaseName: db)
         } directAction: {
             environmentState.openMaintenanceTab(connectionID: session.connection.id, databaseName: defaultDatabase)
@@ -73,7 +88,7 @@ struct ConnectionDashboardTools: View {
 
     @ViewBuilder
     private var sqliteTools: some View {
-        DashboardToolCard(icon: "wrench.and.screwdriver", label: "Maintenance") {
+        DashboardToolButton(icon: "wrench.and.screwdriver", label: "Maintenance") {
             environmentState.openMaintenanceTab(connectionID: session.connection.id)
         }
     }
@@ -82,39 +97,36 @@ struct ConnectionDashboardTools: View {
 
     @ViewBuilder
     private var mssqlTools: some View {
-        DashboardToolCard(icon: "gauge.with.dots.needle.33percent", label: "Activity Monitor") {
+        DashboardToolButton(icon: "gauge.with.dots.needle.33percent", label: "Activity Monitor") {
             environmentState.openActivityMonitorTab(connectionID: session.connection.id)
         }
 
-        DashboardToolCard(icon: "clock.badge.checkmark", label: "Agent Jobs") {
+        DashboardToolButton(icon: "clock.badge.checkmark", label: "Agent Jobs") {
             environmentState.openJobQueueTab(for: session)
         }
 
-        DashboardToolCard(icon: "chart.bar.xaxis", label: "Query Store", menuItems: databases.map(\.name)) { db in
+        DashboardToolButton(icon: "chart.bar.xaxis", label: "Query Store", menuItems: databases.map(\.name)) { db in
             environmentState.openQueryStoreTab(connectionID: session.connection.id, databaseName: db)
         } directAction: {
             environmentState.openQueryStoreTab(connectionID: session.connection.id, databaseName: defaultDatabase)
         }
 
-        DashboardToolCard(icon: "waveform.path.ecg", label: "Events") {
+        DashboardToolButton(icon: "waveform.path.ecg", label: "Events") {
             environmentState.openExtendedEventsTab(connectionID: session.connection.id)
         }
     }
 }
 
-// MARK: - Tool Card
+// MARK: - Tool Button
 
-/// A dashboard tool card rendered as a plain Button.
-/// When `menuItems` has more than one entry, clicking shows an NSMenu.
-/// Otherwise clicks trigger `directAction` immediately.
-private struct DashboardToolCard: View {
+/// A server tool on a Liquid Glass button. With several databases to choose from it opens a
+/// menu of them; otherwise it acts straight away.
+private struct DashboardToolButton: View {
     let icon: String
     let label: String
     var menuItems: [String] = []
     var menuAction: ((String) -> Void)?
     let directAction: () -> Void
-
-    @State private var isHovered = false
 
     init(icon: String, label: String, directAction: @escaping () -> Void) {
         self.icon = icon
@@ -130,72 +142,24 @@ private struct DashboardToolCard: View {
         self.directAction = directAction
     }
 
-    private var needsMenu: Bool {
-        menuItems.count > 1 && menuAction != nil
-    }
-
     var body: some View {
-        Button {
-            if needsMenu {
-                showMenu()
-            } else {
-                directAction()
+        if menuItems.count > 1, let menuAction {
+            Menu {
+                ForEach(menuItems, id: \.self) { item in
+                    Button(item) { menuAction(item) }
+                }
+            } label: {
+                Label(label, systemImage: icon)
             }
-        } label: {
-            VStack(spacing: SpacingTokens.xxs) {
-                Image(systemName: icon)
-                    .font(TypographyTokens.prominent)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-                    .frame(height: 20)
-                Text(label)
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+            .menuStyle(.button)
+            .menuIndicator(.hidden)
+            .buttonStyle(.glass)
+            .fixedSize()
+        } else {
+            Button(action: directAction) {
+                Label(label, systemImage: icon)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, SpacingTokens.sm)
-            .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isHovered ? ColorTokens.Surface.hover : ColorTokens.Surface.rest)
-            )
+            .buttonStyle(.glass)
         }
-        .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
-    }
-
-    private func showMenu() {
-        guard let menuAction else { return }
-        let coordinator = ToolCardMenuCoordinator(action: menuAction)
-        let menu = NSMenu()
-        for item in menuItems {
-            let menuItem = NSMenuItem(title: item, action: #selector(ToolCardMenuCoordinator.itemSelected(_:)), keyEquivalent: "")
-            menuItem.target = coordinator
-            menu.addItem(menuItem)
-        }
-        // Prevent coordinator from being deallocated while menu is open
-        objc_setAssociatedObject(menu, "coordinator", coordinator, .OBJC_ASSOCIATION_RETAIN)
-
-        guard let event = NSApp.currentEvent,
-              let window = event.window,
-              let contentView = window.contentView else { return }
-
-        let location = contentView.convert(event.locationInWindow, from: nil)
-        _ = menu.popUp(positioning: nil, at: location, in: contentView)
-    }
-}
-
-// MARK: - Menu Coordinator
-
-private final class ToolCardMenuCoordinator: NSObject {
-    let action: (String) -> Void
-
-    init(action: @escaping (String) -> Void) {
-        self.action = action
-    }
-
-    @objc func itemSelected(_ sender: NSMenuItem) {
-        action(sender.title)
     }
 }

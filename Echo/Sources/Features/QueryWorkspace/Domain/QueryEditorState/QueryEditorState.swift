@@ -1,3 +1,4 @@
+import EchoSense
 import Foundation
 import SwiftUI
 import Observation
@@ -10,6 +11,13 @@ import OSLog
     var isExecuting: Bool = false
     /// True while the query tab is establishing its dedicated database connection.
     var isEstablishingConnection: Bool = false
+    /// Set when the tab's connection dropped (round 21); the footer then says Disconnected.
+    var connectionLoss: QueryConnectionLoss?
+    /// The tab's transaction, shown in the footer's status pill (round 21, transaction state).
+    var transactionState: QueryTransactionState = .none
+    @ObservationIgnored var transactionStatusProvider: (@MainActor () async -> QueryTransactionStatus?)?
+    @ObservationIgnored var transactionLastActivity = Date()
+    @ObservationIgnored var transactionReminderSent = false
     /// True while a cross-database schema is being loaded for autocompletion.
     var isLoadingCrossDBSchema: Bool = false
     /// The database name currently being loaded for cross-DB autocompletion.
@@ -20,6 +28,8 @@ import OSLog
     var lastExecutionTime: TimeInterval?
     var currentExecutionTime: TimeInterval = 0
     var rowProgress: RowProgress = RowProgress()
+    /// The results grid's selected cells, summed for the footer (plan R5).
+    var gridSelectionSummary: GridSelectionSummary?
     var messages: [QueryExecutionMessage] = []
     var prefersMessagesAfterExecution: Bool = false
     var hasExecutedAtLeastOnce: Bool = false
@@ -36,6 +46,8 @@ import OSLog
     var sqlcmdModeEnabled: Bool = false
     /// Incremented to trigger on-demand validation. The text view observes this.
     var validationRequestGeneration: Int = 0
+    /// Set to move the editor's caret to a line, as "Show in Editor" on a query error does.
+    var editorLineRequest: EditorLineRequest?
     @ObservationIgnored var rowCountRefreshHandler: (() -> Void)?
     var streamingMode: StreamingMode = .idle
 
@@ -82,6 +94,27 @@ import OSLog
     @ObservationIgnored var lastMessageTimestamp: Date?
     @ObservationIgnored var executingTask: Task<Void, Never>?
     @ObservationIgnored var isCancellationRequested: Bool = false
+    /// Between pressing Cancel and the query ending (round 21, cancel): the footer says Cancelling,
+    /// and after 5 s without an answer the results offer Force Stop.
+    var cancelPhase: QueryCancelPhase?
+    /// The query time limit of the current run in seconds, and whose it is (round 21, timeouts).
+    var timeLimit: TimeInterval?
+    var timeLimitScope: QueryTimeLimitScope?
+    /// Set when the time limit stopped the last run (TF4).
+    var timeLimitStop: QueryTimeLimitStop?
+    /// Run Without Limit: the next run sets no limit (the one after gets the limit back).
+    @ObservationIgnored var runWithoutLimitOnce = false
+    /// Runs the last statement again (Run Without Limit).
+    @ObservationIgnored var rerunAction: (() -> Void)?
+    /// Reads the server's own statement_timeout (SL1).
+    @ObservationIgnored var serverTimeLimitProvider: (@MainActor () async -> TimeInterval?)?
+    /// The running statement waits for a lock (LF3), and how that is found out.
+    var lockWait: QueryLockWait?
+    @ObservationIgnored var lockWaitProvider: (@MainActor () async -> QueryLockWait?)?
+    @ObservationIgnored var lockWaitTask: Task<Void, Never>?
+    @ObservationIgnored var forceStopHandler: (() -> Void)?
+    /// Told when a run ends, succeeded or not (not on a cancel), after `lastExecutionTime` is set.
+    @ObservationIgnored var runEndedHandler: ((_ succeeded: Bool) -> Void)?
     var streamingColumns: [ColumnInfo] = []
     var streamingRows: [[String?]] = []
     var resultChangeToken: UInt64 = 0
@@ -114,10 +147,25 @@ import OSLog
     @ObservationIgnored var shouldPersistResults = false
     @ObservationIgnored var progressiveMaterializationTask: Task<Void, Never>?
     @ObservationIgnored var deferredEnqueueTask: Task<Void, Never>?
-    var additionalResults: [QueryResultSet] = []
+    var additionalResults: [QueryResultSet] = [] {
+        didSet { additionalResultStates.removeAll() }
+    }
+    /// Results-only states for the extra result sets, made on first view (plan R6).
+    @ObservationIgnored var additionalResultStates: [Int: QueryEditorState] = [:]
+    /// Extra result sets streaming into their own states while the run goes (round 22, BG1): each
+    /// spools like the first set instead of holding every row in memory. Keyed like `additionalResults`.
+    @ObservationIgnored var streamedAdditionalStates: [Int: QueryEditorState] = [:]
     var selectedResultSetIndex: Int = 0
     /// Batch labels for multi-batch (GO) results. Nil for single-batch execution.
     var batchResultMetadata: [BatchResultLabel]?
+    /// A PostgreSQL script's statements, for the statement list (round 21, script results).
+    var scriptEntries: [ScriptResultEntry]?
+    /// The statement selected in the list; its statement is highlighted in the editor (SK2).
+    var selectedScriptEntryID: Int?
+    /// The editor range of the selected statement, drawn as a band until the text changes.
+    var highlightedStatementRange: NSRange?
+    /// Query › Run as One Transaction (round 21, OT1): off by default, per tab.
+    var runsScriptAsOneTransaction = false
     var executionPlan: ExecutionPlanData?
     var isLoadingExecutionPlan: Bool = false
     var dataClassification: DataClassification?
@@ -128,6 +176,18 @@ import OSLog
     var hasActiveSelection: Bool = false
     /// The selected text, available for "Run Selection".
     @ObservationIgnored var selectedText: String = ""
+    /// The caret's UTF-16 offset, for Run Statement at Cursor (plan K1).
+    @ObservationIgnored var caretLocation: Int = 0
+    /// The selected range, for placing the note after Run Selection (QE2).
+    @ObservationIgnored var selectionRange = NSRange(location: 0, length: 0)
+    /// What the last run covered, and the note shown at its end once it finishes (QE2).
+    @ObservationIgnored var lastRunRange: NSRange?
+    var runNote: QueryRunNote?
+    /// Where the last run's error is, marked in the editor (round 21 EM5, round 22 ED1). Cleared by
+    /// an edit or the next run (EC3).
+    var errorMark: QueryErrorMark?
+    /// Maps a server message's line (in the SQL that was sent) to the editor line (LL1, J1).
+    @ObservationIgnored var messageLineMapper: ((Int) -> Int?)?
 
     // MARK: - Debug Session State
 

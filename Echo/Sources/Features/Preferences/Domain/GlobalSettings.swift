@@ -123,6 +123,9 @@ struct GlobalSettings: Codable, Hashable {
     var editorQualifyTableCompletions: Bool = false
     var editorShowSystemSchemas: Bool = false
     var editorEnableLiveValidation: Bool = true
+    var editorStatementFocus: Bool = true
+    var editorOutlineEdge: Bool = false
+    var editorGhostTextCompletion: Bool = false
     var accentColorSource: AccentColorSource
     var customAccentColorHex: String?
     var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
@@ -152,11 +155,42 @@ struct GlobalSettings: Codable, Hashable {
     var sidebarAutoExpandSQLServer: Set<SidebarAutoExpandSection>?
     var sidebarAutoExpandMySQL: Set<SidebarAutoExpandSection>?
     var managedPostgresConsoleEnabled: Bool = true
+    /// Round 21, script results (E3): a PostgreSQL script stops at a failed statement unless this is on.
+    var postgresScriptsContinueAfterError: Bool = false
+    /// Round 21, timeouts (TW2, TD2): the default query time limit in seconds; 0 is no limit.
+    /// A connection can override it.
+    var queryTimeLimitSeconds: Int = 0
+    /// Whether the one-time note that query time limits now work was shown (M3).
+    var queryTimeLimitNoticeShown: Bool = false
+    /// RN1 (round 21, owner's note): the run note of a failed statement shows the whole message
+    /// instead of `! Error`.
+    var editorErrorRunNoteShowsMessage: Bool = false
     var pgToolCustomPath: String?
     var mysqlToolCustomPath: String?
     var sidebarIconColorMode: SidebarIconColorMode = .colorful
     var sidebarDensity: SidebarDensity = .medium
     var sidebarExpandOneConnectionAtATime: Bool = true
+    /// Pins "server › database" above the Explorer once the server's header scrolls away.
+    /// The Explorer's scroll bar; hidden by default (round 9, SB3).
+    var sidebarShowsScrollBar: Bool = false
+    /// Shows object folders with nothing in them (Views, Functions…) in the Explorer.
+    var sidebarShowsEmptyFolders: Bool = false
+    // Canvas-and-cards redesign (Design/01-principles.md, rule 7).
+    var interfaceMotionSpeed: InterfaceMotionSpeed = .standard
+    var workspaceGutter: WorkspaceGutter = .standard
+    var workspaceCornerRadius: WorkspaceCornerRadius = .standard
+    var railItemSize: RailItemSize = .medium
+    var collapsedServerClick: CollapsedServerClickBehavior = .peekCommandReopens
+    var sidebarMonochromeVariant: SidebarMonochromeVariant = .accentOnOpen
+    /// The section dock's icons, apart from the tree's (round 16): mono by default.
+    var sidebarDockIconStyle: SidebarDockIconStyle = .mono
+    /// Each database type's dock (keyed by `DatabaseType.rawValue`): the sections shown, in
+    /// order, as section keys. A type missing here uses its blueprint's default.
+    var sidebarDockSections: [String: [String]] = [:]
+    var editorGutterStyle: EditorGutterStyle = .subtle
+    /// 1 once the editor moved to 13pt with 1.55 line spacing (design board, 2026-09-30).
+    var editorTypographyRevision = 1
+    var resultsMonospacedCells: Bool = false
     var toolbarProjectButtonStyle: ToolbarProjectButtonStyle = .account
     var activityMonitorRefreshInterval: Double = 5.0
     var hideInaccessibleDatabases: Bool = false
@@ -183,7 +217,7 @@ struct GlobalSettings: Codable, Hashable {
 
     init(
         appearanceMode: AppearanceMode = .system,
-        defaultEditorFontSize: Double = 12.0,
+        defaultEditorFontSize: Double = Double(SQLEditorTheme.defaultFontSize),
         defaultEditorFontFamily: String = "JetBrainsMono-Regular",
         defaultEditorTheme: String = SQLEditorPalette.aurora.id,
         fontLigatureOverrides: [String: Bool] = [:],
@@ -213,6 +247,9 @@ struct GlobalSettings: Codable, Hashable {
         case editorWrapLines, editorIndentWrappedLines, editorEnableAutocomplete
         case editorQualifyTableCompletions, editorShowSystemSchemas
         case editorEnableLiveValidation
+        case editorStatementFocus
+        case editorOutlineEdge
+        case editorGhostTextCompletion
         case useServerColorAsAccent, accentColorSource, customAccentColorHex
         case workspaceTabBarStyle, tabOverviewStyle
         case resultsAlternateRowShading, resultsShowRowNumbers, resultGridColorOverrides
@@ -227,11 +264,28 @@ struct GlobalSettings: Codable, Hashable {
         case sidebarAutoExpandSections, sidebarCustomizePerDatabaseType
         case sidebarAutoExpandPostgresql, sidebarAutoExpandSQLServer, sidebarAutoExpandMySQL
         case managedPostgresConsoleEnabled
+        case postgresScriptsContinueAfterError
+        case queryTimeLimitSeconds
+        case queryTimeLimitNoticeShown
+        case editorErrorRunNoteShowsMessage
         case pgToolCustomPath
         case mysqlToolCustomPath
         case sidebarIconColorMode
         case sidebarDensity
         case sidebarExpandOneConnectionAtATime
+        case sidebarShowsScrollBar
+        case sidebarShowsEmptyFolders
+        case interfaceMotionSpeed
+        case workspaceGutter
+        case workspaceCornerRadius
+        case railItemSize
+        case collapsedServerClick
+        case sidebarMonochromeVariant
+        case sidebarDockIconStyle
+        case sidebarDockSections
+        case editorGutterStyle
+        case editorTypographyRevision
+        case resultsMonospacedCells
         case sidebarColoredIcons
         case activityMonitorRefreshInterval
         case hideInaccessibleDatabases
@@ -245,7 +299,7 @@ struct GlobalSettings: Codable, Hashable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         appearanceMode = try container.decodeIfPresent(AppearanceMode.self, forKey: .appearanceMode) ?? .system
-        defaultEditorFontSize = try container.decodeIfPresent(Double.self, forKey: .defaultEditorFontSize) ?? 12.0
+        defaultEditorFontSize = try container.decodeIfPresent(Double.self, forKey: .defaultEditorFontSize) ?? Double(SQLEditorTheme.defaultFontSize)
         defaultEditorFontFamily = try container.decodeIfPresent(String.self, forKey: .defaultEditorFontFamily) ?? "JetBrainsMono-Regular"
         defaultEditorTheme = try container.decodeIfPresent(String.self, forKey: .defaultEditorTheme) ?? SQLEditorPalette.aurora.id
         fontLigatureOverrides = try container.decodeIfPresent([String: Bool].self, forKey: .fontLigatureOverrides) ?? [:]
@@ -266,6 +320,9 @@ struct GlobalSettings: Codable, Hashable {
         editorQualifyTableCompletions = try container.decodeIfPresent(Bool.self, forKey: .editorQualifyTableCompletions) ?? false
         editorShowSystemSchemas = try container.decodeIfPresent(Bool.self, forKey: .editorShowSystemSchemas) ?? false
         editorEnableLiveValidation = try container.decodeIfPresent(Bool.self, forKey: .editorEnableLiveValidation) ?? true
+        editorStatementFocus = try container.decodeIfPresent(Bool.self, forKey: .editorStatementFocus) ?? true
+        editorOutlineEdge = try container.decodeIfPresent(Bool.self, forKey: .editorOutlineEdge) ?? false
+        editorGhostTextCompletion = try container.decodeIfPresent(Bool.self, forKey: .editorGhostTextCompletion) ?? false
         if let source = try container.decodeIfPresent(AccentColorSource.self, forKey: .accentColorSource) {
             accentColorSource = source
         } else {
@@ -300,6 +357,10 @@ struct GlobalSettings: Codable, Hashable {
         sidebarAutoExpandSQLServer = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandSQLServer)
         sidebarAutoExpandMySQL = try container.decodeIfPresent(Set<SidebarAutoExpandSection>.self, forKey: .sidebarAutoExpandMySQL)
         managedPostgresConsoleEnabled = try container.decodeIfPresent(Bool.self, forKey: .managedPostgresConsoleEnabled) ?? true
+        postgresScriptsContinueAfterError = try container.decodeIfPresent(Bool.self, forKey: .postgresScriptsContinueAfterError) ?? false
+        queryTimeLimitSeconds = try container.decodeIfPresent(Int.self, forKey: .queryTimeLimitSeconds) ?? 0
+        queryTimeLimitNoticeShown = try container.decodeIfPresent(Bool.self, forKey: .queryTimeLimitNoticeShown) ?? false
+        editorErrorRunNoteShowsMessage = try container.decodeIfPresent(Bool.self, forKey: .editorErrorRunNoteShowsMessage) ?? false
         pgToolCustomPath = try container.decodeIfPresent(String.self, forKey: .pgToolCustomPath)
         mysqlToolCustomPath = try container.decodeIfPresent(String.self, forKey: .mysqlToolCustomPath)
 
@@ -325,6 +386,31 @@ struct GlobalSettings: Codable, Hashable {
             Bool.self,
             forKey: .sidebarExpandOneConnectionAtATime
         ) ?? true
+
+        sidebarShowsScrollBar = try container.decodeIfPresent(Bool.self, forKey: .sidebarShowsScrollBar) ?? false
+
+        sidebarShowsEmptyFolders = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .sidebarShowsEmptyFolders
+        ) ?? false
+
+        // Unknown values (from a newer build) fall back to the default instead of failing.
+        interfaceMotionSpeed = (try? container.decodeIfPresent(InterfaceMotionSpeed.self, forKey: .interfaceMotionSpeed)) ?? .standard
+        workspaceGutter = (try? container.decodeIfPresent(WorkspaceGutter.self, forKey: .workspaceGutter)) ?? .standard
+        workspaceCornerRadius = (try? container.decodeIfPresent(WorkspaceCornerRadius.self, forKey: .workspaceCornerRadius)) ?? .standard
+        railItemSize = (try? container.decodeIfPresent(RailItemSize.self, forKey: .railItemSize)) ?? .medium
+        collapsedServerClick = (try? container.decodeIfPresent(CollapsedServerClickBehavior.self, forKey: .collapsedServerClick)) ?? .peekCommandReopens
+        sidebarMonochromeVariant = (try? container.decodeIfPresent(SidebarMonochromeVariant.self, forKey: .sidebarMonochromeVariant)) ?? .accentOnOpen
+        sidebarDockIconStyle = (try? container.decodeIfPresent(SidebarDockIconStyle.self, forKey: .sidebarDockIconStyle)) ?? .mono
+        sidebarDockSections = (try? container.decodeIfPresent([String: [String]].self, forKey: .sidebarDockSections)) ?? [:]
+        editorGutterStyle = (try? container.decodeIfPresent(EditorGutterStyle.self, forKey: .editorGutterStyle)) ?? .subtle
+        // Settings still on the old defaults (12pt, single spacing) move to the new ones once.
+        if (try container.decodeIfPresent(Int.self, forKey: .editorTypographyRevision) ?? 0) < 1 {
+            if defaultEditorFontSize == 12 { defaultEditorFontSize = Double(SQLEditorTheme.defaultFontSize) }
+            if defaultEditorLineHeight == 1 { defaultEditorLineHeight = Double(SQLEditorTheme.defaultLineHeight) }
+        }
+        editorTypographyRevision = 1
+        resultsMonospacedCells = try container.decodeIfPresent(Bool.self, forKey: .resultsMonospacedCells) ?? false
 
         activityMonitorRefreshInterval = try container.decodeIfPresent(Double.self, forKey: .activityMonitorRefreshInterval) ?? 5.0
 
@@ -354,6 +440,9 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(editorQualifyTableCompletions, forKey: .editorQualifyTableCompletions)
         try container.encode(editorShowSystemSchemas, forKey: .editorShowSystemSchemas)
         try container.encode(editorEnableLiveValidation, forKey: .editorEnableLiveValidation)
+        try container.encode(editorStatementFocus, forKey: .editorStatementFocus)
+        try container.encode(editorOutlineEdge, forKey: .editorOutlineEdge)
+        try container.encode(editorGhostTextCompletion, forKey: .editorGhostTextCompletion)
         try container.encode(accentColorSource, forKey: .accentColorSource)
         try container.encodeIfPresent(customAccentColorHex, forKey: .customAccentColorHex)
         try container.encode(workspaceTabBarStyle, forKey: .workspaceTabBarStyle)
@@ -386,11 +475,28 @@ struct GlobalSettings: Codable, Hashable {
         try container.encodeIfPresent(sidebarAutoExpandSQLServer, forKey: .sidebarAutoExpandSQLServer)
         try container.encodeIfPresent(sidebarAutoExpandMySQL, forKey: .sidebarAutoExpandMySQL)
         try container.encode(managedPostgresConsoleEnabled, forKey: .managedPostgresConsoleEnabled)
+        try container.encode(postgresScriptsContinueAfterError, forKey: .postgresScriptsContinueAfterError)
+        try container.encode(queryTimeLimitSeconds, forKey: .queryTimeLimitSeconds)
+        try container.encode(queryTimeLimitNoticeShown, forKey: .queryTimeLimitNoticeShown)
+        try container.encode(editorErrorRunNoteShowsMessage, forKey: .editorErrorRunNoteShowsMessage)
         try container.encodeIfPresent(pgToolCustomPath, forKey: .pgToolCustomPath)
         try container.encodeIfPresent(mysqlToolCustomPath, forKey: .mysqlToolCustomPath)
         try container.encode(sidebarIconColorMode, forKey: .sidebarIconColorMode)
         try container.encode(sidebarDensity, forKey: .sidebarDensity)
         try container.encode(sidebarExpandOneConnectionAtATime, forKey: .sidebarExpandOneConnectionAtATime)
+        try container.encode(sidebarShowsScrollBar, forKey: .sidebarShowsScrollBar)
+        try container.encode(sidebarShowsEmptyFolders, forKey: .sidebarShowsEmptyFolders)
+        try container.encode(interfaceMotionSpeed, forKey: .interfaceMotionSpeed)
+        try container.encode(workspaceGutter, forKey: .workspaceGutter)
+        try container.encode(workspaceCornerRadius, forKey: .workspaceCornerRadius)
+        try container.encode(railItemSize, forKey: .railItemSize)
+        try container.encode(collapsedServerClick, forKey: .collapsedServerClick)
+        try container.encode(sidebarMonochromeVariant, forKey: .sidebarMonochromeVariant)
+        try container.encode(sidebarDockIconStyle, forKey: .sidebarDockIconStyle)
+        try container.encode(sidebarDockSections, forKey: .sidebarDockSections)
+        try container.encode(editorGutterStyle, forKey: .editorGutterStyle)
+        try container.encode(editorTypographyRevision, forKey: .editorTypographyRevision)
+        try container.encode(resultsMonospacedCells, forKey: .resultsMonospacedCells)
         try container.encode(activityMonitorRefreshInterval, forKey: .activityMonitorRefreshInterval)
         try container.encode(hideInaccessibleDatabases, forKey: .hideInaccessibleDatabases)
         try container.encode(sidebarHideOfflineDatabasesByDefault, forKey: .sidebarHideOfflineDatabasesByDefault)

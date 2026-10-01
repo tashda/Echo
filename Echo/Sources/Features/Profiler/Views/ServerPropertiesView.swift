@@ -5,6 +5,7 @@ struct ServerPropertiesView: View {
     @Bindable var viewModel: ServerPropertiesViewModel
     @Bindable var panelState: BottomPanelState
     @Environment(TabStore.self) private var tabStore
+    @Environment(\.workspaceTab) private var hostTab
     @Environment(ProjectStore.self) private var projectStore
 
     @State private var showVariableEditor = false
@@ -45,7 +46,7 @@ struct ServerPropertiesView: View {
     private var mysqlContent: some View {
         MaintenanceTabFrame(
             panelState: panelState,
-            serverName: tabStore.activeTab?.connection.connectionName ?? "Server",
+            serverName: hostTab?.connection.connectionName ?? "Server",
             isInitialized: viewModel.isInitialized,
             statusBubble: viewModel.isLoading ? .init(label: "Loading\u{2026}", tint: .blue, isPulsing: true) : nil
         ) {
@@ -129,7 +130,7 @@ struct ServerPropertiesView: View {
         let availableSections: [ServerPropertiesViewModel.Section] = [.overview, .control, .variables, .status]
         return MaintenanceTabFrame(
             panelState: panelState,
-            serverName: tabStore.activeTab?.connection.connectionName ?? "Server",
+            serverName: hostTab?.connection.connectionName ?? "Server",
             isInitialized: viewModel.isInitialized,
             statusBubble: viewModel.isLoading ? .init(label: "Loading\u{2026}", tint: .blue, isPulsing: true) : nil
         ) {

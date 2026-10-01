@@ -14,7 +14,7 @@ struct QueryTabStrip: View {
     let leadingPadding: CGFloat
     let trailingPadding: CGFloat
 
-    @Environment(ProjectStore.self) private var projectStore
+    @Environment(ProjectStore.self) var projectStore
     @Environment(ConnectionStore.self) private var connectionStore
     @Environment(NavigationStore.self) private var navigationStore
     @Environment(TabStore.self) var tabStore
@@ -60,8 +60,10 @@ struct QueryTabStrip: View {
     @State private var isNewTabHovered = false
 
     let tabReorderAnimation = Animation.interactiveSpring(response: 0.2, dampingFraction: 0.9, blendDuration: 0)
-    private let tabStripHeight: CGFloat = WorkspaceChromeMetrics.tabStripTotalHeight
-    private let baseHorizontalInset: CGFloat = 4
+    /// Round 9's strip on one line (design board, 2026-09-30).
+    private var tabStripHeight: CGFloat { WorkspaceChromeMetrics.tabStripTotalHeight }
+    /// Equal to the plate's edge inset, so the plate lines up with the card's edge below it.
+    private let baseHorizontalInset: CGFloat = 2
     private let basePlateExtension: CGFloat = 0
     private let basePlateEdgeInset: CGFloat = 2
     private let basePlateCornerRadius: CGFloat = 14
@@ -85,6 +87,7 @@ struct QueryTabStrip: View {
             let separatorWidth = CGFloat(max(orderedTabs.count - 1, 0)) * tabHairlineWidth()
             let effectiveWidth = max(availableWidth - separatorWidth, 0)
             let tabWidth = orderedTabs.isEmpty ? 0 : effectiveWidth / CGFloat(orderedTabs.count)
+            let unfoldedWidths = tabWidths(for: orderedTabs, equalWidth: tabWidth, totalWidth: effectiveWidth)
             let tabContentWidth = max(tabWidth * CGFloat(orderedTabs.count), 0)
             let widthSource = measuredTabGroupWidth > 0 ? measuredTabGroupWidth : tabContentWidth
             let basePlateLeading = max(effectiveLeadingPadding - basePlateExtension - basePlateEdgeInset, 0)
@@ -107,6 +110,7 @@ struct QueryTabStrip: View {
                     tabGroup(
                         orderedTabs: orderedTabs,
                         tabWidth: tabWidth,
+                        widths: unfoldedWidths,
                         databaseNamesBySessionID: databaseNamesBySessionID
                     )
                         .background(
@@ -123,7 +127,8 @@ struct QueryTabStrip: View {
                     }
                 }
                 .padding(.leading, effectiveLeadingPadding)
-                .padding(.trailing, hasTabs ? 7 : effectiveTrailingPadding)
+                // The + ends at the card's trailing edge.
+                .padding(.trailing, hasTabs ? trailingPadding : effectiveTrailingPadding)
                 .padding(.vertical, tabContentVerticalPadding)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .animation(tabReorderAnimation, value: tabStore.tabs.map(\.id))
@@ -181,6 +186,7 @@ struct QueryTabStrip: View {
     private func tabGroup(
         orderedTabs: [(WorkspaceTab, Bool)],
         tabWidth: CGFloat,
+        widths: [UUID: CGFloat],
         databaseNamesBySessionID: [UUID: [String]]
     ) -> some View {
         HStack(spacing: 0) {
@@ -189,7 +195,7 @@ struct QueryTabStrip: View {
 
                 tabButtonView(
                     tab: tab,
-                    targetWidth: tabWidth,
+                    targetWidth: widths[tab.id] ?? tabWidth,
                     index: index,
                     totalCount: orderedTabs.count,
                     appearance: nil,
@@ -216,6 +222,10 @@ struct QueryTabStrip: View {
             }
         }
         .fixedSize()
+        // Only a tool tab's pages unfolding or folding animate. A plain switch changes the highlight
+        // at once, as native tab bars do; springing every tab's colours re-resolved the strip for
+        // ~0.7 s. Keyed on the unfolded tab, so resizing the window doesn't animate either.
+        .animation(unfoldAnimation, value: widths.isEmpty ? nil : tabStore.activeTabId)
     }
 
     private func databaseNameCacheSignature() -> String {

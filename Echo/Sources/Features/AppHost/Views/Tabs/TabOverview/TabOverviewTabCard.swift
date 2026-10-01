@@ -46,7 +46,9 @@ struct TabPreviewCard: View {
 
                     Spacer(minLength: SpacingTokens.none)
 
-                    if isActive {
+                    if let query = tab.query, query.isExecuting {
+                        runningControl(query)
+                    } else if isActive {
                         activeBadge
                     } else {
                         statusBadge
@@ -114,6 +116,27 @@ struct TabPreviewCard: View {
                     .fill(accent.opacity(colorScheme == .dark ? 0.4 : 0.18))
             )
             .foregroundStyle(accent)
+    }
+
+    /// A running query's live time and a stop button (plan O2).
+    private func runningControl(_ query: QueryEditorState) -> some View {
+        HStack(spacing: SpacingTokens.xxs2) {
+            if let started = query.executionStartTime {
+                Text(started, style: .timer)
+                    .font(TypographyTokens.detail.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(ColorTokens.Status.error)
+            }
+            Button {
+                query.cancelExecution()
+            } label: {
+                Image(systemName: "stop.fill")
+            }
+            .buttonStyle(.glassProminent)
+            .tint(ColorTokens.Status.error)
+            .controlSize(.small)
+            .help("Cancel Query")
+            .accessibilityLabel("Cancel Query")
+        }
     }
 
     private var statusBadge: some View {

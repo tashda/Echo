@@ -34,41 +34,8 @@ private struct WorkspaceBody: View {
     var body: some View {
         let tabBarStyle = appState.workspaceTabBarStyle
 
-        NavigationSplitView(columnVisibility: Bindable(appState).workspaceSidebarVisibility) {
-            SidebarColumn()
-                .accessibilityIdentifier("workspace-sidebar")
-                .navigationSplitViewColumnWidth(
-                    min: WorkspaceLayoutMetrics.sidebarMinWidth,
-                    ideal: WorkspaceLayoutMetrics.sidebarIdealWidth
-                )
-        } detail: {
-            WorkspaceMainContent()
-                .accessibilityIdentifier("workspace-content")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(ColorTokens.Background.primary)
-                .overlay(alignment: .topTrailing) {
-                    if let toast = environmentState.toastPresenter.currentToast {
-                        StatusToastView(icon: toast.icon, message: toast.message, style: toast.style)
-                            .onTapGesture { environmentState.toastPresenter.dismiss() }
-                            .padding(.top, 44)
-                            .padding(.trailing, SpacingTokens.lg)
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                            .animation(.easeInOut(duration: 0.25), value: environmentState.toastPresenter.currentToast)
-                    }
-                }
-                .inspector(isPresented: Bindable(appState).showInfoSidebar) {
-                    let isJson = environmentState.dataInspectorContent?.isJson == true
-                    inspectorContent
-                        .inspectorColumnWidth(
-                            min: WorkspaceLayoutMetrics.inspectorMinWidth,
-                            ideal: isJson
-                                ? WorkspaceLayoutMetrics.jsonInspectorWidth
-                                : WorkspaceLayoutMetrics.inspectorIdealWidth,
-                            max: WorkspaceLayoutMetrics.inspectorMaxWidth
-                        )
-                }
-        }
-        .navigationSplitViewStyle(.balanced)
+        WorkspaceShell()
+        .commandPalette()
         .navigationTitle("Echo")
         .background(WorkspaceWindowConfigurator(tabBarStyle: tabBarStyle))
         .sheet(isPresented: Binding(get: { appState.activeSheet == .connectionEditor }, set: { if !$0 { appState.dismissSheet() } })) {
@@ -130,48 +97,10 @@ private struct WorkspaceBody: View {
         }
     }
 
-    @ViewBuilder
-    private var inspectorContent: some View {
-        let isJson = environmentState.dataInspectorContent?.isJson == true
-        let targetWidth = isJson
-            ? WorkspaceLayoutMetrics.jsonInspectorWidth
-            : navigationStore.inspectorWidth
-
-        let widthBinding = Binding<CGFloat>(
-            get: { navigationStore.inspectorWidth },
-            set: { newValue in
-                // Only update user-preferred width when NOT showing JSON
-                // (so dragging during JSON mode doesn't overwrite the default)
-                guard environmentState.dataInspectorContent?.isJson != true else { return }
-                navigationStore.updateInspectorWidth(
-                    newValue,
-                    min: WorkspaceLayoutMetrics.inspectorMinWidth,
-                    max: WorkspaceLayoutMetrics.inspectorMaxWidth
-                )
-            }
-        )
-
-        InfoSidebarView()
-            .environment(environmentState)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .padding(.top, appState.workspaceTabBarStyle.chromeTopPadding)
-            .padding(.bottom, SpacingTokens.sm)
-            .padding(.horizontal, 18)
-#if os(macOS)
-            .background(
-                InspectorSplitViewConfigurator(
-                    width: widthBinding,
-                    targetWidth: targetWidth,
-                    minWidth: WorkspaceLayoutMetrics.inspectorMinWidth,
-                    maxWidth: WorkspaceLayoutMetrics.inspectorMaxWidth
-                )
-            )
-#endif
-    }
-
     private var connectionEditorSheet: some View {
+        // New Connection; existing connections are edited in Manage Connections (CN5).
         ConnectionEditorView(
-            connection: connectionStore.selectedConnection,
+            connection: nil,
             onSave: { connection, password, action in
                 appState.dismissSheet()
                 Task {
@@ -195,7 +124,12 @@ private struct WorkspaceBody: View {
                         await environmentState.upsertConnection(connection, password: password)
                         environmentState.connect(to: connection)
                     } else if action == .connect {
-                        environmentState.connect(to: connection)
+                        // Quick Connect keeps its password in the Keychain too (design board CR6).
+                        var quick = connection
+                        if let password, !password.isEmpty {
+                            try? environmentState.identityRepository.setPassword(password, for: &quick)
+                        }
+                        environmentState.connect(to: quick)
                     }
                 }
             }

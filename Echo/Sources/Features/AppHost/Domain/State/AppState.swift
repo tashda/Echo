@@ -15,9 +15,52 @@ import SwiftUI
     var activeSheet: ActiveSheet?
     var structureScriptData: StructureScriptPreviewData?
     var showTabOverview = false
-    var showInfoSidebar = false
-    var workspaceSidebarVisibility: NavigationSplitViewVisibility = .automatic
-    var workspaceSidebarWidth: CGFloat = 320
+    /// The notification history, in the inspector's column (plan N3, round 15 option B). While
+    /// it shows, the column shows it instead of the details.
+    var isNotificationHistoryVisible = false
+    /// The ⌘K palette (plan K4).
+    var isCommandPaletteVisible = false
+    /// The inspector's details. Showing them puts the notification history away, so any request
+    /// for details (a double-click, JSON, a cell) lands on the details.
+    var showInfoSidebar = false {
+        didSet {
+            if showInfoSidebar && !oldValue { isNotificationHistoryVisible = false }
+        }
+    }
+
+    /// Whether the trailing column is out, for the details or the history.
+    var isInspectorColumnVisible: Bool { showInfoSidebar || isNotificationHistoryVisible }
+
+    /// The bell: shows the history in the column, or, if it is showing, closes the column. The
+    /// column holds one thing at a time, so closing it never falls back to the details.
+    func toggleNotificationHistory() {
+        if isNotificationHistoryVisible {
+            isNotificationHistoryVisible = false
+        } else {
+            showNotificationHistory()
+        }
+    }
+
+    /// Shows the history in the column in place of the details.
+    func showNotificationHistory() {
+        showInfoSidebar = false
+        isNotificationHistoryVisible = true
+    }
+
+    /// The inspector button and ⌥⌘I: from the history they switch to the details, otherwise they
+    /// show or hide the column.
+    func toggleInspector() {
+        if isNotificationHistoryVisible {
+            isNotificationHistoryVisible = false
+            showInfoSidebar = true
+        } else {
+            showInfoSidebar.toggle()
+        }
+    }
+    /// Whether the Explorer tree shows beside the rail (⌃⌘S). The rail always shows.
+    var isWorkspaceTreeVisible = true
+    /// The server whose tree is peeking out over the cards while the tree is hidden.
+    var peekedServerID: UUID?
     var workspaceTabBarStyle: WorkspaceTabBarStyle = .floating
 
     // MARK: - Query State

@@ -36,4 +36,16 @@ extension EchoSenseSettingsView {
             }
         )
     }
+
+    var ghostTextBinding: Binding<Bool> {
+        Binding(
+            get: { projectStore.globalSettings.editorGhostTextCompletion },
+            set: { newValue in
+                guard projectStore.globalSettings.editorGhostTextCompletion != newValue else { return }
+                var settings = projectStore.globalSettings
+                settings.editorGhostTextCompletion = newValue
+                Task { try? await projectStore.updateGlobalSettings(settings) }
+            }
+        )
+    }
 }

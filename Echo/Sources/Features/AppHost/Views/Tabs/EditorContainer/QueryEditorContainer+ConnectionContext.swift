@@ -108,6 +108,11 @@ extension QueryEditorContainer {
         )
     }
 
+    /// The gutter's Run arrow (QE1): runs only the statement at the caret.
+    func runStatementAtCaret() {
+        tab.run(.statementAtCursor)
+    }
+
     func handleBookmarkRequest(_ sql: String) {
         Task {
             await environmentState.addBookmark(

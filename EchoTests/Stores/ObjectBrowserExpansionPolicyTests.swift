@@ -9,35 +9,22 @@ struct ObjectBrowserExpansionPolicyTests {
         let layoutMode = ObjectBrowserConnectionLayoutMode(expandOneConnectionAtATime: false)
 
         #expect(layoutMode == .multipleConnections)
-        #expect(!layoutMode.showsConnectionDock)
         #expect(layoutMode.includesPendingConnectionsInOutline)
         #expect(layoutMode.showsServerNameInOutline)
     }
 
-    @Test func enabledSingleConnectionExpansionUsesTheConnectionDock() {
+    @Test func enabledSingleConnectionExpansionLeavesPendingConnectionsToTheRail() {
         let layoutMode = ObjectBrowserConnectionLayoutMode(expandOneConnectionAtATime: true)
 
         #expect(layoutMode == .singleConnection)
-        #expect(layoutMode.showsConnectionDock)
         #expect(!layoutMode.includesPendingConnectionsInOutline)
         #expect(!layoutMode.showsServerNameInOutline)
-        #expect(
-            layoutMode.outlineTopSpacerHeight(connectionDockHeight: SpacingTokens.none)
-                == SpacingTokens.xs
-        )
-        #expect(
-            layoutMode.outlineTopSpacerHeight(connectionDockHeight: 100)
-                == 100 + SpacingTokens.xs
-        )
     }
 
-    @Test func multiConnectionTreeKeepsItsStandardTopInset() {
-        let layoutMode = ObjectBrowserConnectionLayoutMode(expandOneConnectionAtATime: false)
-
-        #expect(
-            layoutMode.outlineTopSpacerHeight(connectionDockHeight: 100)
-                == SpacingTokens.xs
-        )
+    /// The first server card lines up with the top of the server rail in both modes.
+    @Test func outlineTopInsetLinesTheFirstCardUpWithTheRail() {
+        #expect(ObjectBrowserConnectionLayoutMode.singleConnection.outlineTopSpacerHeight == SpacingTokens.micro)
+        #expect(ObjectBrowserConnectionLayoutMode.multipleConnections.outlineTopSpacerHeight == SpacingTokens.micro)
     }
 
     @Test func expandingServerWithCollapseEnabledRemovesOtherServerRootsOnly() {

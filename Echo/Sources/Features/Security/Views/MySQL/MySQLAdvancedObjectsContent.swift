@@ -5,6 +5,9 @@ struct MySQLAdvancedObjectsContent: View {
     @Bindable var viewModel: MySQLDatabaseSecurityViewModel
     @Environment(EnvironmentState.self) private var environmentState
 
+    /// TT1: the list and the selected object's definition are two cards.
+    @State private var listFraction: CGFloat = 0.5
+
     var body: some View {
         switch viewModel.selectedAdvancedObjectSection {
         case .functions:
@@ -23,7 +26,7 @@ struct MySQLAdvancedObjectsContent: View {
         routines: [MySQLRoutineInfo],
         kind: MySQLProgrammableObjectScriptBuilder.RoutineDraft.Kind
     ) -> some View {
-        HSplitView {
+        CardSplitView(axis: .horizontal, fraction: $listFraction, minFraction: 0.3) {
             Table(routines, selection: $viewModel.selectedRoutineID) {
                 TableColumn("Name") { routine in
                     Text(routine.name).font(TypographyTokens.Table.name)
@@ -39,7 +42,7 @@ struct MySQLAdvancedObjectsContent: View {
             .onChange(of: viewModel.selectedRoutineID) { _, _ in
                 Task { await viewModel.loadSelectedAdvancedObjectDefinition() }
             }
-
+        } second: {
             advancedDetailView(
                 emptyTitle: "No \(title.dropLast()) Selected",
                 emptyMessage: "Select a MySQL \(title.dropLast().lowercased()) to inspect its definition or open a matching script template.",
@@ -51,7 +54,7 @@ struct MySQLAdvancedObjectsContent: View {
     }
 
     private var triggerSection: some View {
-        HSplitView {
+        CardSplitView(axis: .horizontal, fraction: $listFraction, minFraction: 0.3) {
             Table(viewModel.triggers, selection: $viewModel.selectedTriggerID) {
                 TableColumn("Name") { trigger in
                     Text(trigger.name).font(TypographyTokens.Table.name)
@@ -71,7 +74,7 @@ struct MySQLAdvancedObjectsContent: View {
             .onChange(of: viewModel.selectedTriggerID) { _, _ in
                 Task { await viewModel.loadSelectedAdvancedObjectDefinition() }
             }
-
+        } second: {
             advancedDetailView(
                 emptyTitle: "No Trigger Selected",
                 emptyMessage: "Select a MySQL trigger to inspect its definition or open a matching script template.",
@@ -83,7 +86,7 @@ struct MySQLAdvancedObjectsContent: View {
     }
 
     private var eventSection: some View {
-        HSplitView {
+        CardSplitView(axis: .horizontal, fraction: $listFraction, minFraction: 0.3) {
             Table(viewModel.events, selection: $viewModel.selectedEventID) {
                 TableColumn("Name") { event in
                     Text(event.name).font(TypographyTokens.Table.name)
@@ -105,7 +108,7 @@ struct MySQLAdvancedObjectsContent: View {
             .onChange(of: viewModel.selectedEventID) { _, _ in
                 Task { await viewModel.loadSelectedAdvancedObjectDefinition() }
             }
-
+        } second: {
             advancedDetailView(
                 emptyTitle: "No Event Selected",
                 emptyMessage: "Select a MySQL event to inspect its definition or open a matching script template.",

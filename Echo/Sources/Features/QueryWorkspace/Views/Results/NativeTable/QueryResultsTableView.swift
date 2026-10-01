@@ -30,6 +30,8 @@ struct QueryResultsTableView: NSViewRepresentable {
     var showRowNumbers: Bool = true
     var colorOverrides: ResultGridColorOverrides = .init()
     var isDarkMode: Bool = false
+    /// Cells in a monospaced font (Settings › Query Results › Monospaced cells).
+    var monospacedCells: Bool = false
 
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(ClipboardHistoryStore.self) private var clipboardHistory
@@ -63,7 +65,8 @@ struct QueryResultsTableView: NSViewRepresentable {
             alternateRowShading: alternateRowShading,
             showRowNumbers: showRowNumbers,
             colorOverrides: colorOverrides,
-            isDarkMode: isDarkMode
+            isDarkMode: isDarkMode,
+            monospacedCells: monospacedCells
         )
     }
 
@@ -94,7 +97,7 @@ struct QueryResultsTableView: NSViewRepresentable {
         tableView.backgroundColor = backgroundColor
 
         if let headerView = tableView.headerView {
-            headerView.frame.size.height = max(headerView.frame.size.height, SpacingTokens.lg)
+            headerView.frame.size.height = ResultsGridMetrics.headerHeight
             headerView.isHidden = false
         }
 
@@ -118,6 +121,7 @@ struct QueryResultsTableView: NSViewRepresentable {
     }
 
     func updateNSView(_ container: ResultTableContainerView, context: Context) {
+        container.setFooterOverlay(height: context.environment.cardFooterOverlayHeight)
         guard let tableView = container.tableView else { return }
         context.coordinator.isSplitResizing = isResizing
         if isResizing {

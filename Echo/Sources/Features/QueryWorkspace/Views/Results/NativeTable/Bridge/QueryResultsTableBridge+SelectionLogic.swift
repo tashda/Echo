@@ -1,4 +1,5 @@
 #if os(macOS)
+import EchoSense
 import AppKit
 import SwiftUI
 
@@ -37,6 +38,8 @@ extension QueryResultsTableView.Coordinator {
         selectionFocus = region?.end
 
         guard let tableView else { return }
+        updateAccentRowNumbers(in: tableView)
+        updateSelectionSummary(for: region)
 
         let desiredStyle: NSTableView.SelectionHighlightStyle = region != nil ? .none : .regular
         if tableView.selectionHighlightStyle != desiredStyle {
@@ -170,7 +173,20 @@ extension QueryResultsTableView.Coordinator {
             bottomRadius = bottomRadiusRaw
         }
 
-        return ResultTableRowView.SelectionRenderInfo(rect: converted, topCornerRadius: topRadius, bottomCornerRadius: bottomRadius)
+        var info = ResultTableRowView.SelectionRenderInfo(rect: converted, topCornerRadius: topRadius, bottomCornerRadius: bottomRadius)
+        // The active cell (where the selection started) gets a stronger ring, when the range has
+        // more than one cell.
+        if region == selectionRegion, region.start.row == row, region.start != region.end,
+           region.start.column >= 0, region.start.column <= maxColumn {
+            let cellRect = NSRect(
+                x: tableView.rect(ofColumn: region.start.column).minX,
+                y: tableView.rect(ofRow: row).minY,
+                width: tableView.rect(ofColumn: region.start.column).width,
+                height: tableView.rowHeight
+            )
+            info.activeCellRect = rowView.convert(cellRect, from: tableView).insetBy(dx: 1.5, dy: 1)
+        }
+        return info
     }
 
     var hasActiveCellSelection: Bool { selectionRegion != nil || !additionalRegions.isEmpty }
@@ -223,6 +239,57 @@ extension QueryResultsTableView.Coordinator {
             return tableView.numberOfRows - 1
         }
         return nil
+    }
+}
+
+extension QueryResultsTableView.Coordinator {
+    /// The row under the pointer (plan R4): its row view tints and its number turns accent.
+    func setHoveredRow(_ row: Int?, in tableView: NSTableView) {
+        guard row != hoveredRow else { return }
+        if let previous = hoveredRow, previous < tableView.numberOfRows {
+            (tableView.rowView(atRow: previous, makeIfNecessary: false) as? ResultTableRowView)?.isHovered = false
+        }
+        if let row, row < tableView.numberOfRows {
+            (tableView.rowView(atRow: row, makeIfNecessary: false) as? ResultTableRowView)?.isHovered = true
+        }
+        hoveredRow = row
+        updateAccentRowNumbers(in: tableView)
+    }
+
+    /// Sums the selected cells for the footer (plan R5); huge selections are only counted.
+    func updateSelectionSummary(for region: SelectedRegion?) {
+        guard let region else {
+            if queryState.gridSelectionSummary != nil { queryState.gridSelectionSummary = nil }
+            return
+        }
+        let rows = region.normalizedRowRange
+        let columns = region.normalizedColumnRange
+        guard rows.lowerBound >= 0, columns.lowerBound >= 0 else { return }
+        let cellCount = rows.count * columns.count
+        var values: [String?] = []
+        if cellCount <= GridSelectionSummary.maximumSummedCells {
+            values.reserveCapacity(cellCount)
+            for row in rows {
+                let source = resolvedRowIndex(for: row)
+                for column in columns {
+                    values.append(source >= 0 ? queryState.valueForDisplay(row: source, column: column) : nil)
+                }
+            }
+        }
+        let summary = GridSelectionSummary.summarize(values, cellCount: cellCount)
+        if queryState.gridSelectionSummary != summary { queryState.gridSelectionSummary = summary }
+    }
+
+    /// Accent row numbers for the selected rows and the hovered row (plans R3, R4).
+    func updateAccentRowNumbers(in tableView: NSTableView) {
+        var rows = IndexSet()
+        for region in additionalRegions + [selectionRegion].compactMap({ $0 }) {
+            let range = region.normalizedRowRange
+            if range.lowerBound >= 0 { rows.insert(integersIn: range.lowerBound...range.upperBound) }
+        }
+        rows.formUnion(tableView.selectedRowIndexes)
+        if let hoveredRow { rows.insert(hoveredRow) }
+        (tableView.enclosingScrollView?.superview as? ResultTableContainerView)?.setAccentRows(rows)
     }
 }
 #endif

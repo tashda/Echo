@@ -5,7 +5,10 @@ struct SchemaDiffView: View {
     @Bindable var viewModel: SchemaDiffViewModel
     @Bindable var panelState: BottomPanelState
     @Environment(TabStore.self) private var tabStore
+    @Environment(\.workspaceTab) private var hostTab
     @Environment(EnvironmentState.self) private var environmentState
+
+    @State private var diffListFraction: CGFloat = 0.45
 
     var body: some View {
         MaintenanceTabFrame(
@@ -22,8 +25,8 @@ struct SchemaDiffView: View {
     }
 
     private var connectionText: String {
-        let connText = tabStore.activeTab?.connection.connectionName ?? "Server"
-        let db = tabStore.activeTab?.activeDatabaseName
+        let connText = hostTab?.connection.connectionName ?? "Server"
+        let db = hostTab?.activeDatabaseName
         return db.map { "\(connText) \u{2022} \($0)" } ?? connText
     }
 
@@ -143,11 +146,11 @@ struct SchemaDiffView: View {
                 description: Text("Select source and target schemas, then click Compare to see differences.")
             )
         } else {
-            HSplitView {
+            // TT1: the diff list and the selected object's detail are two cards.
+            CardSplitView(axis: .horizontal, fraction: $diffListFraction, minFraction: 0.25) {
                 diffTable
-                    .frame(minWidth: 300)
+            } second: {
                 SchemaDiffDetailView(viewModel: viewModel)
-                    .frame(minWidth: 300, idealWidth: 400)
             }
         }
     }

@@ -1,5 +1,4 @@
 import Foundation
-import SQLServerKit
 
 @MainActor @Observable
 final class ObjectBrowserSidebarViewModel {
@@ -8,43 +7,23 @@ final class ObjectBrowserSidebarViewModel {
     var hideOfflineDatabasesBySession: [UUID: Bool] = [:]
     var revealedNodeID: String?
     var revealRequestID = 0
+    /// False makes the next reveal a jump (a dock switch returning to its place, round 19).
+    var revealAnimated = true
+    /// Servers whose rows are faded out while their dock switches sections (round 19, S3).
+    var dockFadingConnectionIDs: Set<UUID> = []
+    /// Servers mid-switch: their rows swap without transitions of their own, so the old section
+    /// can never show again while it is removed.
+    var dockSwitchingConnectionIDs: Set<UUID> = []
+    /// Servers whose new rows wait, invisible, until the card has its new size.
+    var dockHiddenRowsConnectionIDs: Set<UUID> = []
     var highlightedNodeID: String?
     var highlightPulse = false
-    var agentJobsBySession: [UUID: [AgentJobItem]] = [:]
-    var agentJobsLoadingBySession: [UUID: Bool] = [:]
-    var linkedServersBySession: [UUID: [LinkedServerItem]] = [:]
-    var linkedServersLoadingBySession: [UUID: Bool] = [:]
-    var ssisFoldersBySession: [UUID: [SQLServerSSISFolder]] = [:]
-    var ssisLoadingBySession: [UUID: Bool] = [:]
-    var databaseSnapshotsBySession: [UUID: [SQLServerDatabaseSnapshot]] = [:]
-    var databaseSnapshotsLoadingBySession: [UUID: Bool] = [:]
-    var databaseSnapshotsExpandedBySession: [UUID: Bool] = [:]
-    var serverTriggersBySession: [UUID: [ServerTriggerItem]] = [:]
-    var serverTriggersLoadingBySession: [UUID: Bool] = [:]
-    var securityLoginsBySession: [UUID: [SecurityLoginItem]] = [:]
-    var securityServerRolesBySession: [UUID: [SecurityServerRoleItem]] = [:]
-    var securityCredentialsBySession: [UUID: [SecurityCredentialItem]] = [:]
-    var securityServerLoadingBySession: [UUID: Bool] = [:]
-    var dbSecurityUsersByDB: [String: [SecurityUserItem]] = [:]
-    var dbSecurityRolesByDB: [String: [SecurityDatabaseRoleItem]] = [:]
-    var dbSecurityAppRolesByDB: [String: [SecurityAppRoleItem]] = [:]
-    var dbSecuritySchemasByDB: [String: [SecuritySchemaItem]] = [:]
-    var dbSecurityLoadingByDB: [String: Bool] = [:]
-    var dbDDLTriggersByDB: [String: [DatabaseDDLTriggerItem]] = [:]
-    var dbDDLTriggersLoadingByDB: [String: Bool] = [:]
-    var serviceBrokerLoadingByDB: [String: Bool] = [:]
-    var serviceBrokerMessageTypesByDB: [String: [String]] = [:]
-    var serviceBrokerContractsByDB: [String: [String]] = [:]
-    var serviceBrokerQueuesByDB: [String: [String]] = [:]
-    var serviceBrokerServicesByDB: [String: [String]] = [:]
-    var serviceBrokerRoutesByDB: [String: [String]] = [:]
-    var serviceBrokerBindingsByDB: [String: [String]] = [:]
-    var externalResourcesLoadingByDB: [String: Bool] = [:]
-    var externalDataSourcesByDB: [String: [String]] = [:]
-    var externalTablesByDB: [String: [String]] = [:]
-    var externalFileFormatsByDB: [String: [String]] = [:]
+    /// Everything loaded for folders beyond the schema (logins, jobs, queues…), by source.
+    var childSources: [ExplorerSourceKey: ExplorerSourceState] = [:]
 
     @ObservationIgnored var initializedConnectionIDs: Set<UUID> = []
+    /// The section each server's dock shows (TC1), by connection.
+    var dockSelections: [UUID: String] = [:]
 
     private static func hideOfflineKey(for connectionID: UUID) -> String {
         "echo.sidebar.hideOffline.\(connectionID.uuidString)"
@@ -52,7 +31,7 @@ final class ObjectBrowserSidebarViewModel {
 
     func setHideOffline(_ hidden: Bool, for connectionID: UUID) {
         hideOfflineDatabasesBySession[connectionID] = hidden
-        UserDefaults.standard.set(hidden, forKey: Self.hideOfflineKey(for: connectionID))
+        ExplorerStateStore.set(hidden, forKey: Self.hideOfflineKey(for: connectionID))
     }
 
     func synchronizeDefaults(
@@ -72,7 +51,7 @@ final class ObjectBrowserSidebarViewModel {
 
             // Load per-connection hide offline state from UserDefaults, falling back to global default
             let key = Self.hideOfflineKey(for: session.connection.id)
-            if let saved = UserDefaults.standard.object(forKey: key) as? Bool {
+            if let saved = ExplorerStateStore.bool(forKey: key) {
                 hideOfflineDatabasesBySession[session.connection.id] = saved
             } else {
                 hideOfflineDatabasesBySession[session.connection.id] = hideOfflineDefault
@@ -88,7 +67,7 @@ final class ObjectBrowserSidebarViewModel {
             }
             if autoExpand.contains(.security) {
                 expanded.insert(
-                    Self.serverFolderNodeID(connectionID: session.connection.id, kind: .security)
+                    Self.serverFolderNodeID(connectionID: session.connection.id, kind: .serverSecurity)
                 )
             }
             if autoExpand.contains(.management) {
@@ -183,81 +162,32 @@ final class ObjectBrowserSidebarViewModel {
         highlightedNodeID = nodeID
         highlightPulse.toggle()
     }
+}
 
-    struct LinkedServerItem: Identifiable, Hashable {
-        let id: String
-        let name: String
-        let provider: String
-        let dataSource: String
-        let product: String
-        let isDataAccessEnabled: Bool
+extension ObjectBrowserSidebarViewModel {
+    func sourceState(_ key: ExplorerSourceKey) -> ExplorerSourceState {
+        childSources[key] ?? ExplorerSourceState()
     }
 
-    struct AgentJobItem: Identifiable, Hashable {
-        let id: String
-        let name: String
-        let enabled: Bool
-        let lastOutcome: String?
+    func items(_ key: ExplorerSourceKey, kind: ExplorerNodeKind) -> [ExplorerItem] {
+        childSources[key]?.items[kind] ?? []
     }
 
-    struct ServerTriggerItem: Identifiable, Hashable {
-        let id: String
-        let name: String
-        let isDisabled: Bool
-        let typeDescription: String
-        let events: [String]
+    func beginLoading(_ key: ExplorerSourceKey) {
+        childSources[key, default: ExplorerSourceState()].isLoading = true
     }
 
-    struct SecurityLoginItem: Identifiable, Hashable {
-        let id: String
-        let name: String
-        let loginType: String
-        let isDisabled: Bool
+    /// Stores a finished load. A failed load stores empty lists, so the folders say they're empty.
+    func finishLoading(_ key: ExplorerSourceKey, items: [ExplorerNodeKind: [ExplorerItem]]) {
+        var state = childSources[key] ?? ExplorerSourceState()
+        state.items = items
+        state.hasLoaded = true
+        state.isLoading = false
+        childSources[key] = state
     }
 
-    struct SecurityServerRoleItem: Identifiable, Hashable {
-        let id: String
-        let name: String
-        let isFixed: Bool
-    }
-
-    struct SecurityCredentialItem: Identifiable, Hashable {
-        let id: String
-        let name: String
-        let identity: String
-    }
-
-    struct SecurityUserItem: Identifiable, Hashable {
-        let id: String
-        let name: String
-        let userType: String
-        let defaultSchema: String?
-    }
-
-    struct SecurityDatabaseRoleItem: Identifiable, Hashable {
-        let id: String
-        let name: String
-        let isFixed: Bool
-        let owner: String?
-    }
-
-    struct SecurityAppRoleItem: Identifiable, Hashable {
-        let id: String
-        let name: String
-        let defaultSchema: String?
-    }
-
-    struct SecuritySchemaItem: Identifiable, Hashable {
-        let id: String
-        let name: String
-        let owner: String?
-    }
-
-    struct DatabaseDDLTriggerItem: Identifiable, Hashable {
-        let id: String
-        let name: String
-        let isDisabled: Bool
-        let events: [String]
+    func endLoading(_ key: ExplorerSourceKey) {
+        childSources[key]?.isLoading = false
     }
 }
 
@@ -282,44 +212,19 @@ extension ObjectBrowserSidebarViewModel {
         "\(connectionID.uuidString)#db#\(databaseName)#group#\(objectType.rawValue)"
     }
 
-    static func serverFolderNodeID(
-        connectionID: UUID,
-        kind: ObjectBrowserServerFolderKind
-    ) -> String {
-        "\(connectionID.uuidString)#server-folder#\(kind.rawValue)"
+    /// A server-level folder (a section heading).
+    static func serverFolderNodeID(connectionID: UUID, kind: ExplorerNodeKind) -> String {
+        if kind == .databases { return databasesFolderNodeID(connectionID: connectionID) }
+        return "\(connectionID.uuidString)#server-folder#\(kind.idComponent)"
     }
 
-    static func securitySectionNodeID(
-        connectionID: UUID,
-        kind: ObjectBrowserSecuritySectionKind,
-        parentID: String
-    ) -> String {
-        "\(parentID)#security-section#\(connectionID.uuidString)#\(kind.rawValue)"
+    static func actionNodeID(connectionID: UUID, parentID: String?, kind: ExplorerNodeKind) -> String {
+        "\(parentID ?? connectionID.uuidString)#action#\(kind.idComponent)"
     }
 
-    static func securityLeafNodeID(
-        connectionID: UUID,
-        parentID: String,
-        kind: ObjectBrowserSecuritySectionKind,
-        name: String
-    ) -> String {
-        "\(parentID)#security-leaf#\(connectionID.uuidString)#\(kind.rawValue)#\(name)"
-    }
-
-    static func actionNodeID(
-        connectionID: UUID,
-        parentID: String?,
-        kind: ObjectBrowserActionKind
-    ) -> String {
-        "\(parentID ?? connectionID.uuidString)#action#\(kind.rawValue)"
-    }
-
-    static func databaseFolderNodeID(
-        connectionID: UUID,
-        databaseName: String,
-        kind: ObjectBrowserDatabaseFolderKind
-    ) -> String {
-        "\(connectionID.uuidString)#db#\(databaseName)#folder#\(kind.rawValue)"
+    /// A folder directly inside a database.
+    static func databaseFolderNodeID(connectionID: UUID, databaseName: String, kind: ExplorerNodeKind) -> String {
+        "\(connectionID.uuidString)#db#\(databaseName)#folder#\(kind.idComponent)"
     }
 
     static func databaseSubfolderNodeID(parentID: String, title: String) -> String {
@@ -328,10 +233,6 @@ extension ObjectBrowserSidebarViewModel {
 
     static func databaseItemNodeID(parentID: String, title: String) -> String {
         "\(parentID)#item#\(title)"
-    }
-
-    func databaseStorageKey(connectionID: UUID, databaseName: String) -> String {
-        "\(connectionID.uuidString)#\(databaseName)"
     }
 
     static func infoNodeID(parentID: String, title: String) -> String {

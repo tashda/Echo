@@ -88,13 +88,10 @@ struct LoginEditorViewModelTests {
 
     // MARK: - Pages
 
-    @Test func pagesForNewLoginExcludesUserMappingAndSecurables() {
+    /// As in SSMS, user mappings and securables can be staged before the login exists.
+    @Test func pagesForNewLoginIncludeEveryPage() {
         let vm = makeViewModel()
-        let pages = vm.pages
-        #expect(pages.contains(.general))
-        #expect(pages.contains(.serverRoles))
-        #expect(!pages.contains(.userMapping))
-        #expect(!pages.contains(.securables))
+        #expect(vm.pages == [.general, .serverRoles, .userMapping, .securables])
     }
 
     @Test func pagesForExistingLoginIncludesAll() {

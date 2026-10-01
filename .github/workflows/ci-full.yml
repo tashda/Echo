@@ -14,14 +14,14 @@ concurrency:
 jobs:
   build-and-test:
     name: "Step 1: Build & Test"
-    runs-on: macos-26
+    runs-on: xcode-27
     steps:
     - uses: actions/checkout@v4
 
     - name: Select Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '26'
+        xcode-version: '27'
 
     - name: Install PostgreSQL tools
       run: |
@@ -45,6 +45,14 @@ jobs:
       run: |
         rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
         rm -rf ~/Library/Developer/Xcode/DerivedData/*/SourcePackages
+
+    - name: Access to echo-server-lab
+      uses: ./.github/actions/lab-repo-access
+      with:
+        deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
+
+    - name: Placeholder secrets for test builds
+      run: cp Echo/Configuration/Secrets.xcconfig.example Echo/Configuration/Secrets.xcconfig
 
     - name: Resolve packages
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
@@ -82,12 +90,103 @@ jobs:
         name: test-results-sqlite
         path: TestResults-sqlite.xcresult
 
+  # ── Database tests on echo-server-lab ───────────────────────────────────────
+  # Runs the EchoTests plan, which switches on the lab suites (SERVERLAB_INTEGRATION=1): each one
+  # starts fresh servers from its recipe on testlab, reached over Tailscale, and removes them.
+
+  lab-tests:
+    name: "Step 2: Database tests on the lab"
+    runs-on: xcode-27
+    needs: [build-and-test]
+    timeout-minutes: 120
+    concurrency:
+      group: testlab
+      cancel-in-progress: false
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Select Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '27'
+
+    - name: Access to echo-server-lab
+      uses: ./.github/actions/lab-repo-access
+      with:
+        deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
+
+    - name: Access to testlab
+      uses: ./.github/actions/testlab-access
+      with:
+        tailscale-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+        tailscale-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+        ssh-key: ${{ secrets.TESTLAB_SSH_KEY }}
+        known-hosts: ${{ secrets.TESTLAB_KNOWN_HOSTS }}
+
+    - name: Lab revision Echo is pinned to
+      id: lab
+      run: |
+        revision=$(python3 -c "import json; d=json.load(open('Echo.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved')); print(next(p['state']['revision'] for p in d['pins'] if p['identity'] == 'echo-server-lab'))")
+        echo "revision=$revision" >> "$GITHUB_OUTPUT"
+
+    - name: Check out echo-server-lab
+      uses: actions/checkout@v4
+      with:
+        repository: tashda/echo-server-lab
+        ref: ${{ steps.lab.outputs.revision }}
+        ssh-key: ${{ secrets.LAB_DEPLOY_KEY }}
+        path: echo-server-lab
+
+    - name: Cache the serverlab build
+      uses: actions/cache@v4
+      with:
+        path: echo-server-lab/.build
+        key: serverlab-${{ runner.os }}-${{ steps.lab.outputs.revision }}
+
+    - name: Build serverlab
+      run: swift build -c release --product serverlab --package-path echo-server-lab
+
+    - name: Placeholder secrets for test builds
+      run: cp Echo/Configuration/Secrets.xcconfig.example Echo/Configuration/Secrets.xcconfig
+
+    - name: Resolve packages
+      run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo
+
+    - name: Run the EchoTests plan against the lab
+      env:
+        TEST_RUNNER_SERVERLAB_CLI: ${{ github.workspace }}/echo-server-lab/.build/release/serverlab
+        TEST_RUNNER_SERVERLAB_PASSWORD: ${{ secrets.SERVERLAB_PASSWORD }}
+        TEST_RUNNER_SERVERLAB_OWNER_PREFIX: ci-${{ github.run_id }}-${{ github.run_attempt }}
+      run: |
+        find . -maxdepth 1 -name "TestResults-lab*" -exec rm -rf {} + 2>/dev/null || true
+        xcodebuild test -project Echo.xcodeproj \
+          -scheme Echo -testPlan EchoTests \
+          -destination 'platform=macOS' \
+          -resultBundlePath TestResults-lab \
+          -disable-concurrent-testing \
+          CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=NO ENABLE_HARDENED_RUNTIME=NO OTHER_CODE_SIGN_FLAGS='--deep'
+
+    - name: Remove servers this run left behind
+      if: always()
+      env:
+        SERVERLAB_PASSWORD: ${{ secrets.SERVERLAB_PASSWORD }}
+      run: |
+        echo-server-lab/.build/release/serverlab down --all --owner-prefix "ci-${{ github.run_id }}-${{ github.run_attempt }}" || true
+        echo-server-lab/.build/release/serverlab reap || true
+
+    - name: Upload Lab Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-lab
+        path: TestResults-lab.xcresult
+
   # ── Production Build & Release ──────────────────────────────────────────────
 
   release:
-    name: "Step 2: Production Build & Release"
-    runs-on: macos-26
-    needs: [build-and-test]
+    name: "Step 3: Production Build & Release"
+    runs-on: xcode-27
+    needs: [build-and-test, lab-tests]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: write
@@ -97,7 +196,7 @@ jobs:
         fetch-depth: 0
     - uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '26'
+        xcode-version: '27'
     - name: Install PostgreSQL tools
       run: |
         brew list libpq >/dev/null 2>&1 || brew install libpq
@@ -136,6 +235,11 @@ jobs:
         # Add to search list so codesign finds it
         security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+    - name: Access to echo-server-lab
+      uses: ./.github/actions/lab-repo-access
+      with:
+        deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
 
     - name: Resolve packages
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo

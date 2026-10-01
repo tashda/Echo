@@ -22,6 +22,12 @@ struct EchoSenseSettingsView: View {
                     isOn: showSystemSchemasBinding,
                     topic: .systemSchemas
                 )
+
+                EchoSenseToggleRow(
+                    title: "Ghost text instead of the list",
+                    isOn: ghostTextBinding,
+                    topic: .ghostText
+                )
             }
 
             Section("Validation") {

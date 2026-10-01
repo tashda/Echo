@@ -27,7 +27,7 @@ extension ConnectionEditorView {
             sanitizedCredentialSource = .manual
         }
 
-        let connection = SavedConnection(
+        var connection = SavedConnection(
             id: originalConnection?.id ?? UUID(),
             projectID: originalConnection?.projectID ?? projectStore.selectedProject?.id,
             connectionName: connectionName,
@@ -53,12 +53,17 @@ extension ConnectionEditorView {
                 let trimmed = hostNameInCertificate.trimmingCharacters(in: .whitespacesAndNewlines)
                 return trimmed.isEmpty ? nil : trimmed
             }(),
+            readOnlyIntent: selectedDatabaseType == .microsoftSQL ? readOnlyIntent : false,
+            allowLegacyTLS: selectedDatabaseType == .microsoftSQL ? allowLegacyTLS : false,
             databaseType: selectedDatabaseType,
             serverVersion: nil,
             colorHex: colorHex,
             cachedStructure: nil,
             cachedStructureUpdatedAt: nil
         )
+
+        applyPostgresOptions(to: &connection)
+        let keyPasswordOverride = keyPasswordForTest
 
         let overridePassword: String?
         if selectedDatabaseType == .sqlite {
@@ -72,7 +77,8 @@ extension ConnectionEditorView {
         if selectedDatabaseType == .sqlite {
             appendLog("Opening database at \(host)...", kind: .info)
         } else {
-            appendLog("Connecting to \(host):\(port)...", kind: .info)
+            let others = connection.additionalHosts.map { "\($0.host):\($0.port ?? port)" }
+            appendLog(others.isEmpty ? "Connecting to \(host):\(port)..." : "Testing \(([ "\(host):\(port)" ] + others).joined(separator: ", "))...", kind: .info)
             if sanitizedCredentialSource == .manual && !trimmedUsername.isEmpty {
                 appendLog("Authenticating as \(trimmedUsername)...", kind: .info)
             } else if sanitizedCredentialSource == .identity {
@@ -80,10 +86,13 @@ extension ConnectionEditorView {
             } else if sanitizedCredentialSource == .inherit {
                 appendLog("Using inherited credentials...", kind: .info)
             }
+            if sanitizedAuthenticationMethod == .kerberos {
+                appendLog("Signing in with your Kerberos ticket...", kind: .info)
+            }
         }
 
         testTask = Task {
-            await runConnectionTest(connection: connection, passwordOverride: overridePassword)
+            await runConnectionTest(connection: connection, passwordOverride: overridePassword, keyPasswordOverride: keyPasswordOverride)
         }
     }
 
@@ -100,7 +109,7 @@ extension ConnectionEditorView {
     /// Echo's own fallback fires 1 second later so the driver's real error always wins.
     static let driverTimeoutSeconds = 10
 
-    func runConnectionTest(connection: SavedConnection, passwordOverride: String?) async {
+    func runConnectionTest(connection: SavedConnection, passwordOverride: String?, keyPasswordOverride: String? = nil) async {
         let driverTimeout = Self.driverTimeoutSeconds
 
         // The driver's own connectTimeoutSeconds handles TCP timeouts.
@@ -119,6 +128,7 @@ extension ConnectionEditorView {
             result = await environmentState.testConnection(
                 connection,
                 passwordOverride: passwordOverride,
+                keyPasswordOverride: keyPasswordOverride,
                 connectTimeoutSeconds: driverTimeout
             )
         }
@@ -138,6 +148,9 @@ extension ConnectionEditorView {
         testResult = result
         isTestingConnection = false
         self.testTask = nil
+        for line in result.serverLines {
+            appendLog(line, kind: line.contains(" ✓ ") ? .success : .error)
+        }
 
         if result.success {
             var successMsg = "Connected successfully"

@@ -101,6 +101,14 @@ public enum DatabaseError: Error, LocalizedError, Sendable {
         switch error {
         case .clientShutdown, .connectionClosed:
             return .connectionFailed(message, underlyingError: sendable)
+        case .commitOutcomeUnknown:
+            // Round 22, CU1: the server may or may not have saved the work.
+            return .transactionError(
+                "The connection was lost during COMMIT. The transaction may or may not have been saved; check the data before running it again.",
+                underlyingError: sendable
+            )
+        case .tlsFailed(let failure):
+            return .tlsError(failure.message, underlyingError: sendable)
         case .authenticationFailed:
             return .authenticationFailed(message, underlyingError: sendable)
         case .timeout:

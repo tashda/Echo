@@ -25,18 +25,8 @@
 		0A79557E2E8F10A9002279AE /* MySQLKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A79557D2E8F10A9002279AE /* MySQLKit */; };
 		0A7955802E8F10A9002279AE /* MySQLWire in Frameworks */ = {isa = PBXBuildFile; productRef = 0A79557F2E8F10A9002279AE /* MySQLWire */; };
 		0AAD000300000000000000AD /* ActiveDirectory in Frameworks */ = {isa = PBXBuildFile; productRef = 0AAD000200000000000000AD /* ActiveDirectory */; };
-		6030A29ABBCD58751DCA65AE /* SourceCodePro-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 63CF0995418024155EBA8F37 /* SourceCodePro-Regular.ttf */; };
-		8ECF63DBB3844802B62E76D4 /* UbuntuMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 533ECEA388B5E26722814A7C /* UbuntuMono-Regular.ttf */; };
-		B66C2F887E35A3358F209F93 /* Hack-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = B76434B110ACC86CC86642A1 /* Hack-Regular.ttf */; };
-		C93850D54E3A549BC7E315B3 /* Inconsolata-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 23F736A358A1CCBACD3B0834 /* Inconsolata-Regular.ttf */; };
-		D3BB6F6FC954AA040392C7C7 /* AnonymousPro-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = CC1194D7AF45D51E8E8EA8C4 /* AnonymousPro-Regular.ttf */; };
-		E1CF7F199F60040BF42A54DF /* MesloLGS-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 9CC0B2EBE9BD3F338658D526 /* MesloLGS-Regular.ttf */; };
-		E2E872DC3647C4621284F1B2 /* Iosevka-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 9914A75C43EF3F555CE8E868 /* Iosevka-Regular.ttf */; };
-		F17A0E1C2FC1C3BC007F5489 /* FiraCode-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E0F2FC1B3F8007F5489 /* FiraCode-Regular.ttf */; };
-		F17A0E1D2FC1C3BC007F5489 /* IBMPlexMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E102FC1B3F8007F5489 /* IBMPlexMono-Regular.ttf */; };
-		F17A0E1E2FC1C3BC007F5489 /* JetBrainsMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E112FC1B3F8007F5489 /* JetBrainsMono-Regular.ttf */; };
-		F17A0E1F2FC1C3BC007F5489 /* RecursiveMonoLinear-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E122FC1B3F8007F5489 /* RecursiveMonoLinear-Regular.ttf */; };
-		F17A0E202FC1C3BC007F5489 /* SplineSansMono-Regular.ttf in CopyFiles */ = {isa = PBXBuildFile; fileRef = F17A0E132FC1B3F8007F5489 /* SplineSansMono-Regular.ttf */; };
+		0ADE5D00000000000000A003 /* EchoDesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 0ADE5D00000000000000A002 /* EchoDesignSystem */; };
+		EA74938A42BEA42306934B73 /* ServerLabClient in Frameworks */ = {isa = PBXBuildFile; productRef = FD3382FC2CB7A2B3917A4282 /* ServerLabClient */; };
 		PGT001000000000000000001 /* pg_dump in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000001 /* pg_dump */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		PGT001000000000000000002 /* pg_restore in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000002 /* pg_restore */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		PGT001000000000000000003 /* libpq.5.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000003 /* libpq.5.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
@@ -70,25 +60,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		F17A0E1B2FC1C3BC007F5489 /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			dstPath = Fonts;
-			dstSubfolder = Resources;
-			files = (
-				F17A0E1C2FC1C3BC007F5489 /* FiraCode-Regular.ttf in CopyFiles */,
-				F17A0E1D2FC1C3BC007F5489 /* IBMPlexMono-Regular.ttf in CopyFiles */,
-				F17A0E1E2FC1C3BC007F5489 /* JetBrainsMono-Regular.ttf in CopyFiles */,
-				F17A0E1F2FC1C3BC007F5489 /* RecursiveMonoLinear-Regular.ttf in CopyFiles */,
-				F17A0E202FC1C3BC007F5489 /* SplineSansMono-Regular.ttf in CopyFiles */,
-				6030A29ABBCD58751DCA65AE /* SourceCodePro-Regular.ttf in CopyFiles */,
-				B66C2F887E35A3358F209F93 /* Hack-Regular.ttf in CopyFiles */,
-				8ECF63DBB3844802B62E76D4 /* UbuntuMono-Regular.ttf in CopyFiles */,
-				C93850D54E3A549BC7E315B3 /* Inconsolata-Regular.ttf in CopyFiles */,
-				E1CF7F199F60040BF42A54DF /* MesloLGS-Regular.ttf in CopyFiles */,
-				D3BB6F6FC954AA040392C7C7 /* AnonymousPro-Regular.ttf in CopyFiles */,
-				E2E872DC3647C4621284F1B2 /* Iosevka-Regular.ttf in CopyFiles */,
-			);
-		};
 		PGT003000000000000000001 /* Copy PostgresTools */ = {
 			isa = PBXCopyFilesBuildPhase;
 			dstPath = PostgresTools;
@@ -116,20 +87,8 @@
 		0A79556F2E8EB81C002279AE /* EchoUITests.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = EchoUITests.xctestplan; sourceTree = "<group>"; };
 		0A7955702E8EF321002279AE /* EchoTests.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = EchoTests.xctestplan; sourceTree = "<group>"; };
 		0ADF94952E78B95200E993F8 /* Echo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Echo.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		23F736A358A1CCBACD3B0834 /* Inconsolata-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Inconsolata-Regular.ttf"; path = "Echo/Resources/Fonts/Inconsolata-Regular.ttf"; sourceTree = "<group>"; };
 		44D226344BD64F6B8A29593F /* EchoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EchoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		533ECEA388B5E26722814A7C /* UbuntuMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "UbuntuMono-Regular.ttf"; path = "Echo/Resources/Fonts/UbuntuMono-Regular.ttf"; sourceTree = "<group>"; };
-		63CF0995418024155EBA8F37 /* SourceCodePro-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "SourceCodePro-Regular.ttf"; path = "Echo/Resources/Fonts/SourceCodePro-Regular.ttf"; sourceTree = "<group>"; };
-		9914A75C43EF3F555CE8E868 /* Iosevka-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Iosevka-Regular.ttf"; path = "Echo/Resources/Fonts/Iosevka-Regular.ttf"; sourceTree = "<group>"; };
-		9CC0B2EBE9BD3F338658D526 /* MesloLGS-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "MesloLGS-Regular.ttf"; path = "Echo/Resources/Fonts/MesloLGS-Regular.ttf"; sourceTree = "<group>"; };
-		B76434B110ACC86CC86642A1 /* Hack-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "Hack-Regular.ttf"; path = "Echo/Resources/Fonts/Hack-Regular.ttf"; sourceTree = "<group>"; };
 		C7719E187414448D93AD6120 /* EchoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EchoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		CC1194D7AF45D51E8E8EA8C4 /* AnonymousPro-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "AnonymousPro-Regular.ttf"; path = "Echo/Resources/Fonts/AnonymousPro-Regular.ttf"; sourceTree = "<group>"; };
-		F17A0E0F2FC1B3F8007F5489 /* FiraCode-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "FiraCode-Regular.ttf"; path = "Echo/Resources/Fonts/FiraCode-Regular.ttf"; sourceTree = "<group>"; };
-		F17A0E102FC1B3F8007F5489 /* IBMPlexMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "IBMPlexMono-Regular.ttf"; path = "Echo/Resources/Fonts/IBMPlexMono-Regular.ttf"; sourceTree = "<group>"; };
-		F17A0E112FC1B3F8007F5489 /* JetBrainsMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "JetBrainsMono-Regular.ttf"; path = "Echo/Resources/Fonts/JetBrainsMono-Regular.ttf"; sourceTree = "<group>"; };
-		F17A0E122FC1B3F8007F5489 /* RecursiveMonoLinear-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "RecursiveMonoLinear-Regular.ttf"; path = "Echo/Resources/Fonts/RecursiveMonoLinear-Regular.ttf"; sourceTree = "<group>"; };
-		F17A0E132FC1B3F8007F5489 /* SplineSansMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "SplineSansMono-Regular.ttf"; path = "Echo/Resources/Fonts/SplineSansMono-Regular.ttf"; sourceTree = "<group>"; };
 		PGT002000000000000000001 /* pg_dump */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = pg_dump; path = Tools/PostgresTools/pg_dump; sourceTree = "<group>"; };
 		PGT002000000000000000002 /* pg_restore */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = pg_restore; path = Tools/PostgresTools/pg_restore; sourceTree = "<group>"; };
 		PGT002000000000000000003 /* libpq.5.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libpq.5.dylib; path = Tools/PostgresTools/libpq.5.dylib; sourceTree = "<group>"; };
@@ -149,6 +108,7 @@
 		0AD219FA2F7BF4D2007CC30F /* Exceptions for "Echo" folder in "Echo" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Configuration/Secrets.xcconfig,
 				Info.plist,
 			);
 			target = 0ADF94942E78B95200E993F8 /* Echo */;
@@ -192,6 +152,7 @@
 				0A7955802E8F10A9002279AE /* MySQLWire in Frameworks */,
 				0A41EC842F7C0B8500AD776A /* PostgREST in Frameworks */,
 				0A697AEE2F5EF8220027641E /* EchoSense in Frameworks */,
+				0ADE5D00000000000000A003 /* EchoDesignSystem in Frameworks */,
 				0A41EC882F7C0B8500AD776A /* Storage in Frameworks */,
 				0A6970CA2F5EEFA40027641E /* SQLServerKit in Frameworks */,
 				0AAD000300000000000000AD /* ActiveDirectory in Frameworks */,
@@ -208,6 +169,7 @@
 		F6F7A37EFD91485785DAD8E5 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				EA74938A42BEA42306934B73 /* ServerLabClient in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -223,18 +185,6 @@
 		0A946E5E2F63124D009635C0 /* Recovered References */ = {
 			isa = PBXGroup;
 			children = (
-				F17A0E0F2FC1B3F8007F5489 /* FiraCode-Regular.ttf */,
-				F17A0E102FC1B3F8007F5489 /* IBMPlexMono-Regular.ttf */,
-				F17A0E112FC1B3F8007F5489 /* JetBrainsMono-Regular.ttf */,
-				F17A0E122FC1B3F8007F5489 /* RecursiveMonoLinear-Regular.ttf */,
-				F17A0E132FC1B3F8007F5489 /* SplineSansMono-Regular.ttf */,
-				63CF0995418024155EBA8F37 /* SourceCodePro-Regular.ttf */,
-				B76434B110ACC86CC86642A1 /* Hack-Regular.ttf */,
-				533ECEA388B5E26722814A7C /* UbuntuMono-Regular.ttf */,
-				23F736A358A1CCBACD3B0834 /* Inconsolata-Regular.ttf */,
-				9CC0B2EBE9BD3F338658D526 /* MesloLGS-Regular.ttf */,
-				CC1194D7AF45D51E8E8EA8C4 /* AnonymousPro-Regular.ttf */,
-				9914A75C43EF3F555CE8E868 /* Iosevka-Regular.ttf */,
 			);
 			name = "Recovered References";
 			sourceTree = "<group>";
@@ -293,7 +243,6 @@
 			buildPhases = (
 				0ADF94912E78B95200E993F8 /* Sources */,
 				0ADF94922E78B95200E993F8 /* Frameworks */,
-				F17A0E1B2FC1C3BC007F5489 /* CopyFiles */,
 				PGT003000000000000000001 /* Copy PostgresTools */,
 				0ADF94932E78B95200E993F8 /* Resources */,
 			);
@@ -311,6 +260,7 @@
 				0A6970C62F5EEF5E0027641E /* PostgresWire */,
 				0A6970C92F5EEFA40027641E /* SQLServerKit */,
 				0A697AED2F5EF8220027641E /* EchoSense */,
+				0ADE5D00000000000000A002 /* EchoDesignSystem */,
 				0AAD000200000000000000AD /* ActiveDirectory */,
 				0A698A412F5F88AA0027641E /* Sparkle */,
 				0A41EC7F2F7C0B8500AD776A /* Auth */,
@@ -365,6 +315,9 @@
 				A136718CC82746DC8CBC84F8 /* EchoTests */,
 			);
 			name = EchoTests;
+			packageProductDependencies = (
+				FD3382FC2CB7A2B3917A4282 /* ServerLabClient */,
+			);
 			productName = EchoTests;
 			productReference = C7719E187414448D93AD6120 /* EchoTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -377,7 +330,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2600;
-				LastUpgradeCheck = 2630;
+				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					0ADF94942E78B95200E993F8 = {
 						CreatedOnToolsVersion = 26.0;
@@ -407,10 +360,12 @@
 				0A6970C32F5EEF5E0027641E /* XCRemoteSwiftPackageReference "postgres-wire" */,
 				0A6970C82F5EEFA40027641E /* XCRemoteSwiftPackageReference "sqlserver-nio" */,
 				0A697AEC2F5EF8220027641E /* XCRemoteSwiftPackageReference "EchoSense" */,
+				0ADE5D00000000000000A001 /* XCLocalSwiftPackageReference "Packages/EchoDesignSystem" */,
 				0AAD000100000000000000AD /* XCRemoteSwiftPackageReference "swift-active-directory" */,
 				0A698A402F5F88AA0027641E /* XCRemoteSwiftPackageReference "Sparkle" */,
 				0A41EC7E2F7C0B8500AD776A /* XCRemoteSwiftPackageReference "supabase-swift" */,
 				0A41ECAE2F7C856800AD776A /* XCRemoteSwiftPackageReference "swift-crypto" */,
+				B396C6AF5D5149A2119B63A3 /* XCRemoteSwiftPackageReference "echo-server-lab" */,
 			);
 			preferredProjectObjectVersion = 100;
 			productRefGroup = 0ADF94962E78B95200E993F8 /* Products */;
@@ -840,6 +795,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		0ADE5D00000000000000A001 /* XCLocalSwiftPackageReference "Packages/EchoDesignSystem" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/EchoDesignSystem;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		0A41EC7E2F7C0B8500AD776A /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -848,6 +810,8 @@
 				kind = upToNextMajorVersion;
 				minimumVersion = 2.5.1;
 			};
+			traits = (
+			);
 		};
 		0A41ECAE2F7C856800AD776A /* XCRemoteSwiftPackageReference "swift-crypto" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -908,6 +872,14 @@
 		0AAD000100000000000000AD /* XCRemoteSwiftPackageReference "swift-active-directory" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/tashda/swift-active-directory";
+			requirement = {
+				branch = dev;
+				kind = branch;
+			};
+		};
+		B396C6AF5D5149A2119B63A3 /* XCRemoteSwiftPackageReference "echo-server-lab" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/tashda/echo-server-lab";
 			requirement = {
 				branch = dev;
 				kind = branch;
@@ -1005,6 +977,15 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 0AAD000100000000000000AD /* XCRemoteSwiftPackageReference "swift-active-directory" */;
 			productName = ActiveDirectory;
+		};
+		0ADE5D00000000000000A002 /* EchoDesignSystem */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = EchoDesignSystem;
+		};
+		FD3382FC2CB7A2B3917A4282 /* ServerLabClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B396C6AF5D5149A2119B63A3 /* XCRemoteSwiftPackageReference "echo-server-lab" */;
+			productName = ServerLabClient;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

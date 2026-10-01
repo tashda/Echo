@@ -16,9 +16,22 @@ struct SQLEditorSurfaceColors: Codable, Equatable {
 
 struct SQLEditorTheme: Codable, Equatable {
     static let defaultFontName = "JetBrainsMono-Regular"
+    static let defaultFontFamily = "JetBrains Mono"
+    /// Families bundled in `Resources/Fonts`, all under the SIL Open Font License.
+    static let bundledFontFamilies = [
+        "JetBrains Mono", "Geist Mono", "Google Sans Code", "Intel One Mono", "Martian Mono", "Fragment Mono",
+        "Atkinson Hyperlegible Mono", "Cascadia Code", "CommitMono",
+        "Monaspace Neon Var", "Monaspace Argon Var", "Monaspace Xenon Var", "Monaspace Radon Var", "Monaspace Krypton Var",
+    ]
+    /// Picker names where a font's family name reads badly.
+    static let bundledFontDisplayNames = [
+        "CommitMono": "Commit Mono",
+        "Monaspace Neon Var": "Monaspace Neon", "Monaspace Argon Var": "Monaspace Argon", "Monaspace Xenon Var": "Monaspace Xenon",
+        "Monaspace Radon Var": "Monaspace Radon", "Monaspace Krypton Var": "Monaspace Krypton",
+    ]
     static let systemFontIdentifier = "__system_monospaced__"
-    static let defaultFontSize: CGFloat = 12
-    static let defaultLineHeight: CGFloat = 1.0
+    static let defaultFontSize: CGFloat = 13
+    static let defaultLineHeight: CGFloat = 1.55
 
     var fontName: String
     var fontSize: CGFloat

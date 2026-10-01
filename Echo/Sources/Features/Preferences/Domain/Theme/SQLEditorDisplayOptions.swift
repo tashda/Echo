@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 
 struct SQLEditorDisplayOptions: Codable, Equatable {
     var showLineNumbers: Bool
@@ -10,6 +11,16 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
     var qualifyTableCompletions: Bool
     var showSystemSchemasInCompletion: Bool
     var liveValidationEnabled: Bool
+    /// QE1: a faint band on the statement at the caret and a Run arrow in the gutter.
+    var statementFocusEnabled: Bool
+    /// QE5: the outline strip on the editor's right edge, in place of the scroll bar.
+    var outlineEdgeEnabled: Bool
+    /// ES3: the top suggestion as grey text after the caret, Tab accepts; the popup on demand.
+    var ghostTextEnabled: Bool
+    /// Subtle (numbers only) or tinted (a faint column with an edge).
+    var gutterStyle: EditorGutterStyle
+    /// Settings › Appearance › Card Corners; the EchoSense popup follows it (capped).
+    var cardCornerRadius: CGFloat
 
     init(
         showLineNumbers: Bool = true,
@@ -20,7 +31,12 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         autoCompletionEnabled: Bool = true,
         qualifyTableCompletions: Bool = false,
         showSystemSchemasInCompletion: Bool = false,
-        liveValidationEnabled: Bool = true
+        liveValidationEnabled: Bool = true,
+        statementFocusEnabled: Bool = true,
+        outlineEdgeEnabled: Bool = false,
+        ghostTextEnabled: Bool = false,
+        gutterStyle: EditorGutterStyle = .subtle,
+        cardCornerRadius: CGFloat = LayoutTokens.Workspace.cardCornerRadius
     ) {
         self.showLineNumbers = showLineNumbers
         self.highlightSelectedSymbol = highlightSelectedSymbol
@@ -31,6 +47,11 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         self.qualifyTableCompletions = qualifyTableCompletions
         self.showSystemSchemasInCompletion = showSystemSchemasInCompletion
         self.liveValidationEnabled = liveValidationEnabled
+        self.statementFocusEnabled = statementFocusEnabled
+        self.outlineEdgeEnabled = outlineEdgeEnabled
+        self.ghostTextEnabled = ghostTextEnabled
+        self.gutterStyle = gutterStyle
+        self.cardCornerRadius = cardCornerRadius
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -43,6 +64,11 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         case qualifyTableCompletions
         case showSystemSchemasInCompletion
         case liveValidationEnabled
+        case statementFocusEnabled
+        case outlineEdgeEnabled
+        case ghostTextEnabled
+        case gutterStyle
+        case cardCornerRadius
     }
 
     init(from decoder: Decoder) throws {
@@ -56,6 +82,11 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         qualifyTableCompletions = try container.decodeIfPresent(Bool.self, forKey: .qualifyTableCompletions) ?? false
         showSystemSchemasInCompletion = try container.decodeIfPresent(Bool.self, forKey: .showSystemSchemasInCompletion) ?? false
         liveValidationEnabled = try container.decodeIfPresent(Bool.self, forKey: .liveValidationEnabled) ?? true
+        statementFocusEnabled = try container.decodeIfPresent(Bool.self, forKey: .statementFocusEnabled) ?? true
+        outlineEdgeEnabled = try container.decodeIfPresent(Bool.self, forKey: .outlineEdgeEnabled) ?? false
+        ghostTextEnabled = try container.decodeIfPresent(Bool.self, forKey: .ghostTextEnabled) ?? false
+        gutterStyle = (try? container.decodeIfPresent(EditorGutterStyle.self, forKey: .gutterStyle)) ?? .subtle
+        cardCornerRadius = try container.decodeIfPresent(CGFloat.self, forKey: .cardCornerRadius) ?? LayoutTokens.Workspace.cardCornerRadius
     }
 
     func encode(to encoder: Encoder) throws {
@@ -69,5 +100,10 @@ struct SQLEditorDisplayOptions: Codable, Equatable {
         try container.encode(qualifyTableCompletions, forKey: .qualifyTableCompletions)
         try container.encode(showSystemSchemasInCompletion, forKey: .showSystemSchemasInCompletion)
         try container.encode(liveValidationEnabled, forKey: .liveValidationEnabled)
+        try container.encode(statementFocusEnabled, forKey: .statementFocusEnabled)
+        try container.encode(outlineEdgeEnabled, forKey: .outlineEdgeEnabled)
+        try container.encode(ghostTextEnabled, forKey: .ghostTextEnabled)
+        try container.encode(gutterStyle, forKey: .gutterStyle)
+        try container.encode(cardCornerRadius, forKey: .cardCornerRadius)
     }
 }

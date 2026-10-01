@@ -33,7 +33,7 @@ enum SearchSidebarCategory: String, CaseIterable, Identifiable, Hashable, Sendab
         switch self {
         case .tables: return "table"
         case .views: return "eye"
-        case .materializedViews: return "eye.fill"
+        case .materializedViews: return "square.stack.3d.up"
         case .functions: return "function"
         case .procedures: return "gearshape"
         case .triggers: return "bolt"

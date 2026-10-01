@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server synonym operations through Echo's DatabaseSession layer.
-final class MSSQLSynonymTests: MSSQLDockerTestCase {
+final class MSSQLSynonymTests: MSSQLLabTestCase {
 
     // MARK: - Synonym in Schema Info
 

@@ -12,6 +12,8 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     var backgroundOverride: NSColor? { didSet { applyTheme() } }
     var completionContext: SQLEditorCompletionContext? {
         didSet {
+            // SwiftUI sets it on every update; rebuilding the catalog costs tens of milliseconds.
+            guard completionContext != oldValue else { return }
             let dbCount = completionContext?.structure?.databases.count ?? 0
             let nonEmptyDBs = completionContext?.structure?.databases.filter({ !$0.schemas.isEmpty }).count ?? 0
             crossDBDebug("[CROSSDB-CONTEXT-SET] databases=\(dbCount), withSchemas=\(nonEmptyDBs), selectedDB=\(completionContext?.selectedDatabase ?? "nil")")
@@ -32,6 +34,23 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     let validationScheduler = SQLValidationScheduler()
     var currentDiagnostics: [SQLDiagnostic] = []
     var validationOverlays: [NSView] = []
+    /// QE1: the script's statements (kept between edits) and the one at the caret.
+    var cachedStatements: [SQLStatementAtCaret.Match] = []
+    var focusedStatementRange: NSRange?
+    /// Round 21, SK2: the statement of the result selected in a script's statement list.
+    var resultStatementRange: NSRange? { didSet { if oldValue != resultStatementRange { setNeedsDisplay(visibleRect) } } }
+    var lastCurrentLineBandRect: NSRect?
+    /// QE5: the outline strip, when the setting is on.
+    weak var outlineStrip: EditorOutlineStripView?
+    /// ES3: the suggestion shown as ghost text after the caret, with the response it came from.
+    var ghostSuggestion: (suggestion: SQLAutoCompletionSuggestion, response: SQLCompletionResponse)?
+    var ghostTextLabel: NSTextField?
+    /// QE2: the note at the end of what last ran.
+    var runNote: QueryRunNote? { didSet { showRunNote() } }
+    var runNoteLabel: NSTextField?
+    /// Round 21 EM5 / round 22 ED1: the last run's error, as a squiggle with a bubble on hover.
+    var errorMark: QueryErrorMark? { didSet { showErrorMark() } }
+    var errorMarkView: QueryErrorMarkView?
     static let maxValidationOverlays = 10
     let completionEngine = SQLAutoCompletionEngine()
     let ruleEngine = SQLAutocompleteRuleEngine()
@@ -141,7 +160,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         else { lineNumberRuler?.highlightedLines = IndexSet() }
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero); scheduleHighlighting(after: 0)
         if displayOptions.highlightSelectedSymbol { scheduleSymbolHighlights(for: currentSelectionDescriptor(), immediate: true) }
-        completionController?.popover.appearance = effectiveAppearance
+        completionController?.panel.appearance = effectiveAppearance
     }
 
     override func viewDidMoveToWindow() {
@@ -151,16 +170,20 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     }
 
     override func keyDown(with event: NSEvent) {
+        if acceptGhostTextIfNeeded(event) { return }
         if event.keyCode == 48 && !event.modifierFlags.contains(.shift) && expandSelectStarShorthandIfNeeded() { return }
-        if handleSnippetNavigation(event) || completionController?.handleKeyDown(event) == true || handleCommandShortcut(event) { return }
+        if handleSnippetNavigation(event) || completionController?.handleKeyDown(event) == true { return }
         super.keyDown(with: event)
     }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if handleCommandShortcut(event) { return true }
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         if modifiers == .command, event.charactersIgnoringModifiers == "l" { showGoToLinePanel(); return true }
         return super.performKeyEquivalent(with: event)
+    }
+
+    override func complete(_ sender: Any?) {
+        _ = presentRequestedCompletions()
     }
 
     override func insertText(_ string: Any, replacementRange: NSRange) {
@@ -229,10 +252,11 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         notifySelectionChanged(); scheduleHighlighting()
         if !isApplyingCompletion { deactivateManualCompletionSuppression() }
         updateCompletionIndicator(); scheduleValidation()
+        refreshStatements()
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {
-        notifySelectionChanged(); let range = selectedLineRange()
+        notifySelectionChanged(); updateStatementFocus(); invalidateCurrentLineBand(); let range = selectedLineRange()
         if range.location != NSNotFound { lineNumberRuler?.highlightedLines = IndexSet(integersIn: range.location..<(range.location + range.length)) }
         else { lineNumberRuler?.highlightedLines = IndexSet() }
         lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)

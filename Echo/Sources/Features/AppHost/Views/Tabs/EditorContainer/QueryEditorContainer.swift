@@ -27,64 +27,38 @@ struct QueryEditorContainer: View {
     private var panelState: BottomPanelState { tab.panelState }
 
     var body: some View {
-        let backgroundColor = ColorTokens.Background.primary
-        let shouldShowResultsOnly = query.isResultsOnly
-        let panelOpen = panelState.isOpen
-
-        VStack(spacing: 0) {
-            if tab.isDedicatedSessionFailed {
-                ConnectionFailedBanner(
-                    message: tab.dedicatedSessionError ?? "Connection failed"
-                ) {
-                    environmentState.retryDedicatedSession(for: tab)
+        // Two cards, editor over results (plan E1–E3). The editor keeps its place in the view
+        // tree when results open and close, so it's never rebuilt.
+        ContentPanelCards(
+            panelState: panelState,
+            isPanelOnly: query.isResultsOnly,
+            minContentFraction: minRatio,
+            maxContentFraction: maxRatio
+        ) {
+            VStack(spacing: SpacingTokens.none) {
+                if tab.isDedicatedSessionFailed {
+                    ConnectionFailedBanner(
+                        message: tab.dedicatedSessionError ?? "Connection failed"
+                    ) {
+                        environmentState.retryDedicatedSession(for: tab)
+                    }
                 }
-            }
-
-            if shouldShowResultsOnly {
-                resultsSection(isResizingResults: false)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(backgroundColor)
-                    .transition(.opacity)
-            } else if panelOpen {
-                NativeSplitView(
-                    isVertical: false,
-                    firstMinFraction: minRatio,
-                    secondMinFraction: 1 - maxRatio,
-                    fraction: Binding(
-                        get: { min(max(panelState.splitRatio, minRatio), maxRatio) },
-                        set: { panelState.splitRatio = min(max($0, minRatio), maxRatio) }
-                    )
-                ) {
-                    QueryInputSection(
-                        query: query,
-                        onAddBookmark: handleBookmarkRequest,
-                        completionContext: editorCompletionContext,
-                        onSchemaLoadNeeded: { dbName in
-                            ensureSchemaLoaded(forDatabase: dbName)
-                        }
-                    )
-                    .background(backgroundColor)
-                } second: {
-                    resultsSection(isResizingResults: false)
-                        .clipped()
-                        .background(backgroundColor)
-                }
-            } else {
                 QueryInputSection(
                     query: query,
                     onAddBookmark: handleBookmarkRequest,
                     completionContext: editorCompletionContext,
                     onSchemaLoadNeeded: { dbName in
                         ensureSchemaLoaded(forDatabase: dbName)
-                    }
+                    },
+                    onRunStatement: runStatementAtCaret,
+                    tableStarts: emptyTabTableStarts
                 )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(backgroundColor)
             }
-
+        } panel: {
+            resultsSection(isResizingResults: false)
+        } footer: {
             queryStatusBar
         }
-        .background(ColorTokens.Background.primary)
         .onAppear {
             updateClipboardContext()
             wireToolbarActions()
@@ -99,6 +73,7 @@ struct QueryEditorContainer: View {
             updateClipboardContext()
         }
         .onChange(of: query.hasExecutedAtLeastOnce) { _, executed in
+            // The results card rises after the first run (plan E2); the cards animate it.
             if executed && !panelState.isOpen && projectStore.globalSettings.autoOpenBottomPanel {
                 panelState.isOpen = true
             }
@@ -175,40 +150,20 @@ struct QueryEditorContainer: View {
             availableDatabases: resolveDatabaseNames(),
             onSwitchDatabase: tab.connection.databaseType == .sqlite ? nil : { dbName in
                 switchDatabase(dbName)
-            }
+            },
+            onRunCommand: { [runQuery, query] sql in
+                query.lastRunRange = nil
+                Task { await runQuery(sql) }
+            },
+            serverMove: connectionSession?.serverMove
         )
     }
 
     private func resolveDatabaseNames() -> [String] {
-        guard let session = environmentState.sessionGroup.activeSessions
-            .first(where: { $0.id == tab.connectionSessionID }) else { return [] }
-        let databases = session.databaseStructure?.databases ?? []
-        return databases.filter(\.isOnline).map(\.name).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        environmentState.switchableDatabaseNames(for: tab)
     }
 
     private func switchDatabase(_ databaseName: String) {
-        Task {
-            do {
-                _ = try await tab.session.sessionForDatabase(databaseName)
-                tab.activeDatabaseName = databaseName
-                if let queryState = tab.query {
-                    queryState.updateClipboardContext(
-                        serverName: queryState.clipboardMetadata.serverName,
-                        databaseName: databaseName,
-                        connectionColorHex: queryState.clipboardMetadata.connectionColorHex
-                    )
-                }
-                environmentState.notificationEngine?.post(
-                    category: .databaseSwitched,
-                    message: "Switched to \(databaseName)"
-                )
-            } catch {
-                environmentState.notificationEngine?.post(
-                    category: .databaseSwitchFailed,
-                    message: "Failed to switch: \(error.localizedDescription)",
-                    duration: 5.0
-                )
-            }
-        }
+        environmentState.switchDatabase(databaseName, for: tab)
     }
 }

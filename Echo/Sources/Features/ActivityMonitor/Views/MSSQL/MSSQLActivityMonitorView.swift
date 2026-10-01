@@ -20,13 +20,6 @@ struct MSSQLActivityMonitorView: View {
         }
     }
 
-    private var selectedSectionBinding: Binding<MSSQLActivitySection> {
-        Binding(
-            get: { self.selectedSection },
-            set: { self.selectedSection = $0 }
-        )
-    }
-
     @State internal var processesSortOrder = [KeyPathComparator(\SQLServerProcessInfo.sessionId)]
     @State internal var waitsSortOrder = [KeyPathComparator(\SQLServerWaitStatDelta.waitTimeMsDelta, order: .reverse)]
     @State internal var ioSortOrder = [KeyPathComparator(\SQLServerFileIOStatDelta.ioStallReadMsDelta, order: .reverse)]
@@ -51,19 +44,15 @@ struct MSSQLActivityMonitorView: View {
 
     var body: some View {
         if selectedSection == .xevents {
-            VStack(spacing: 0) {
-                CenteredTabSectionToolbar { sectionPicker }
-                Divider()
-                xeventsContent
-            }
-            .tabContentFrame()
+            xeventsContent
+                .background(ColorTokens.Background.primary)
+                .workspaceCard()
+                .tabContentFrame()
         } else if selectedSection == .profiler {
-            VStack(spacing: 0) {
-                CenteredTabSectionToolbar { sectionPicker }
-                Divider()
-                profilerContent
-            }
-            .tabContentFrame()
+            profilerContent
+                .background(ColorTokens.Background.primary)
+                .workspaceCard()
+                .tabContentFrame()
         } else {
             ActivityMonitorTabFrame(
                 viewModel: viewModel,
@@ -72,8 +61,6 @@ struct MSSQLActivityMonitorView: View {
                 selectedSQLContext: $selectedSQLContext,
                 onOpenInQueryWindow: { sql, db in environmentState.openFormattedQueryTab(sql: sql, database: db, connectionID: viewModel.connectionID, dialect: .microsoftSQL) }
             ) {
-                sectionPicker
-            } sparklines: {
                 sparklineStrip
             } sectionContent: {
                 sectionTable
@@ -85,20 +72,6 @@ struct MSSQLActivityMonitorView: View {
             .onChange(of: selectedWaitIDs) { _, ids in pushWaitInspector(ids: ids) }
             .onChange(of: selectedIOIDs) { _, ids in pushIOInspector(ids: ids) }
             .onChange(of: selectedQueryIDs) { _, ids in pushQueryInspector(ids: ids) }
-        }
-    }
-
-    // MARK: - Section Picker
-
-    private var sectionPicker: some View {
-        TabSectionPicker(
-            "Activity Monitor Section",
-            selection: selectedSectionBinding,
-            itemCount: MSSQLActivitySection.allCases.count
-        ) {
-            ForEach(MSSQLActivitySection.allCases, id: \.self) { section in
-                Text(section.rawValue).tag(section)
-            }
         }
     }
 

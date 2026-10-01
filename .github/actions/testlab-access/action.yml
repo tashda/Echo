@@ -1,0 +1,51 @@
+name: "Access to testlab"
+description: >
+  Joins the tailnet as tag:ci (testlab advertises 192.168.1.153/32 as a route), sets up
+  `ssh testlab` for the lab's Docker commands, installs the Docker command-line tool, and checks
+  that testlab's Docker answers.
+inputs:
+  tailscale-oauth-client-id:
+    required: true
+  tailscale-oauth-secret:
+    required: true
+  ssh-key:
+    description: "Private key authorised for lab@testlab (secret TESTLAB_SSH_KEY)"
+    required: true
+  known-hosts:
+    description: "testlab's host key line (secret TESTLAB_KNOWN_HOSTS)"
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: tailscale/github-action@v4
+      with:
+        oauth-client-id: ${{ inputs.tailscale-oauth-client-id }}
+        oauth-secret: ${{ inputs.tailscale-oauth-secret }}
+        tags: tag:ci
+
+    - shell: bash
+      env:
+        TESTLAB_SSH_KEY: ${{ inputs.ssh-key }}
+        TESTLAB_KNOWN_HOSTS: ${{ inputs.known-hosts }}
+      run: |
+        mkdir -p ~/.ssh && chmod 700 ~/.ssh
+        printf '%s\n' "$TESTLAB_SSH_KEY" > ~/.ssh/testlab
+        chmod 600 ~/.ssh/testlab
+        printf '%s\n' "$TESTLAB_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+        cat >> ~/.ssh/config <<'CONFIG'
+        Host testlab
+          HostName 192.168.1.153
+          User lab
+          IdentityFile ~/.ssh/testlab
+          IdentitiesOnly yes
+          ConnectTimeout 15
+          ServerAliveInterval 30
+        CONFIG
+        brew list docker >/dev/null 2>&1 || brew install docker
+        # The tailnet route to 192.168.1.153 can take a few seconds to arrive.
+        for attempt in 1 2 3 4 5 6; do
+          ssh testlab true && break
+          [ "$attempt" = 6 ] && { echo "::error::testlab (192.168.1.153) is not reachable over Tailscale"; exit 1; }
+          sleep 10
+        done
+        docker --host ssh://testlab version --format 'testlab Docker {{.Server.Version}}'

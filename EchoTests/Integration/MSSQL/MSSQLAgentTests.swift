@@ -7,7 +7,7 @@ import SQLServerKit
 /// SQL Server Agent may not be available in all environments (e.g., Express edition,
 /// containers without agent enabled). Tests wrap operations in do/catch to handle
 /// permission or availability failures gracefully.
-final class MSSQLAgentTests: MSSQLDockerTestCase {
+final class MSSQLAgentTests: MSSQLLabTestCase {
 
     // MARK: - Job Listing
 

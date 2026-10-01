@@ -5,6 +5,7 @@ struct PostgresMaintenanceView: View {
     @Bindable var panelState: BottomPanelState
     @Environment(EnvironmentState.self) var environmentState
     @Environment(TabStore.self) private var tabStore
+    @Environment(\.workspaceTab) private var hostTab
     @Environment(AppState.self) var appState
     @Environment(ProjectStore.self) private var projectStore
 
@@ -54,7 +55,7 @@ struct PostgresMaintenanceView: View {
             selectedTableIDs.removeAll()
             selectedIndexIDs.removeAll()
             environmentState.dataInspectorContent = nil
-            if let tab = tabStore.activeTab, tab.maintenance != nil {
+            if let tab = hostTab, tab.maintenance != nil {
                 tab.title = "Maintenance (\(newDB))"
             }
             Task { await loadData(for: newDB) }
@@ -94,7 +95,7 @@ struct PostgresMaintenanceView: View {
     // MARK: - Computed Properties
 
     private var connectionText: String {
-        let connText = tabStore.activeTab?.connection.connectionName ?? "Server"
+        let connText = hostTab?.connection.connectionName ?? "Server"
         let db = viewModel.selectedDatabase
         return db.map { "\(connText) \u{2022} \($0)" } ?? connText
     }

@@ -1,0 +1,299 @@
+import SwiftUI
+
+public enum ColorTokens {
+    // Brand / App Accent
+    public static let accent = Color.accentColor
+    
+    // Backgrounds
+    public enum Background {
+        public static let primary = Color(nsColor: .windowBackgroundColor)
+        public static let secondary = Color(nsColor: .controlBackgroundColor)
+        public static let tertiary = Color(nsColor: .textBackgroundColor)
+        public static let elevated = Color(nsColor: .underPageBackgroundColor)
+        public static let sidebar = Color(nsColor: .controlBackgroundColor)
+    }
+
+    /// The canvas-and-cards window (Design/02-layout.md, 06-tokens.md).
+    public enum Workspace {
+        /// The window canvas behind the rail, tree, tab strip and cards.
+        public static let canvas = Color(nsColor: .windowBackgroundColor)
+        /// Fill of the editor and results cards.
+        public static let card = Color(nsColor: .textBackgroundColor)
+        /// The separator edge around a card, at `LayoutTokens.Workspace.cardEdgeOpacity`.
+        public static let cardEdge = Color(nsColor: .separatorColor)
+        /// A grouped box or a compact card inside a workspace card (the inspector's sections, the
+        /// notification history's cards). The system's fill for group boxes, so it shows on a white
+        /// card in light mode and adapts to dark and Increase Contrast.
+        public static let groupFill = Color(nsColor: .quaternarySystemFill)
+        /// The disc under the selected server in the rail.
+        public static let railSelection = Color(nsColor: .textBackgroundColor)
+    }
+
+    // Materials — use as ShapeStyle with .background()
+    public enum Material {
+        /// Translucent bar material matching sidebar/toolbar chrome.
+        public static let bar: some ShapeStyle = .bar
+    }
+    
+    // Text
+    public enum Text {
+        public static let primary = Color.primary
+        public static let secondary = Color.secondary
+        public static let tertiary = Color(nsColor: .tertiaryLabelColor)
+        public static let quaternary = Color(nsColor: .quaternaryLabelColor)
+        public static let placeholder = Color(nsColor: .placeholderTextColor)
+        /// Text and symbols on a solid coloured fill (Run's red capsule, round 24): the system's
+        /// colour for a selected control's text, white in both appearances.
+        public static let onFill = Color(nsColor: .alternateSelectedControlTextColor)
+    }
+    
+    // Sidebar — Finder sidebar palette (macOS 26 Tahoe Figma reference)
+    // Light values follow the Tahoe Figma reference (black at 85 / 11 / 7 / 5%). Dark mode mirrors
+    // them in white, and Increase Contrast strengthens the fills so rows stay distinguishable.
+    public enum Sidebar {
+        /// Symbol fill
+        public static let symbol = Color.adaptive(
+            light: .black.withAlphaComponent(0.85), dark: .white.withAlphaComponent(0.85),
+            highContrastLight: .black, highContrastDark: .white
+        )
+        /// Selected row highlight
+        public static let selectedFill = Color.adaptive(
+            light: .black.withAlphaComponent(0.11), dark: .white.withAlphaComponent(0.14),
+            highContrastLight: .black.withAlphaComponent(0.22), highContrastDark: .white.withAlphaComponent(0.28)
+        )
+        /// Strength of the selected row's accent tint (tree style S1); the tint takes the row's
+        /// accent, which may be the server's colour. Increase Contrast strengthens it.
+        public static let selectedTintOpacity: Double = 0.18
+        public static let selectedTintOpacityHighContrast: Double = 0.3
+        /// Context-menu / right-click highlight
+        public static let contextFill = Color.adaptive(
+            light: .black.withAlphaComponent(0.07), dark: .white.withAlphaComponent(0.10),
+            highContrastLight: .black.withAlphaComponent(0.16), highContrastDark: .white.withAlphaComponent(0.2)
+        )
+        /// Hover highlight
+        public static let hoverFill = Color.adaptive(
+            light: .black.withAlphaComponent(0.05), dark: .white.withAlphaComponent(0.07),
+            highContrastLight: .black.withAlphaComponent(0.12), highContrastDark: .white.withAlphaComponent(0.16)
+        )
+    }
+
+    // Surface fills — lightweight tinted backgrounds for cards, rows, and containers
+    public enum Surface {
+        /// Default card/container rest fill
+        public static let rest = Color.primary.opacity(0.03)
+        /// Hovered card/container fill
+        public static let hover = Color.primary.opacity(0.06)
+        /// Selected/active accent tint
+        public static let selected = Color.accentColor.opacity(0.06)
+        /// Selected border stroke
+        public static let selectedBorder = Color.accentColor.opacity(0.3)
+    }
+
+    // Dividers / Borders
+    public enum Separator {
+        public static let primary = Color(nsColor: .separatorColor)
+        public static let secondary = Color(nsColor: .gridColor)
+    }
+    
+    // Status
+    public enum Status {
+        public static let success = Color.green
+        public static let warning = Color.orange
+        public static let error = Color.red
+        public static let info = Color.blue
+        /// Active mode indicators in the status bar (e.g. SQLCMD, Statistics).
+        public static let modeIndicator = Color.orange
+    }
+
+    // Tab Strip
+    public enum TabStrip {
+        /// Opaque, semantic surfaces for the single-line Design Lab proposals.
+        public enum Proposals {
+            public static let track = Color.adaptive(
+                light: NSColor(white: 0.95, alpha: 1), dark: NSColor(white: 0.19, alpha: 1),
+                highContrastLight: NSColor(white: 0.90, alpha: 1), highContrastDark: NSColor(white: 0.26, alpha: 1)
+            )
+            public static let selected = Color.adaptive(
+                light: NSColor(white: 0.84, alpha: 1), dark: NSColor(white: 0.36, alpha: 1),
+                highContrastLight: NSColor(white: 0.74, alpha: 1), highContrastDark: NSColor(white: 0.46, alpha: 1)
+            )
+            public static let inactive = Color.adaptive(
+                light: NSColor(white: 0.91, alpha: 1), dark: NSColor(white: 0.25, alpha: 1),
+                highContrastLight: NSColor(white: 0.83, alpha: 1), highContrastDark: NSColor(white: 0.33, alpha: 1)
+            )
+        }
+
+        // Background fills (standard, non-themed)
+        public enum Background {
+            public static let dark = Color(white: 0.22)
+            public static let light = Color(white: 0.90)
+            /// The strip's plate, following the appearance and Increase Contrast.
+            public static let plate = Color.adaptive(
+                light: NSColor(white: 0.90, alpha: 1), dark: NSColor(white: 0.22, alpha: 1),
+                highContrastLight: NSColor(white: 0.82, alpha: 1), highContrastDark: NSColor(white: 0.30, alpha: 1)
+            )
+        }
+
+        // Active tab gradient stops
+        public enum ActiveTab {
+            public enum Dark {
+                public static let top = Color.white.opacity(0.26)
+                public static let bottom = Color.white.opacity(0.18)
+                public static let hoverTop = Color.white.opacity(0.32)
+                public static let hoverBottom = Color.white.opacity(0.24)
+            }
+            public enum Light {
+                public static let top = Color(white: 0.99)
+                public static let bottom = Color(white: 0.95)
+                public static let hoverTop = Color(white: 1.0)
+                public static let hoverBottom = Color(white: 0.97)
+            }
+        }
+
+        // Inactive tab hover gradient stops
+        public enum InactiveHover {
+            public enum Dark {
+                public static let top = Color.white.opacity(0.18)
+                public static let bottom = Color.white.opacity(0.12)
+            }
+            public enum Light {
+                public static let top = Color(white: 0.94)
+                public static let bottom = Color(white: 0.90)
+            }
+        }
+
+        // Drop target gradient stops
+        public enum DropTarget {
+            public enum Dark {
+                public static let top = Color.white.opacity(0.24)
+                public static let bottom = Color.white.opacity(0.18)
+            }
+            public enum Light {
+                public static let top = Color(white: 0.90)
+                public static let bottom = Color(white: 0.86)
+            }
+        }
+
+        // Tab borders
+        public enum Border {
+            public static let activeDark = Color.white.opacity(0.30)
+            public static let activeLight = Color(white: 0.86)
+            public static let hoverDark = Color.white.opacity(0.22)
+            public static let hoverLight = Color.white.opacity(0.68)
+            public static let dropDark = Color.white.opacity(0.15)
+            public static let dropLight = Color.black.opacity(0.05)
+            public static let inactive = Color.black.opacity(0.1)
+        }
+
+        // Tab shadow
+        public enum Shadow {
+            public static let dark = Color.black.opacity(0.28)
+            public static let light = Color.black.opacity(0.10)
+        }
+
+        // Hover highlight
+        public enum Highlight {
+            public static let dark = Color.white.opacity(0.38)
+            public static let light = Color.white.opacity(0.55)
+        }
+
+        // Separator gradient stops
+        public enum Separator {
+            public enum Dark {
+                public static let top = Color.white.opacity(0.28)
+                public static let bottom = Color.white.opacity(0.16)
+            }
+            public enum Light {
+                public static let top = Color(white: 0.88)
+                public static let bottom = Color(white: 0.75)
+            }
+        }
+
+        // Safari-style overlay
+        public enum SafariBar {
+            public static let gradientTop = Color.white.opacity(0.16)
+            public static let gradientBottom = Color.black.opacity(0.14)
+            public static let topEdge = Color.white.opacity(0.45)
+        }
+    }
+
+    // Glow frame decorative palette
+    public enum Glow {
+        public static let violet = Color(red: 0.737, green: 0.510, blue: 0.953)
+        public static let pink = Color(red: 0.961, green: 0.725, blue: 0.918)
+        public static let periwinkle = Color(red: 0.553, green: 0.624, blue: 1.0)
+        public static let coral = Color(red: 1.0, green: 0.404, blue: 0.471)
+        public static let peach = Color(red: 1.0, green: 0.729, blue: 0.443)
+        public static let lavender = Color(red: 0.776, green: 0.525, blue: 1.0)
+    }
+
+    // Validation glow palette — warm amber/red for error indicators
+    public enum ValidationGlow {
+        public static let amber = Color(red: 1.0, green: 0.75, blue: 0.25)
+        public static let coral = Color(red: 1.0, green: 0.45, blue: 0.40)
+        public static let warmRed = Color(red: 0.95, green: 0.30, blue: 0.30)
+        public static let peach = Color(red: 1.0, green: 0.65, blue: 0.40)
+        public static let gold = Color(red: 1.0, green: 0.85, blue: 0.35)
+        public static let softOrange = Color(red: 1.0, green: 0.60, blue: 0.30)
+    }
+
+    // Editor Font Preview — fixed dark-theme palette used in the settings preview widget
+    public enum EditorPreview {
+        public static let background = Color(white: 0.12)
+        public static let border = Color.white.opacity(0.05)
+        public static let keyword = Color(red: 0.8, green: 0.5, blue: 0.9)
+        public static let plain = Color(white: 0.9)
+        public static let stringLiteral = Color(red: 0.6, green: 0.8, blue: 0.5)
+    }
+
+    // Explorer / Object Browser
+    public enum Explorer {
+        /// How far colourful icons are mixed towards grey, so the palette reads softer.
+        public static let colorfulSoftening: Double = 0.22
+        // Data objects (cool tones)
+        public static let databaseFolder = Color.green
+        public static let databaseInstance = Color.blue
+        public static let tables = Color.cyan
+        public static let views = Color.teal
+        public static let materializedViews = Color.mint
+        public static let functions = Color.orange
+        public static let procedures = Color.red
+        public static let triggers = Color(red: 0.95, green: 0.75, blue: 0.0) // Gold
+        public static let sequences = Color.brown
+        public static let types = Color.pink
+        public static let extensions = Color.indigo
+        public static let queryStore = Color.indigo
+
+        // Server infrastructure
+        public static let jobs = Color.orange
+        public static let databaseSnapshots = Color.cyan
+        public static let integrationServices = Color.indigo
+
+        // Security (purple family with variation)
+        public static let security = Color.purple
+        public static let logins = Color(red: 0.7, green: 0.4, blue: 0.9)
+        public static let serverRoles = Color.red
+        public static let credentials = Color(red: 0.6, green: 0.5, blue: 0.8)
+        public static let users = Color.pink
+        public static let roles = Color(red: 0.8, green: 0.5, blue: 0.7)
+        public static let linkedServers = Color.teal
+
+        // Management (earth tones)
+        public static let management = Color.brown
+        public static let extendedEvents = Color.purple
+        public static let databaseMail = Color.indigo
+        public static let activityMonitor = Color.orange
+        public static let sqlProfiler = Color.red
+        public static let resourceGovernor = Color.mint
+        public static let tuningAdvisor = Color(red: 0.95, green: 0.75, blue: 0.0) // Gold
+        public static let policyManagement = Color.green
+
+        // Triggers (consistent gold)
+        public static let serverTriggers = Color(red: 0.95, green: 0.75, blue: 0.0)
+        public static let databaseTriggers = Color(red: 0.95, green: 0.75, blue: 0.0)
+
+        // Other server-level
+        public static let serviceBroker = Color.blue
+        public static let externalResources = Color.brown
+    }
+}

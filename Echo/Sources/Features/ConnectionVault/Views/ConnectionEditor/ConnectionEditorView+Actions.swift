@@ -37,10 +37,10 @@ extension ConnectionEditorView {
         let sanitizedUseTLS = selectedDatabaseType == .sqlite ? false : useTLS
         let sanitizedDomain = selectedDatabaseType == .sqlite ? "" : trimmedDomain
 
-        let connection = SavedConnection(
+        var connection = SavedConnection(
             id: originalConnection?.id ?? UUID(),
             projectID: originalConnection?.projectID ?? projectStore.selectedProject?.id,
-            connectionName: connectionName.trimmingCharacters(in: .whitespacesAndNewlines),
+            connectionName: resolvedConnectionName(host: trimmedHost),
             host: trimmedHost,
             port: sanitizedPort,
             database: sanitizedDatabase,
@@ -64,8 +64,10 @@ extension ConnectionEditorView {
                 return trimmed.isEmpty ? nil : trimmed
             }(),
             readOnlyIntent: selectedDatabaseType == .microsoftSQL ? readOnlyIntent : false,
+            allowLegacyTLS: selectedDatabaseType == .microsoftSQL ? allowLegacyTLS : false,
             connectionTimeout: connectionTimeout,
-            queryTimeout: queryTimeout,
+            queryTimeout: originalConnection?.queryTimeout ?? 60,
+            queryTimeLimit: queryTimeLimit.map { max(0, $0) },
             databaseType: selectedDatabaseType,
             serverVersion: originalConnection?.serverVersion,
             colorHex: colorHex,
@@ -74,16 +76,26 @@ extension ConnectionEditorView {
             cachedStructureUpdatedAt: originalConnection?.cachedStructureUpdatedAt
         )
 
+        applyPostgresOptions(to: &connection)
+        persistKeyPassword(for: connection.id)
+
         let passwordToPersist: String?
         if selectedDatabaseType == .sqlite {
             passwordToPersist = nil
-        } else if sanitizedCredentialSource == .manual && passwordDirty && !password.isEmpty {
+        } else if sanitizedCredentialSource == .manual && passwordDirty && !password.isEmpty && sanitizedAuthenticationMethod.usesPassword {
             passwordToPersist = password
         } else {
             passwordToPersist = nil
         }
         onSave(connection, passwordToPersist, action)
         // Note: dismiss is handled by the caller after the save completes
+    }
+
+    /// A connection saved without a name is named after its server (or its file for SQLite).
+    func resolvedConnectionName(host trimmedHost: String) -> String {
+        let trimmed = connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty else { return trimmed }
+        return selectedDatabaseType == .sqlite ? URL(fileURLWithPath: trimmedHost).deletingPathExtension().lastPathComponent : trimmedHost
     }
 
     func generateConnectionLogo(databaseType: DatabaseType, color: Color) -> Data? {

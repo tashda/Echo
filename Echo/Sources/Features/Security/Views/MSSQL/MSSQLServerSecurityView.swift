@@ -4,6 +4,7 @@ struct MSSQLServerSecurityView: View {
     @Bindable var viewModel: ServerSecurityViewModel
     @Bindable var panelState: BottomPanelState
     @Environment(TabStore.self) private var tabStore
+    @Environment(\.workspaceTab) private var hostTab
     @Environment(EnvironmentState.self) private var environmentState
 
     @State var showNewRoleSheet = false
@@ -59,7 +60,7 @@ struct MSSQLServerSecurityView: View {
     }
 
     private var connectionText: String {
-        tabStore.activeTab?.connection.connectionName ?? "Server"
+        hostTab?.connection.connectionName ?? "Server"
     }
 
     private var statusBubble: BottomPanelStatusBarConfiguration.StatusBubble? {

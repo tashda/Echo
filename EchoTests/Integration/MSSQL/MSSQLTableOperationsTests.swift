@@ -3,7 +3,7 @@ import SQLServerKit
 @testable import Echo
 
 /// Tests SQL Server table DDL operations through Echo's DatabaseSession layer.
-final class MSSQLTableOperationsTests: MSSQLDockerTestCase {
+final class MSSQLTableOperationsTests: MSSQLLabTestCase {
 
     // MARK: - Create Table
 

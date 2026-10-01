@@ -114,6 +114,7 @@ extension EnvironmentState {
                 await gate.signal()
                 handle.succeed()
                 tab.upgradeToDedicatedSession(dedicatedSession)
+                watchConnectionLoss(for: tab, session: dedicatedSession)
                 tab.query?.isEstablishingConnection = false
             } catch {
                 await gate.signal()
@@ -152,6 +153,7 @@ extension EnvironmentState {
                 )
                 handle.succeed()
                 tab.upgradeToDedicatedSession(dedicatedSession)
+                watchConnectionLoss(for: tab, session: dedicatedSession)
                 tab.query?.isEstablishingConnection = false
             } catch {
                 handle.fail(error.localizedDescription)
@@ -431,9 +433,11 @@ extension EnvironmentState {
     func openStructureTab(for session: ConnectionSession, object: SchemaObjectInfo, focus: TableStructureSection? = nil, databaseName: String? = nil) {
         let tab = session.addStructureTab(for: object, focus: focus, databaseName: databaseName)
         registerTab(tab)
+        recordRecentTable(object, in: session, databaseName: databaseName)
     }
 
     func openDiagramTab(for session: ConnectionSession, object: SchemaObjectInfo, activeDatabaseName: String? = nil) {
+        recordRecentTable(object, in: session, databaseName: activeDatabaseName)
         let selectedProjectID = projectStore.selectedProject?.id
         let title = "\(object.schema).\(object.name)"
         let cacheKey = selectedProjectID.map {

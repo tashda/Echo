@@ -6,7 +6,7 @@ struct ActivityMonitorToolbarItem: View {
     @Environment(TabStore.self) private var tabStore
 
     var body: some View {
-        if let tab = tabStore.activeTab, let vm = tab.activityMonitor {
+        if tabStore.activeTabKind == .activityMonitor, let vm = tabStore.activeTab?.activityMonitor {
             Button {
                 if vm.isRunning { vm.stopStreaming() } else { vm.startStreaming() }
             } label: {
@@ -19,7 +19,6 @@ struct ActivityMonitorToolbarItem: View {
             .help(vm.isRunning ? "Pause Monitoring" : "Resume Monitoring")
             .labelStyle(.iconOnly)
             .accessibilityLabel(vm.isRunning ? "Pause Monitoring" : "Resume Monitoring")
-            .glassEffect(.regular.interactive())
         } else {
             EmptyView()
         }
@@ -31,7 +30,7 @@ struct JobQueuePlayToolbarItem: View {
     @Environment(TabStore.self) private var tabStore
 
     var body: some View {
-        if let tab = tabStore.activeTab, let vm = tab.jobQueue, vm.selectedJobID != nil {
+        if tabStore.activeTabKind == .jobQueue, let vm = tabStore.activeTab?.jobQueue, vm.selectedJobID != nil {
             ToolbarRunButton(
                 isRunning: vm.isJobRunning,
                 idleLabel: "Start Job",
@@ -54,7 +53,7 @@ struct JobQueuePopOutToolbarItem: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        if let tab = tabStore.activeTab, tab.kind == .jobQueue {
+        if tabStore.activeTabKind == .jobQueue, let tab = tabStore.activeTab {
             Button {
                 if let sessionID = environmentState.popOutJobQueueTab(tab) {
                     openWindow(id: JobQueueWindow.sceneID, value: sessionID)
@@ -65,7 +64,6 @@ struct JobQueuePopOutToolbarItem: View {
             .labelStyle(.iconOnly)
             .help("Open in separate window")
             .accessibilityLabel("Open in separate window")
-            .glassEffect(.regular.interactive())
         } else {
             EmptyView()
         }
@@ -77,7 +75,8 @@ struct TabContextToolbarButton: View {
     @Environment(TabStore.self) private var tabStore
 
     var body: some View {
-        if let tab = tabStore.activeTab {
+        let kind = tabStore.activeTabKind
+        if kind == .mssqlMaintenance || kind == .maintenance, let tab = tabStore.activeTab {
             tabControls(for: tab)
         }
     }
@@ -97,7 +96,6 @@ struct TabContextToolbarButton: View {
                         }
                     )
                 )
-                .glassEffect(.regular.interactive())
             }
         case .maintenance:
             if let vm = tab.maintenance {
@@ -108,7 +106,6 @@ struct TabContextToolbarButton: View {
                         set: { vm.selectedDatabase = $0 }
                     )
                 )
-                .glassEffect(.regular.interactive())
             }
         case .profiler, .resourceGovernor, .serverProperties, .tuningAdvisor, .policyManagement:
             EmptyView()
