@@ -122,6 +122,7 @@ enum LabAreas {
         "ongoing.tool-tab-header-r37": "tool-tabs",
         "ongoing.tool-tab-controls-r37": "tool-tabs",
         "ongoing.tool-tab-themes-r37": "tool-tabs",
+        "ongoing.tool-tab-toolbar-r37": "tool-tabs",
         "ongoing.tree-tool-rows-r38": "explorer-tree",
         "ongoing.rail-tools-r39": "window",
         "ongoing.rail-bookmarks-r39": "window",
