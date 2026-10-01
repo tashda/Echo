@@ -73,6 +73,10 @@ struct ServerRecipeList: View {
                 }
                 if let tls = recipe.settings.tls { LabeledContent("TLS", value: "\(tls.mode.rawValue), \(tls.certificate.rawValue) certificate") }
                 if recipe.settings.kerberos == true { LabeledContent("Kerberos", value: "Active Directory domain LAB.TEST") }
+                if recipe.settings.mailServer == true { LabeledContent("Mail", value: "Mailpit part for Database Mail") }
+                ForEach((recipe.settings.serverOptions ?? [:]).sorted { $0.key < $1.key }, id: \.key) { option in
+                    LabeledContent(option.key, value: option.value.isEmpty ? "(empty)" : option.value)
+                }
             }
             Section("Packs") {
                 if recipe.packs.isEmpty { Text("None: an empty server").foregroundStyle(ColorTokens.Text.secondary) }
