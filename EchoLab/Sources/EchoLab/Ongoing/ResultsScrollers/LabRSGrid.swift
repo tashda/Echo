@@ -11,6 +11,10 @@ struct LabRSGridSetup: Equatable {
     var visibility: LabRSVisibility
     /// The bars' lane, for V3's reach.
     var lane: CGFloat
+    /// The footer's blur: how tall it is above the card's bottom edge.
+    var blurHeight: CGFloat
+    /// The row numbers' column.
+    var gutterWidth: CGFloat
 }
 
 /// Round 27: a real AppKit table, set up as Echo's results grid is (ResultTableContainerView): the
@@ -50,12 +54,14 @@ struct LabRSGrid: NSViewRepresentable {
         scrollView.automaticallyAdjustsContentInsets = false
         context.coordinator.scrollView = scrollView
 
-        let container = NSView()
-        scrollView.frame = container.bounds
+        let container = LabRSGridContainer()
+        container.gutterWidth = setup.gutterWidth
+        scrollView.frame = container.gridHost.bounds
         scrollView.autoresizingMask = [.width, .height]
-        container.addSubview(scrollView)
-        // Above the scroll view, as Echo has it: a blur inside a scroll view sees nothing to blur.
-        context.coordinator.blur = BackdropEdgeBlur(container: container)
+        container.gridHost.addSubview(scrollView)
+        container.rowNumbers.scrollView = scrollView
+        // Over the grid only, as Echo has it (Echo keeps it in the clip view, under its bars).
+        context.coordinator.blur = BackdropEdgeBlur(container: container.gridHost)
         context.coordinator.observe(scroll)
         return container
     }
@@ -63,8 +69,8 @@ struct LabRSGrid: NSViewRepresentable {
     func updateNSView(_ container: NSView, context: Context) {
         guard let scrollView = context.coordinator.scrollView else { return }
         context.coordinator.apply(setup)
-        context.coordinator.blur?.update(edge: .bottom, height: setup.footerZone + LayoutTokens.EdgeBlur.fade,
-                                         radii: LayoutTokens.EdgeBlur.radii)
+        context.coordinator.blur?.update(edge: .bottom, height: setup.blurHeight, radii: LayoutTokens.EdgeBlur.radii)
+        (container as? LabRSGridContainer)?.gutterWidth = setup.gutterWidth
         scrollView.tile()
         if context.coordinator.lastScrollToken != scrollToken {
             context.coordinator.lastScrollToken = scrollToken

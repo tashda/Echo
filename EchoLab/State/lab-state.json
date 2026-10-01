@@ -1480,6 +1480,10 @@
       {
         "date": "2026-10-01T11:17:13Z",
         "text": "Revision 4: Built into Echo: E with the pills' spacing, the system's bar while scrolling, the vertical bar down to it, soft edges"
+      },
+      {
+        "date": "2026-10-01T12:18:35Z",
+        "text": "Revision 5: Refining what is built: its length, what is behind it, its gap to the pills, its track"
       }
     ],
     "needsMore": [],
@@ -1524,9 +1528,18 @@
         "date": "2026-10-01T11:17:13Z",
         "number": 4,
         "summary": "Built into Echo: E with the pills' spacing, the system's bar while scrolling, the vertical bar down to it, soft edges"
+      },
+      {
+        "changes": [
+          "New: How far it reaches (L1 grid, L2 as wide as the footer), What is behind it (U1 sharp, U2 blur past the bar, U3 glass lane, U4 soft band, U5 blur while it shows), Gap to the pills (H1 9pt, H2 5pt, H3 13pt), Its track (T1 none, T2 faint)",
+          "The exhibits now have Echo's row-number column, and a Bars switch keeps them visible for judging"
+        ],
+        "date": "2026-10-01T12:18:35Z",
+        "number": 5,
+        "summary": "Refining what is built: its length, what is behind it, its gap to the pills, its track"
       }
     ],
-    "status": "In Echo",
+    "status": "Judging",
     "verdicts": {}
   },
   "ongoing.run-button-look-r20": {

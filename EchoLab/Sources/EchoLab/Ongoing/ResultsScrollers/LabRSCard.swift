@@ -55,7 +55,9 @@ struct LabRSCard: View {
             horizontal: system ? options.horizontalFrame(cornerRadius: cornerRadius, chips: Self.chips) : nil,
             verticalBottom: system ? options.verticalBottom(cornerRadius: cornerRadius, chips: Self.chips) : nil,
             visibility: options.visibility,
-            lane: options.lane)
+            lane: options.lane,
+            blurHeight: options.blurHeight(barShown: options.holdsBars || scroll.isScrolling),
+            gutterWidth: LabRSOptionSet.gutterWidth)
     }
 
     private var configuration: BottomPanelStatusBarConfiguration {

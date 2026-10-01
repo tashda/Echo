@@ -13,9 +13,12 @@ struct LabRSDrawnBars: View {
         ZStack(alignment: .topLeading) {
             if let frame = options.horizontalFrame(cornerRadius: cornerRadius, chips: LabRSCard.chips) {
                 let length = max(size.width - frame.left - frame.right, 0)
+                LabRSBarBacking(behind: options.behind, length: length, lane: options.lane)
+                    .offset(x: frame.left, y: size.height - frame.bottom - options.lane)
                 LabRSDrawnBar(axis: .horizontal, style: options.style, length: length,
                               visibleFraction: scroll.visibleFraction, position: scroll.position,
                               isNear: isNear(y: size.height - frame.bottom - options.lane / 2),
+                              showsTrack: options.track == .faint,
                               onScroll: scroll.scrollTo)
                     .offset(x: frame.left, y: size.height - frame.bottom - options.lane)
             }
@@ -25,6 +28,7 @@ struct LabRSDrawnBars: View {
                 LabRSDrawnBar(axis: .vertical, style: options.style, length: length,
                               visibleFraction: scroll.verticalVisibleFraction, position: scroll.verticalPosition,
                               isNear: isNear(x: size.width - options.lane / 2),
+                              showsTrack: options.track == .faint,
                               onScroll: scroll.scrollVerticallyTo)
                     .offset(x: size.width - options.lane, y: top)
             }
@@ -37,7 +41,8 @@ struct LabRSDrawnBars: View {
     }
 
     private var isShown: Bool {
-        switch options.visibility {
+        if options.holdsBars { return true }
+        return switch options.visibility {
         case .always: true
         case .whileScrolling: scroll.isScrolling || isDragging
         case .overGrid: scroll.pointer != nil || isDragging
@@ -53,5 +58,33 @@ struct LabRSDrawnBars: View {
 
     private func isNear(x: CGFloat) -> Bool {
         scroll.pointer.map { abs($0.x - x) < options.lane + SpacingTokens.xs } ?? false
+    }
+}
+
+/// Round 27, U3 and U4: what sits behind the horizontal bar while it shows.
+struct LabRSBarBacking: View {
+    let behind: LabRSBehind
+    let length: CGFloat
+    let lane: CGFloat
+
+    var body: some View {
+        switch behind {
+        case .glassLane:
+            Capsule()
+                .fill(.clear)
+                .frame(width: length, height: lane)
+                .glassEffect(.regular, in: .capsule)
+        case .softBand:
+            // The card's colour, solid around the bar and fading out above it.
+            LinearGradient(stops: [.init(color: ColorTokens.Workspace.card.opacity(0), location: 0),
+                                   .init(color: ColorTokens.Workspace.card.opacity(0.9), location: 0.45),
+                                   .init(color: ColorTokens.Workspace.card.opacity(0.9), location: 1)],
+                           startPoint: .top, endPoint: .bottom)
+                .frame(width: length + SpacingTokens.md * 2, height: lane + SpacingTokens.md)
+                .offset(x: -SpacingTokens.md, y: -SpacingTokens.md / 2)
+                .allowsHitTesting(false)
+        default:
+            EmptyView()
+        }
     }
 }

@@ -11,6 +11,8 @@ struct LabRSDrawnBar: View {
     let visibleFraction: CGFloat
     let position: CGFloat
     let isNear: Bool
+    /// T2: a faint track along the whole length while the bar shows.
+    var showsTrack = false
     let onScroll: (CGFloat) -> Void
 
     private var thickness: CGFloat { isNear ? style.hoverThickness : style.thickness }
@@ -46,7 +48,7 @@ struct LabRSDrawnBar: View {
                 .fill(.clear)
                 .frame(width: axis == .horizontal ? length : thickness, height: axis == .horizontal ? thickness : length)
                 .glassEffect(.regular, in: .capsule)
-        case .system where isNear:
+        case .system where isNear || showsTrack:
             // The overlay bar shows its track only while the pointer is on it.
             Capsule()
                 .fill(ColorTokens.Sidebar.hoverFill)

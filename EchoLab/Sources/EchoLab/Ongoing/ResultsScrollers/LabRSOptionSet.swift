@@ -7,6 +7,12 @@ struct LabRSOptionSet {
     var visibility: LabRSVisibility
     var vertical: LabRSVertical
     var extra: LabRSExtra
+    var length: LabRSLength = .grid
+    var behind: LabRSBehind = .sharp
+    var gap: LabRSGap = .built
+    var track: LabRSTrack = .none
+    /// For judging: the bars stay on screen.
+    var holdsBars = false
 
     /// Echo before round 27: the bar floating a footer above the footer.
     static let before = LabRSOptionSet(placement: .aboveFooter, style: .system, visibility: .whileScrolling,
@@ -20,8 +26,26 @@ struct LabRSOptionSet {
     var footerLift: CGFloat { placement.extraFooterLift(lane: lane) }
     var footerZone: CGFloat { LayoutTokens.Footer.height + LayoutTokens.Footer.bottomLift + footerLift }
 
+    /// The row numbers' column, left of the grid, as in Echo.
+    static let gutterWidth: CGFloat = SpacingTokens.xl + SpacingTokens.md
+
+    /// Where the thumb ends above the card's bottom edge (E): the gap above the pills.
+    var thumbBottom: CGFloat { LayoutTokens.Footer.pillInset + LayoutTokens.Footer.chipHeight + gap.points }
+
     func horizontalFrame(cornerRadius: CGFloat, chips: (left: CGFloat, right: CGFloat)) -> LabRSBarFrame? {
-        placement.horizontalFrame(footerZone: footerZone, cornerRadius: cornerRadius, chips: chips, lane: lane)
+        guard placement == .footerEdge else {
+            return placement.horizontalFrame(footerZone: footerZone, cornerRadius: cornerRadius, chips: chips, lane: lane)
+        }
+        // The thumb is centred in its lane.
+        return LabRSBarFrame(bottom: thumbBottom - (lane - LabRSBarStyle.system.thickness) / 2,
+                             left: length == .footer ? SpacingTokens.sm : Self.gutterWidth,
+                             right: SpacingTokens.sm)
+    }
+
+    /// The blur's height: as Echo has it, or past the bar when the option says so.
+    func blurHeight(barShown: Bool) -> CGFloat {
+        let reachesBar = behind.blursBar || (behind == .blurOnDemand && barShown)
+        return reachesBar ? thumbBottom + lane + LayoutTokens.EdgeBlur.fade : footerZone + LayoutTokens.EdgeBlur.fade
     }
 
     /// Where the vertical bar ends above the card's bottom edge; nil when there is none.
