@@ -163,16 +163,53 @@ enum EditorLineHeight: Double, CaseIterable, Sendable {
     }
 }
 
-/// How round the editor's selection is (round 28.3: rounded, 3pt by default, a setting).
-enum EditorSelectionCorners: Double, CaseIterable, Sendable {
-    case square = 0
-    case two = 2
-    case three = 3
-    case four = 4
-    case six = 6
+/// Round 28.15 (DC2, DS1): the corner of every mark in the editor and of the selection; round by
+/// default. Replaces round 28.3's Selection Corners and 28.5's Highlight Corners.
+enum EditorMarkCorners: String, Codable, CaseIterable, Sendable {
+    case square, two, three, four, six, round
 
     var displayName: String {
-        self == .square ? "Square" : "\(Int(rawValue)) pt"
+        switch self {
+        case .square: return "Square"
+        case .two: return "2 pt"
+        case .three: return "3 pt"
+        case .four: return "4 pt"
+        case .six: return "6 pt"
+        case .round: return "Round"
+        }
+    }
+
+    /// The corner radius for a mark this high.
+    func radius(forHeight height: CGFloat) -> CGFloat {
+        switch self {
+        case .square: return 0
+        case .two: return min(2, height / 2)
+        case .three: return min(3, height / 2)
+        case .four: return min(4, height / 2)
+        case .six: return min(6, height / 2)
+        case .round: return height / 2
+        }
+    }
+}
+
+/// Round 28.15 (DS1): how strong every mark's tint is.
+enum EditorMarkStrength: String, Codable, CaseIterable, Sendable {
+    case subtle, standard, strong
+
+    var displayName: String {
+        switch self {
+        case .subtle: return "Subtle"
+        case .standard: return "Standard"
+        case .strong: return "Strong"
+        }
+    }
+
+    var multiplier: CGFloat {
+        switch self {
+        case .subtle: return 0.7
+        case .standard: return 1
+        case .strong: return 1.4
+        }
     }
 }
 

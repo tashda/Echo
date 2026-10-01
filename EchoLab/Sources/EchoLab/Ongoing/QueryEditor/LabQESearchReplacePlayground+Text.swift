@@ -131,7 +131,7 @@ extension LabQESearchReplacePlayground {
             column = span.end
         }
         text += AttributedString(String(chars[min(column, chars.count)...]))
-        let letters = ceil(codeFont.ascender - codeFont.descender) + LayoutTokens.EditorGutter.highlightPadding * 2
+        let letters = ceil(codeFont.ascender - codeFont.descender) + EditorMarkTokens.verticalPadding * 2
         return ZStack(alignment: .leading) {
             ForEach(Array(marks.enumerated()), id: \.offset) { _, mark in
                 RoundedRectangle(cornerRadius: language.cornerRadius(for: mark.kind, height: letters), style: .continuous)

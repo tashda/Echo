@@ -52,7 +52,7 @@ struct LabQEMarkSampler: View {
     }
 
     private func markShape(_ start: Int, _ end: Int, _ kind: LabQEMarkLanguage.Kind) -> some View {
-        let letters = ceil(font.ascender - font.descender) + LayoutTokens.EditorGutter.highlightPadding * 2
+        let letters = ceil(font.ascender - font.descender) + EditorMarkTokens.verticalPadding * 2
         let height = language.height == .line ? lineHeight : letters
         let padding = kind == .mistake ? SpacingTokens.xxs : SpacingTokens.micro
         let width = CGFloat(end - start) * advance + padding * 2

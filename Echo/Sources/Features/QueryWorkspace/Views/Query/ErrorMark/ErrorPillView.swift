@@ -2,7 +2,7 @@
 import AppKit
 import SwiftUI
 
-/// Round 28.6 (E10): a mistake's mark, a tinted red pill behind the word, the same for what
+/// Round 28.6 (E10), in round 28.15's language: a mistake's mark, a strong red mark behind the word, the same for what
 /// EchoSense finds while you type and what the server returns (SL0). Its bubble (BB3) opens while
 /// the pointer is on the word or the caret is on its line (M3). Still: nothing moves (MO0).
 /// Clicks pass through to the editor.
@@ -10,6 +10,8 @@ final class ErrorPillView: NSView {
     let content: ErrorBubbleContent
     /// The 1-based editor line the mark is on.
     let line: Int
+    private let fill: NSColor
+    private let corners: EditorMarkCorners
     private let onFix: (QueryErrorMark.Fix) -> Void
     private var popover: NSPopover?
     private var isHovering = false
@@ -19,9 +21,12 @@ final class ErrorPillView: NSView {
         didSet { if oldValue != isCaretOnLine { updateBubble() } }
     }
 
-    init(content: ErrorBubbleContent, line: Int, onFix: @escaping (QueryErrorMark.Fix) -> Void = { _ in }) {
+    init(content: ErrorBubbleContent, line: Int, fill: NSColor, corners: EditorMarkCorners,
+         onFix: @escaping (QueryErrorMark.Fix) -> Void = { _ in }) {
         self.content = content
         self.line = line
+        self.fill = fill
+        self.corners = corners
         self.onFix = onFix
         super.init(frame: .zero)
         setAccessibilityElement(true)
@@ -36,8 +41,8 @@ final class ErrorPillView: NSView {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
     override func draw(_ dirtyRect: NSRect) {
-        NSColor.systemRed.withAlphaComponent(LayoutTokens.EditorGutter.errorPillOpacity).setFill()
-        let radius = bounds.height / 2
+        fill.setFill()
+        let radius = corners.radius(forHeight: bounds.height)
         NSBezierPath(roundedRect: bounds, xRadius: radius, yRadius: radius).fill()
     }
 

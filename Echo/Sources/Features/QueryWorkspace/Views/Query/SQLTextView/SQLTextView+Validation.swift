@@ -75,7 +75,8 @@ extension SQLTextView {
 
             // Round 28.6 (E10, SL0): a tinted pill behind the word; the message is in its bubble.
             guard let frame = errorPillRect(for: range) else { continue }
-            let pill = ErrorPillView(content: ErrorBubbleContent(diagnostic: diagnostic), line: text.lineNumber(at: range.location))
+            let pill = ErrorPillView(content: ErrorBubbleContent(diagnostic: diagnostic), line: text.lineNumber(at: range.location),
+                                     fill: markColor(.wrong, .strong), corners: displayOptions.markCorners)
             pill.frame = frame
             addSubview(pill)
             validationOverlays.append(pill)

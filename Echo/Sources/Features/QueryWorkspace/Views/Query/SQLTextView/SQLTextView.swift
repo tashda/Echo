@@ -60,6 +60,10 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     /// Round 28.8: a pinch asks for the next zoom step; the magnification gathered so far.
     var onZoomStep: ((Int) -> Void)?
     var pinchAmount: CGFloat = 0
+    /// Rounds 28.12 and 28.13: the editor's own find and replace, its bar and its preview.
+    let find = EditorFind()
+    var findBarView: NSView?
+    var hasReplacePreview = false
     /// Round 28.9: the Go to Line field while it is open.
     var goToLineField: NSView?
     static let maxValidationOverlays = 10
@@ -141,7 +145,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         isEditable = true; isSelectable = true; isRichText = false; isAutomaticQuoteSubstitutionEnabled = false; isAutomaticDashSubstitutionEnabled = false
         isAutomaticTextReplacementEnabled = false; isAutomaticSpellingCorrectionEnabled = false; isGrammarCheckingEnabled = false
         usesAdaptiveColorMappingForDarkAppearance = false; textContainerInset = NSSize(width: SpacingTokens.xxs, height: SpacingTokens.xs); allowsUndo = true
-        usesFindBar = true; isIncrementalSearchingEnabled = true
+        usesFindBar = false; isIncrementalSearchingEnabled = false
         maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude); minSize = NSSize(width: 0, height: 320)
         isHorizontallyResizable = false; isVerticallyResizable = true; autoresizingMask = [.width]; wantsLayer = true; layer?.isOpaque = true
         if super.undoManager == nil { self.setValue(fallbackResponder.undoManagerInstance, forKey: "undoManager") }
@@ -188,6 +192,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if handleFindKey(event) { return true }
         if modifiers == .command, event.charactersIgnoringModifiers == "l" { showGoToLinePanel(); return true }
         if modifiers == .command, event.charactersIgnoringModifiers == "/" { toggleLineComment(); return true }
         return super.performKeyEquivalent(with: event)
@@ -266,6 +271,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     override func didChangeText() {
         super.didChangeText(); sqlDelegate?.sqlTextView(self, didUpdateText: string); lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
         refreshEmptyPrompt()
+        refreshFind()
         let caret = selectedRange().location
         if caret != NSNotFound { lastEditedLine = (string as NSString).lineNumber(at: caret) }
         notifySelectionChanged(); scheduleHighlighting()

@@ -37,7 +37,9 @@ struct QueryInputSection: View {
     )
     @State private var isSelectionActive = false
 
-    private let leadingPadding: CGFloat = SpacingTokens.xs
+    /// Round 28.14: the gutter starts at the card's edge, as Echo Labs draws it, so a lane can
+    /// centre its numbers without meeting the error dot.
+    private let leadingPadding: CGFloat = SpacingTokens.none
     private let trailingPadding: CGFloat = SpacingTokens.md1
     private let topPadding: CGFloat = 0
     private let bottomPadding: CGFloat = SpacingTokens.md2

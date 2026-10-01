@@ -11,7 +11,7 @@ extension SQLTextView {
         errorMarkView = nil
         guard let mark = errorMark, let frame = errorPillRect(for: mark.range) else { return }
         let content = ErrorBubbleContent(title: "Error", message: mark.message, detail: mark.detail, fix: mark.fix)
-        let view = ErrorPillView(content: content, line: mark.line) { [weak self] fix in
+        let view = ErrorPillView(content: content, line: mark.line, fill: markColor(.wrong, .strong), corners: displayOptions.markCorners) { [weak self] fix in
             self?.applyErrorFix(fix, at: mark.range)
         }
         view.frame = frame
@@ -30,22 +30,9 @@ extension SQLTextView {
         window?.makeFirstResponder(self)
     }
 
-    /// The pill behind a range's letters on its first line: as high as the letters, a little wider.
+    /// The mistake's mark on its first line, in the marks' language (round 28.15).
     func errorPillRect(for range: NSRange) -> NSRect? {
-        guard let layoutManager, let textContainer, range.location != NSNotFound, range.length > 0,
-              NSMaxRange(range) <= (string as NSString).length else { return nil }
-        let glyphs = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
-        let used = layoutManager.boundingRect(forGlyphRange: glyphs, in: textContainer)
-        let fragment = layoutManager.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
-        guard used.width > 0 else { return nil }
-        let font = theme.nsFont
-        let baseline = (layoutManager as? SQLLayoutManager)?.fixedBaselineOffset ?? font.ascender
-        let height = ceil(font.ascender - font.descender) + LayoutTokens.EditorGutter.highlightPadding * 2
-        let padding = SpacingTokens.xxs
-        return NSRect(x: used.minX + textContainerOrigin.x - padding,
-                      y: fragment.minY + textContainerOrigin.y + baseline - font.ascender - LayoutTokens.EditorGutter.highlightPadding,
-                      width: min(used.width, fragment.maxX - used.minX) + padding * 2,
-                      height: height)
+        markRects(for: range).first
     }
 
     /// M3: the bubble of every mark on the caret's line is open; the others close.
