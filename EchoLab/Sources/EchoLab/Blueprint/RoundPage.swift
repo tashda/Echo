@@ -4,18 +4,30 @@ import SwiftUI
 /// the exhibits in the middle where they stay put and wrap to the width, and the decision in the
 /// right-hand panel. Every part scrolls on its own, so you never lose the previews while you
 /// change a control. A round with only a few controls gets a slim bar above the exhibits instead.
+/// Specimens are drawn at the toolbar zoom (100% is the size Echo draws them): the exhibits wrap
+/// into as many columns as fit at that size, or show one at a time to flip between them.
 struct LabRoundPage: View {
     let pageID: String
     let spec: RoundSpec
 
+    /// How the exhibits are laid out, the same for every round.
+    enum Layout: String {
+        case sideBySide, oneAtATime
+    }
+
     @State private var values: RoundValues
     @State private var settings = LabStageSettings.shared
+    @State private var canvasWidth: CGFloat = 0
     @AppStorage("lab.round.showsControls") private var showsControls = true
+    @AppStorage("lab.round.layout") private var layout = Layout.sideBySide
+    /// The exhibit shown on its own, per round.
+    @AppStorage private var aloneID: String
 
     init(pageID: String, spec: RoundSpec) {
         self.pageID = pageID
         self.spec = spec
         _values = State(initialValue: RoundValues.shared(pageID: pageID, controls: spec.controls))
+        _aloneID = AppStorage(wrappedValue: spec.exhibits.first?.id ?? "", "lab.round.alone.\(pageID)")
     }
 
     private var page: LabPage { LabRegistry.page(id: pageID) ?? LabRegistry.pages[0] }
@@ -35,9 +47,26 @@ struct LabRoundPage: View {
         }
     }
 
+    private var showsAlone: Bool { layout == .oneAtATime && spec.exhibits.count > 1 }
+    private var aloneExhibit: RoundSpec.Exhibit? { spec.exhibits.first { $0.id == aloneID } ?? spec.exhibits.first }
+
     private func card(_ exhibit: RoundSpec.Exhibit) -> some View {
         RoundExhibitCard(page: page, exhibit: exhibit, values: values, settings: settings, decides: spec.exhibitTopic != nil,
-                         recommendation: spec.exhibitTopic.flatMap { $0.recommended == exhibit.id ? $0.why : nil })
+                         recommendation: spec.exhibitTopic.flatMap { $0.recommended == exhibit.id ? $0.why : nil },
+                         isAlone: showsAlone,
+                         toggleAlone: spec.exhibits.count > 1 ? {
+                             aloneID = exhibit.id
+                             layout = showsAlone ? .sideBySide : .oneAtATime
+                         } : nil)
+    }
+
+    /// As many columns as fit with the widest specimen at the zoom; one when even that does not fit.
+    private var columns: [GridItem] {
+        let chrome = (SpacingTokens.sm + SpacingTokens.xs) * 2
+        let cardWidth = (spec.exhibits.map(\.designWidth).max() ?? 320) * CGFloat(LabZoom.shared.level) + chrome
+        let fitting = Int((canvasWidth + SpacingTokens.sm) / (cardWidth + SpacingTokens.sm))
+        let count = min(max(fitting, 1), max(spec.exhibits.count, 1))
+        return Array(repeating: GridItem(.flexible(), spacing: SpacingTokens.sm, alignment: .top), count: count)
     }
 
     private var canvas: some View {
@@ -51,245 +80,33 @@ struct LabRoundPage: View {
                 }
                 Label("Try it", systemImage: "hand.tap").font(TypographyTokens.headline)
                 Spacer()
+                if spec.exhibits.count > 1 {
+                    Picker("Layout", selection: $layout) {
+                        Text("Side by Side").tag(Layout.sideBySide)
+                        Text("One at a Time").tag(Layout.oneAtATime)
+                    }
+                    .pickerStyle(.segmented).labelsHidden().fixedSize().controlSize(.small)
+                    .help("Side by side fits as many exhibits as the zoom allows; one at a time shows one exhibit at a time, as large as the zoom asks")
+                }
             }
             .padding(.horizontal, SpacingTokens.md).padding(.vertical, SpacingTokens.xs)
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: SpacingTokens.sm) {
                     if !usesColumn { RoundControlsBar(page: page, spec: spec, values: values, settings: settings) }
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 320 * LabZoom.shared.level, maximum: 720 * LabZoom.shared.level), spacing: SpacingTokens.sm, alignment: .top)],
-                              alignment: .leading, spacing: SpacingTokens.sm) {
-                        ForEach(spec.exhibits) { exhibit in
-                            RoundExhibitCard(page: page, exhibit: exhibit, values: values, settings: settings, decides: spec.exhibitTopic != nil,
-                                     recommendation: spec.exhibitTopic.flatMap { $0.recommended == exhibit.id ? $0.why : nil })
+                    if showsAlone, let exhibit = aloneExhibit {
+                        RoundExhibitStrip(page: page, spec: spec, selection: $aloneID)
+                        card(exhibit)
+                    } else {
+                        LazyVGrid(columns: columns, alignment: .leading, spacing: SpacingTokens.sm) {
+                            ForEach(spec.exhibits) { card($0) }
                         }
                     }
                 }
                 .padding(SpacingTokens.md)
+                .onGeometryChange(for: CGFloat.self, of: { $0.size.width - SpacingTokens.md * 2 }) { canvasWidth = $0 }
             }
         }
         .labScrollSizing()
-    }
-}
-
-/// A control as a labelled menu that shows its current choice and what it means.
-private struct RoundControlMenu: View {
-    let page: LabPage
-    let control: RoundSpec.Control
-    let values: RoundValues
-    var showsSummary = true
-    @Environment(LabStore.self) private var store
-
-    var body: some View {
-        let current = control.choices.first { $0.id == values[control.id] }
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 5) {
-                Text(control.title).font(TypographyTokens.standard.weight(.semibold)).foregroundStyle(ColorTokens.Text.primary)
-                if store.isNew(page, addedIn: control.addedIn) { LabNewBadge() }
-            }
-            Menu {
-                Picker(control.title, selection: values.binding(control.id)) {
-                    ForEach(control.choices) {
-                        Text($0.name + ($0.id == control.recommended ? "  ★ recommended" : "") + (store.isNew(page, addedIn: $0.addedIn) ? "  · new" : "")).tag($0.id)
-                    }
-                }
-                .pickerStyle(.inline)
-            } label: {
-                HStack {
-                    Text(current?.name ?? control.defaultChoice).lineLimit(1)
-                    Spacer(minLength: 4)
-                    Image(systemName: "chevron.up.chevron.down").font(.system(size: 9)).foregroundStyle(ColorTokens.Text.tertiary)
-                }
-                .font(TypographyTokens.standard)
-                .padding(.horizontal, 10).frame(height: 30)
-                .labField()
-                .contentShape(Rectangle())
-            }
-            .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
-            if let rec = control.recommended, current?.id != rec, let name = control.choices.first(where: { $0.id == rec })?.name {
-                Label("Recommended: \(name)", systemImage: "star.fill").font(TypographyTokens.detail.weight(.medium)).foregroundStyle(ColorTokens.accent)
-            }
-            if showsSummary, let summary = current?.summary {
-                Text(summary).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-}
-
-/// The left column: presets, every control, and the test controls.
-private struct RoundControlsColumn: View {
-    let page: LabPage
-    let spec: RoundSpec
-    let values: RoundValues
-    let settings: LabStageSettings
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SpacingTokens.lg) {
-                if !spec.presets.isEmpty {
-                    section("Presets", "wand.and.stars") {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 6, alignment: .leading)], alignment: .leading, spacing: 6) {
-                            ForEach(spec.presets) { preset in
-                                Button { values.apply(preset) } label: {
-                                    HStack(spacing: 4) {
-                                        Text(preset.name)
-                                        if preset.isRecommended { Image(systemName: "star.fill").font(.system(size: 9)) }
-                                    }
-                                }
-                                .buttonStyle(LabPillButtonStyle(isOn: values.matches(preset)))
-                                .help(preset.summary ?? "")
-                            }
-                        }
-                    }
-                }
-                if !spec.actions.isEmpty {
-                    section("Actions", "play.circle") {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 6, alignment: .leading)], alignment: .leading, spacing: 6) {
-                            ForEach(spec.actions) { action in
-                                Button { action.perform(values) } label: { Label(action.title, systemImage: action.symbol) }
-                                    .buttonStyle(LabPillButtonStyle(tint: ColorTokens.accent, prominent: true))
-                            }
-                        }
-                    }
-                }
-                section("Controls", "slider.horizontal.3") {
-                    VStack(alignment: .leading, spacing: SpacingTokens.md) {
-                        ForEach(spec.controls) { RoundControlMenu(page: page, control: $0, values: values) }
-                        Button { values.reset(spec.controls) } label: { Label("Reset controls", systemImage: "arrow.uturn.backward") }
-                            .buttonStyle(LabPillButtonStyle())
-                    }
-                }
-                section("Test", "testtube.2") { LabStageControlColumn(settings: settings) }
-            }
-            .padding(SpacingTokens.md)
-        }
-        .labScrollSizing()
-        .background(ColorTokens.Workspace.canvas)
-    }
-
-    private func section<Content: View>(_ title: String, _ symbol: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            LabColumnTitle(text: title, symbol: symbol)
-            content()
-        }
-    }
-}
-
-/// The slim bar used when a round has only a few controls.
-private struct RoundControlsBar: View {
-    let page: LabPage
-    let spec: RoundSpec
-    let values: RoundValues
-    let settings: LabStageSettings
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            if !spec.controls.isEmpty {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: SpacingTokens.sm)], alignment: .leading, spacing: SpacingTokens.xs) {
-                    ForEach(spec.controls) { RoundControlMenu(page: page, control: $0, values: values, showsSummary: false) }
-                }
-            }
-            LabStageControlBar(settings: settings)
-        }
-        .controlSize(.small)
-        .padding(SpacingTokens.sm)
-        .background(ColorTokens.Surface.rest, in: .rect(cornerRadius: 12, style: .continuous))
-    }
-}
-
-/// One exhibit: title, what makes it different, the live specimen, and (when the round picks
-/// between exhibits) Pick, Maybe, No and a note.
-private struct RoundExhibitCard: View {
-    let page: LabPage
-    let exhibit: RoundSpec.Exhibit
-    let values: RoundValues
-    let settings: LabStageSettings
-    let decides: Bool
-    /// The agent's reason, set when this exhibit is the recommended one.
-    var recommendation: String?
-
-    @Environment(LabStore.self) private var store
-    @State private var note = ""
-    @State private var showsNote = false
-
-    private var verdict: LabStore.OptionVerdict? { store.verdict(page, topic: RoundSpec.exhibitTopicID, option: exhibit.id) }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            HStack(spacing: SpacingTokens.xs) {
-                Text(exhibit.title).font(TypographyTokens.headline)
-                if exhibit.isEchoToday {
-                    Text("Echo today").font(TypographyTokens.detail)
-                        .padding(.horizontal, SpacingTokens.xs).padding(.vertical, 1)
-                        .background(ColorTokens.Surface.hover, in: Capsule())
-                }
-                if store.isNew(page, addedIn: exhibit.addedIn) { LabNewBadge() }
-                if recommendation != nil {
-                    Label("Recommended", systemImage: "star.fill").font(TypographyTokens.detail.weight(.semibold))
-                        .padding(.horizontal, SpacingTokens.xs).padding(.vertical, 1)
-                        .background(ColorTokens.accent.opacity(0.14), in: Capsule()).foregroundStyle(ColorTokens.accent)
-                }
-                Spacer()
-            }
-            if let recommendation {
-                Text(recommendation).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if !exhibit.summary.isEmpty {
-                Text(exhibit.summary).font(TypographyTokens.standard).foregroundStyle(ColorTokens.Text.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            LabFitToWidth(designWidth: exhibit.designWidth, designHeight: exhibit.designHeight) {
-                exhibit.build(values).labStage(settings)
-            }
-            .padding(SpacingTokens.xs)
-            .background(ColorTokens.Workspace.canvas, in: .rect(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5))
-            .preferredColorScheme(settings.appearance.scheme)
-            if decides {
-                HStack(spacing: SpacingTokens.xs) {
-                    mark("Pick", "checkmark.circle.fill", .pick, ColorTokens.Status.success)
-                    mark("Maybe", "questionmark.circle", .maybe, ColorTokens.Status.warning)
-                    mark("No", "xmark.circle", .no, ColorTokens.Status.error)
-                    Spacer()
-                    Button(showsNote || !note.isEmpty ? "Note" : "Add note", systemImage: "text.bubble") { showsNote.toggle() }
-                        .buttonStyle(.plain).font(TypographyTokens.detail)
-                        .foregroundStyle(note.isEmpty ? ColorTokens.Text.secondary : ColorTokens.accent)
-                }
-                if showsNote || !note.isEmpty {
-                    TextField("", text: $note, prompt: Text("Note on \(exhibit.title)"), axis: .vertical)
-                        .textFieldStyle(.roundedBorder).lineLimit(1...4)
-                        .onChange(of: note) { _, new in store.setOptionNote(page, topic: RoundSpec.exhibitTopicID, option: exhibit.id, note: new) }
-                }
-            }
-        }
-        .padding(SpacingTokens.sm)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .labCard(cornerRadius: 16)
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .strokeBorder(border, lineWidth: verdict == nil ? 0 : 2))
-        .opacity(verdict == .no ? 0.7 : 1)
-        .onAppear {
-            note = store.optionNote(page, topic: RoundSpec.exhibitTopicID, option: exhibit.id)
-            showsNote = !note.isEmpty
-        }
-    }
-
-    private var border: Color {
-        switch verdict {
-        case .pick: ColorTokens.Status.success
-        case .maybe: ColorTokens.Status.warning
-        case .no: ColorTokens.Status.error.opacity(0.6)
-        case nil: .clear
-        }
-    }
-
-    private func mark(_ title: String, _ symbol: String, _ value: LabStore.OptionVerdict, _ tint: Color) -> some View {
-        let isOn = verdict == value
-        return Button {
-            store.setVerdict(page, topic: RoundSpec.exhibitTopicID, option: exhibit.id, verdict: isOn ? nil : value)
-        } label: { Label(title, systemImage: symbol) }
-            .buttonStyle(LabPillButtonStyle(tint: tint, isOn: isOn))
     }
 }

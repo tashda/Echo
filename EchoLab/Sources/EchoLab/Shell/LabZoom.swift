@@ -1,10 +1,10 @@
 import Observation
 import SwiftUI
 
-/// How large the previews on round pages and decided pages are drawn. 100% fits each preview to
-/// its card (up to 1.6 times its design size); the toolbar's zoom buttons and ⌘+, ⌘- and ⌘0 change
-/// it, and it is remembered between launches. Above 100% a preview that is wider than its card
-/// scrolls sideways inside it.
+/// How large the previews on round pages and decided pages are drawn. 100% is the size Echo draws
+/// them. The toolbar's zoom buttons and ⌘+, ⌘- and ⌘0 change it, and it is remembered between
+/// launches. Zooming gives each preview more room (fewer exhibits side by side) instead of
+/// cropping it; a preview that still does not fit is scaled down and says so.
 @Observable @MainActor
 final class LabZoom {
     static let shared = LabZoom()
@@ -37,6 +37,6 @@ struct LabZoomControls: View {
             Button("Zoom In", systemImage: "plus.magnifyingglass") { zoom.zoomIn() }
                 .disabled(!zoom.canZoomIn)
         }
-        .help("Preview size: ⌘- and ⌘+, ⌘0 resets")
+        .help("Preview size. 100% is the size Echo draws it. ⌘- and ⌘+; ⌘0 goes back to actual size")
     }
 }
