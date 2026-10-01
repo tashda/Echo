@@ -126,17 +126,32 @@ extension BulkImportSheet {
             }
 
         case .completed(let count, let duration):
-            Label(
-                "Successfully imported \(count) rows in \(String(format: "%.2f", duration))s",
-                systemImage: "checkmark.circle.fill"
-            )
-            .font(TypographyTokens.standard)
-            .foregroundStyle(ColorTokens.Status.success)
+            VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
+                Label(
+                    "Imported \(count.formatted()) rows in \(String(format: "%.1f", duration)) s",
+                    systemImage: "checkmark.circle.fill"
+                )
+                .font(TypographyTokens.standard)
+                .foregroundStyle(ColorTokens.Status.success)
+                if let note = viewModel.completionNote {
+                    Label(note, systemImage: "info.circle")
+                        .font(TypographyTokens.formDescription)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                }
+            }
 
         case .failed(let message):
-            Label(message, systemImage: "xmark.circle.fill")
-                .font(TypographyTokens.standard)
-                .foregroundStyle(ColorTokens.Status.error)
+            VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
+                Label(message, systemImage: "xmark.circle.fill")
+                    .font(TypographyTokens.standard)
+                    .foregroundStyle(ColorTokens.Status.error)
+                if let detail = viewModel.failureDetail {
+                    Text(detail)
+                        .font(TypographyTokens.formDescription)
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                        .textSelection(.enabled)
+                }
+            }
         }
     }
 

@@ -17,6 +17,7 @@
       "skippedTests" : [
         "LabPostgresSessionTests",
         "LabSQLServerSessionTests",
+        "LabSQLServerImportTests",
         "EchoSenseIntegrationTests",
         "FactoryConnectionTests",
         "MSSQLActivityMonitorTests",

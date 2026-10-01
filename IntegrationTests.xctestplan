@@ -16,6 +16,7 @@
       "selectedTests": [
         "LabPostgresSessionTests",
         "LabSQLServerSessionTests",
+        "LabSQLServerImportTests",
         "FactoryConnectionTests",
         "MSSQLActivityMonitorTests",
         "MSSQLAgentManagementTests",
