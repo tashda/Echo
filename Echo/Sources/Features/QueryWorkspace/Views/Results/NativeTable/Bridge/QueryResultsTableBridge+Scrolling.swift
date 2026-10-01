@@ -29,6 +29,7 @@ extension QueryResultsTableView.Coordinator {
         guard !isResizingColumn, !isSplitResizing else { return }
         // Quick check: if visible rows haven't changed, skip entirely
         guard let tableView else { return }
+        refreshLiveColumns(tableView)
         let visibleRange = tableView.rows(in: tableView.visibleRect)
         if visibleRange == lastPaginationVisibleRange { return }
         requestPaginationEvaluation()
@@ -73,6 +74,7 @@ extension QueryResultsTableView.Coordinator {
         columnResizeObserver = NotificationCenter.default.addObserver(forName: NSTableView.columnDidResizeNotification, object: tableView, queue: .main) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                if let tableView = self.tableView { self.refreshLiveColumns(tableView) }
                 if !self.isResizingColumn {
                     self.isResizingColumn = true
                     // Reset the flag after a brief delay — column resize generates a burst of notifications.

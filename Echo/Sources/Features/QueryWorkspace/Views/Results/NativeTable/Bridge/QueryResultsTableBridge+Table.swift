@@ -26,6 +26,7 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         guard let tableColumn, let dataIndex = dataColumnIndex(for: tableColumn) else { return nil }
+        guard isLiveColumn(tableColumnIndex(of: tableColumn, in: tableView), in: tableView) else { return nil }
         let identifier = NSUserInterfaceItemIdentifier("data-cell-\(dataIndex)")
         let cellView = tableView.makeView(withIdentifier: identifier, owner: self) as? ResultTableDataCellView ?? makeDataCellView(identifier: identifier)
         configureCellView(cellView, dataIndex: dataIndex, tableView: tableView, row: row)
@@ -79,7 +80,7 @@ extension QueryResultsTableView.Coordinator: NSTableViewDelegate, NSTableViewDat
 
     func dataColumnIndex(for tableColumn: NSTableColumn) -> Int? {
         guard let tableView else { return nil }
-        let tableIndex = tableView.column(withIdentifier: tableColumn.identifier)
+        let tableIndex = tableColumnIndex(of: tableColumn, in: tableView)
         guard tableIndex >= 0 else { return nil }
         return visibleDataIndex(for: tableIndex)
     }

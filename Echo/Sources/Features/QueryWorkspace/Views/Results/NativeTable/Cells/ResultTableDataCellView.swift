@@ -22,18 +22,16 @@ final class ResultTableDataCellView: NSTableCellView {
     }
 
     private func setup() {
+        // One layer per cell: the text draws into the cell's layer. The text field had its own
+        // layer with a rounded clip that showed nothing, so every cell scrolled in drew and
+        // composited two layers (traced 2026-10-01).
         wantsLayer = true
+        canDrawSubviewsIntoLayer = true
         contentTextField.isEditable = false
         contentTextField.isSelectable = false
         contentTextField.isBordered = false
         contentTextField.drawsBackground = false
         contentTextField.focusRingType = .none
-        contentTextField.wantsLayer = true
-        if let layer = contentTextField.layer {
-            layer.masksToBounds = true
-            layer.cornerRadius = SpacingTokens.xxs2
-            layer.cornerCurve = .continuous
-        }
         contentTextField.lineBreakMode = .byTruncatingTail
         contentTextField.usesSingleLineMode = true
         contentTextField.maximumNumberOfLines = 1

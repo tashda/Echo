@@ -49,6 +49,7 @@ extension QueryResultsTableView.Coordinator {
         while tableView.tableColumns.count > 0 {
             tableView.removeTableColumn(tableView.tableColumns[0])
         }
+        invalidateTableColumnPositions()
         let allColumns = queryState.displayedColumns
         let hidden = persistedState?.hiddenColumnIndices ?? []
         let savedWidths = persistedState?.cachedColumnWidths ?? [:]

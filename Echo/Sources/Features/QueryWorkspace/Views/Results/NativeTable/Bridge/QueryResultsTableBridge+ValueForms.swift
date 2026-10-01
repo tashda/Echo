@@ -43,7 +43,7 @@ extension QueryResultsTableView.Coordinator {
             let visible = tableView.rows(in: tableView.visibleRect)
             guard visible.length > 0 else { return }
             tableView.reloadData(forRowIndexes: IndexSet(integersIn: visible.location..<(visible.location + visible.length)),
-                                 columnIndexes: IndexSet(integersIn: 0..<tableView.numberOfColumns))
+                                 columnIndexes: self.liveColumnIndexes(in: tableView))
         }
     }
 

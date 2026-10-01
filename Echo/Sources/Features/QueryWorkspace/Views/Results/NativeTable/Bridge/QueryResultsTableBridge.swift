@@ -22,6 +22,12 @@ extension QueryResultsTableView {
         var cachedColumnForms: [ResultCellValueForm] = []
         var cachedFractionDigits: [Int] = []
         var fractionRefreshScheduled = false
+        /// The table columns that get cells, and what they were worked out for
+        /// (QueryResultsTableBridge+LiveColumns).
+        var liveColumns = IndexSet()
+        var liveColumnsKey: ResultGridLiveColumnsKey?
+        /// Each table column's position by identifier (QueryResultsTableBridge+ColumnLookup).
+        var tableColumnPositions: [NSUserInterfaceItemIdentifier: Int] = [:]
         var cachedRowOrder: [Int] = []
         var cachedSort: SortCriteria?
         var lastRowCount: Int = 0
@@ -133,6 +139,7 @@ extension QueryResultsTableView {
             cachedColumnKinds.removeAll()
             cachedColumnForms.removeAll()
             cachedFractionDigits.removeAll()
+            liveColumns.removeAll(); liveColumnsKey = nil; tableColumnPositions.removeAll()
 
             // Clear row state
             cachedRowOrder.removeAll()
@@ -192,6 +199,7 @@ extension QueryResultsTableView {
             while tableView.tableColumns.count > 0 {
                 tableView.removeTableColumn(tableView.tableColumns[0])
             }
+            invalidateTableColumnPositions()
             addDataColumns(to: tableView)
             applyHeaderStyle(to: tableView)
             tableView.reloadData()

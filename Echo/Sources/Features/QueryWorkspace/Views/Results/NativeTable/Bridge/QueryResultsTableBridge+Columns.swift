@@ -12,6 +12,7 @@ extension QueryResultsTableView.Coordinator {
 
         if columnsChanged {
             while tableView.tableColumns.count > 0 { tableView.removeTableColumn(tableView.tableColumns[0]) }
+            invalidateTableColumnPositions()
             addDataColumns(to: tableView)
             headerNeedsRefresh = true
         } else {
