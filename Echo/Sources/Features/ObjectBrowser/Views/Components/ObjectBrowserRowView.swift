@@ -72,7 +72,7 @@ struct ObjectBrowserRowView: View {
             columnRow(column: column)
         case .item(let row):
             itemRow(row)
-        case .action(let session, let kind):
+        case .action(let session, let kind, _):
             actionRow(kind, session: session)
         case .placeholder(let title, let kind):
             SidebarRow(

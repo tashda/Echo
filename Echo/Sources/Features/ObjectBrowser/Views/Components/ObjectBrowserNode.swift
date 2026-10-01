@@ -52,7 +52,9 @@ final class ObjectBrowserNode: NSObject {
         case object(ConnectionSession, String, SchemaObjectInfo)
         case column(ColumnInfo)
         case item(ExplorerItemRow)
-        case action(ConnectionSession, ExplorerNodeKind)
+        /// A tool that opens a tab, a window or a sheet; inside a database it knows which one
+        /// (Security Overview, round 38).
+        case action(ConnectionSession, ExplorerNodeKind, databaseName: String?)
         /// Says a folder is empty ("No logins").
         case placeholder(String, kind: ExplorerNodeKind?)
         /// Something still loading: one spinner row, or skeleton rows (round 16).

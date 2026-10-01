@@ -287,8 +287,8 @@ struct ObjectBrowserSidebarView: View {
                 databaseName: databaseName,
                 objectID: object.id
             )
-        case .action(_, let kind):
-            perform(action: kind, session: session)
+        case .action(_, let kind, let databaseName):
+            perform(action: kind, session: session, databaseName: databaseName)
         default:
             break
         }
@@ -326,10 +326,18 @@ struct ObjectBrowserSidebarView: View {
         }
     }
 
-    private func perform(action: ExplorerNodeKind, session: ConnectionSession) {
+    private func perform(action: ExplorerNodeKind, session: ConnectionSession, databaseName: String?) {
         let connectionID = session.connection.id
 
         switch action {
+        case .securityOverview:
+            // Round 38: the row under a Security folder opens what its menu's Open Security
+            // Management opens, for the server or for that database.
+            if let databaseName {
+                environmentState.openDatabaseSecurityTab(connectionID: connectionID, databaseName: databaseName)
+            } else {
+                environmentState.openServerSecurityTab(connectionID: connectionID)
+            }
         case .maintenance:
             environmentState.openMaintenanceTab(connectionID: connectionID)
         case .serverProperties:

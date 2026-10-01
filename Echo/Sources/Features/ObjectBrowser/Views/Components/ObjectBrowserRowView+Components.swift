@@ -97,6 +97,8 @@ extension ObjectBrowserRowView {
         }
     }
 
+    /// A tool row: it opens a tab, a window or a sheet, so it always ends in ↗ (round 38, OT1
+    /// without its square, MS0, SH0).
     func actionRow(_ kind: ExplorerNodeKind, session: ConnectionSession) -> some View {
         buttonRow {
             SidebarRow(
@@ -106,7 +108,12 @@ extension ObjectBrowserRowView {
                 isSelected: isSelected,
                 iconColor: explorerIconColor(kind.role.color),
                 accentColor: resolvedAccentColor(for: session.connection)
-            )
+            ) {
+                Image(systemName: "arrow.up.right")
+                    .font(SidebarRowConstants.trailingFont)
+                    .foregroundStyle(ColorTokens.Text.tertiary)
+                    .accessibilityLabel("Opens elsewhere")
+            }
         }
     }
 

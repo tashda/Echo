@@ -53,7 +53,7 @@ struct ExplorerBlueprintWalker {
         case .action(let kind):
             return [ObjectBrowserNode(
                 id: ObjectBrowserSidebarViewModel.actionNodeID(connectionID: connectionID, parentID: parentID(of: place), kind: kind),
-                row: .action(session, kind)
+                row: .action(session, kind, databaseName: place.database?.name)
             )]
         case .onlineOnly(let children):
             guard place.database?.isOnline == true else { return [] }
