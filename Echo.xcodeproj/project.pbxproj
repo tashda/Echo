@@ -833,7 +833,7 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/tashda/postgres-wire";
 			requirement = {
-				branch = dev;
+				branch = "archive/swift-drivers";
 				kind = branch;
 			};
 		};
@@ -841,7 +841,7 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/tashda/sqlserver-nio";
 			requirement = {
-				branch = dev;
+				branch = "archive/swift-drivers";
 				kind = branch;
 			};
 		};
@@ -849,7 +849,7 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/tashda/EchoSense";
 			requirement = {
-				branch = dev;
+				branch = "archive/swift-drivers";
 				kind = branch;
 			};
 		};
@@ -865,7 +865,7 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/tashda/mysql-wire";
 			requirement = {
-				branch = dev;
+				branch = "archive/swift-drivers";
 				kind = branch;
 			};
 		};
@@ -873,15 +873,15 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/tashda/swift-active-directory";
 			requirement = {
-				branch = dev;
-				kind = branch;
+				kind = revision;
+				revision = 8f9754292332d026b6c25fd7712677bd1687278b;
 			};
 		};
 		B396C6AF5D5149A2119B63A3 /* XCRemoteSwiftPackageReference "echo-server-lab" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/tashda/echo-server-lab";
 			requirement = {
-				branch = dev;
+				branch = "archive/swift-drivers";
 				kind = branch;
 			};
 		};

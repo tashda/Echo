@@ -1,13 +1,13 @@
 {
-  "originHash" : "c27923dc7c379c3154d7adb934c2b897da39ab46d30e7884c26b65502f35c473",
+  "originHash" : "baa458499fe1f8f5492480e3b792e4e694b006a65d842dea24e4ed1702b4465d",
   "pins" : [
     {
       "identity" : "echo-server-lab",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tashda/echo-server-lab",
       "state" : {
-        "branch" : "dev",
-        "revision" : "97c3081d75cbbd48d00a37f27d78fb8354a98111"
+        "branch" : "archive/swift-drivers",
+        "revision" : "290364b396e0a40655734b973402d39d517c1755"
       }
     },
     {
@@ -15,7 +15,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tashda/EchoSense",
       "state" : {
-        "branch" : "dev",
+        "branch" : "archive/swift-drivers",
         "revision" : "80c8a899f590f8448b045ee5465e516dc30a7d11"
       }
     },
@@ -33,7 +33,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tashda/mysql-wire",
       "state" : {
-        "branch" : "dev",
+        "branch" : "archive/swift-drivers",
         "revision" : "6fd5039ec034729a377b7caca2891ff12e4f88da"
       }
     },
@@ -42,7 +42,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tashda/postgres-wire",
       "state" : {
-        "branch" : "dev",
+        "branch" : "archive/swift-drivers",
         "revision" : "7bc20ca2ce12a7396f91756eaa94ec0f34d612bb"
       }
     },
@@ -69,7 +69,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tashda/sqlserver-nio",
       "state" : {
-        "branch" : "dev",
+        "branch" : "archive/swift-drivers",
         "revision" : "90ab6a535f5a2b4eb829c0e63f89a5e0e2cc343e"
       }
     },
@@ -78,7 +78,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/supabase/supabase-swift",
       "state" : {
-        "revision" : "9c8c9d283b13a369f52cc78d8639648d8a17f5d3",
+        "revision" : "40344fb3a7007d772218c6ddf6bca9febd8cb226",
         "version" : "2.55.2"
       }
     },
@@ -87,7 +87,6 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tashda/swift-active-directory",
       "state" : {
-        "branch" : "dev",
         "revision" : "8f9754292332d026b6c25fd7712677bd1687278b"
       }
     },

@@ -6,10 +6,10 @@ let package = Package(
     platforms: [.macOS(.v26)],
     dependencies: [
         .package(path: "../Packages/EchoDesignSystem"),
-        .package(url: "https://github.com/tashda/EchoSense", branch: "dev"),
-        .package(url: "https://github.com/tashda/postgres-wire", branch: "dev"),
-        .package(url: "https://github.com/tashda/sqlserver-nio", branch: "dev"),
-        .package(url: "https://github.com/tashda/echo-server-lab", branch: "dev")
+        .package(url: "https://github.com/tashda/EchoSense", branch: "archive/swift-drivers"),
+        .package(url: "https://github.com/tashda/postgres-wire", branch: "archive/swift-drivers"),
+        .package(url: "https://github.com/tashda/sqlserver-nio", branch: "archive/swift-drivers"),
+        .package(url: "https://github.com/tashda/echo-server-lab", branch: "archive/swift-drivers")
     ],
     targets: [
         .executableTarget(
