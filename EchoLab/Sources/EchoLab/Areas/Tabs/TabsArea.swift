@@ -15,7 +15,7 @@ enum TabsArea {
         summary: "Safari-style tabs on one line: a grey plate with a raised white active tab, a glass + at the end, and a tool's pages unfolding inside its own tab.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "6061e5e5", date: "2026-10-01",
+                level: .code, commit: "c9dba534", date: "2026-10-01",
                 note: "Read from QueryTabStrip, QueryTabButton (+Title, +CloseButton, +Appearance), TabPageChips and the tab tokens. The specimen is drawn with the same tokens and metrics."),
             stageHeight: 150,
             behaviours: [
@@ -28,6 +28,7 @@ enum TabsArea {
                 .init(trigger: "Click +", result: "Opens a new query tab."),
                 .init(trigger: "Open a tool with pages", result: "The active tool tab widens and shows its pages as chips after its title; the other tabs share what is left."),
                 .init(trigger: "Drag a tab", result: "It follows the pointer; the others make room; separators next to it hide."),
+                .init(trigger: "Close a query tab you changed", result: "A standard alert: Save (to a bookmark), Save As (a .sql file), Don't Save, Cancel. Several at once ask once (TABS-8)."),
                 .init(trigger: "⇧⌘O, the overview button, a pinch in, or \"Tab Overview\" in ⌘K", result: "The ⌘K palette turns to this window's tabs, grouped by server, each with its live state (round 35.1). ↩ goes to the tab; ⌫ closes it, ⌘D duplicates it, ⌥⌫ closes the others, and the palette stays open."),
             ],
             motions: [
@@ -213,8 +214,29 @@ enum TabsArea {
                         .row("List", "up to 360pt, then scrolls", token: "LayoutTokens.CommandPalette.listMaxHeight")),
             ], rounds: ["ongoing.tab-overview-direction-r35"], files: [palette + "Views/TabOverviewPaletteList.swift", palette + "Domain/TabOverviewEntry.swift"]),
             SpecElement(number: "7.4", name: "Keys", summary: "↑↓ move; ↩ or a click goes to the tab. ⌫ closes the selected tab while nothing is typed, ⌘⌫ always; ⌘D duplicates; ⌥⌫ closes the others. The selection moves to the next row; the hint line lists the keys.", groups: [
-                .behaviour(.row("After a key", "the palette stays open"), .row("Closing refused", "unsaved work keeps the tab and the selection")),
+                .behaviour(.row("After a key", "the palette stays open"), .row("Closing refused", "unsaved work keeps the tab and the selection"),
+                           .row("⌘D and Esc", "taken by a key monitor while the tabs show, before the menus and wherever focus is")),
             ], rounds: ["ongoing.tab-overview-direction-r35"], files: [palette + "Views/CommandPaletteCard+TabOverview.swift", palette + "Views/CommandPaletteSearchField.swift"]),
+            SpecElement(number: "7.5", name: "Duplicate", summary: "⌘D opens a new query tab on the same server and database with the same SQL, right after the original. Tool tabs aren't duplicated.", groups: [
+                .behaviour(.row("Selection", "moves to the copy")),
+            ], rounds: ["ongoing.tab-overview-direction-r35"], files: ["Echo/Sources/Features/AppHost/Domain/State/EnvironmentState+TabManagement.swift"]),
+        ]),
+        SpecPart(number: "8", name: "Unsaved changes", summary: "Query tabs ask before their changes are lost (owner, 1 Oct 2026). The structure editor keeps its own Discard Changes alert.", elements: [
+            SpecElement(number: "8.1", name: "Unsaved", summary: "The SQL differs from what the tab opened with or was last saved as, and isn't empty. A script Echo generated asks only once you edit it.", groups: [
+                .behaviour(.row("Tracked by", "QueryEditorState.savedSQL")),
+            ], files: ["Echo/Sources/Features/QueryWorkspace/Domain/QueryEditorState/QueryEditorState+SaveState.swift"]),
+            SpecElement(number: "8.2", name: "Closing one tab", summary: "A standard alert as a sheet, from anywhere (×, ⌘W, ⌫ in the overview): \"Do you want to save the changes to “Query 1”?\"", groups: [
+                .behaviour(.row("Buttons", "Save (default), Save As, Don't Save (destructive), Cancel"),
+                           .row("Save", "the tab's bookmark, or a new bookmark named after the tab"),
+                           .row("Save As", "a .sql file; the tab takes its name")),
+            ], files: ["Echo/Sources/Features/AppHost/Domain/State/EnvironmentState+UnsavedChanges.swift", "Echo/Sources/Features/AppHost/Domain/State/WindowAlert.swift"]),
+            SpecElement(number: "8.3", name: "Closing several", summary: "Close Others, Close Tabs to the Left or Right, Close All, quitting and switching project ask once when two or more are unsaved: \"3 tabs have unsaved changes\", listing them.", groups: [
+                .behaviour(.row("Buttons", "Review Each, Close Without Saving (destructive), Cancel"),
+                           .row("Review Each", "brings each tab to the front and asks about it; Cancel stops")),
+            ], files: ["Echo/Sources/Features/AppHost/Domain/Stores/TabStore.swift", "Echo/Sources/Features/AppHost/EchoAppDelegate.swift"]),
+            SpecElement(number: "8.4", name: "Save and Save As", summary: "File › Save (⌘S) saves to a bookmark; File › Save As (⇧⌘S) writes a .sql file. Both for the front query tab.", groups: [
+                .behaviour(.row("Shortcuts", "rebindable as Save and Save As")),
+            ], files: ["Echo/Sources/Features/AppHost/EchoApp.swift"]),
         ]),
     ]
 }

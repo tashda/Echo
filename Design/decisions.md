@@ -2,6 +2,13 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · After round 35.1: ⌘D, Esc, and unsaved query tabs
+
+The owner's notes on the running app, decided in chat.
+
+- **⌘D** didn't duplicate: `duplicateTab` was an empty stub. It now opens a copy of a query tab right after it. **Esc** now closes the tab overview wherever focus is. → TABS-7.4, 7.5
+- **Unsaved changes:** a query tab asks before its changes are lost, in a standard alert (owner: "a pop up like when closing a page with unsaved changes"). Save keeps it as a bookmark, Save As writes a .sql file ("Both"); a tab is unsaved once you changed it (recommended); several at once ask once (recommended). Quitting and switching project ask too, since Echo doesn't restore tabs. → `05-components` › Tab overview, TABS-8, plan O5
+
 ## 2026-10-01 · Round 46 accepted: a server card opens and closes like a section switch
 
 Echo Labs › Explorer tree › Server card: opening and closing · round 46, after the owner checked 30.2 in Echo (the dock and rows "just appeared": the list turned animation off whenever dock selections changed, which opening a docked server does). Every recommendation was taken. Built in 9aaec7e9.
