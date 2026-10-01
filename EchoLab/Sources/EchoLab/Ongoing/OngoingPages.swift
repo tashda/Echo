@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -333,6 +333,20 @@
         status: .judging,
         summary: "Changes round 28.8's zoom pill: where it sits with and without results, its height (21 vs the footer's 24pt) and its text colour (secondary vs the footer's primary).",
         spec: ZoomPillFooterRound.spec)
+
+    /// Round 32: Panels: is the inspector whiter?.
+    static let panelFillsLight = LabPage.round(
+        id: "ongoing.panel-fills-light-r32", group: "Window and cards", title: "Panels: is the inspector whiter? · round 32", symbol: "rectangle.split.3x1",
+        status: .judging,
+        summary: "Measured in your screenshots: every card is pure white (255) in light mode, the inspector included; what reads as greyer elsewhere is zebra rows and grey fills (245) inside the other panels, and an empty inspector is the one card with nothing on it. What should change, if anything.",
+        spec: PanelFillsLightRound.spec)
+
+    /// Round 32: Panels in dark mode.
+    static let panelFillsDark = LabPage.round(
+        id: "ongoing.panel-fills-dark-r32", group: "Window and cards", title: "Panels in dark mode · round 32", symbol: "moon",
+        status: .judging,
+        summary: "Measured: the dark canvas is 27–29 and the cards 30 (out of 255), so only the 0.5pt edge separates them and the shadow is invisible. Canvas, card, edge and shadow options for dark mode.",
+        spec: PanelFillsDarkRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

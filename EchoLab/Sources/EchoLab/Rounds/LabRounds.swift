@@ -19,6 +19,14 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r32", label: "Round 32", title: "Panels in dark mode", date: "1 Oct 2026",
+             asked: "In dark mode the panels and the background are too similar; it is hard to see what is what.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.panel-fills-dark-r32"]),
+        Info(id: "r32", label: "Round 32", title: "Panels: is the inspector whiter?", date: "1 Oct 2026",
+             asked: "The inspector, and Details in SQL Server Agent Jobs, feel whiter than the other panels. Is it true? Look for other places too.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.panel-fills-light-r32"]),
         Info(id: "r31", label: "Round 31", title: "Editor: the zoom pill and the footer", date: "1 Oct 2026",
              asked: "The zoom pill sits too far up in the editor; it should sit as close to the editor's bottom as the server pill sits to the results card's. Without results it sits too close to the server pill: align it with the server pill and stack it above, at the same height, with text as bright as the footer's.",
              outcome: "Being judged.",

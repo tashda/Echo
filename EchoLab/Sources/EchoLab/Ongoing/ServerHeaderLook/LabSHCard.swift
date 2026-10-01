@@ -8,6 +8,8 @@ struct LabSHCard: View {
     /// How many rows to draw; nil draws all of the server's databases.
     var rowLimit: Int?
     var selectedRow: String? = "ccsLDK10"
+    /// Explicit surfaces (round 32); nil draws Echo's workspace card.
+    var surfaces: LabWKSurfaces?
     @Environment(\.workspaceCardCornerRadius) private var cornerRadius
     @State private var isHovering = false
 
@@ -26,7 +28,7 @@ struct LabSHCard: View {
                 look.color(for: server).frame(height: SpacingTokens.nano).allowsHitTesting(false)
             }
         }
-        .workspaceCard()
+        .modifier(LabSHCardSurface(surfaces: surfaces))
         .onHover { isHovering = $0 }
     }
 
@@ -77,5 +79,13 @@ struct LabSHColumn<Content: View>: View {
             .padding(SpacingTokens.sm)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(ColorTokens.Workspace.canvas)
+    }
+}
+
+/// Echo's workspace card, or the card with a round's own surfaces.
+private struct LabSHCardSurface: ViewModifier {
+    let surfaces: LabWKSurfaces?
+    func body(content: Content) -> some View {
+        if let surfaces { content.labWKCard(surfaces.sideCard, surfaces) } else { content.workspaceCard() }
     }
 }

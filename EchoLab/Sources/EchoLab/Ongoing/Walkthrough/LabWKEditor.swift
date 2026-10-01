@@ -74,6 +74,7 @@ struct LabWKGrid: View {
     var selectedColumn: Int?
 
     enum HeaderRule { case single, doubled, none }
+    @Environment(\.labWKStriped) private var striped
 
     static let checkpointColumns: [Column] = [.init(name: "keyName", type: "varchar"), .init(name: "keyValue", type: "varchar"),
                                               .init(name: "lastUpdated", type: "datetime2", width: 190)]
@@ -109,7 +110,7 @@ struct LabWKGrid: View {
                     }
                 }
                 .frame(height: SpacingTokens.lg + SpacingTokens.xxs)
-                .background(index.isMultiple(of: 2) ? Color.clear : ColorTokens.Sidebar.hoverFill)
+                .background(index.isMultiple(of: 2) || !striped ? Color.clear : ColorTokens.Sidebar.hoverFill)
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -128,4 +129,9 @@ struct LabWKGrid: View {
         case .none: EmptyView()
         }
     }
+}
+
+extension EnvironmentValues {
+    /// Whether the walkthrough grid stripes every second row (round 32.1).
+    @Entry var labWKStriped = true
 }
