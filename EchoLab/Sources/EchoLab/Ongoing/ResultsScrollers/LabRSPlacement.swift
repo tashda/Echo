@@ -41,7 +41,10 @@ enum LabRSPlacement: String, CaseIterable {
         case .ownLane:
             LabRSBarFrame(bottom: 0, left: cornerRadius, right: cornerRadius)
         case .footerEdge:
-            LabRSBarFrame(bottom: footerZone - lane / 2, left: SpacingTokens.sm, right: SpacingTokens.sm)
+            // Decided with the owner's note: the thumb as far above the pills as the pills sit
+            // above the card's edge (LayoutTokens.Footer.scrollBarBottom); the thumb is centred in its lane.
+            LabRSBarFrame(bottom: LayoutTokens.Footer.scrollBarBottom - (lane - LabRSBarStyle.system.thickness) / 2,
+                          left: SpacingTokens.sm, right: SpacingTokens.sm)
         case .glassTrack, .positionChip:
             nil
         }

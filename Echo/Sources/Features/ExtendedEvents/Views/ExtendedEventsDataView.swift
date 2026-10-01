@@ -110,7 +110,7 @@ struct ExtendedEventsDataView: View {
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
-        .contentMargins(.bottom, footerOverlayHeight, for: .scrollContent)
+        .footerScrollRoom(footerOverlayHeight)
         .tableColumnAutoResize()
         .contextMenu(forSelectionType: SQLServerXEEventData.ID.self) { ids in
             Button {

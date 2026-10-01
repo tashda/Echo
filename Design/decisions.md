@@ -2,6 +2,18 @@
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-01 · Round 27 accepted: the scroll bars over the footer
+
+Echo Labs › Footer and results › Results scroll bars and the footer · round 27. Echo gave the grid's and the editor's scroll views the footer's room twice (content inset and scroller inset, which AppKit adds), so the horizontal bar floated over the rows a footer's height above the footer.
+
+- **Where: E · on the footer's top edge**, with the owner's note: the bar keeps the same gap above the pills as the pills keep above the card's edge (9pt), so it never sits flush with them (`LayoutTokens.Footer.scrollBarBottom`, 42pt to the thumb's bottom). A, B, C, D, F and G were not chosen.
+- **Look: S1 · the system's bar.** The thin line, soft capsule, accent, glass track and groove were not chosen.
+- **When: V1 · while scrolling**, as macOS does. Always, near the bottom and over the grid were not chosen.
+- **Vertical bar: R2 · runs down to the horizontal bar.** Stopping above the footer and no vertical bar were not chosen.
+- **Extra: X1 · soft edges where more columns wait** (`ScrollSideFades`, 32pt). A line on the footer's edge, a column map and a line under the header were not chosen.
+- **Scope: every scroll bar in a card.** Built for everything that scrolls under the footer: the results grid and the editor (`FooterScrollOverlay`), the Messages console and Extended Events data (`footerScrollRoom`). Tool tabs without a footer keep the system's bar at the card's bottom edge; giving them the same spacing is a follow-up.
+- Building it moved the footer's blur into the scroll view's clip view, under the bars, so a bar over the footer isn't blurred; the editor's blur, which sat inside its scroll view and blurred nothing, now works. → Phase 5 R13
+
 ## 2026-10-01 · Round 25 accepted: SQL Server imports with the bulk load
 
 Echo Labs › Explorer tree › SQL Server: importing a file · round 25. sqlserver-nio sends imports with the TDS bulk load (as bcp and SqlBulkCopy); the Import Data sheet offers its options.

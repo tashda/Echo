@@ -40,7 +40,8 @@ enum FooterResultsSpec {
                           .row("Fades beyond the footer", "16pt", token: "LayoutTokens.EdgeBlur.fade"),
                           .row("Step overlap", "30%", token: "LayoutTokens.EdgeBlur.step"),
                           .row("Card tint", "the card colour at 35%, a gradient growing towards the bottom, so the footer stays readable", token: "LayoutTokens.EdgeBlur.tintOpacity")),
-                .behaviour(.row("SwiftUI content", "isn't blurred: only the grid and the editor")),
+                .behaviour(.row("SwiftUI content", "isn't blurred: only the grid and the editor"),
+                           .row("Where it lives", "in the scroll view's clip view, under the scroll bars, following the visible area (round 27)")),
                 .behaviour(.row("Why", "a hard edge left a solid band; a glass bar with glass pills inside would be glass on glass")),
             ], rounds: [r9], files: [blur]),
             SpecElement(number: "2.3", name: "Segments", summary: "One glass pill of icons beside the chip: Results, Messages, Execution Plan.", groups: [
@@ -70,10 +71,15 @@ enum FooterResultsSpec {
                 .behaviour(.row("Click", "opens or closes the panel, or toggles the statistics popover when the tab has one"),
                            .row("Why one each", "one big pill and plain text were rejected"), .row("Style", "pill per entry", token: "FooterMetricsStyle.pillPerEntry")),
             ], rounds: [r10], files: [bar]),
-            SpecElement(number: "2.6", name: "Status", summary: "A dot and a word: Ready, Running, Error.", groups: [
-                .type(.row("Font", "detail 11pt, secondary", token: "TypographyTokens.detail")),
-                .states(.row("Dot", "the status colour; it pulses while the status says so", token: "PulsingStatusDot")),
-            ], files: [bar]),
+            SpecElement(number: "2.6", name: "Status", summary: "A dot and a word: Ready, Running, Error; or an icon and a word in a tint.", groups: [
+                .type(.row("Font", "detail 11pt, secondary", token: "TypographyTokens.detail"),
+                      .row("With an icon", "the icon 11pt semibold and the word both in the tint (round 21, TL2)")),
+                .states(.row("Dot", "the status colour; it pulses while the status says so", token: "PulsingStatusDot"),
+                        .row("Icon", "replaces the dot, e.g. an open transaction (round 21, TL2)"),
+                        .row("Time since", "m:ss in monospaced digits after the word, once a minute has passed (round 21, TT2)")),
+                .behaviour(.row("Menu", "when the status has actions, clicking it opens them (round 21, TA2)"),
+                           .row("Tooltip", "who holds a lock, or another hint (round 21, LF3)")),
+            ], rounds: ["ongoing.pg-transaction-state-r21"], files: [bar, "Echo/Sources/Shared/DesignSystem/Components/BottomPanelStatusBar+Metrics.swift"]),
         ]),
         SpecPart(number: "3", name: "Database switcher", summary: "The card that rises above the chip.", elements: [
             SpecElement(number: "3.1", name: "Card", summary: "A filter field and the databases, above the chip so the chip stays visible.", groups: [
@@ -100,8 +106,13 @@ enum FooterResultsSpec {
                 .type(.row("Font", "12pt", token: "ResultsGridMetrics.cellFontSize"), .row("Monospaced cells", "a setting, off by default", token: "resultsMonospacedCells")),
                 .layout(.row("Side padding", "10pt", token: "ResultsGridMetrics.contentHorizontalPadding"), .row("Column width", "56 to 420pt, sized from the first 200 rows", token: "minimumColumnWidth / maximumColumnWidth")),
                 .behaviour(.row("Numbers and dates", "right-aligned with tabular digits"), .row("Booleans", "✓ or ✗, centred"),
-                           .row("NULL", "italic grey text"), .row("Copy and export", "use the raw values")),
-            ], rounds: ["decided.results-grid"], files: [grid + "ResultCellPresentation.swift", grid + "ResultsGridMetrics.swift"]),
+                           .row("NULL", "italic grey text"), .row("Copy and export", "use the raw values"),
+                           .row("Decimals", "lined up on the decimal point, padded to the column's widest fraction, at most 6 digits (round 21, VN2)", token: "ResultCellValueForm.maxAlignedFractionDigits"),
+                           .row("PostgreSQL arrays", "the element count in secondary, then the elements without braces or quotes (VA4)"),
+                           .row("JSON", "{ 4 keys } or [ 12 items ] (VJ3)"), .row("Binary", "its kind and size (VB3)"),
+                           .row("Copy as Shown", "copies what the cells draw; plain Copy keeps the server's text")),
+            ], rounds: ["decided.results-grid", "ongoing.pg-value-display-r21", "ongoing.mssql-values-r22"],
+               files: [grid + "ResultCellPresentation.swift", grid + "ResultsGridMetrics.swift", grid + "ResultCellValueForm.swift"]),
             SpecElement(number: "4.2", name: "Column header", summary: "The column's name over its type, on two lines.", groups: [
                 .type(.row("Name", "12pt semibold"), .row("Type", "10pt monospaced, under the name")),
                 .layout(.row("Height", "36pt", token: "ResultsGridMetrics.headerHeight")),
@@ -122,12 +133,18 @@ enum FooterResultsSpec {
                 .type(.row("Font", "12pt monospaced digits", token: "ResultsGridMetrics.rowNumberFontSize")),
                 .layout(.row("Width", "at least 6 digits", token: "ResultsGridMetrics.minimumRowNumberDigits"), .row("Padding", "2pt leading, 5pt trailing")),
             ], files: [grid + "Cells/ResultTableRowNumberView.swift"]),
-            SpecElement(number: "4.6", name: "Scroll bars", summary: "Overlay bars that stop above the footer; round 27 asks where they belong.", groups: [
-                .layout(.row("Horizontal", "floats over the rows a footer's height above the footer: Echo sets the footer's room as both the content inset and the scroller inset, and AppKit adds them (2 × (footer height + lift))", token: "LayoutTokens.Footer.height + bottomLift"),
-                        .row("Vertical", "ends at the same height"),
-                        .row("Rows", "scroll clear of the footer by the same inset")),
-                .behaviour(.row("Shown", "while scrolling, as the system's overlay bars")),
-            ], files: [grid + "ResultTableContainerView.swift"]),
+            SpecElement(number: "4.6", name: "Scroll bars", summary: "The system's bars on the footer's top edge, as far above the pills as the pills sit above the card's edge.", groups: [
+                .layout(.row("Horizontal", "its thumb ends 42pt above the card's edge: 9pt above the footer's pills, the gap the pills keep above the edge", token: "LayoutTokens.Footer.scrollBarBottom"),
+                        .row("How", "the footer's room as the content inset, and a 1pt scroller inset on top (AppKit adds them; the thumb sits 3pt inside its frame)", token: "LayoutTokens.Footer.scrollerInset(overFooter:)"),
+                        .row("Vertical", "runs down to the horizontal bar"),
+                        .row("Soft edges", "the rows fade 32pt into the card's colour at a side where more columns wait", token: "LayoutTokens.EdgeBlur.sideFadeWidth")),
+                .material(.row("Look", "the system's overlay bar")),
+                .behaviour(.row("Shown", "while scrolling, as macOS does"),
+                           .row("Under the footer", "the bars sit above the footer's blur, which lives in the clip view under them"),
+                           .row("Same everywhere", "the editor, Messages and Extended Events place their bars the same way (footerScrollRoom for SwiftUI)")),
+            ], rounds: ["ongoing.results-scrollers-r27"],
+               files: [grid + "ResultTableContainerView.swift", "Echo/Sources/Shared/DesignSystem/Components/FooterScrollOverlay.swift",
+                       "Echo/Sources/Shared/DesignSystem/Components/ScrollSideFades.swift", "Echo/Sources/Shared/DesignSystem/Components/FooterScrollRoom.swift"]),
         ]),
     ]
 }

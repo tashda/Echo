@@ -798,6 +798,11 @@
         "date": "2026-10-01T09:51:46Z",
         "id": "D032E99A-F859-4066-884E-5A48668C80A8",
         "text": "Review of Results scroll bars and the footer\n1. Horizontal scroll bar: NEEDS MORE OPTIONS\n2. Other grids: NEEDS MORE OPTIONS"
+      },
+      {
+        "date": "2026-10-01T10:51:45Z",
+        "id": "CF6B3A53-D787-430D-A20E-54886810DD4E",
+        "text": "Review of Results scroll bars and the footer\n1. Horizontal bar: where: picked E \u00b7 On the footer's top edge; note: It needs the same padding as the pills in the footer has to the bottom of the panel, so it doesn't sit flush with the pills.\n2. Bar: how it looks: picked S1 \u00b7 The system's bar\n3. Bars: when they show: picked V1 \u00b7 While scrolling\n4. Vertical bar: where it ends: picked R2 \u00b7 Runs down to the horizontal bar\n5. Tie the position to the card: picked X1 \u00b7 Soft edges where there is more\n6. Other grids: picked Every scroll bar in a card"
       }
     ],
     "generalNote": "",
@@ -821,16 +826,30 @@
       {
         "date": "2026-10-01T10:39:37Z",
         "text": "Revision 3: Way more options on every aspect, and the proposal now draws what it says"
+      },
+      {
+        "date": "2026-10-01T10:51:45Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T11:17:13Z",
+        "text": "Revision 4: Built into Echo: E with the pills' spacing, the system's bar while scrolling, the vertical bar down to it, soft edges"
       }
     ],
-    "needsMore": [
-      "placement",
-      "everywhere"
-    ],
+    "needsMore": [],
     "optionNotes": {},
-    "pickNotes": {},
-    "picks": {},
-    "reviewedRevision": 1,
+    "pickNotes": {
+      "placement": "It needs the same padding as the pills in the footer has to the bottom of the panel, so it doesn't sit flush with the pills."
+    },
+    "picks": {
+      "everywhere": "everything",
+      "extra": "X1 \u00b7 Soft edges where there is more",
+      "placement": "E \u00b7 On the footer's top edge",
+      "style": "S1 \u00b7 The system's bar",
+      "vertical": "R2 \u00b7 Runs down to the horizontal bar",
+      "visibility": "V1 \u00b7 While scrolling"
+    },
+    "reviewedRevision": 3,
     "revisions": [
       {
         "changes": [
@@ -850,9 +869,18 @@
         "date": "2026-10-01T10:39:37Z",
         "number": 3,
         "summary": "Way more options on every aspect, and the proposal now draws what it says"
+      },
+      {
+        "changes": [
+          "Echo today now shows what is built; Before shows the bar floating a footer above the footer",
+          "Check it in Echo: scroll a wide result sideways and down, and look at the bar over the footer"
+        ],
+        "date": "2026-10-01T11:17:13Z",
+        "number": 4,
+        "summary": "Built into Echo: E with the pills' spacing, the system's bar while scrolling, the vertical bar down to it, soft edges"
       }
     ],
-    "status": "Judging",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.run-button-look-r20": {

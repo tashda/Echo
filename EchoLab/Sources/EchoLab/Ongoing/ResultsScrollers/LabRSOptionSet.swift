@@ -8,8 +8,12 @@ struct LabRSOptionSet {
     var vertical: LabRSVertical
     var extra: LabRSExtra
 
-    static let today = LabRSOptionSet(placement: .aboveFooter, style: .system, visibility: .whileScrolling,
-                                      vertical: .aboveFooter, extra: .none)
+    /// Echo before round 27: the bar floating a footer above the footer.
+    static let before = LabRSOptionSet(placement: .aboveFooter, style: .system, visibility: .whileScrolling,
+                                       vertical: .aboveFooter, extra: .none)
+    /// Round 27 as accepted and built: E, S1, V1, R2, X1.
+    static let decided = LabRSOptionSet(placement: .footerEdge, style: .system, visibility: .whileScrolling,
+                                        vertical: .toBottom, extra: .edgeFades)
 
     /// The bars' lane.
     var lane: CGFloat { style.lane }

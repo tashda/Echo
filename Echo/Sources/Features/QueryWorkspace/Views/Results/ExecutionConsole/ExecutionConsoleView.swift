@@ -101,7 +101,7 @@ struct ExecutionConsoleView: View {
                     }
                 }
             }
-            .contentMargins(.bottom, footerOverlayHeight, for: .scrollContent)
+            .footerScrollRoom(footerOverlayHeight)
             .onChange(of: executionMessages.count) {
                 if isAutoScrolling, let last = filteredMessages.last {
                     withAnimation(.easeOut(duration: 0.15)) {

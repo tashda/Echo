@@ -9,23 +9,14 @@ final class SQLScrollView: NSScrollView {
     private var displayOptions: SQLEditorDisplayOptions
     private let lineNumberRuler: LineNumberRulerView
     private var backgroundOverride: NSColor?
-    private lazy var footerBlur = BackdropEdgeBlur(container: self)
-    private var footerOverlayHeight: CGFloat = -1
+    private lazy var footerOverlay = FooterScrollOverlay(scrollView: self, softEdges: false)
     private let outlineStrip = EditorOutlineStripView()
 
-    /// Room for the footer floating over the editor while there are no results, and the soft
-    /// blur of the text under it (round 9, FB1). Zero removes both.
+    /// Room for the footer floating over the editor while there are no results, the soft blur
+    /// of the text under it (round 9, FB1) and the scroll bars just above its pills (round 27).
+    /// Zero removes the room and the blur.
     func setFooterOverlay(height: CGFloat) {
-        guard height != footerOverlayHeight else { return }
-        footerOverlayHeight = height
-        automaticallyAdjustsContentInsets = false
-        contentInsets.bottom = height
-        scrollerInsets.bottom = height
-        footerBlur.update(
-            edge: .bottom,
-            height: height > 0 ? height + LayoutTokens.EdgeBlur.fade : 0,
-            radii: height > 0 ? LayoutTokens.EdgeBlur.radii : []
-        )
+        footerOverlay.update(footerHeight: height)
     }
     var completionContext: SQLEditorCompletionContext? {
         didSet { sqlTextView.completionContext = completionContext }

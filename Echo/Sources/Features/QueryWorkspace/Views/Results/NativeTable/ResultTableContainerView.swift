@@ -8,8 +8,7 @@ final class ResultTableContainerView: NSView {
     private var backgroundColor: NSColor
     private var showRowNumbers: Bool
     private var reservedRowNumberCount: Int = 0
-    private lazy var footerBlur = BackdropEdgeBlur(container: self)
-    private var footerOverlayHeight: CGFloat = -1
+    private lazy var footerOverlay = FooterScrollOverlay(scrollView: scrollView, softEdges: true)
 
     init(scrollView: NSScrollView, showRowNumbers: Bool) {
         self.scrollView = scrollView
@@ -50,19 +49,11 @@ final class ResultTableContainerView: NSView {
         ])
     }
 
-    /// Room for the footer floating over the grid, and the soft blur of the rows under it
-    /// (round 9, FB1). Zero removes both.
+    /// Room for the footer floating over the grid, the soft blur of the rows under it (round 9,
+    /// FB1), the scroll bars just above its pills and soft edges where more columns wait
+    /// (round 27). Zero removes the room and the blur.
     func setFooterOverlay(height: CGFloat) {
-        guard height != footerOverlayHeight else { return }
-        footerOverlayHeight = height
-        scrollView.automaticallyAdjustsContentInsets = false
-        scrollView.contentInsets.bottom = height
-        scrollView.scrollerInsets.bottom = height
-        footerBlur.update(
-            edge: .bottom,
-            height: height > 0 ? height + LayoutTokens.EdgeBlur.fade : 0,
-            radii: height > 0 ? LayoutTokens.EdgeBlur.radii : []
-        )
+        footerOverlay.update(footerHeight: height)
     }
 
     /// Accent row numbers for the selected rows and the hovered row.
@@ -94,6 +85,7 @@ final class ResultTableContainerView: NSView {
     func updateBackgroundColor(_ color: NSColor) {
         backgroundColor = color
         rowNumberView.layer?.backgroundColor = color.cgColor
+        footerOverlay.update(edgeColor: color)
     }
 
     func setRowNumberCallbacks(

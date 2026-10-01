@@ -7,7 +7,8 @@ import AppKit
 ///     { "action": "scroll", "target": "sidebar", "distance": 1200, "seconds": 1.5 }
 ///
 /// `target` is `sidebar` (the leftmost big scroll view, past the rail: the Explorer tree), `grid` (the
-/// largest table: a query tab's results) or `content` (the largest scroll view of any kind).
+/// largest table: a query tab's results; `gridx` scrolls it sideways) or `content` (the largest
+/// scroll view of any kind).
 extension AppDirector {
     func performAutomationScroll(target: String, distance: CGFloat, seconds: Double) async {
         guard let root = NSApp.windows.first(where: { $0.identifier == AppWindowIdentifier.workspace })?.contentView,
@@ -16,6 +17,17 @@ extension AppDirector {
         for _ in 0..<frames {
             let clip = scrollView.contentView
             var origin = clip.bounds.origin
+            if target == "gridx" {
+                // A real scroll-wheel event, sent to the scroll view itself, so AppKit also moves
+                // the column header as a trackpad would.
+                let step = Int32(-distance / CGFloat(frames))
+                if let event = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: 0, wheel2: step, wheel3: 0),
+                   let wheel = NSEvent(cgEvent: event) {
+                    scrollView.scrollWheel(with: wheel)
+                }
+                try? await Task.sleep(for: .milliseconds(16))
+                continue
+            }
             origin.y += distance / CGFloat(frames)
             clip.scroll(to: origin)
             scrollView.reflectScrolledClipView(clip)
@@ -37,7 +49,7 @@ extension AppDirector {
         switch target {
         case "sidebar":
             return placed.min { $0.1.minX < $1.1.minX }?.0
-        case "grid":
+        case "grid", "gridx":
             return placed.filter { $0.0.documentView is NSTableView }
                 .max { $0.1.width * $0.1.height < $1.1.width * $1.1.height }?.0
         default:

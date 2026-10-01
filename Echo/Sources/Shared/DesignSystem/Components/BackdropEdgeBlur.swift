@@ -7,6 +7,10 @@ import AppKit
 /// stop a little further from it. A background filter only sees the content of its own
 /// superview, so the views go straight into the container, above the AppKit view they blur.
 /// SwiftUI content isn't picked up.
+///
+/// The container can be a scroll view's clip view (round 27): the views then sit between the
+/// rows and the scroll bars, so a bar over the footer isn't blurred, and they follow the visible
+/// area as it scrolls. Inside the scroll view itself a background filter sees nothing.
 @MainActor
 final class BackdropEdgeBlur {
     enum Edge { case top, bottom }
@@ -15,9 +19,24 @@ final class BackdropEdgeBlur {
     private var layerViews: [BackdropEdgeBlurLayerView] = []
     private var edge: Edge = .bottom
     private var radii: [CGFloat] = []
+    private var height: CGFloat = 0
+    private var observers: [NSObjectProtocol] = []
 
     init(container: NSView) {
         self.container = container
+        if let clip = container as? NSClipView {
+            clip.postsBoundsChangedNotifications = true
+            clip.postsFrameChangedNotifications = true
+            observers = [NSView.boundsDidChangeNotification, NSView.frameDidChangeNotification].map { name in
+                NotificationCenter.default.addObserver(forName: name, object: clip, queue: nil) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.place() }
+                }
+            }
+        }
+    }
+
+    isolated deinit {
+        observers.forEach { NotificationCenter.default.removeObserver($0) }
     }
 
     /// Places the blur along `edge`, `height` tall; an empty `radii` removes it.
@@ -34,17 +53,27 @@ final class BackdropEdgeBlur {
                 return view
             }
         }
+        self.height = height
+        place()
+    }
+
+    /// Puts the views along the edge of the container's visible area. A clip view's bounds
+    /// move as it scrolls, so its views are placed again on every scroll.
+    private func place() {
+        guard let container else { return }
+        let area = container.bounds
         // In a flipped container y = 0 is the top edge; otherwise it's the bottom edge.
         let atZero = (edge == .top) == container.isFlipped
+        let follows = container is NSClipView
         for view in layerViews {
             view.edge = edge
             view.frame = NSRect(
-                x: 0,
-                y: atZero ? 0 : container.bounds.height - height,
-                width: container.bounds.width,
+                x: area.minX,
+                y: atZero ? area.minY : area.maxY - height,
+                width: area.width,
                 height: height
             )
-            view.autoresizingMask = edge == .top
+            view.autoresizingMask = follows ? [] : edge == .top
                 ? [.width, container.isFlipped ? .maxYMargin : .minYMargin]
                 : [.width, container.isFlipped ? .minYMargin : .maxYMargin]
         }

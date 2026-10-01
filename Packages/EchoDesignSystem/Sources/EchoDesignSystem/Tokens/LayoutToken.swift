@@ -83,6 +83,21 @@ public enum LayoutTokens {
         public static let bottomLift: CGFloat = SpacingTokens.xxs
         /// Tallest the database switcher's list grows before it scrolls.
         public static let switcherListMaxHeight: CGFloat = 280
+        /// From a card's bottom edge to the bottom of the footer's pills: the lift plus the
+        /// footer's own room around its chips (9pt).
+        public static var pillInset: CGFloat { bottomLift + (height - chipHeight) / 2 }
+        /// Where a horizontal scroll bar's thumb ends above the card's bottom edge: on the footer's
+        /// top edge, kept as far above the pills as the pills sit above the edge (round 27, E).
+        public static var scrollBarBottom: CGFloat { pillInset * 2 + chipHeight }
+        /// How far an overlay scroll bar's thumb sits inside its frame's bottom edge (measured on
+        /// macOS 26, 2026-10-01), so the thumb, not the frame, keeps the pills' spacing.
+        public static let overlayThumbInset: CGFloat = 3
+        /// The scroller inset that puts the thumb at `scrollBarBottom` over a footer `footerHeight`
+        /// tall. AppKit adds the scroller inset to the content inset (the footer's room), which
+        /// Echo once set to the footer's height twice; the bar floated a footer above the footer.
+        public static func scrollerInset(overFooter footerHeight: CGFloat) -> CGFloat {
+            footerHeight > 0 ? scrollBarBottom - overlayThumbInset - footerHeight : 0
+        }
     }
 
     /// The soft blur of content passing under floating controls, such as the footer
@@ -96,6 +111,8 @@ public enum LayoutTokens {
         public static let step: CGFloat = 0.3
         /// Card-coloured tint over the blur, so the control on it stays readable.
         public static let tintOpacity: Double = 0.35
+        /// How wide the rows fade at a side where more columns wait (round 27, X1).
+        public static let sideFadeWidth: CGFloat = SpacingTokens.xl
     }
 
     /// The SQL editor's line-number gutter (Design/05-components.md › Editor card).
