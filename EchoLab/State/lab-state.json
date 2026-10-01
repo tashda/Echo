@@ -165,6 +165,10 @@
       {
         "date": "2026-10-01T18:52:09Z",
         "text": "Taken by Sonnet ctx-menus"
+      },
+      {
+        "date": "2026-10-01T19:24:50Z",
+        "text": "Built into Echo: one order, familiar icons only, no title, Copy Name everywhere, hidden not dimmed, an Object menu in the menu bar"
       }
     ],
     "needsMore": [],
@@ -182,12 +186,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "Sonnet ctx-menus",
-      "date": "2026-10-01T18:52:09Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.context-menu-column-r42": {
@@ -207,6 +206,10 @@
       {
         "date": "2026-10-01T18:52:12Z",
         "text": "Taken by Sonnet ctx-menus"
+      },
+      {
+        "date": "2026-10-01T19:24:51Z",
+        "text": "Built into Echo: Insert in Query (and drag), Rename in place that opens the ALTER in a query tab to run, Execute opens EXEC with its parameters"
       }
     ],
     "needsMore": [],
@@ -219,12 +222,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "Sonnet ctx-menus",
-      "date": "2026-10-01T18:52:12Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.context-menu-database-r42": {
@@ -280,6 +278,10 @@
       {
         "date": "2026-10-01T18:52:12Z",
         "text": "Taken by Sonnet ctx-menus"
+      },
+      {
+        "date": "2026-10-01T19:24:51Z",
+        "text": "Built into Echo: creation first, Filter in every object folder, empty-space menu with Show Empty Folders"
       }
     ],
     "needsMore": [],
@@ -292,12 +294,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "Sonnet ctx-menus",
-      "date": "2026-10-01T18:52:12Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.context-menu-server-r42": {
@@ -353,6 +350,10 @@
       {
         "date": "2026-10-01T18:52:12Z",
         "text": "Taken by Sonnet ctx-menus"
+      },
+      {
+        "date": "2026-10-01T19:24:51Z",
+        "text": "Built into Echo: Open Data and Edit Structure, double-click opens data, Truncate Table in Tasks, views the same shape"
       }
     ],
     "needsMore": [],
@@ -366,12 +367,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "Sonnet ctx-menus",
-      "date": "2026-10-01T18:52:12Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.editor-caret-line-r28": {
@@ -3226,6 +3222,10 @@
       {
         "date": "2026-10-01T18:57:58Z",
         "text": "Taken by Settings agent"
+      },
+      {
+        "date": "2026-10-01T19:06:14Z",
+        "text": "Built into Echo: Size is a field and stepper with its pt; long descriptions moved into \u24d8 with one short line where needed; a \u21ba shows beside any Editor/Results setting that isn't the default; switches kept (6a693827)"
       }
     ],
     "needsMore": [],
@@ -3240,12 +3240,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "Settings agent",
-      "date": "2026-10-01T18:57:58Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.settings-pictures-r43": {
@@ -3265,6 +3260,10 @@
       {
         "date": "2026-10-01T18:57:58Z",
         "text": "Taken by Settings agent"
+      },
+      {
+        "date": "2026-10-01T19:06:14Z",
+        "text": "Built into Echo: gutter style, mark corners and mark strength are small pictures of each choice (PictureChoicePicker); the preview just changes, no ring (6a693827)"
       }
     ],
     "needsMore": [],
@@ -3277,12 +3276,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "Settings agent",
-      "date": "2026-10-01T18:57:58Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.settings-preview-r43": {
@@ -3302,6 +3296,10 @@
       {
         "date": "2026-10-01T18:57:58Z",
         "text": "Taken by Settings agent"
+      },
+      {
+        "date": "2026-10-01T19:06:13Z",
+        "text": "Built into Echo: Settings \u203a Editor has a live editor pinned above the settings that follows every setting (text, gutter, statement focus, word mark, marks, wrapping, error note, outline edge); Results and Sidebar have previews too; pages with nothing to show start with their settings (6a693827)"
       }
     ],
     "needsMore": [],
@@ -3314,12 +3312,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "Settings agent",
-      "date": "2026-10-01T18:57:58Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.settings-scenarios-r43": {
@@ -3339,6 +3332,10 @@
       {
         "date": "2026-10-01T18:57:58Z",
         "text": "Taken by Settings agent"
+      },
+      {
+        "date": "2026-10-01T19:06:14Z",
+        "text": "Built into Echo: a search field lists matching settings across pages (opens the page, highlights the group); Reset This Page with a confirmation on Editor, Results and Sidebar; no sidebar dots (MD1). NOT built yet: per-connection settings (PC0) and settings sync (SY0), tasks SE5 and SE6 in Design/plan.md (6a693827)"
       }
     ],
     "needsMore": [],
@@ -3353,12 +3350,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "Settings agent",
-      "date": "2026-10-01T18:57:58Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.settings-template-r43": {
@@ -3378,6 +3370,10 @@
       {
         "date": "2026-10-01T18:57:58Z",
         "text": "Taken by Settings agent"
+      },
+      {
+        "date": "2026-10-01T19:06:14Z",
+        "text": "Built into Echo: SettingsPage(preview:sections:) in the design system; Editor, Results (grid) and Sidebar (a narrow server card, per your note) use it; Appearance does not, the app is its preview (6a693827)"
       }
     ],
     "needsMore": [],
@@ -3389,12 +3385,7 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "Settings agent",
-      "date": "2026-10-01T18:57:58Z",
-      "status": "Accepted"
-    },
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.tab-overview-direction-r35": {
