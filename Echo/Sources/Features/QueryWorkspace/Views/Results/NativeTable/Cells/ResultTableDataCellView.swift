@@ -98,6 +98,24 @@ final class ResultTableDataCellView: NSTableCellView {
         contentTextField.attributedStringValue = text
     }
 
+    /// Puts an SF Symbol before the text, in the text's colour (round 29: the lock of an encrypted cell).
+    func applyLeadingSymbol(_ symbolName: String) {
+        let font = contentTextField.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        let configuration = NSImage.SymbolConfiguration(pointSize: font.pointSize * 0.85, weight: .regular)
+        guard let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)?
+            .withSymbolConfiguration(configuration) else { return }
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = contentTextField.alignment
+        paragraph.lineBreakMode = .byTruncatingTail
+        let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: currentTextColor, .paragraphStyle: paragraph]
+        let attachment = NSTextAttachment()
+        attachment.image = image
+        let text = NSMutableAttributedString(attachment: attachment)
+        text.addAttributes(attributes, range: NSRange(location: 0, length: text.length))
+        text.append(NSAttributedString(string: " " + contentTextField.stringValue, attributes: attributes))
+        contentTextField.attributedStringValue = text
+    }
+
     func configureIcon(_ handler: (() -> Void)?) {
         configureIcon(symbolName: "arrow.up.right.square", handler: handler)
     }

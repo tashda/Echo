@@ -100,6 +100,9 @@ struct MSSQLNIOFactory: DatabaseFactory {
         config.connection.allowLegacyTLS = allowLegacyTLS
         // Shown to DBAs as APP_NAME() and program_name (round 22, BG1).
         config.connection.applicationName = "Echo"
+        // Round 29 (AO1): always ask SQL Server to describe Always Encrypted columns, so they show
+        // as encrypted instead of their ciphertext; servers before 2016 ignore it.
+        config.connection.columnEncryption = true
         config.connection.connectTimeoutSeconds = connectTimeoutSeconds
         return config
     }

@@ -53,7 +53,8 @@ nonisolated final class SQLServerResultSetSink {
                 isPrimaryKey: false,
                 isNullable: (column.flags & 0x01) != 0,
                 maxLength: column.length > 0 ? column.length : nil,
-                wireType: column.cellType.encoded
+                wireType: column.cellType.encoded,
+                encryption: ColumnInfo.Encryption(column.encryption)
             )
         }
     }
