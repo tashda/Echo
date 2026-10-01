@@ -16,6 +16,8 @@ struct WorkspaceCardModifier: ViewModifier {
     var clipsContent = true
 
     @Environment(\.workspaceCardCornerRadius) private var cornerRadius
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -27,15 +29,35 @@ struct WorkspaceCardModifier: ViewModifier {
                 shape
                     .fill(ColorTokens.Workspace.card)
                     .shadow(ShadowTokens.workspaceCard)
+                    .shadow(ShadowTokens.workspaceCardContact)
+                    .shadow(ShadowTokens.workspaceCardAmbient)
                     .opacity(chromeOpacity)
             }
             .overlay {
-                shape.strokeBorder(
-                    ColorTokens.Workspace.cardEdge.opacity(LayoutTokens.Workspace.cardEdgeOpacity),
-                    lineWidth: LayoutTokens.Workspace.cardEdgeWidth
-                )
-                .opacity(chromeOpacity)
-                .allowsHitTesting(false)
+                // Increase Contrast: a solid 1pt separator edge (round 32, IC0).
+                if contrast == .increased {
+                    shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                        .opacity(chromeOpacity)
+                        .allowsHitTesting(false)
+                } else {
+                    shape.strokeBorder(
+                        ColorTokens.Workspace.cardEdge.opacity(LayoutTokens.Workspace.cardEdgeOpacity),
+                        lineWidth: LayoutTokens.Workspace.cardEdgeWidth
+                    )
+                    .opacity(chromeOpacity)
+                    .allowsHitTesting(false)
+                }
+            }
+            .overlay {
+                // Dark mode: a lit top edge (round 32, DE5).
+                if colorScheme == .dark, contrast != .increased {
+                    shape.strokeBorder(
+                        LinearGradient(colors: [ColorTokens.Text.primary.opacity(0.1), .clear], startPoint: .top, endPoint: .center),
+                        lineWidth: 1
+                    )
+                    .opacity(chromeOpacity)
+                    .allowsHitTesting(false)
+                }
             }
             .preference(key: ContainsWorkspaceCardKey.self, value: true)
     }

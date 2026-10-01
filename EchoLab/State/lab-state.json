@@ -1,21 +1,78 @@
 {
-  "ongoing.agent-jobs-tab-r33": {
-    "comments": [],
+  "ongoing.agent-job-step-sheet-r33": {
+    "comments": [
+      {
+        "date": "2026-10-01T14:22:17Z",
+        "id": "5C27B247-FE21-42E0-9DC2-1DFF71B42736",
+        "text": "Review of SQL Server Agent Jobs: New Step\n1. Which sheet?: picked Proposal\n2. Layout: picked NS1 \u00b7 Three sections: Step, Command, When it finishes; NEEDS MORE OPTIONS; note: I don't like the hairline seperating the bottom and top of these. Please make more radical suggestions, even though your 3 sections are good.\n3. Command: picked CE2 \u00b7 CE1 with Parse, which checks the T-SQL before you save\n4. When it finishes: picked OC1 \u00b7 On success, On failure, Retry attempts and interval\n5. Add Step: picked PB1 \u00b7 Prominent, as every sheet\n6. Editing a step: picked ES1 \u00b7 A line under the title: Last run 26 Sep 23:00 \u00b7 Succeeded \u00b7 14 min"
+      }
+    ],
     "generalNote": "",
-    "history": [],
+    "history": [
+      {
+        "date": "2026-10-01T14:22:17Z",
+        "text": "Feedback sent"
+      }
+    ],
+    "needsMore": [
+      "structure"
+    ],
+    "optionNotes": {},
+    "pickNotes": {
+      "structure": "I don't like the hairline seperating the bottom and top of these. Please make more radical suggestions, even though your 3 sections are good."
+    },
+    "picks": {
+      "command": "CE2 \u00b7 CE1 with Parse, which checks the T-SQL before you save",
+      "completion": "OC1 \u00b7 On success, On failure, Retry attempts and interval",
+      "edit": "lastRun",
+      "exhibit": "proposal",
+      "primary": "PB1 \u00b7 Prominent, as every sheet",
+      "structure": "NS1 \u00b7 Three sections: Step, Command, When it finishes"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "New feedback",
+    "verdicts": {}
+  },
+  "ongoing.agent-jobs-tab-r33": {
+    "comments": [
+      {
+        "date": "2026-10-01T14:12:46Z",
+        "id": "1708A23F-84D5-414F-80F9-F2C469911962",
+        "text": "Review of SQL Server Agent Jobs: the tab\n1. Finished?: picked Proposal\n2. Headers: picked JH1 \u00b7 One header for every pane\n3. Layout: picked JL1 \u00b7 Jobs the full height on the left; Details over History on the right\n4. Details sections: picked DT0 \u00b7 Segmented, centred under the title (today)\n5. Jobs columns: picked JC1 \u00b7 Status, Name, Last run, Next run\n6. Empty rows: picked ER1 \u00b7 Plain white below the last row\n7. Job actions: picked JA1 \u00b7 New Job and Start/Stop on the Jobs header; the rest in \u22ef and right-click\n8. A running job: picked JR1 \u00b7 A spinning symbol and its elapsed time in Last run"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-01T14:12:46Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:13:19Z",
+        "text": "Taken by agent-jobs-r33"
+      },
+      {
+        "date": "2026-10-01T14:22:57Z",
+        "text": "Built into Echo: one pane header, Jobs full height beside Details over History, Status/Name/Last Run/Next Run with a spinning running job and its elapsed time, New Job and Start/Stop on the header, no stripes (85dca995)"
+      }
+    ],
     "needsMore": [],
     "optionNotes": {},
     "pickNotes": {},
     "picks": {
+      "actions": "header",
       "columns": "JC1 \u00b7 Status, Name, Last run, Next run",
+      "empty": "ER1 \u00b7 Plain white below the last row",
       "exhibit": "proposal",
       "headers": "JH1 \u00b7 One header for every pane",
       "layout": "JL1 \u00b7 Jobs the full height on the left; Details over History on the right",
+      "running": "time",
       "sections": "DT0 \u00b7 Segmented, centred under the title (today)"
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Judging",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.content-during-slide-r26": {
@@ -1256,6 +1313,11 @@
         "date": "2026-10-01T14:08:12Z",
         "id": "5AF90B7C-2340-46AE-8A46-DDA8C78C0C33",
         "text": "Review of Panels in dark mode\n1. Which dark window?: no answer yet\n2. Canvas: NEEDS MORE OPTIONS; note: Don't like the look of any of them.\n3. Cards: picked DD0 \u00b7 Text background, 30 (today, the Midnight editor's colour)\n4. Edge: NEEDS MORE OPTIONS; note: Need to see more options and also to see the different options in light mode as I quite like the current way it looks in light mode\n5. Shadow: NEEDS MORE OPTIONS; note: Need to see more options and also to see the different options in light mode as I quite like the current way it looks in light mode\n6. Increase Contrast: NEEDS MORE OPTIONS; note: Need to see more options and also to see the different options in light mode as I quite like the current way it looks in light mode"
+      },
+      {
+        "date": "2026-10-01T14:18:52Z",
+        "id": "E92C29D5-1914-4105-A59C-9F848564567A",
+        "text": "Review of Panels in dark mode\n1. Which dark window?: picked Proposal\n2. Canvas: picked DC6 \u00b7 Just under the cards, about 24\n3. Cards: picked DD0 \u00b7 Text background, 30 (today, the Midnight editor's colour)\n4. Edge: picked DE5 \u00b7 A 7% hairline and a lit top edge, the quietest; note: Need to see more options and also to see the different options in light mode as I quite like the current way it looks in light mode\n5. Shadow: picked DS5 \u00b7 A small contact shadow and a wide ambient one\n6. Increase Contrast: picked IC0 \u00b7 A solid 1pt edge in the separator colour"
       }
     ],
     "generalNote": "",
@@ -1271,25 +1333,30 @@
       {
         "date": "2026-10-01T14:12:29Z",
         "text": "Revision 2: More canvas, edge, shadow and Increase Contrast options, and every option shown in light mode too"
+      },
+      {
+        "date": "2026-10-01T14:18:52Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-01T14:23:03Z",
+        "text": "Built into Echo: dark canvas 24 (DC6), cards 30, 7% hairline with lit top (DE5), contact + ambient shadow (DS5), solid 1pt edge with Increase Contrast (IC0). Light mode unchanged. Edge note 'need to see more options' was the earlier note, taken as stale since DE5 was picked"
       }
     ],
-    "needsMore": [
-      "canvas",
-      "edge",
-      "shadow",
-      "contrast"
-    ],
+    "needsMore": [],
     "optionNotes": {},
     "pickNotes": {
-      "canvas": "Don't like the look of any of them.",
-      "contrast": "Need to see more options and also to see the different options in light mode as I quite like the current way it looks in light mode",
-      "edge": "Need to see more options and also to see the different options in light mode as I quite like the current way it looks in light mode",
-      "shadow": "Need to see more options and also to see the different options in light mode as I quite like the current way it looks in light mode"
+      "edge": "Need to see more options and also to see the different options in light mode as I quite like the current way it looks in light mode"
     },
     "picks": {
-      "card": "DD0 \u00b7 Text background, 30 (today, the Midnight editor's colour)"
+      "canvas": "DC6 \u00b7 Just under the cards, about 24",
+      "card": "DD0 \u00b7 Text background, 30 (today, the Midnight editor's colour)",
+      "contrast": "IC0 \u00b7 A solid 1pt edge in the separator colour",
+      "edge": "DE5 \u00b7 A 7% hairline and a lit top edge, the quietest",
+      "exhibit": "proposal",
+      "shadow": "DS5 \u00b7 A small contact shadow and a wide ambient one"
     },
-    "reviewedRevision": 1,
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
@@ -1304,7 +1371,7 @@
         "summary": "More canvas, edge, shadow and Increase Contrast options, and every option shown in light mode too"
       }
     ],
-    "status": "Judging",
+    "status": "In Echo",
     "verdicts": {}
   },
   "ongoing.panel-fills-light-r32": {
