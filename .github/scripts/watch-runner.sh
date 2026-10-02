@@ -31,7 +31,7 @@ ssh -o BatchMode=yes -o ConnectTimeout=5 testlab \
 while true; do
   github=$(probe https://api.github.com)
   results=$(probe https://results-receiver.actions.githubusercontent.com)
-  testlab=$(nc -z -G 5 192.168.1.153 22 >/dev/null 2>&1 && echo up || echo down)
+  testlab=$(nc -z -G 5 "$(ssh -G testlab | awk '/^hostname /{print $2}')" 22 >/dev/null 2>&1 && echo up || echo down)
   tailscale=$(tailscale status --json 2>/dev/null | python3 -c 'import json, sys; print(json.load(sys.stdin).get("BackendState", "?"))' 2>/dev/null || echo none)
   memory=$(memory_pressure -Q 2>/dev/null | grep -oE '[0-9]+%' | head -1)
   load=$(sysctl -n vm.loadavg 2>/dev/null | awk '{print $2}')

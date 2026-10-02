@@ -6,10 +6,10 @@ import Foundation
 ///
 ///     {
 ///       "connections": [
-///         { "name": "Test MSSQL", "type": "mssql", "host": "192.168.1.234", "port": 14332,
+///         { "name": "Test MSSQL", "type": "mssql", "host": "192.0.2.34", "port": 14332,
 ///           "database": "", "username": "sa", "password": "...", "useTLS": false,
 ///           "trustServerCertificate": true },
-///         { "name": "Test Postgres", "type": "postgresql", "host": "192.168.1.234", "port": 54322,
+///         { "name": "Test Postgres", "type": "postgresql", "host": "192.0.2.34", "port": 54322,
 ///           "database": "postgres", "username": "postgres", "password": "..." }
 ///       ],
 ///       "autoConnect": "Test MSSQL",
