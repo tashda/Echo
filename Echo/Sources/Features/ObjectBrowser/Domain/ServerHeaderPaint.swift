@@ -46,6 +46,12 @@ struct ServerHeaderPaint: Equatable {
     /// The type on the colour: white, or dark on a light colour with Automatic (round 53).
     var ink: Color { usesDarkType ? ServerHeaderTokens.darkInk : ColorTokens.Text.onFill }
 
+    /// The space above the header's first line while the card is open: 12pt for the other styles,
+    /// the chosen spacing's for the title banner (`ServerHeaderMetrics.topInset`).
+    var headerTopInset: CGFloat {
+        isTitleBanner ? CGFloat(ServerHeaderMetrics(look: look).topInset) : SpacingTokens.sm
+    }
+
     /// The title banner is a banner of its own: the type, the dock's icons and the chevron sit on
     /// it, and the dock has no capsule.
     var isTitleBanner: Bool { style == .titleBanner }

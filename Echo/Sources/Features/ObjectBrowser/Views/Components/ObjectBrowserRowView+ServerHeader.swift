@@ -24,24 +24,41 @@ extension ObjectBrowserRowView {
             isOpen: isExpanded
         )
         let metrics = ServerHeaderMetrics(look: look)
+        let name = Text(serverDisplayName(session))
+            .font(ServerHeaderTokens.nameFont(look))
+            .foregroundStyle(paint.ink)
+            .lineLimit(1)
+            .frame(height: metrics.nameLineHeight, alignment: .leading)
         // Each line has the height the layout reserved for it, so nothing moves or clips.
         return VStack(alignment: .leading, spacing: ServerHeaderMetrics.lineGap) {
             if let eyebrow {
-                Text(eyebrow)
-                    .font(ServerHeaderTokens.eyebrowFont)
-                    .tracking(ServerHeaderTokens.eyebrowTracking)
-                    .foregroundStyle(paint.ink.opacity(ServerHeaderTokens.eyebrowOpacity))
-                    .contentTransition(.identity)
-                    .lineLimit(1)
-                    .frame(height: ServerHeaderMetrics.eyebrowLineHeight, alignment: .leading)
+                if look.eyebrow == .sectionAtRight {
+                    // The section shares the name's row, left of the chevron's reserved slot.
+                    ServerHeaderNameRowLayout(gap: SpacingTokens.xs) {
+                        name
+                        titleBannerEyebrow(eyebrow, paint: paint)
+                    }
+                    .frame(height: metrics.nameRowHeight)
+                } else {
+                    titleBannerEyebrow(eyebrow, paint: paint)
+                    name
+                }
+            } else {
+                name
             }
-            Text(serverDisplayName(session))
-                .font(ServerHeaderTokens.nameFont(look))
-                .foregroundStyle(paint.ink)
-                .lineLimit(1)
-                .frame(height: metrics.nameLineHeight, alignment: .leading)
         }
-        .frame(height: metrics.linesHeight, alignment: .topLeading)
+        .frame(maxWidth: look.eyebrow == .sectionAtRight ? .infinity : nil, minHeight: metrics.linesHeight,
+               maxHeight: metrics.linesHeight, alignment: .topLeading)
+    }
+
+    private func titleBannerEyebrow(_ text: String, paint: ServerHeaderPaint) -> some View {
+        Text(text)
+            .font(ServerHeaderTokens.eyebrowFont)
+            .tracking(ServerHeaderTokens.eyebrowTracking)
+            .foregroundStyle(paint.ink.opacity(ServerHeaderTokens.eyebrowOpacity))
+            .contentTransition(.identity)
+            .lineLimit(1)
+            .frame(height: ServerHeaderMetrics.eyebrowLineHeight)
     }
 
     /// The name and product line: on the card, on a banner (white), beside a bar of colour (HD12),

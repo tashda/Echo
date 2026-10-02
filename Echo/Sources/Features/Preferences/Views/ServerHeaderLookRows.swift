@@ -9,14 +9,17 @@ struct ServerHeaderLookRows: View {
         PropertyRow(title: "Server Name Typeface", subtitle: "The typeface of the name on the banner.") {
             picker(\.serverHeaderLook.typeface, ServerHeaderTypeface.allCases, \.displayName)
         }
-        PropertyRow(title: "Server Name Size", subtitle: "Small is 18pt, Medium 22pt and Large 26pt.") {
+        PropertyRow(title: "Server Name Size", subtitle: "From Tiny (12pt) to Extra Large (26pt); Standard is 18pt.") {
             picker(\.serverHeaderLook.nameSize, ServerHeaderNameSize.allCases, \.displayName)
         }
         PropertyRow(
             title: "Line Above the Name",
-            subtitle: "Small capitals over the name. A closed card shows the engine instead of the section."
+            subtitle: "Small capitals naming the section or the engine, over the name or at its right. Nothing Above the Name leaves only the name."
         ) {
             picker(\.serverHeaderLook.eyebrow, ServerHeaderEyebrowLine.allCases, \.displayName)
+        }
+        PropertyRow(title: "Spacing", subtitle: "The room around the name: Tight is 6pt above it, Standard 10pt with more before the icons.") {
+            picker(\.serverHeaderLook.spacing, ServerHeaderSpacing.allCases, \.displayName)
         }
         PropertyRow(title: "Banner Edge", subtitle: "How the colour ends against the card's rows.") {
             picker(\.serverHeaderLook.edge, ServerHeaderEdge.allCases, \.displayName)
