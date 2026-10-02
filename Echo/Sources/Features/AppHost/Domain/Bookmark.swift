@@ -15,6 +15,12 @@ struct Bookmark: Identifiable, Codable, Hashable {
     var createdAt: Date
     var updatedAt: Date?
     var source: Source
+    /// Round IC: the folder it lives in (one level; nil is No Folder), a note, its place in the
+    /// folder (your order, smaller first; nil sorts after, newest first) and when it was last opened.
+    var folder: String?
+    var note: String?
+    var sortIndex: Double?
+    var lastOpenedAt: Date?
 
     init(
         id: UUID = UUID(),
@@ -24,7 +30,10 @@ struct Bookmark: Identifiable, Codable, Hashable {
         query: String,
         createdAt: Date = Date(),
         updatedAt: Date? = nil,
-        source: Source
+        source: Source,
+        folder: String? = nil,
+        note: String? = nil,
+        sortIndex: Double? = nil
     ) {
         self.id = id
         self.connectionID = connectionID
@@ -34,6 +43,34 @@ struct Bookmark: Identifiable, Codable, Hashable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.source = source
+        self.folder = folder
+        self.note = note
+        self.sortIndex = sortIndex
+    }
+
+    /// What the statement does, from its first keyword (round IC): the row's glyph.
+    enum StatementKind {
+        case read, change, procedure
+
+        var systemImage: String {
+            switch self {
+            case .read: "tablecells"
+            case .change: "pencil"
+            case .procedure: "function"
+            }
+        }
+    }
+
+    var statementKind: StatementKind {
+        let first = query
+            .split(whereSeparator: { $0.isWhitespace || $0 == "(" })
+            .first { !$0.hasPrefix("--") }?
+            .lowercased() ?? ""
+        switch first {
+        case "exec", "execute", "call": return .procedure
+        case "update", "delete", "insert", "merge", "truncate", "create", "alter", "drop", "grant", "revoke": return .change
+        default: return .read
+        }
     }
 
     var preview: String {

@@ -106,6 +106,8 @@ struct InspectorGroupHeading: View {
     /// nil: no disclosure (days). Otherwise whether the group is folded.
     var isFolded: Bool?
     var onToggle: (() -> Void)?
+    /// Double-click (a folder's rename).
+    var onDoubleClick: (() -> Void)?
 
     @Environment(\.echoMotion) private var motion
 
@@ -134,10 +136,26 @@ struct InspectorGroupHeading: View {
         .padding(.top, SpacingTokens.xxs)
         .frame(height: LayoutTokens.InspectorList.headingHeight)
         .contentShape(Rectangle())
-        .onTapGesture { onToggle?() }
+        .modifier(HeadingTaps(onToggle: onToggle, onDoubleClick: onDoubleClick))
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(onToggle == nil ? .isHeader : [.isHeader, .isButton])
         .accessibilityValue(isFolded == true ? "Folded" : "")
+    }
+}
+
+/// A heading's clicks: a double-click is only waited for when the heading has one.
+private struct HeadingTaps: ViewModifier {
+    let onToggle: (() -> Void)?
+    let onDoubleClick: (() -> Void)?
+
+    func body(content: Content) -> some View {
+        if let onDoubleClick {
+            content
+                .onTapGesture(count: 2, perform: onDoubleClick)
+                .onTapGesture { onToggle?() }
+        } else {
+            content.onTapGesture { onToggle?() }
+        }
     }
 }
 

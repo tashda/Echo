@@ -27,5 +27,18 @@
 	<string>${SUPABASE_ANON_KEY}</string>
 	<key>SUPABASE_URL</key>
 	<string>${SUPABASE_URL}</string>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>dev.echodb.echo.bookmark-item</string>
+			<key>UTTypeDescription</key>
+			<string>Echo bookmark or bookmark folder</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

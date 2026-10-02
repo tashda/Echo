@@ -64,7 +64,7 @@ struct WorkspaceInspectorColumn: View {
         case .details:
             InfoSidebarView()
         case .bookmarks:
-            BookmarksSidebarView().workspaceCard()
+            BookmarksInspectorPage().workspaceCard()
         case .history:
             QueryHistoryPanelView(connectionID: nil).workspaceCard()
         case .notifications:
