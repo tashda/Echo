@@ -145,9 +145,14 @@
         "date": "2026-10-02T07:47:34Z",
         "id": "9390F498-C2E9-489D-8C92-68854CBFAAB1",
         "text": "Review of The + button: connecting to a server\n1. Where it opens: picked PR4 \u00b7 The trail itself opens: the pill widens into the list\n2. The +: picked MP2 \u00b7 The + becomes a chevron pointing back at the trail\n3. The list: picked CT1 \u00b7 Search first; open connections, then folders as headings\n4. Actions: picked FT1 \u00b7 A footer bar of three labelled buttons\n5. Opened trail: picked OP1 \u00b7 A header row: servers left, New, Manage, Quick Connect and close right, icons only\n6. Closing: no answer yet\n7. Keyboard: picked KB1 \u00b7 A shortcut opens it with the search field focused; Return connects, Escape closes\n8. The menu bar: picked SM1 \u00b7 Yes: File \u203a Connect To keeps the menu for the menu bar\nOverall: It is much better but the opened glass card is now too wide and the animation is now gone. The animation before was perfect. Please make this lab round exactly as how it should look in production. Also the opened pills in the top should look the same as they do in the server trail and the scroll be to the side should look better."
+      },
+      {
+        "date": "2026-10-02T07:52:26Z",
+        "id": "7D10FC2A-023A-485E-912A-ACCCE340A76E",
+        "text": "Review of The + button: connecting to a server\n1. Where it opens: picked PR4 \u00b7 The trail itself opens: the pill widens into the list\n2. The +: picked MP2 \u00b7 The + becomes a chevron pointing back at the trail\n3. The list: picked CT1 \u00b7 Search first; open connections, then folders as headings\n4. Actions: picked FT1 \u00b7 A footer bar of three labelled buttons\n5. Opened trail: picked OP1 \u00b7 A header row: servers left, New, Manage, Quick Connect and close right, icons only\n6. Closing: picked CX1 \u00b7 An \u00d7 beside the three actions\n7. Keyboard: picked KB1 \u00b7 A shortcut opens it with the search field focused; Return connects, Escape closes\n8. The menu bar: picked SM1 \u00b7 Yes: File \u203a Connect To keeps the menu for the menu bar\nOverall: Almost perfect - remember when animating back into the server trail pill (when clicking close) that the bounce should no overlap/go under the server circles so it is a very smooth animation"
       }
     ],
-    "generalNote": "It is much better but the opened glass card is now too wide and the animation is now gone. The animation before was perfect. Please make this lab round exactly as how it should look in production. Also the opened pills in the top should look the same as they do in the server trail and the scroll be to the side should look better.",
+    "generalNote": "Almost perfect - remember when animating back into the server trail pill (when clicking close) that the bounce should no overlap/go under the server circles so it is a very smooth animation",
     "history": [
       {
         "date": "2026-10-02T07:41:39Z",
@@ -164,12 +169,17 @@
       {
         "date": "2026-10-02T07:48:59Z",
         "text": "Revision 3: Opened trail: one glass shape that grows, narrower, the trail's own pills, softer scrolling"
+      },
+      {
+        "date": "2026-10-02T07:52:26Z",
+        "text": "Accepted with picks"
       }
     ],
     "needsMore": [],
     "optionNotes": {},
     "pickNotes": {},
     "picks": {
+      "close": "CX1 \u00b7 An \u00d7 beside the three actions",
       "content": "CT1 \u00b7 Search first; open connections, then folders as headings",
       "footer": "FT1 \u00b7 A footer bar of three labelled buttons",
       "menuStays": "file",
@@ -178,7 +188,7 @@
       "presentation": "PR4 \u00b7 The trail itself opens: the pill widens into the list",
       "shortcut": "open"
     },
-    "reviewedRevision": 2,
+    "reviewedRevision": 3,
     "revisions": [
       {
         "changes": [
@@ -203,7 +213,7 @@
         "summary": "Opened trail: one glass shape that grows, narrower, the trail's own pills, softer scrolling"
       }
     ],
-    "status": "Judging",
+    "status": "Accepted",
     "verdicts": {}
   },
   "ongoing.content-during-slide-r26": {
@@ -3716,6 +3726,50 @@
       }
     ],
     "status": "Decided",
+    "verdicts": {}
+  },
+  "ongoing.server-header-polish-r50": {
+    "comments": [
+      {
+        "date": "2026-10-02T07:50:02Z",
+        "id": "FCF3B7C3-C3BA-4EDE-8D6E-177F3AAA9728",
+        "text": "Review of Server card: a header that looks designed\n1. Header: NEEDS MORE OPTIONS; note: I don't like any of the options you provided. The 5 we have are all better than this. The hp4 is interesting but still want too se way more variations - you are stuck on a \"this is how it should look\" and i want you to rethink this.\n2. Colour: no answer yet\n3. Name: no answer yet\n4. Second line: no answer yet\n5. Dock: no answer yet\n6. Direction: no answer yet\n7. Information in the header: no answer yet"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-02T07:50:02Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-02T07:54:46Z",
+        "text": "Revision 2: A rethink: Echo's five for comparison and 32 new headers built from pieces"
+      }
+    ],
+    "needsMore": [
+      "design"
+    ],
+    "optionNotes": {},
+    "pickNotes": {
+      "design": "I don't like any of the options you provided. The 5 we have are all better than this. The hp4 is interesting but still want too se way more variations - you are stuck on a \"this is how it should look\" and i want you to rethink this."
+    },
+    "picks": {},
+    "reviewedRevision": 1,
+    "revisions": [
+      {
+        "changes": [
+          "New: R1 to R4, Echo's other four headers (plain, bar, glass plate, banner) beside the wash",
+          "New: HQ1 to HQ32 in groups: dot, eyebrow (7 voices), title, path, one-line row, profile row, surface marks (rule, tab, ribbon, edge line, slab, pool) and your five remixed with the new type",
+          "Changed: Every header shows all 49, the five Echo has first",
+          "Changed: my recommendation is HQ29, your wash with the eyebrow's type"
+        ],
+        "date": "2026-10-02T07:54:46Z",
+        "number": 2,
+        "summary": "A rethink: Echo's five for comparison and 32 new headers built from pieces"
+      }
+    ],
+    "status": "Judging",
     "verdicts": {}
   },
   "ongoing.settings-controls-r43": {

@@ -17,6 +17,14 @@ struct LabHPHeader: View {
     }
 
     var body: some View {
+        if let spec = design.spec {
+            LabHQHeaderView(server: server, look: look, spec: spec, design: design, section: section, showsChevron: showsChevron)
+        } else {
+            drawn
+        }
+    }
+
+    private var drawn: some View {
         content
             .padding(.horizontal, design == .slab ? SpacingTokens.xxs1 : SpacingTokens.sm)
             .padding(.top, design == .slab ? SpacingTokens.xxs1 : SpacingTokens.sm)
@@ -225,7 +233,7 @@ struct LabHPBackdrop: View {
                                   palette.soft(0.3), palette.soft(0.18), palette.neighbour.opacity(0.14 * palette.strength.opacityScale),
                                   palette.soft(0.04), palette.soft(0.02), palette.soft(0.0)])
         default:
-            EmptyView()
+            LabHQBackdrop(design: design, palette: palette)
         }
     }
 }

@@ -20,13 +20,59 @@ enum LabHPDesign: String, CaseIterable {
     case numeral = "HP10 · Numeral: the version as a large mark"
     case underline = "HP11 · Underline: a short accent under the name"
     case chips = "HP12 · Chips: status, version and latency as tokens"
+    // Revision 2: Echo's other four headers for comparison, then a new family of composed headers.
+    case legacyPlain = "R1 · Plain (Echo's Settings)"
+    case legacyBar = "R2 · Bar (Echo's Settings)"
+    case legacyPlate = "R3 · Glass Plate (Echo's Settings)"
+    case legacyBanner = "R4 · Banner (Echo's Settings)"
+    case q1 = "HQ1 · Dot: a colour dot before the name"
+    case q2 = "HQ2 · Ring: a hollow ring before the name"
+    case q3 = "HQ3 · LED: a glowing dot, like a status light"
+    case q4 = "HQ4 · Dot and latency on the right, like a monitor"
+    case q5 = "HQ5 · Eyebrow in grey: type only, no colour"
+    case q6 = "HQ6 · Eyebrow in the colour (HP4)"
+    case q7 = "HQ7 · Eyebrow with a rule running out to the right"
+    case q8 = "HQ8 · Eyebrow with a dot"
+    case q9 = "HQ9 · Eyebrow of product and section, name below"
+    case q10 = "HQ10 · Eyebrow and a large name"
+    case q11 = "HQ11 · A large title, as a settings pane's"
+    case q12 = "HQ12 · A title with the number of databases, as Mail's mailbox"
+    case q13 = "HQ13 · A serif title with the product in small caps"
+    case q14 = "HQ14 · A path: server › section"
+    case q15 = "HQ15 · The section is the title; the server is the line under it"
+    case q16 = "HQ16 · Name over login@host in monospace"
+    case q17 = "HQ17 · Xcode's project row: an engine icon and the name on one line"
+    case q18 = "HQ18 · One line: an icon tile, the name and the product beside it"
+    case q19 = "HQ19 · One line: the name and the product on the same baseline"
+    case q20 = "HQ20 · A profile row: a 40pt tile with the letters, two lines and a chevron"
+    case q21 = "HQ21 · A profile row with the trail's disc"
+    case q22 = "HQ22 · A tile, the name, and login · latency"
+    case q23 = "HQ23 · A rule of colour under the header"
+    case q24 = "HQ24 · An index tab hanging from the card's top edge"
+    case q25 = "HQ25 · A corner ribbon"
+    case q26 = "HQ26 · A line of colour along the card's top edge"
+    case q27 = "HQ27 · Header and dock on one tinted glass slab"
+    case q28 = "HQ28 · A pool of colour behind the leading mark"
+    case q29 = "HQ29 · Wash with eyebrow type"
+    case q30 = "HQ30 · A slim banner, one line"
+    case q31 = "HQ31 · An inset banner with an eyebrow"
+    case q32 = "HQ32 · Wash with a tile"
 
     var number: String { rawValue.components(separatedBy: " · ").first ?? rawValue }
     var shortName: String { rawValue.components(separatedBy: " · ").last?.components(separatedBy: ":").first ?? rawValue }
 
     var family: LabHPFamily {
         switch self {
-        case .wash, .aurora: .soft
+        case .wash, .legacyPlain, .legacyBar, .legacyPlate, .legacyBanner: .five
+        case .aurora: .soft
+        case .q1, .q2, .q3, .q4: .dot
+        case .q5, .q6, .q7, .q8, .q9, .q10: .eyebrow
+        case .q11, .q12, .q13: .title
+        case .q14, .q15, .q16: .path
+        case .q17, .q18, .q19: .row
+        case .q20, .q21, .q22: .profile
+        case .q23, .q24, .q25, .q26, .q27, .q28: .surface
+        case .q29, .q30, .q31, .q32: .remix
         case .ink, .enamel, .duotone: .fill
         case .eyebrow, .badge, .numeral, .underline, .chips: .type
         case .tile, .spine, .slab: .object
@@ -34,18 +80,29 @@ enum LabHPDesign: String, CaseIterable {
     }
 
     /// The text sits on the colour itself, so it is white.
-    var isOnFill: Bool { self == .ink || self == .enamel || self == .duotone }
+    var isOnFill: Bool { self == .ink || self == .enamel || self == .duotone || spec?.surface.isOnFill == true }
+
+    /// Echo's own header setting this one stands for (R1 to R4), drawn by round 30's card.
+    var legacyStyle: LabSHStyle? {
+        switch self {
+        case .legacyPlain: .today
+        case .legacyBar: .bar
+        case .legacyPlate: .plate
+        case .legacyBanner: .banner
+        default: nil
+        }
+    }
 
     /// Colour painted behind the header (and the dock with "Over the colour").
     var hasBackdrop: Bool {
         switch self {
         case .wash, .ink, .enamel, .duotone, .aurora: true
-        default: false
+        default: spec?.surface.hasBackdrop == true
         }
     }
 
     /// A panel of colour needs room under the text; type-led headers do not.
-    var padsBelow: Bool { isOnFill || self == .slab }
+    var padsBelow: Bool { isOnFill || self == .slab || spec?.surface == .slab }
 
     var summary: String {
         switch self {
@@ -62,14 +119,26 @@ enum LabHPDesign: String, CaseIterable {
         case .numeral: "The product's version as a large rounded numeral in the colour on the right (2022, 18). Distinguishes two servers of one product at a glance."
         case .underline: "A 2.5pt accent under the name, 22pt long, in the colour. The smallest mark that still ties the header to its server."
         case .chips: "Name on top; under it small tokens: a status dot, the version, the latency. Turns the grey product line into information you can scan."
+        case .legacyPlain, .legacyBar, .legacyPlate, .legacyBanner: "One of the four other headers Echo has in Settings, drawn as it is today (typeface, second line and dock controls do not apply). Judge every new one against these."
+        default: spec?.summary ?? ""
         }
     }
 }
 
 enum LabHPFamily: String, CaseIterable {
-    case soft = "Soft", fill = "Fill", type = "Type", object = "Object"
+    case five = "Five", dot = "Dot", eyebrow = "Eyebrow", title = "Title", path = "Path", row = "Row", profile = "Profile",
+         surface = "Surface", remix = "Remix", soft = "Soft", fill = "Fill", type = "Type", object = "Object"
     var title: String {
         switch self {
+        case .five: "What Echo has: wash, plain, bar, glass plate, banner (the five you said are better)"
+        case .dot: "A small mark of colour before the name, nothing else"
+        case .eyebrow: "A line of small caps above the name, in several voices"
+        case .title: "The name as a title"
+        case .path: "The header as where you are, not what the server is"
+        case .row: "The header as one row, like Xcode's project"
+        case .profile: "A profile row, like System Settings' account"
+        case .surface: "A mark on the card itself: a rule, a tab, a ribbon, a slab"
+        case .remix: "Your five, with the new type"
         case .soft: "Soft colour behind the header"
         case .fill: "A solid fill with white type"
         case .type: "No fill: the type carries the colour"

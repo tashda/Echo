@@ -14,6 +14,8 @@ struct LabCMWindow: View {
     private var isPacked: Bool { isRailOpen && look.opened != .classic }
     /// The widened trail: wide enough for a search field and four icon buttons, narrower than the tree.
     private var openWidth: CGFloat { SpacingTokens.xxxl * 3.9 }
+    /// The list is gone before the glass starts to shrink under it.
+    private var listFade: AnyTransition { .asymmetric(insertion: .opacity, removal: .opacity.animation(.easeOut(duration: 0.12))) }
     private var listHeight: CGFloat { SpacingTokens.xxxl * 5 }
     private var itemSize: CGFloat { SpacingTokens.xl + SpacingTokens.nano - SpacingTokens.micro }
     private var railPad: CGFloat { LayoutTokens.Rail.pillPadding }
@@ -37,11 +39,14 @@ struct LabCMWindow: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(ColorTokens.Workspace.canvas)
-        .animation(motion.standard, value: isOpen)
         .onExitCommand { if isOpen { toggle() } }
     }
 
-    private func toggle() { isOpen.toggle() }
+    /// Opening springs; closing settles with no overshoot (`settle`), so the shrinking glass never passes
+    /// under the server circles it is returning to.
+    private func toggle() {
+        withAnimation(isOpen ? motion.settle : motion.standard) { isOpen.toggle() }
+    }
 
     // MARK: Rail
 
@@ -54,7 +59,7 @@ struct LabCMWindow: View {
                     LabCMOpenedHeader(look: look, servers: trailServers, selected: $selected, namespace: trail, onClose: { toggle() })
                     LabCMList(look: look, onConnect: { toggle() })
                         .frame(height: listHeight)
-                        .transition(.opacity)
+                        .transition(listFade)
                 } else {
                     ForEach(trailServers) { server in
                         Button { selected = server.id } label: { LabCMTrailItem(server: server, isSelected: server.id == selected) }
@@ -64,7 +69,7 @@ struct LabCMWindow: View {
                     if isRailOpen {
                         LabCMList(look: look, onConnect: { toggle() })
                             .frame(height: listHeight)
-                            .transition(.opacity)
+                            .transition(listFade)
                     }
                     plus.modifier(LabCMMatched(namespace: look.presentation == .rail && look.opened != .classic ? trail : nil))
                 }

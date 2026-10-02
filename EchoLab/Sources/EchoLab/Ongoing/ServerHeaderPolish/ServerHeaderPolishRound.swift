@@ -14,11 +14,13 @@ enum ServerHeaderPolishRound {
 
     static let spec = RoundSpec(
         controls: [
-            .of("design", "Header", LabHPDesign.self, default: .ink,
-                question: "Step through the headers in the Proposal, then compare them all in Every header. Which one looks designed rather than generated?",
-                recommend: .ink,
-                why: "A close call with HP5 Tile. Ink keeps the presence you asked for in round 30, but as a flat, darkened surface: no gradient, no glow, no capsule on top, so it reads as a title bar and the colour is a material, not an effect. Tile is the quietest and the most native, but at 32pt the colour is too small to spot a red production server at a glance. The soft and glass ones (HP0, HP7, HP8) are what you already have at 90%.",
-                summary: \.summary),
+            .of("design", "Header", LabHPDesign.self, default: .q29,
+                question: "Open Every header (the five Echo has come first, then 32 new ones in groups), then try the ones that stand out in the Proposal. Which look designed rather than generated?",
+                recommend: .q29,
+                why: "You said the five Echo has are better than my first 13 and that the eyebrow (HP4) is interesting, so the best of both: your wash, with the eyebrow's type doing the work. It adds one line of small capitals and changes no colour, no shape, no setting you already have. If you'd rather go further from today, HQ20 (profile row) and HQ17 (project row) are the two that change the structure most; HQ23 and HQ26 change the least.",
+                summary: \.summary,
+                newChoices: (2, [.legacyPlain, .legacyBar, .legacyPlate, .legacyBanner, .q1, .q2, .q3, .q4, .q5, .q6, .q7, .q8, .q9, .q10, .q11, .q12,
+                                 .q13, .q14, .q15, .q16, .q17, .q18, .q19, .q20, .q21, .q22, .q23, .q24, .q25, .q26, .q27, .q28, .q29, .q30, .q31, .q32])),
             .of("strength", "Colour", LabHPStrength.self, default: .standard,
                 question: "Switch between Muted, Standard and Vivid on the Proposal and on Three servers. How much colour should a header carry?",
                 recommend: .standard,
@@ -63,8 +65,8 @@ enum ServerHeaderPolishRound {
                 }
             },
             .init(id: "gallery", title: "Every header",
-                  summary: "All thirteen on the chosen server, grouped by how the colour is made. Scroll for more.",
-                  designWidth: 700, designHeight: 620) { values in
+                  summary: "All 49 on the chosen server in groups: the five Echo has, the 32 new ones (HQ), then round 50's first thirteen. Scroll for more.",
+                  addedIn: 2, designWidth: 700, designHeight: 620) { values in
                 LabHPGallery(look: LabHPLook(values), server: sample(values))
             },
             .init(id: "typefaces", title: "Typefaces",

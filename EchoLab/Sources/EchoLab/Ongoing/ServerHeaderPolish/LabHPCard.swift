@@ -13,6 +13,15 @@ struct LabHPCard: View {
     private var palette: LabHPPalette { LabHPPalette(tint: server.color, strength: look.strength) }
 
     var body: some View {
+        if let style = look.design.legacyStyle {
+            LabSHCard(server: server, look: LabSHLook(style: style, source: .server, secondLine: .productSection, dockTint: .header),
+                      rowLimit: rowLimit, selectedRow: selectedRow)
+        } else {
+            composed
+        }
+    }
+
+    private var composed: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.xxs2) {
             top
             VStack(spacing: SpacingTokens.none) {
@@ -26,6 +35,17 @@ struct LabHPCard: View {
                 palette.ink.frame(width: SpacingTokens.xxs).allowsHitTesting(false)
             }
         }
+        .overlay(alignment: .topTrailing) {
+            if look.design.spec?.surface == .ribbon {
+                LabHQRibbon().fill(palette.deep).frame(width: SpacingTokens.lg2, height: SpacingTokens.lg2).allowsHitTesting(false)
+            }
+        }
+        .overlay {
+            if look.design.spec?.surface == .capLine {
+                LabSHCardEdge(look: LabSHLook(style: .edge, source: .server, secondLine: .productSection, dockTint: .header), tint: palette.ink)
+                    .allowsHitTesting(false)
+            }
+        }
         .workspaceCard()
         .onHover { isHovering = $0 }
     }
@@ -35,7 +55,13 @@ struct LabHPCard: View {
     private var top: some View {
         let header = LabHPHeader(server: server, look: look, showsChevron: isHovering)
         let dock = LabHPDockBar(look: look, palette: palette)
-        if look.coversDock {
+        if look.design.spec?.surface == .slab {
+            VStack(alignment: .leading, spacing: SpacingTokens.xxs2) { header; dock }
+                .padding(.bottom, SpacingTokens.xxs)
+                .glassEffect(.regular.tint(palette.soft(0.24)),
+                             in: .rect(cornerRadius: max(cornerRadius - SpacingTokens.xxs1, SpacingTokens.xxs2), style: .continuous))
+                .padding(.horizontal, SpacingTokens.xxs1).padding(.top, SpacingTokens.xxs1)
+        } else if look.coversDock {
             VStack(alignment: .leading, spacing: SpacingTokens.xxs2) { header; dock }
                 .padding(.bottom, look.design == .wash || look.design == .aurora ? SpacingTokens.xxs2 : SpacingTokens.xxs2)
                 .background { LabHPBackdrop(design: look.design, palette: palette).allowsHitTesting(false) }
