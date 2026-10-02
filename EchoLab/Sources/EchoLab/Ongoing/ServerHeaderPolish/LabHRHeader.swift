@@ -7,9 +7,10 @@ struct LabHRHeader: View {
     let look: LabHRLook
     let section: LabHRSection
     var showsChevron = false
+    @Environment(\.colorScheme) private var scheme
 
     private var form: LabHRForm { look.form }
-    private var palette: LabHRPalette { LabHRPalette(tint: server.color, tone: look.tone) }
+    private var palette: LabHRPalette { LabHRPalette(tint: look.tint(for: server, scheme: scheme), tone: look.tone) }
     private var onFill: Bool { form.isOnFill }
     private var primary: AnyShapeStyle { onFill ? AnyShapeStyle(ColorTokens.Text.onFill) : AnyShapeStyle(ColorTokens.Text.primary) }
     private var secondary: AnyShapeStyle { onFill ? AnyShapeStyle(ColorTokens.Text.onFill.opacity(0.85)) : AnyShapeStyle(ColorTokens.Text.tertiary) }
@@ -44,7 +45,7 @@ struct LabHRHeader: View {
         } else if form.hasLargeName {
             VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
                 if let eyebrowText { eyebrow(eyebrowText) }
-                Text(server.name).font(.system(size: 20, weight: .bold)).foregroundStyle(primary).lineLimit(1)
+                Text(server.name).font(look.name.font).tracking(look.name.tracking).foregroundStyle(primary).lineLimit(1)
                 if look.eyebrow == .none { productLine }
             }
         } else {
@@ -70,8 +71,8 @@ struct LabHRHeader: View {
     }
 
     private func eyebrow(_ text: String) -> some View {
-        Text(text).font(.system(size: 10, weight: .semibold)).tracking(0.9)
-            .foregroundStyle(onFill ? AnyShapeStyle(ColorTokens.Text.onFill.opacity(0.82)) : AnyShapeStyle(palette.ink))
+        Text(look.eyebrowStyle.isCaps ? text : text.capitalized).font(look.eyebrowStyle.font).tracking(look.eyebrowStyle.tracking)
+            .foregroundStyle(onFill ? AnyShapeStyle(ColorTokens.Text.onFill.opacity(look.eyebrowStyle.opacity)) : AnyShapeStyle(palette.ink))
             .lineLimit(1)
             .contentTransition(.opacity)
     }
@@ -120,15 +121,86 @@ struct LabHRHeader: View {
 struct LabHRBackdrop: View {
     let form: LabHRForm
     let palette: LabHRPalette
+    var edge = LabHREdge.sharp
 
     var body: some View {
         switch form.surface {
         case .banner:
-            palette.banner
+            LabHRBanner(edge: edge, palette: palette)
         case .wash:
             LinearGradient(colors: [palette.ink.opacity(0.2), palette.ink.opacity(0)], startPoint: .top, endPoint: .bottom)
         case .inset, .none:
             EmptyView()
         }
+    }
+}
+
+
+/// The banner's fill, ending against the card in one of round 50's edges.
+struct LabHRBanner: View {
+    let edge: LabHREdge
+    let palette: LabHRPalette
+
+    var body: some View {
+        switch edge {
+        case .soft:
+            palette.banner.mask { LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.62),
+                                                         .init(color: .clear, location: 1)], startPoint: .top, endPoint: .bottom) }
+        case .sharp:
+            palette.banner
+        case .hairline:
+            palette.banner.overlay(alignment: .bottom) { Color.white.opacity(0.35).frame(height: 0.5) }
+        case .shortFade:
+            palette.banner.mask {
+                VStack(spacing: SpacingTokens.none) {
+                    Rectangle()
+                    LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom).frame(height: SpacingTokens.sm2)
+                }
+            }
+        case .frosted:
+            palette.banner.overlay(alignment: .bottom) {
+                Rectangle().fill(.ultraThinMaterial)
+                    .frame(height: SpacingTokens.xl + SpacingTokens.xxs)
+                    .mask(LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom))
+            }
+            .mask { LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.8),
+                                           .init(color: .clear, location: 1)], startPoint: .top, endPoint: .bottom) }
+        case .lifted:
+            palette.banner.shadow(color: .black.opacity(0.28), radius: SpacingTokens.xs, y: SpacingTokens.xxs)
+        case .rounded:
+            palette.banner.clipShape(UnevenRoundedRectangle(bottomLeadingRadius: SpacingTokens.md1, bottomTrailingRadius: SpacingTokens.md1, style: .continuous))
+        case .curve:
+            LabHRCurvedBottom(depth: SpacingTokens.xs2).fill(palette.banner)
+        case .slanted:
+            LabHRSlantedBottom(rise: SpacingTokens.xs2).fill(palette.banner)
+        }
+    }
+}
+
+/// A rectangle whose bottom edge bows down in the middle.
+struct LabHRCurvedBottom: Shape {
+    let depth: CGFloat
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - depth))
+        path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY - depth), control: CGPoint(x: rect.midX, y: rect.maxY + depth))
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// A rectangle whose bottom edge rises to the left.
+struct LabHRSlantedBottom: Shape {
+    let rise: CGFloat
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - rise))
+        path.closeSubpath()
+        return path
     }
 }

@@ -14,36 +14,42 @@ enum ServerHeaderPolishRound {
 
     static let spec = RoundSpec(
         controls: [
-            .of("form", "Header", LabHRForm.self, default: .slim,
-                question: "Click the icon menu's icons in the Proposal, then see all eight in Every header. Which one should the server card have?",
-                recommend: .slim,
-                why: "The banner is your favourite because it is the one header that says which server you are on without reading; F4 keeps that and removes what makes it heavy: the second line, and the 20pt of colour under it. It becomes a label for the card, the colour carries on behind the icon menu, and the right side tells you the section. F3 is the one to ship if you would rather change nothing about the banner itself.",
+            .of("form", "Header", LabHRForm.self, default: .bannerTitle,
+                question: "F5 is your pick. Compare it once more in Every header: should it stay F5?",
+                recommend: .bannerTitle,
+                why: "You picked F5 and said you love it. The other forms stay so you can still switch: F4 (slim banner) is the one to ship if the large name feels too tall next to the rows.",
                 summary: \.summary),
             .of("dock", "Icon menu", LabHRDock.self, default: .pill,
-                question: "Click through the icons with each treatment on the Proposal, then see all six in Every icon menu and Every icon menu, plain card. How should the icon menu sit?",
+                question: "You picked D3 but its pill did not show (my bug, fixed). Click the icons in the Proposal: does the pill read now?",
                 recommend: .pill,
-                why: "The frosted strip is the problem on a banner: glass has nothing to blur but a flat colour, so it goes white. With no capsule the icons sit straight on the colour and the selected one is a white pill that slides between them, which is the one idea that works on a banner and on a plain card (there the pill is the server's colour at 18%). D4 is the close second if you want the menu to feel like a control.",
+                why: "On the colour a white pill is the strongest cue there is. D4 (a recess with a raised disc) is the runner-up if you want the menu to look like a control.",
                 summary: \.summary),
-            .of("right", "Right side", LabHRRight.self, default: .section,
-                question: "Click through the sections and watch the header's right side. What should it show?",
-                recommend: .section,
-                why: "The icon menu has no labels, and the selected icon is the only thing that says where you are; the name of the section answers that in words and costs one short word. The icon beside it (RT2, RT3) repeats the menu a few points below.",
+            .of("icon", "Selected icon", LabHRIcon.self, default: .filled15,
+                question: "Click through the icons with each weight and size. How heavy should the selected icon be?",
+                recommend: .filled15,
+                why: "The filled symbol at 15pt bold is the heaviest change that keeps all five icons the same family; a heavy 16 starts to look like a different set, and a half-strength row (IC5) makes the menu hard to read when nothing is selected.",
                 summary: \.summary),
-            .of("reach", "Colour reaches", LabHRReach.self, default: .dock,
-                question: "Compare the colour stopping under the name with carrying on behind the icon menu.",
-                recommend: .dock,
-                why: "One surface for the header and the menu is what ties the section name on the right to the icon below it. It is also what the banner does in Echo today, so RC1 changes nothing; RC0 leaves the menu on the card, where the pill works but the glass has nothing behind it.",
+            .of("pill", "Pill", LabHRPill.self, default: .compact,
+                question: "Click through the icons with each pill. What should sit behind the selected icon?",
+                recommend: .compact,
+                why: "A compact capsule leaves clear colour on both sides, so it reads as an object rather than a bar. The wide one touches its neighbours; the disc echoes the trail's selection but is narrower than the icons' spacing; the raised, outline and glass ones are the three to look at in dark mode.",
                 summary: \.summary),
-            .of("eyebrow", "Eyebrow", LabHREyebrow.self, default: .engine,
-                question: "Choose a large-name form (F5, F7 or F8), then compare the lines over the name. What should it say?",
-                recommend: .engine,
-                why: "You doubted that anyone cares about the version; the engine does not change and tells a PostgreSQL server from a SQL Server one at a glance, which the colour does not. The section (EY1) is the most useful but would then also be on the right in RT1, so pick one. The version stays one tooltip away.",
+            .of("name", "Name", LabHRName.self, default: .bold20,
+                question: "Compare the large name in every typeface in Typefaces, then in the Proposal. Which typeface and size?",
+                recommend: .semibold22,
+                why: "The name is the one thing the card has to say. A lighter weight at 22pt reads as a title rather than a label next to the 13pt rows; New York and Mono have character but are the two that would not suit every server name (dkloosql10-p in serif looks like a poem).",
+                summary: { $0.rawValue }),
+            .of("eyebrowStyle", "Eyebrow", LabHREyebrowStyle.self, default: .standard,
+                question: "Compare the eyebrows in Typefaces. How should the line over the name be set?",
+                recommend: .bold,
+                why: "At 10pt semibold the eyebrow disappears into the colour; 11pt bold with wider tracking holds on every colour in the palette, including yellow and amber, without competing with the name.",
+                summary: { $0.rawValue }),
+            .of("edge", "Banner edge", LabHREdge.self, default: .hairline,
+                question: "See all nine in Edges, then in the Proposal over the rows. How should the banner end against the card?",
+                recommend: .hairline,
+                why: "You like both the soft fade and the sharp edge: a sharp edge with a hairline of light keeps the sharpness and fixes what makes it harsh, the colour ending against white with nothing between. It is also the one that holds in dark mode, where a shadow (ED5) can't be seen and a fade turns muddy. ED4 is the most refined fade if you want it soft.",
                 summary: \.summary),
-            .of("tone", "Colour", LabHRTone.self, default: .echo,
-                question: "Compare the banner's colour as Echo draws it with the same colour darkened.",
-                recommend: .echo,
-                why: "You chose R4 as it is; the darker colour is for you to see how much of the generated look is saturation. If white type or the pill feel weak on red or yellow, CL1 is the fix.",
-                summary: \.summary),
+            .of("colour", "Colour", LabHRColour.self, default: .sample),
             .of("sample", "Server", LabSHSample.self, default: .production),
         ],
         exhibits: [
@@ -53,7 +59,7 @@ enum ServerHeaderPolishRound {
                 LabHRColumn { LabHRCard(server: sample(values), look: .today) }
             },
             .init(id: "proposal", title: "Proposal",
-                  summary: "Built from the controls. Click the icons: the right side and the eyebrow follow. Hover the header for the chevron.",
+                  summary: "Built from the controls. Click the icons: the eyebrow follows. Hover the header for the chevron.",
                   designWidth: width, designHeight: 400) { values in
                 LabHRColumn { LabHRCard(server: sample(values), look: LabHRLook(values)) }
             },
@@ -66,8 +72,45 @@ enum ServerHeaderPolishRound {
                     LabHRCard(server: .development, look: LabHRLook(values), rowLimit: 2, selectedRow: nil)
                 }
             },
+            .init(id: "edges", title: "Edges", summary: "The nine ways the banner can end, with the rest of the proposal. Scroll for more.",
+                  addedIn: 4, designWidth: 700, designHeight: 620) { values in
+                let look = LabHRLook(values)
+                LabHRVariantGallery(variants: LabHREdge.allCases.map { edge in
+                    var copy = look; copy.edge = edge; return (edge.rawValue, copy)
+                }, server: sample(values))
+            },
+            .init(id: "typefaces", title: "Typefaces",
+                  summary: "Left: the ten names with the chosen eyebrow. Scroll down: the six eyebrows with the chosen name.",
+                  addedIn: 4, designWidth: 700, designHeight: 620) { values in
+                let look = LabHRLook(values)
+                LabHRVariantGallery(variants: LabHRName.allCases.map { name in
+                    var copy = look; copy.name = name; return (name.rawValue, copy)
+                } + LabHREyebrowStyle.allCases.map { style in
+                    var copy = look; copy.eyebrowStyle = style; return (style.rawValue, copy)
+                }, server: sample(values))
+            },
+            .init(id: "icons", title: "Selected icon",
+                  summary: "The six weights and sizes, then the seven pills, each on the chosen icon menu.",
+                  addedIn: 4, designWidth: 700, designHeight: 620) { values in
+                let look = LabHRLook(values)
+                LabHRVariantGallery(variants: LabHRIcon.allCases.map { icon in
+                    var copy = look; copy.icon = icon; return (icon.rawValue, copy)
+                } + LabHRPill.allCases.map { pill in
+                    var copy = look; copy.pill = pill; return (pill.rawValue, copy)
+                }, server: sample(values))
+            },
+            .init(id: "colours", title: "Colours",
+                  summary: "The 30 colours on the chosen header, in the lab's appearance. Switch light and dark in the toolbar.",
+                  addedIn: 4, designWidth: 700, designHeight: 620) { values in
+                LabHRColourGallery(look: LabHRLook(values), server: sample(values))
+            },
+            .init(id: "pairs", title: "Light and dark",
+                  summary: "Every colour in light (left) and dark (right) at once.",
+                  addedIn: 4, designWidth: 700, designHeight: 620) { values in
+                LabHRColourPairs(look: LabHRLook(values), server: sample(values))
+            },
             .init(id: "forms", title: "Every header",
-                  summary: "All eight forms with the chosen icon menu, right side and eyebrow. Scroll for more.",
+                  summary: "All eight forms with the chosen settings. Scroll for more.",
                   designWidth: 700, designHeight: 620) { values in
                 LabHRFormGallery(look: LabHRLook(values), server: sample(values))
             },
@@ -76,38 +119,33 @@ enum ServerHeaderPolishRound {
                   designWidth: 700, designHeight: 620) { values in
                 LabHRDockGallery(look: LabHRLook(values), server: sample(values))
             },
-            .init(id: "docksPlain", title: "Every icon menu, plain card",
-                  summary: "The six treatments on the plain card (F1), where there is no colour for the menu to sit on.",
-                  designWidth: 700, designHeight: 620) { values in
-                LabHRDockGallery(look: LabHRLook(values).with(form: .plain), server: sample(values))
-            },
         ],
         questions: [
-            .init(id: "plainCard", title: "On a plain card",
-                  question: "If the header stays plain (F1), how should the icon menu look? Open Every icon menu, plain card.",
+            .init(id: "palette", title: "Colours to offer",
+                  question: "Open Colours and Light and dark. Which set of colours should a server's colour picker offer?",
                   choices: [
-                      .init(id: "pill", name: "D3 · The selected icon in a pill of the server's colour", summary: nil),
-                      .init(id: "recessed", name: "D4 · A recessed capsule with a raised disc, as the trail's selection", summary: nil),
-                      .init(id: "tinted", name: "D1 · Glass with a hint of the server's colour", summary: nil),
-                      .init(id: "glass", name: "D0 · Today's glass", summary: nil),
+                      .init(id: "system", name: "PC0 · The eight system colours (today)", summary: nil),
+                      .init(id: "tuned", name: "PC1 · Sixteen colours tuned for light and dark", summary: nil),
+                      .init(id: "full", name: "PC2 · All thirty here, each with a light and a dark version", summary: nil),
+                      .init(id: "fullCustom", name: "PC3 · All thirty and a colour well for any colour", summary: nil),
                   ],
-                  recommended: "recessed",
-                  why: "On the plain card the capsule is what makes it look pasted on, because glass over a white card is white over white. A recess takes its colour from the card and the raised disc is the same disc the trail uses to say \"selected\", so the menu and the trail share one idea."),
+                  recommended: "fullCustom",
+                  why: "The system colours are the same in every app and look flat as a full banner. Each colour here has its own light and dark version (darker and calmer in light, brighter in dark) so white type holds on all of them; a colour well on top is for the person with a brand colour. Sixteen is enough if thirty is too many to scan, and I would cut Gold, Sand, Moss and Steel first."),
         ],
         presets: [
-            .init(id: "recommended", name: "My recommendation", summary: "Slim banner, the section on the right, colour through the icon menu, the selected icon in a white pill.",
-                  values: ["form": LabHRForm.slim.rawValue, "dock": LabHRDock.pill.rawValue, "right": LabHRRight.section.rawValue,
-                           "reach": LabHRReach.dock.rawValue, "eyebrow": LabHREyebrow.engine.rawValue, "tone": LabHRTone.echo.rawValue],
+            .init(id: "recommended", name: "My recommendation", summary: "F5, the selected icon in a compact white pill, a bold filled icon, a hairline edge.",
+                  values: ["form": LabHRForm.bannerTitle.rawValue, "dock": LabHRDock.pill.rawValue, "icon": LabHRIcon.filled15.rawValue,
+                           "pill": LabHRPill.compact.rawValue, "name": LabHRName.semibold22.rawValue, "eyebrowStyle": LabHREyebrowStyle.bold.rawValue,
+                           "edge": LabHREdge.hairline.rawValue],
                   isRecommended: true),
-            .init(id: "r4", name: "Your banner, a calmer menu", summary: "R4 as it is, with the icon menu in a recess.",
-                  values: ["form": LabHRForm.banner.rawValue, "dock": LabHRDock.recessed.rawValue, "right": LabHRRight.none.rawValue,
-                           "reach": LabHRReach.dock.rawValue, "tone": LabHRTone.echo.rawValue]),
-            .init(id: "title", name: "Large name", summary: "HQ10 on the banner, eyebrow without the version, an underline menu.",
-                  values: ["form": LabHRForm.bannerTitle.rawValue, "dock": LabHRDock.underline.rawValue, "right": LabHRRight.none.rawValue,
-                           "reach": LabHRReach.dock.rawValue, "eyebrow": LabHREyebrow.engine.rawValue, "tone": LabHRTone.echo.rawValue]),
-            .init(id: "plain", name: "Plain, recessed menu", summary: "No colour surface; the menu is a recess with a raised disc.",
-                  values: ["form": LabHRForm.plainTitle.rawValue, "dock": LabHRDock.recessed.rawValue, "right": LabHRRight.none.rawValue,
-                           "reach": LabHRReach.header.rawValue, "eyebrow": LabHREyebrow.engine.rawValue]),
+            .init(id: "picked", name: "As you picked", summary: "F5, D3, as they were; for comparing.",
+                  values: ["form": LabHRForm.bannerTitle.rawValue, "dock": LabHRDock.pill.rawValue, "icon": LabHRIcon.semibold14.rawValue,
+                           "pill": LabHRPill.wide.rawValue, "name": LabHRName.bold20.rawValue, "eyebrowStyle": LabHREyebrowStyle.standard.rawValue,
+                           "edge": LabHREdge.soft.rawValue]),
+            .init(id: "soft", name: "Frosted", summary: "A frosted fade, raised pill.",
+                  values: ["edge": LabHREdge.frosted.rawValue, "pill": LabHRPill.raised.rawValue, "icon": LabHRIcon.heavy16.rawValue]),
+            .init(id: "panel", name: "A panel", summary: "Rounded bottom corners, a serif name.",
+                  values: ["edge": LabHREdge.rounded.rawValue, "name": LabHRName.serif22.rawValue, "pill": LabHRPill.disc.rawValue]),
         ]
     )
 

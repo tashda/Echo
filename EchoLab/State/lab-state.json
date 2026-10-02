@@ -3760,9 +3760,14 @@
         "date": "2026-10-02T08:13:35Z",
         "id": "7B84088E-8BBA-44F4-915C-2A3E3D2CFD4F",
         "text": "Review of Server card: a header that looks designed\n1. Header: NEEDS MORE OPTIONS; note: I don't like any of the options you provided. The 5 we have are all better than this. The hp4 is interesting but still want too se way more variations - you are stuck on a \"this is how it should look\" and i want you to rethink this.\n2. Colour: no answer yet\n3. Name: no answer yet\n4. Second line: no answer yet\n5. Dock: no answer yet\n6. Direction: no answer yet\n7. Information in the header: no answer yet"
+      },
+      {
+        "date": "2026-10-02T08:35:52Z",
+        "id": "2A750733-3692-4FD2-928B-B26F6A60DA43",
+        "text": "Review of Server card: a header that looks designed\n1. Header: picked F5 \u00b7 Banner with an eyebrow over a large name\n2. Icon menu: picked D3 \u00b7 No capsule: the selected icon in a pill\n3. Right side: picked RT0 \u00b7 Nothing\n4. Colour reaches: picked RC1 \u00b7 Down through the icon menu\n5. Eyebrow: picked EY1 \u00b7 The selected section: DATABASES\n6. Colour: picked CL0 \u00b7 The server's colour, as the banner draws it\n7. On a plain card: picked D3 \u00b7 The selected icon in a pill of the server's colour\nOverall: I am loving F5 and how EY1 and D3 looks. However for \"When the icon is selected\" the pill is not showing and I need more options to judge - like more weight to icon and those sorts of things. Furthermore please play with different fonts/sizes/weights/etc for the currently selected F5. And the banner is beautiful but today it \"blurs\" into the card - I want to also see if we can do something with this - I do like the sharp edge also but show me many way this could look. Also the colors in this preview for the card is not many and I want to see a big set of different colors that would look awesome in Echo for the user to chose and look amazing in both light and dark mode"
       }
     ],
-    "generalNote": "",
+    "generalNote": "Almost perfect - remember when animating back into the server trail pill (when clicking close) that the bounce should no overlap/go under the server circles so it is a very smooth animation",
     "history": [
       {
         "date": "2026-10-02T07:50:02Z",
@@ -3779,6 +3784,14 @@
       {
         "date": "2026-10-02T08:16:57Z",
         "text": "Revision 3: Cleaned up: every earlier suggestion removed; eight headers around your banner, six icon-menu treatments"
+      },
+      {
+        "date": "2026-10-02T08:35:52Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-02T08:39:46Z",
+        "text": "Revision 4: F5 and D3 as picked: the pill fixed, and options for the icon, the pill, the typeface, the banner's edge and a palette of 30 colours"
       }
     ],
     "needsMore": [
@@ -3788,8 +3801,16 @@
     "pickNotes": {
       "design": "I don't like any of the options you provided. The 5 we have are all better than this. The hp4 is interesting but still want too se way more variations - you are stuck on a \"this is how it should look\" and i want you to rethink this."
     },
-    "picks": {},
-    "reviewedRevision": 2,
+    "picks": {
+      "dock": "D3 \u00b7 No capsule: the selected icon in a pill",
+      "eyebrow": "EY1 \u00b7 The selected section: DATABASES",
+      "form": "F5 \u00b7 Banner with an eyebrow over a large name",
+      "plainCard": "pill",
+      "reach": "RC1 \u00b7 Down through the icon menu",
+      "right": "RT0 \u00b7 Nothing",
+      "tone": "CL0 \u00b7 The server's colour, as the banner draws it"
+    },
+    "reviewedRevision": 3,
     "revisions": [
       {
         "changes": [
@@ -3812,6 +3833,19 @@
         "date": "2026-10-02T08:16:57Z",
         "number": 3,
         "summary": "Cleaned up: every earlier suggestion removed; eight headers around your banner, six icon-menu treatments"
+      },
+      {
+        "changes": [
+          "Fixed: the selected icon's pill did not show (it was drawn as small as the glyph)",
+          "New: Selected icon (six weights and sizes) and Pill (seven shapes)",
+          "New: Name (ten typefaces) and Eyebrow (six styles), compared in Typefaces",
+          "New: Banner edge (nine, from the soft fade to sharp, hairline, frosted, lifted, rounded, curved, slanted), compared in Edges",
+          "New: Colours and Light and dark, 30 colours each with a light and a dark version",
+          "Cleaned up: right side, reach, eyebrow and colour mix are fixed to your picks and no longer asked"
+        ],
+        "date": "2026-10-02T08:39:46Z",
+        "number": 4,
+        "summary": "F5 and D3 as picked: the pill fixed, and options for the icon, the pill, the typeface, the banner's edge and a palette of 30 colours"
       }
     ],
     "status": "Judging",

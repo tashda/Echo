@@ -4,6 +4,8 @@ import SwiftUI
 /// card. Click an icon to switch section; the pill, disc or line slides.
 struct LabHRDockBar: View {
     let treatment: LabHRDock
+    var iconStyle = LabHRIcon.semibold14
+    var pillShape = LabHRPill.wide
     let tint: Color
     let onColour: Bool
     /// The surface's own colour, for the tinted glass and the recess.
@@ -17,7 +19,10 @@ struct LabHRDockBar: View {
         HStack(spacing: SpacingTokens.none) {
             ForEach(LabHRSection.allCases, id: \.self) { section in
                 Button { withAnimation(.smooth(duration: 0.28)) { selected = section } } label: {
-                    icon(section).frame(maxWidth: .infinity).frame(height: height).contentShape(Rectangle())
+                    icon(section)
+                        .frame(maxWidth: .infinity).frame(height: height)
+                        .background { if section == selected { indicator.matchedGeometryEffect(id: "selection", in: slide) } }
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help(section.title)
@@ -33,11 +38,9 @@ struct LabHRDockBar: View {
     private func icon(_ section: LabHRSection) -> some View {
         let isSelected = section == selected
         return Image(systemName: section.symbol)
-            .font(TypographyTokens.prominent.weight(isSelected ? .semibold : .medium))
+            .symbolVariant(isSelected && iconStyle.isFilled ? .fill : .none)
+            .font(isSelected ? iconStyle.font : TypographyTokens.prominent.weight(.medium))
             .foregroundStyle(glyph(isSelected: isSelected))
-            .background {
-                if isSelected { indicator.matchedGeometryEffect(id: "selection", in: slide) }
-            }
     }
 
     private func glyph(isSelected: Bool) -> AnyShapeStyle {
@@ -45,7 +48,7 @@ struct LabHRDockBar: View {
         case .glass:
             return isSelected ? AnyShapeStyle(tint) : AnyShapeStyle(ColorTokens.Sidebar.symbol)
         case .pill:
-            if onColour { return isSelected ? AnyShapeStyle(surface) : AnyShapeStyle(ColorTokens.Text.onFill.opacity(0.78)) }
+            if onColour { return isSelected ? AnyShapeStyle(surface) : AnyShapeStyle(ColorTokens.Text.onFill.opacity(iconStyle.othersOpacity)) }
             return isSelected ? AnyShapeStyle(tint) : AnyShapeStyle(ColorTokens.Sidebar.symbol)
         case .recessed:
             if onColour { return AnyShapeStyle(isSelected ? ColorTokens.Text.primary : ColorTokens.Text.onFill.opacity(0.7)) }
@@ -58,28 +61,58 @@ struct LabHRDockBar: View {
 
     // MARK: Selection
 
-    /// The pill, disc, line or small capsule under the selected icon.
+    /// The pill, disc, line or small capsule under the selected icon, drawn in the whole cell.
     @ViewBuilder
     private var indicator: some View {
         switch treatment {
-        case .glass:
+        case .glass, .tinted:
             Color.clear
-        case .tinted:
-            Color.clear
-        case .flat:
-            Capsule().fill(onColour ? Color.white.opacity(0.22) : tint.opacity(0.16)).padding(.vertical, SpacingTokens.micro * 2)
-                .padding(.horizontal, SpacingTokens.xxs)
-        case .pill:
-            Capsule().fill(onColour ? Color.white : tint.opacity(0.18)).padding(.vertical, SpacingTokens.micro * 2)
-                .padding(.horizontal, SpacingTokens.xxs)
-        case .recessed:
-            Capsule()
-                .fill(onColour ? ColorTokens.Workspace.railSelection : ColorTokens.Workspace.railSelection)
-                .shadow(ShadowTokens.railSelection)
-                .padding(.vertical, SpacingTokens.micro * 3).padding(.horizontal, SpacingTokens.xxs)
         case .underline:
             Capsule().fill(onColour ? Color.white : tint).frame(height: SpacingTokens.xxxs)
                 .frame(maxHeight: .infinity, alignment: .bottom).padding(.horizontal, SpacingTokens.xs).padding(.bottom, SpacingTokens.xxxs)
+        case .flat, .pill, .recessed:
+            pillView
+        }
+    }
+
+    private var pillFill: Color {
+        switch treatment {
+        case .pill: onColour ? Color.white : tint.opacity(0.18)
+        case .flat: onColour ? Color.white.opacity(0.22) : tint.opacity(0.16)
+        default: ColorTokens.Workspace.railSelection
+        }
+    }
+
+    @ViewBuilder
+    private var pillView: some View {
+        let shape = pillGeometry
+        switch pillShape {
+        case .ring:
+            shape.stroke(onColour ? Color.white : tint, lineWidth: 1.5).frame(width: pillSize.width, height: pillSize.height)
+        case .glass:
+            Color.clear.frame(width: pillSize.width, height: pillSize.height).glassEffect(.regular, in: .capsule)
+        case .raised:
+            shape.fill(pillFill).shadow(color: .black.opacity(0.28), radius: SpacingTokens.xxs, y: SpacingTokens.xxxs)
+                .frame(width: pillSize.width, height: pillSize.height)
+        default:
+            shape.fill(pillFill).frame(width: pillSize.width, height: pillSize.height)
+        }
+    }
+
+    private var pillGeometry: AnyShape {
+        switch pillShape {
+        case .disc: AnyShape(Circle())
+        case .square: AnyShape(RoundedRectangle(cornerRadius: SpacingTokens.xs, style: .continuous))
+        default: AnyShape(Capsule())
+        }
+    }
+
+    private var pillSize: CGSize {
+        switch pillShape {
+        case .wide: CGSize(width: 52, height: 24)
+        case .disc: CGSize(width: 28, height: 28)
+        case .square: CGSize(width: 32, height: 26)
+        default: CGSize(width: 42, height: 24)
         }
     }
 
