@@ -19,6 +19,10 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r54", label: "Round 54", title: "Minimizing a card into the trail", date: "2 Oct 2026",
+             asked: "Show different animations for how a server card is moved into the server trail when it is minimized (and brought back), since a closed card now leaves the tree and its trail item takes a dashed ring.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.card-to-trail-r54"]),
         Info(id: "r53", label: "Round 53", title: "Server card header: customization and the chevron", date: "2 Oct 2026",
              asked: "Take round 50's chosen header (F5, hairline edge, bold eyebrow over a semibold 22 name, filled selected icon, no underline or pill) and suggest simple customizations to offer users beyond colour and icon colour (fonts, sizes and so on), and show chevron ideas, since today's is too basic and does not animate.",
              outcome: "Being judged.",
