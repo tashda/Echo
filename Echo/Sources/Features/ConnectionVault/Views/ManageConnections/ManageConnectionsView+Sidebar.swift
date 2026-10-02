@@ -8,15 +8,15 @@ extension ManageConnectionsView {
             Section("Connections") {
                 Label("All Connections", systemImage: "externaldrive.connected.to.line.below")
                     .badge(projectConnections.count)
-                    .tag(ManageScope.allConnections)
+                    .tag(Optional(ManageScope.allConnections))
                 Label("Recently Used", systemImage: "clock")
                     .badge(recentConnections.count)
-                    .tag(ManageScope.recentConnections)
+                    .tag(Optional(ManageScope.recentConnections))
             }
             Section("Identities") {
                 Label("All Identities", systemImage: "person.crop.circle")
                     .badge(projectIdentities.count)
-                    .tag(ManageScope.identities)
+                    .tag(Optional(ManageScope.identities))
             }
         }
         .listStyle(.sidebar)

@@ -245,6 +245,8 @@ struct ConnectionEditorView: View {
                 credentialSource = .identity
             })
             .environment(environmentState)
+            .environment(projectStore)
+            .environment(connectionStore)
         }
         .onChange(of: selectedDatabaseType) { oldType, newType in
             handleDatabaseTypeChange(from: oldType, to: newType)
