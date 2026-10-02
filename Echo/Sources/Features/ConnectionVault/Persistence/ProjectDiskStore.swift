@@ -1,63 +1,43 @@
 import Foundation
 import CryptoKit
 import EchoSense
+import EchoLocalStorage
 
 actor ProjectDiskStore {
-    private let fileURL: URL
-    private let globalSettingsURL: URL
-
-    init() {
-        let fm = FileManager.default
-        let appSupport = try! fm.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true
-        )
-        let dir = appSupport.appendingPathComponent("Echo", isDirectory: true)
-        if !fm.fileExists(atPath: dir.path) {
-            try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
-        }
-        fileURL = dir.appendingPathComponent("projects.json")
-        globalSettingsURL = dir.appendingPathComponent("global_settings.json")
-    }
-
-    // MARK: - Projects
-
     func load() async throws -> [Project] {
-        let fm = FileManager.default
-        guard fm.fileExists(atPath: fileURL.path) else { return [] }
-        let data = try Data(contentsOf: fileURL)
-        return try JSONDecoder().decode([Project].self, from: data)
+        try await LocalConfigurationArchive.load(Project.self, collection: "projects", filename: "projects.json")
     }
 
     func save(_ projects: [Project]) async throws {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted]
-        let data = try encoder.encode(projects)
-        try data.write(to: fileURL, options: [.atomic])
+        try await LocalConfigurationArchive.save(projects, collection: "projects")
     }
 
-    // MARK: - Global Settings
-
     func loadGlobalSettings() async throws -> GlobalSettings {
-        let fm = FileManager.default
-        guard fm.fileExists(atPath: globalSettingsURL.path) else {
+        let storage = LocalConfigurationArchive.storage
+        let legacy = LocalConfigurationArchive.legacyURL("global_settings.json")
+        if !(try await storage.hasMigration("global-settings")) {
+            if FileManager.default.fileExists(atPath: legacy.path) {
+                let data = try Data(contentsOf: legacy)
+                let settings = try await MainActor.run { try JSONDecoder().decode(GlobalSettings.self, from: data) }
+                try await saveGlobalSettings(settings)
+                _ = try await storage.read(collection: "settings", id: "global")
+                try await storage.finishMigration("global-settings")
+                try FileManager.default.removeItem(at: legacy)
+            } else {
+                try await storage.finishMigration("global-settings")
+            }
+        }
+        guard let data = try await storage.read(collection: "settings", id: "global") else {
             return await MainActor.run { GlobalSettings() }
         }
-        let data = try Data(contentsOf: globalSettingsURL)
-        return try await MainActor.run {
-            try JSONDecoder().decode(GlobalSettings.self, from: data)
-        }
+        return try await MainActor.run { try JSONDecoder().decode(GlobalSettings.self, from: data) }
     }
 
     func saveGlobalSettings(_ settings: GlobalSettings) async throws {
-        let data = try await MainActor.run { () -> Data in
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted]
-            return try encoder.encode(settings)
-        }
-        try data.write(to: globalSettingsURL, options: [.atomic])
+        let data = try await MainActor.run { try JSONEncoder().encode(settings) }
+        try await LocalConfigurationArchive.storage.write(
+            LocalRecord(collection: "settings", id: "global", payload: data)
+        )
     }
 
     // MARK: - Export/Import with Encryption

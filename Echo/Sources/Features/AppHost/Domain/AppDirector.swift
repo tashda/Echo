@@ -225,7 +225,10 @@ final class AppDirector {
             try await projectStore.load()
             try await connectionStore.load()
         } catch {
-            print("Failed to load modular stores: \(error)")
+            isInitializing = false
+            environmentState.lastError = DatabaseError.connectionFailed(error.localizedDescription)
+            notificationEngine.post(category: .connectionFailed, message: error.localizedDescription)
+            return
         }
 
         await environmentState.migrateLegacyObjectBrowserCachesIfNeeded()

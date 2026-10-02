@@ -10,7 +10,7 @@ use `[skip ci]` to honor that request.
 
 - [x] 1. Local storage package: SQLite records, authenticated encryption, Keychain
   key creation, transactions, permissions and migration primitives.
-- [ ] 2. Saved configuration: migrate connections, identities, folders, projects
+- [x] 2. Saved configuration: migrate connections, identities, folders, projects
   and settings; remove inline metadata from normal connection persistence.
 - [ ] 3. Metadata: per-database cache records, selective hydration, background
   refresh, resolved credential fingerprints, per-connection writes and indexed
@@ -49,3 +49,9 @@ Checkpoint 1: added EchoLocalStorage as a local Swift package and Xcode dependen
 Actor-owned SQLite, encrypted/AAD-bound records, selective group reads, indexed
 cache eviction, atomic collection snapshots, and safe installation-key acquisition.
 No builds/tests yet, as requested. App consumers are wired in checkpoint 2.
+
+Checkpoint 2: configuration stores now use individually encrypted SQLite records.
+The owner clarified there are no users: only a small importer for this Mac, no
+old-version compatibility. Inline metadata is moved to a temporary encrypted
+legacy-metadata collection for checkpoint 3. Startup stops on unavailable storage
+instead of creating defaults over failed reads. Export remains password-protected.
