@@ -24,8 +24,12 @@ struct QueryTabButton: View {
     let onHoverChanged: (Bool) -> Void
     var availableDatabases: [String] = []
     var onSwitchDatabase: ((String) -> Void)?
-    /// A dot of the server's colour after the title (round 30.1, CO2); nil without one.
-    var serverDotColor: Color?
+    /// The width the tab is moving to; its title is laid out at that width at once (round 49, MO9).
+    var finalWidth: CGFloat = 0
+    /// The tool's pages are in the tab, not on the row under the strip (FP4).
+    var pagesInTab = true
+    /// Squeezed by the tool tab in front: only its icon shows (FP1).
+    var isIconOnly = false
 
     @State var isHovering = false
     @State var isHoveringClose = false
@@ -54,18 +58,17 @@ struct QueryTabButton: View {
     var hairlineWidth: CGFloat { tabHairlineWidth() }
 
     var body: some View {
-        HStack(spacing: SpacingTokens.xxxs) {
-            leadingControl
-
-            tabTitleContent
-                .frame(maxWidth: .infinity, alignment: .center)
-
-            closeButtonPlaceholder
-        }
+        contentRow
         .padding(.leading, tab.isPinned ? 13 : SpacingTokens.xs)
         .padding(.trailing, tab.isPinned ? 13 : SpacingTokens.sm)
         .padding(.vertical, SpacingTokens.xxxs)
-        .frame(minHeight: WorkspaceChromeMetrics.tabHeight)
+        .frame(maxWidth: .infinity, minHeight: WorkspaceChromeMetrics.tabHeight, alignment: tab.isPinned ? .center : .leading)
+        .opacity(isIconOnly ? 0 : 1)
+        .animation(motion.pageFade, value: isIconOnly)
+        // An icon-only tab shows its close button in the icon's place while the pointer is on it.
+        .overlay { if isIconOnly && shouldShowClose { closeButtonArea } }
+        // Nothing the tab holds is wider than the tab while it moves (round 49, MO9).
+        .clipShape(tabShape)
         .background(tabBackground)
         .overlay(tabStroke)
         .overlay(hoverOutline)
@@ -157,6 +160,26 @@ struct QueryTabButton: View {
                     Label("Add to Bookmarks", systemImage: "bookmark")
                 }
             }
+        }
+    }
+
+    /// Pinned tabs centre their letter; every other tab is left to right from a fixed inset, so
+    /// what it says never slides inside it (MO9, anchored).
+    @ViewBuilder
+    private var contentRow: some View {
+        if tab.isPinned {
+            HStack(spacing: SpacingTokens.xxxs) {
+                leadingControl
+                tabTitleContent.frame(maxWidth: .infinity, alignment: .center)
+                closeButtonPlaceholder
+            }
+        } else {
+            HStack(spacing: SpacingTokens.xxxs) {
+                leadingControl
+                tabTitleContent
+                closeButtonPlaceholder
+            }
+            .fixedSize()
         }
     }
 

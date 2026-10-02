@@ -27,6 +27,10 @@ extension ExplorerBlueprint {
             Tool(.backUpServer)
             Tool(.backUpGlobals)
             Tool(.psqlConsole)
+            Tool(.pgTypes)
+            Tool(.pgTextAndLanguages)
+            Tool(.pgProgramming)
+            Tool(.pgStorage)
         }
         ItemFolder(.tablespaces, loading: .tablespaces)
     } database: {

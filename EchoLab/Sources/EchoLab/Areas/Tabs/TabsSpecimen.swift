@@ -41,24 +41,17 @@ struct TabsSpecimen: View {
 
     private struct Item { let title: String; let icon: String; let pages: [String]; let pinned: Bool }
 
-    /// The unfolded tab, or nil: the strip springs only when this changes (QueryTabStrip).
-    private var unfoldedKey: Int? {
-        let list = items
-        guard model.showsPages, list.count > 1, list.indices.contains(model.active), !list[model.active].pages.isEmpty else { return nil }
-        return model.active
-    }
-
     private var items: [Item] {
         var list: [Item] = []
-        if model.hasPinned { list.append(Item(title: "Q", icon: "doc.text", pages: [], pinned: true)) }
+        if model.hasPinned { list.append(Item(title: "Q", icon: "chevron.left.forwardslash.chevron.right", pages: [], pinned: true)) }
         list += [
-            Item(title: "Activity Monitor", icon: "waveform.path.ecg", pages: ["Processes", "Waits", "I/O", "Queries", "XEvents", "Profiler"], pinned: false),
-            Item(title: "Jobs", icon: "clock", pages: [], pinned: false),
-            Item(title: "Query 2", icon: "doc.text", pages: [], pinned: false),
-            Item(title: "Query 3", icon: "doc.text", pages: [], pinned: false),
+            Item(title: "Activity Monitor", icon: "gauge.with.dots.needle.67percent", pages: ["Processes", "Waits", "I/O", "Queries", "XEvents", "Profiler"], pinned: false),
+            Item(title: "Jobs", icon: "calendar.badge.clock", pages: [], pinned: false),
+            Item(title: "Query 2", icon: "chevron.left.forwardslash.chevron.right", pages: [], pinned: false),
+            Item(title: "Query 3", icon: "chevron.left.forwardslash.chevron.right", pages: [], pinned: false),
         ]
         var n = 4
-        while list.count < model.count { list.append(Item(title: "Query \(n)", icon: "doc.text", pages: [], pinned: false)); n += 1 }
+        while list.count < model.count { list.append(Item(title: "Query \(n)", icon: "chevron.left.forwardslash.chevron.right", pages: [], pinned: false)); n += 1 }
         return Array(list.prefix(max(model.count, 1)))
     }
 
@@ -123,9 +116,9 @@ struct TabsSpecimen: View {
                 }
                 .frame(height: stripHeight)
                 .specAnchor("1.1")
-                // As in Echo: only a tool tab unfolding or folding springs (the house spring, round
-                // 36.1); a plain switch is instant.
-                .animation(motion.standard, value: unfoldedKey)
+                // As in Echo (round 49, MO9): the plate and the widths glide on one smooth curve when
+                // the front tab changes. The icons stand still; this specimen draws the resting state.
+                .animation(motion.glide, value: model.active)
             }
             .frame(maxHeight: .infinity, alignment: .center)
         }
@@ -139,13 +132,10 @@ struct TabsSpecimen: View {
         let item = list[model.active]
         let size = TypographyTokens.AppKit.detail.pointSize
         let title = (item.title as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: size, weight: .medium)]).width
-        let pages = item.pages.reduce(CGFloat.zero) {
-            $0 + ($1 as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: size, weight: .semibold)]).width
-                + LayoutTokens.TabPages.chipHorizontalPadding * 2 + LayoutTokens.TabPages.spacing
-        }
+        let pages = LabTBarMetrics.pagesWidth(item.pages, compact: true)
         let ideal = ceil(title + pages + LayoutTokens.TabPages.tabChrome)
-        // Round 36.1 (RW1): exactly its content's width, at most 62% of the strip.
-        let unfolded = min(ideal, total * LayoutTokens.TabPages.maxShareOfStrip)
+        // Round 36.1 (RW1) and round 49 (FP1): exactly its content's width, down to an icon for each other tab.
+        let unfolded = min(ideal, total - CGFloat(list.count - 1) * LayoutTokens.TabPages.iconOnlyWidth)
         guard unfolded != equal else { return base }
         let others = max((total - unfolded) / CGFloat(list.count - 1), 0)
         return list.indices.map { $0 == model.active ? unfolded : others }
@@ -163,7 +153,7 @@ struct TabsSpecimen: View {
                 if item.pinned { Color.clear.frame(width: 0, height: 12) } else { closeButton(visible: showsClose, isActive: isActive, anchored: isActive) }
             }
             titleContent(item, isActive: isActive, anchored: isActive)
-                .frame(maxWidth: .infinity, alignment: .center)
+                .frame(maxWidth: .infinity, alignment: item.pinned ? .center : .leading)
             Color.clear.frame(width: item.pinned ? 0 : SpacingTokens.sm2, height: 12)
         }
         .padding(.leading, item.pinned ? 13 : SpacingTokens.xs)
@@ -299,11 +289,11 @@ struct TabsSpecimen: View {
             HStack(spacing: LayoutTokens.TabPages.spacing) {
                 ForEach(pages, id: \.self) { page in
                     let isSelected = page == selectedPage
-                    Text(page)
+                    Text(LabTBarMetrics.label(page, compact: true))
                         .font(TypographyTokens.detail.weight(isSelected ? .semibold : .regular))
                         .foregroundStyle(isSelected ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
                         .lineLimit(1).fixedSize()
-                        .padding(.horizontal, LayoutTokens.TabPages.chipHorizontalPadding)
+                        .padding(.horizontal, LayoutTokens.TabPages.compactChipHorizontalPadding)
                         .frame(height: LayoutTokens.TabPages.chipHeight)
                         .background { if isSelected { Capsule().fill(ColorTokens.TabStrip.Pages.selected) } }
                         .contentShape(Capsule())

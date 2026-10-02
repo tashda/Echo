@@ -29,29 +29,38 @@ extension WorkspaceTab.Kind {
         }
     }
 
+    /// One picture per kind of tab, none repeated (round 49, IC1). Advanced Objects on PostgreSQL
+    /// is four tools that each have their own (`WorkspaceTab.iconName`).
     var icon: String {
         switch self {
-        case .query: return "tablecells"
-        case .structure: return "wrench.and.screwdriver"
-        case .diagram: return "chart.xyaxis.line"
-        case .jobQueue: return "gearshape"
+        case .query: return "chevron.left.forwardslash.chevron.right"
+        case .structure: return "tablecells.badge.ellipsis"
+        case .diagram: return "point.3.connected.trianglepath.dotted"
+        case .jobQueue: return "calendar.badge.clock"
         case .psql: return "terminal"
-        case .extensionStructure: return "puzzlepiece.fill"
-        case .extensionsManager: return "puzzlepiece"
-        case .activityMonitor: return "chart.bar.doc.horizontal"
+        case .extensionStructure: return "puzzlepiece"
+        case .extensionsManager: return "puzzlepiece.extension"
+        case .activityMonitor: return "gauge.with.dots.needle.67percent"
         case .maintenance, .mssqlMaintenance: return "wrench.and.screwdriver"
         case .extendedEvents: return "bolt.horizontal"
         case .availabilityGroups: return "server.rack"
-        case .databaseSecurity, .postgresSecurity, .mysqlSecurity, .serverSecurity, .postgresAdvancedObjects: return "lock.shield"
-        case .mssqlAdvancedObjects: return "puzzlepiece.extension"
-        case .errorLog: return "doc.text"
-        case .profiler: return "trace"
-        case .resourceGovernor: return "r.square.on.square"
-        case .serverProperties: return "gearshape.2"
-        case .tuningAdvisor: return "wand.and.stars"
+        case .databaseSecurity, .postgresSecurity, .mysqlSecurity: return "lock.shield"
+        case .serverSecurity: return "key"
+        case .postgresAdvancedObjects: return "cube.transparent"
+        case .mssqlAdvancedObjects: return "shippingbox"
+        case .errorLog: return "exclamationmark.bubble"
+        case .profiler: return "waveform"
+        case .resourceGovernor: return "gauge.with.needle"
+        case .serverProperties: return "slider.horizontal.3"
+        case .tuningAdvisor: return "tuningfork"
         case .policyManagement: return "checkmark.seal"
-        case .schemaDiff: return "doc.on.doc"
-        case .queryBuilder: return "hammer"
+        case .schemaDiff: return "arrow.left.arrow.right.square"
+        case .queryBuilder: return "rectangle.connected.to.line.below"
         }
     }
+}
+
+extension WorkspaceTab {
+    /// The symbol this tab shows: its kind's, or the tool's own where one kind is several tools.
+    var iconName: String { postgresAdvancedObjectsVM?.group.icon ?? kind.icon }
 }

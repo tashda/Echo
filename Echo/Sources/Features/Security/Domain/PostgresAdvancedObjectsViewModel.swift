@@ -21,13 +21,51 @@ final class PostgresAdvancedObjectsViewModel {
         case casts = "Casts"
     }
 
+    /// Advanced Objects is four tools of their own, each with two to four pages (round 49, AO2).
+    enum Group: String, CaseIterable {
+        case types, textAndLanguages, programming, storage
+
+        var title: String {
+            switch self {
+            case .types: "Types"
+            case .textAndLanguages: "Text and Languages"
+            case .programming: "Programming"
+            case .storage: "Storage"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .types: "cube.transparent"
+            case .textAndLanguages: "character.bubble"
+            case .programming: "function"
+            case .storage: "externaldrive"
+            }
+        }
+
+        var sections: [Section] {
+            switch self {
+            case .types: [.domains, .compositeTypes, .rangeTypes, .casts]
+            case .textAndLanguages: [.collations, .ftsConfig, .languages]
+            case .programming: [.aggregates, .operators, .rules, .eventTriggers]
+            case .storage: [.tablespaces, .foreignData]
+            }
+        }
+
+        /// The tool a page belongs to.
+        static func containing(_ section: Section) -> Group {
+            allCases.first { $0.sections.contains(section) } ?? .types
+        }
+    }
+
+    let group: Group
     let connectionID: UUID
     let connectionSessionID: UUID
     @ObservationIgnored let session: DatabaseSession
     @ObservationIgnored private(set) var panelState: BottomPanelState?
     @ObservationIgnored var activityEngine: ActivityEngine?
 
-    var selectedSection: Section = .foreignData
+    var selectedSection: Section
     var isInitialized = false
     var schemaFilter: String = "public"
     var availableSchemas: [String] = []
@@ -81,7 +119,9 @@ final class PostgresAdvancedObjectsViewModel {
         }
     }
 
-    init(session: DatabaseSession, connectionID: UUID, connectionSessionID: UUID) {
+    init(session: DatabaseSession, connectionID: UUID, connectionSessionID: UUID, group: Group = .types) {
+        self.group = group
+        self.selectedSection = group.sections[0]
         self.session = session
         self.connectionID = connectionID
         self.connectionSessionID = connectionSessionID

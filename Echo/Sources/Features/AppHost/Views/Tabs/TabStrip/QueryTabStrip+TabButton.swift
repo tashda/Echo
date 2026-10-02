@@ -8,6 +8,8 @@ extension QueryTabStrip {
         index: Int,
         totalCount: Int,
         appearance: TabChromePalette?,
+        pagesInTab: Bool,
+        isIconOnly: Bool,
         databaseNames: [String]
     ) -> some View {
         let isActive = tabStore.activeTabId == tab.id
@@ -48,9 +50,9 @@ extension QueryTabStrip {
             onSwitchDatabase: databases.isEmpty ? nil : { dbName in
                 switchDatabase(dbName, for: tab)
             },
-            // Round 30.1, CO2: with the header in the server's colour, its tabs carry a dot of it.
-            serverDotColor: projectStore.globalSettings.serverHeaderColorSource == .server
-                ? environmentState.connectionStore.currentColor(of: tab.connection) : nil
+            finalWidth: targetWidth,
+            pagesInTab: pagesInTab,
+            isIconOnly: isIconOnly
         )
         .frame(width: targetWidth > 0 ? targetWidth : nil)
         .id(tab.id)

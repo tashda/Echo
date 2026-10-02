@@ -15,6 +15,8 @@ nonisolated enum ExplorerNodeKind: String, CaseIterable, Sendable {
     case maintenance, serverProperties, activityMonitor, extendedEvents, databaseMail, sqlProfiler
     case resourceGovernor, tuningAdvisor, policyManagement, sqlServerLogs, jobQueue, securityOverview
     case backUpServer, backUpGlobals, psqlConsole
+    // PostgreSQL's Advanced Objects, four tools of their own (round 49, AO2)
+    case pgTypes, pgTextAndLanguages, pgProgramming, pgStorage
     // PostgreSQL Activity Monitor pages, each a tool that opens the monitor on that page
     case pgSessions, pgLocks, pgDatabaseStatistics, pgOperations, pgQueries, pgReplication
     case pgIOStatistics, pgWAL, pgBackgroundWriter, pgPreparedTransactions, pgConfiguration
@@ -67,6 +69,10 @@ nonisolated enum ExplorerNodeKind: String, CaseIterable, Sendable {
         case .backUpServer: return "Back Up Server"
         case .backUpGlobals: return "Back Up Globals"
         case .psqlConsole: return "PSQL Console"
+        case .pgTypes: return "Types"
+        case .pgTextAndLanguages: return "Text and Languages"
+        case .pgProgramming: return "Programming"
+        case .pgStorage: return "Storage"
         case .pgSessions: return "Sessions"
         case .pgLocks: return "Locks"
         case .pgDatabaseStatistics: return "Database Statistics"
@@ -140,6 +146,10 @@ nonisolated enum ExplorerNodeKind: String, CaseIterable, Sendable {
         case .backUpServer: return "externaldrive.badge.timemachine"
         case .backUpGlobals: return "globe"
         case .psqlConsole: return "terminal"
+        case .pgTypes: return "cube.transparent"
+        case .pgTextAndLanguages: return "character.bubble"
+        case .pgProgramming: return "function"
+        case .pgStorage: return "externaldrive"
         case .pgSessions: return "person.2.wave.2"
         case .pgLocks: return "lock"
         case .pgDatabaseStatistics: return "cylinder"
@@ -186,7 +196,8 @@ nonisolated enum ExplorerNodeKind: String, CaseIterable, Sendable {
         case .sequences: .sequences
         case .types: .types
         case .extensions: .extensions
-        case .synonyms, .maintenance, .serverProperties, .backUpServer, .backUpGlobals, .psqlConsole: .neutral
+        case .synonyms, .maintenance, .serverProperties, .backUpServer, .backUpGlobals, .psqlConsole,
+             .pgTypes, .pgTextAndLanguages, .pgProgramming, .pgStorage: .neutral
         case .activity, .pgSessions, .pgLocks, .pgDatabaseStatistics, .pgOperations, .pgQueries, .pgReplication,
              .pgIOStatistics, .pgWAL, .pgBackgroundWriter, .pgPreparedTransactions, .pgConfiguration: .activityMonitor
         case .tablespaces, .tablespace: .extensions

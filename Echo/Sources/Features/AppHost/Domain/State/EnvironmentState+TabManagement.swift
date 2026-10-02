@@ -246,9 +246,14 @@ extension EnvironmentState {
         }
     }
 
-    func openAdvancedObjectsTab(connectionID: UUID, section: PostgresAdvancedObjectsViewModel.Section? = nil) {
+    /// Opens one of the four Advanced Objects tools (round 49, AO2); a page names its tool.
+    func openAdvancedObjectsTab(connectionID: UUID, group: PostgresAdvancedObjectsViewModel.Group? = nil,
+                                section: PostgresAdvancedObjectsViewModel.Section? = nil) {
+        let group = group ?? section.map(PostgresAdvancedObjectsViewModel.Group.containing) ?? .types
         // Reuse existing tab if already visible in the tab bar
-        if let existing = tabStore.tabs.first(where: { $0.kind == .postgresAdvancedObjects && $0.connection.id == connectionID }) {
+        if let existing = tabStore.tabs.first(where: {
+            $0.kind == .postgresAdvancedObjects && $0.connection.id == connectionID && $0.postgresAdvancedObjectsVM?.group == group
+        }) {
             if let section, let vm = existing.postgresAdvancedObjectsVM {
                 vm.selectedSection = section
             }
@@ -256,7 +261,7 @@ extension EnvironmentState {
             return
         }
         guard let session = sessionGroup.sessionForConnection(connectionID) else { return }
-        let tab = session.addPostgresAdvancedObjectsTab()
+        let tab = session.addPostgresAdvancedObjectsTab(group: group)
         if let section, let vm = tab.postgresAdvancedObjectsVM {
             vm.selectedSection = section
         }

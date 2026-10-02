@@ -24,7 +24,7 @@ struct ToolTabContainer<Content: View>: View {
                 .adaptiveWorkspaceCard()
         }
         .overlayPreferenceValue(ToolTabHeaderContentKey.self, alignment: .top) { header in
-            ToolTabHeader(systemImage: tab.kind.icon, tint: ColorTokens.accent, title: tab.title,
+            ToolTabHeader(systemImage: tab.iconName, tint: ColorTokens.accent, title: tab.title,
                           subtitle: subtitle(detail: header.detail)) {
                 header.controls
             }

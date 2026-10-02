@@ -10,6 +10,14 @@ struct TabGroupWidthPreferenceKey: PreferenceKey {
     }
 }
 
+/// The tool tab whose pages do not fit the strip, so they take a row under it (FP4).
+struct TabPageRowPreferenceKey: PreferenceKey {
+    nonisolated(unsafe) static var defaultValue: UUID?
+    static func reduce(value: inout UUID?, nextValue: () -> UUID?) {
+        value = nextValue() ?? value
+    }
+}
+
 struct QueryTabStrip: View {
     let leadingPadding: CGFloat
     let trailingPadding: CGFloat
@@ -28,6 +36,7 @@ struct QueryTabStrip: View {
     @State var hoveredTabID: UUID?
     @State var dragState = TabDragState()
     @State private var measuredTabGroupWidth: CGFloat = 0
+    @State private var pageRowTabID: UUID?
     @State private var databaseNamesBySessionID: [UUID: [String]] = [:]
 
     private var tabStripStyle: TabStripBackground.Style {
@@ -76,6 +85,20 @@ struct QueryTabStrip: View {
     }
 
     var body: some View {
+        VStack(spacing: SpacingTokens.none) {
+            strip
+            if let tab = tabStore.tabs.first(where: { $0.id == pageRowTabID }), !tab.toolPages.isEmpty {
+                TabPageRow(pages: tab.toolPages, selected: tab.currentToolPage) { tab.selectToolPage($0) }
+                    .padding(.leading, leadingPadding + baseHorizontalInset)
+                    .padding(.trailing, trailingPadding + baseHorizontalInset)
+                    .padding(.bottom, SpacingTokens.xxxs)
+                    .transition(.opacity.combined(with: .offset(y: -SpacingTokens.xxs)))
+            }
+        }
+        .animation(switchAnimation, value: pageRowTabID)
+    }
+
+    private var strip: some View {
         GeometryReader { geo in
             let tabs = tabStore.tabs
             let hasTabs = !tabs.isEmpty
@@ -89,6 +112,10 @@ struct QueryTabStrip: View {
             let effectiveWidth = max(availableWidth - separatorWidth, 0)
             let tabWidth = orderedTabs.isEmpty ? 0 : effectiveWidth / CGFloat(orderedTabs.count)
             let unfoldedWidths = tabWidths(for: orderedTabs, equalWidth: tabWidth, totalWidth: effectiveWidth)
+            // Not even the shortened pages fit: they take a row under the strip (FP4).
+            let rowTool: WorkspaceTab? = frontToolTab(in: orderedTabs).flatMap {
+                pagePlacement(for: $0, tabCount: orderedTabs.count, totalWidth: effectiveWidth) == .row ? $0 : nil
+            }
             let tabContentWidth = max(tabWidth * CGFloat(orderedTabs.count), 0)
             // A lone tool tab at its own width (SW1) still sits on the full grey plate.
             let isLoneAtOwnWidth = orderedTabs.count == 1 && !unfoldedWidths.isEmpty
@@ -114,6 +141,7 @@ struct QueryTabStrip: View {
                         orderedTabs: orderedTabs,
                         tabWidth: tabWidth,
                         widths: unfoldedWidths,
+                        pagesInTab: rowTool == nil,
                         databaseNamesBySessionID: databaseNamesBySessionID
                     )
                         .background(
@@ -136,12 +164,14 @@ struct QueryTabStrip: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .animation(tabReorderAnimation, value: tabStore.tabs.map(\.id))
             }
+            .preference(key: TabPageRowPreferenceKey.self, value: rowTool?.id)
         }
         .frame(height: tabStripHeight)
         .clipped()
         .onPreferenceChange(TabGroupWidthPreferenceKey.self) { width in
             measuredTabGroupWidth = width
         }
+        .onPreferenceChange(TabPageRowPreferenceKey.self) { pageRowTabID = $0 }
         .onChange(of: tabStore.tabs.isEmpty) { _, isEmpty in
             if isEmpty {
                 hoveredTabID = nil
@@ -190,6 +220,27 @@ struct QueryTabStrip: View {
         orderedTabs: [(WorkspaceTab, Bool)],
         tabWidth: CGFloat,
         widths: [UUID: CGFloat],
+        pagesInTab: Bool,
+        databaseNamesBySessionID: [UUID: [String]]
+    ) -> some View {
+        ZStack(alignment: .leading) {
+            activePlate(orderedTabs: orderedTabs, tabWidth: tabWidth, widths: widths)
+            tabRow(orderedTabs: orderedTabs, tabWidth: tabWidth, widths: widths, pagesInTab: pagesInTab,
+                   databaseNamesBySessionID: databaseNamesBySessionID)
+            iconLayer(orderedTabs: orderedTabs, tabWidth: tabWidth, widths: widths)
+        }
+        .fixedSize()
+        // Switching tabs: the plate, the widths and the pages move on one smooth curve (round 49,
+        // MO9); the icons are on their own layer and do not travel. Keyed on the front tab, so
+        // resizing the window doesn't animate.
+        .animation(switchAnimation, value: tabStore.activeTabId)
+    }
+
+    private func tabRow(
+        orderedTabs: [(WorkspaceTab, Bool)],
+        tabWidth: CGFloat,
+        widths: [UUID: CGFloat],
+        pagesInTab: Bool,
         databaseNamesBySessionID: [UUID: [String]]
     ) -> some View {
         HStack(spacing: 0) {
@@ -202,6 +253,9 @@ struct QueryTabStrip: View {
                     index: index,
                     totalCount: orderedTabs.count,
                     appearance: nil,
+                    pagesInTab: pagesInTab,
+                    isIconOnly: !widths.isEmpty && !element.1
+                        && TabUnfoldLayout.isIconOnly(width: widths[tab.id] ?? tabWidth, isFront: tab.id == tabStore.activeTabId),
                     databaseNames: databaseNamesBySessionID[tab.connectionSessionID, default: []]
                 )
                     .offset(x: tabOffset(for: tab, index: index, tabWidth: tabWidth))
@@ -225,10 +279,6 @@ struct QueryTabStrip: View {
             }
         }
         .fixedSize()
-        // Only a tool tab's pages unfolding or folding animate. A plain switch changes the highlight
-        // at once, as native tab bars do; springing every tab's colours re-resolved the strip for
-        // ~0.7 s. Keyed on the unfolded tab, so resizing the window doesn't animate either.
-        .animation(unfoldAnimation, value: widths.isEmpty ? nil : tabStore.activeTabId)
     }
 
     private func databaseNameCacheSignature() -> String {

@@ -33,5 +33,7 @@ extension WorkspaceTab {
         source.selectPage(titled: page)
     }
 
-    private var toolPageMemoryName: String { String(describing: kind) }
+    private var toolPageMemoryName: String {
+        String(describing: kind) + (postgresAdvancedObjectsVM.map { ".\($0.group.rawValue)" } ?? "")
+    }
 }

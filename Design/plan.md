@@ -340,6 +340,7 @@ Rules: `05-components` › Tool tabs.
 | TL9 | **A theme per family (round 37.4):** tiles for Monitor, a details card beside the list for Manage, a fix per finding for Health, an Apply bar with the count for Properties, a floating glass bar for Canvas. | Tool views by family | Owner checks it in Echo 👁 | ☑ built (bb01362f, 6e27bab7), 👁 pending: the other Manage tools keep their layouts |
 | TL10 | **Tool actions in the tab (round 45):** the window toolbar's tool group removed; each action moved into its tab's header line or Apply bar. | `WorkspaceToolbarItems`, tool views | 👁 | replaced by TL11 (round 37.5) |
 | TL11 | **Every tab's own buttons in the toolbar (round 37.5):** the tab's symbol, its special button and one capsule of its buttons before the window's icons, from data each tab sets; query editor's groups in one capsule. | `TabToolbar/*`, `WorkspaceToolbarItems`, every tool view | Owner checks it in Echo 👁 | ☑ built (bb8a6bee), 👁 pending |
+| TL12 | **Every page in the tab, calmer switching, new icons, no server dot (round 49):** FP4 page layout (shortened names, icon-only neighbours, a row under the strip when needed), the gliding plate and still icon layer (MO9), one icon per tool, the dots removed, Advanced Objects (PostgreSQL) as four tools. | `Views/Tabs/TabStrip/*`, `WorkspaceTab+KindLabels`, `PostgresAdvancedObjectsViewModel.Group`, `ExplorerBlueprint+PostgreSQL` | Owner checks it in Echo 👁 | ☑ built, 👁 pending |
 
 ## Phase 16 · Section dock
 

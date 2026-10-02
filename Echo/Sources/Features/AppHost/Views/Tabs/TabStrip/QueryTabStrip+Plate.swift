@@ -1,0 +1,39 @@
+import SwiftUI
+
+/// The front tab's plate and the icons' layer, placed from the tabs' widths (round 49, MO2, MO9).
+extension QueryTabStrip {
+    private func width(of tab: WorkspaceTab, tabWidth: CGFloat, widths: [UUID: CGFloat]) -> CGFloat {
+        widths[tab.id] ?? tabWidth
+    }
+
+    /// One plate behind the tabs, at the front tab's place; it glides with the tabs' widths.
+    @ViewBuilder
+    func activePlate(orderedTabs: [(WorkspaceTab, Bool)], tabWidth: CGFloat, widths: [UUID: CGFloat]) -> some View {
+        if let index = orderedTabs.firstIndex(where: { $0.0.id == tabStore.activeTabId }) {
+            let before = orderedTabs[..<index].reduce(CGFloat.zero) { $0 + width(of: $1.0, tabWidth: tabWidth, widths: widths) }
+            TabActivePlate(width: width(of: orderedTabs[index].0, tabWidth: tabWidth, widths: widths),
+                           offset: before + tabOffset(for: orderedTabs[index].0, index: index, tabWidth: tabWidth))
+        }
+    }
+
+    /// Every icon at its final place; the layer does not animate when the front tab changes (MO9).
+    func iconLayer(orderedTabs: [(WorkspaceTab, Bool)], tabWidth: CGFloat, widths: [UUID: CGFloat]) -> some View {
+        TabIconLayer(
+            items: orderedTabs.enumerated().map { index, element in
+                let tab = element.0
+                let width = width(of: tab, tabWidth: tabWidth, widths: widths)
+                return TabIconLayer.Item(
+                    id: tab.id,
+                    symbol: element.1 ? nil : tab.iconName,
+                    isActive: tab.id == tabStore.activeTabId,
+                    isRunning: tab.query?.isExecuting == true,
+                    width: width,
+                    isIconOnly: !widths.isEmpty && TabUnfoldLayout.isIconOnly(width: width, isFront: tab.id == tabStore.activeTabId),
+                    isHovered: hoveredTabID == tab.id,
+                    dragOffset: tabOffset(for: tab, index: index, tabWidth: tabWidth)
+                )
+            },
+            frontTabID: tabStore.activeTabId
+        )
+    }
+}

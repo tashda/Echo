@@ -1,9 +1,17 @@
 import SwiftUI
 
-/// The tab's one line (design board, 2026-09-30): its kind's icon, or a spinner while it runs,
-/// then the title. The database and running time are in the tooltip. An active tool tab with
-/// pages shows them after its title, past a short hairline (ST2, round 36.1).
+/// The tab's one line (design board, 2026-09-30; round 49): room for its kind's icon, then the
+/// title. The icon itself is drawn on the strip's still layer (`TabIconLayer`, MO9), so it never
+/// moves with the tab; a running tab's spinner is on that layer too. The database and running
+/// time are in the tooltip. A tool tab with pages shows them after its title (ST2).
 extension QueryTabButton {
+    /// Everything in a tab besides its title: padding, close button, icon room, and the close
+    /// button's place on the right.
+    static var fixedChrome: CGFloat {
+        SpacingTokens.xs + SpacingTokens.sm2 + SpacingTokens.xxxs + SpacingTokens.sm2 + SpacingTokens.xxs2
+            + SpacingTokens.xxxs + SpacingTokens.sm2 + SpacingTokens.sm
+    }
+
     @ViewBuilder
     var tabTitleContent: some View {
         if tab.isPinned {
@@ -14,37 +22,18 @@ extension QueryTabButton {
                 .help(tabTooltip)
         } else {
             HStack(spacing: SpacingTokens.xxs2) {
-                Group {
-                    if runningSince != nil {
-                        ProgressView().controlSize(.mini)
-                    } else {
-                        Image(systemName: tab.kind.icon)
-                            .font(TypographyTokens.detail)
-                            .foregroundStyle(tabTitleColor.opacity(isActive ? 0.8 : 0.7))
-                    }
-                }
-                .frame(width: SpacingTokens.sm2)
-                .accessibilityHidden(true)
+                // The icon's room; the icon is on the strip's layer above.
+                Color.clear.frame(width: SpacingTokens.sm2, height: SpacingTokens.sm2)
+                    .accessibilityHidden(true)
 
-                Text(displayedTitle)
-                    .font(showsToolPages ? TypographyTokens.detail.weight(.medium) : tabTitleFont)
-                    .lineLimit(1)
-                    .foregroundStyle(tabTitleColor)
-                    .layoutPriority(1)
+                titleText
 
-                if let serverDotColor {
-                    Circle()
-                        .fill(serverDotColor)
-                        .frame(width: SpacingTokens.xxs2, height: SpacingTokens.xxs2)
-                        .accessibilityHidden(true)
-                }
-
-                if showsToolPages {
-                    // UF1: the pages fade out before the tab narrows, and in once it has widened.
+                if hasToolPages {
+                    // The pages fade with the tab (MO9); the tab's width clips them as it narrows.
                     TabPageChips(pages: tab.toolPages, selected: tab.currentToolPage) { tab.selectToolPage($0) }
-                        .transition(.asymmetric(
-                            insertion: .opacity.animation(motion.press.delay(motion.settleDuration * 0.4)),
-                            removal: .opacity.animation(motion.press)))
+                        .opacity(isActive ? 1 : 0)
+                        .animation(motion.pageFade, value: isActive)
+                        .allowsHitTesting(isActive)
                 }
             }
             .help(tabTooltip)
@@ -53,12 +42,30 @@ extension QueryTabButton {
         }
     }
 
-    /// The active tool tab shows its pages after its title (ST2, round 36.1).
-    var showsToolPages: Bool { isActive && !tab.isPinned && !tab.toolPages.isEmpty }
+    /// A tab with pages keeps its title whole; any other tab's title is laid out at the width the
+    /// tab is moving to, at once, so it truncates there and never re-flows on the way.
+    @ViewBuilder
+    private var titleText: some View {
+        let text = Text(displayedTitle)
+            .font(isActive && hasToolPages ? TypographyTokens.detail.weight(.medium) : tabTitleFont)
+            .lineLimit(1)
+            .foregroundStyle(tabTitleColor)
+        if hasToolPages || finalWidth <= 0 {
+            text.fixedSize()
+        } else {
+            text
+                .frame(width: max(finalWidth - Self.fixedChrome, 0), alignment: .leading)
+                .transaction { $0.animation = nil }
+        }
+    }
+
+    /// A tool tab shows its pages after its title while they fit the strip (ST2, FP4).
+    var hasToolPages: Bool { !tab.isPinned && pagesInTab && !tab.toolPages.isEmpty }
 
     /// Title, database, and when a running query started.
     var tabTooltip: String {
-        var parts = [displayedTitle]
+        // Which server: the dot is gone (round 49, SD2), so the tooltip says it.
+        var parts = [displayedTitle, tab.connection.connectionName]
         if let database = tab.tabSubtitle ?? tab.activeDatabaseName, !database.isEmpty { parts.append(database) }
         if let runningSince {
             parts.append("Running since \(runningSince.formatted(date: .omitted, time: .standard))")

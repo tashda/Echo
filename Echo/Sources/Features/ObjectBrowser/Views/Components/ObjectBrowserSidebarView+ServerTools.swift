@@ -26,6 +26,14 @@ extension ObjectBrowserSidebarView {
             sheetState.pgServerBackup = PgServerBackupRequest(connectionID: connectionID, globalsOnly: true)
         case .psqlConsole:
             environmentState.openPSQLTab(for: session)
+        case .pgTypes:
+            environmentState.openAdvancedObjectsTab(connectionID: connectionID, group: .types)
+        case .pgTextAndLanguages:
+            environmentState.openAdvancedObjectsTab(connectionID: connectionID, group: .textAndLanguages)
+        case .pgProgramming:
+            environmentState.openAdvancedObjectsTab(connectionID: connectionID, group: .programming)
+        case .pgStorage:
+            environmentState.openAdvancedObjectsTab(connectionID: connectionID, group: .storage)
         default:
             break
         }

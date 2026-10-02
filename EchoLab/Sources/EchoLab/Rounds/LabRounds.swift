@@ -37,7 +37,7 @@ enum LabRounds {
              pageIDs: ["ongoing.server-header-polish-r50"]),
         Info(id: "r49", label: "Round 49", title: "Tool tabs: every page, calmer switching, icons", date: "2 Oct 2026",
              asked: "Show every page of a tool in its tab (no More menu), make switching tabs smooth, redo the tab icons, and remove the server dot from tabs and the results pill",
-             outcome: "Being judged.",
+             outcome: "Accepted (FP4, MO9, IC1, SD2, PD1; Advanced Objects as four tools) and built into Echo; waiting for the owner to check it in the running app.",
              pageIDs: ["ongoing.tool-tab-bar-r49"]),
         Info(id: "r48", label: "Round 48", title: "Opening, connecting and closing the last tab", date: "1 Oct 2026",
              asked: "Animate the welcome page (the mark alone, echoing in like echodb.dev), the jump from the welcome to a connected server's page, and closing the last tab, which today lands on the welcome instead of the server's page.",

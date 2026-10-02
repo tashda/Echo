@@ -25,6 +25,17 @@ public struct EchoMotion: Sendable, Equatable {
         reduceMotion ? reduced : .bouncy(duration: 0.45 * scale, extraBounce: 0.08)
     }
 
+    /// Switching tabs (round 49, MO9): the plate and every tab's width on a smooth curve with no
+    /// bounce. Quicker than `settle`, since it happens on every click.
+    public var glide: Animation {
+        reduceMotion ? reduced : .smooth(duration: 0.3 * scale)
+    }
+
+    /// A tool tab's pages fading in and out with their tab (round 49).
+    public var pageFade: Animation {
+        .easeOut(duration: (reduceMotion ? 0.1 : 0.18) * scale)
+    }
+
     /// Moving something to a resting place it must not pass, such as panes growing toward the
     /// rail: the same pace as the house spring, with no overshoot.
     public var settle: Animation {

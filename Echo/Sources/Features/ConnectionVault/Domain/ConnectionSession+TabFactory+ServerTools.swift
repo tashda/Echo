@@ -147,8 +147,8 @@ extension ConnectionSession {
     // MARK: - Advanced Objects Tab (PostgreSQL)
 
     @discardableResult
-    func addPostgresAdvancedObjectsTab() -> WorkspaceTab {
-        if let existing = queryTabs.first(where: { $0.postgresAdvancedObjectsVM != nil }) {
+    func addPostgresAdvancedObjectsTab(group: PostgresAdvancedObjectsViewModel.Group = .types) -> WorkspaceTab {
+        if let existing = queryTabs.first(where: { $0.postgresAdvancedObjectsVM?.group == group }) {
             activeQueryTabID = existing.id
             return existing
         }
@@ -156,7 +156,8 @@ extension ConnectionSession {
         let viewModel = PostgresAdvancedObjectsViewModel(
             session: session,
             connectionID: connection.id,
-            connectionSessionID: id
+            connectionSessionID: id,
+            group: group
         )
         viewModel.activityEngine = AppDirector.shared.activityEngine
 
@@ -164,7 +165,7 @@ extension ConnectionSession {
             connection: connection,
             session: session,
             connectionSessionID: id,
-            title: "Advanced Objects",
+            title: group.title,
             content: .postgresAdvancedObjects(viewModel),
             activeDatabaseName: nil
         )

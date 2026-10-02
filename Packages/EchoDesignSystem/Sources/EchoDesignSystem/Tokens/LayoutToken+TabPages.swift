@@ -7,15 +7,26 @@ extension LayoutTokens {
     public enum TabPages {
         public static let chipHeight: CGFloat = 20
         public static let chipHorizontalPadding: CGFloat = SpacingTokens.xs2
+        /// Pages in the tab are tighter and use shorter names (round 49, FP3).
+        public static let compactChipHorizontalPadding: CGFloat = SpacingTokens.xxs2
+        /// A tab squeezed by the tool tab in front shows only its icon, this wide (round 49, FP1).
+        public static let iconOnlyWidth: CGFloat = 40
+        /// A tab narrower than this shows only its icon.
+        public static let smallestTitledWidth: CGFloat = 92
+        /// The icon's distance from the tab's left edge, past the close button's place.
+        public static let iconInset: CGFloat = 22
+        /// The pages on a row of their own under the strip (round 49, FP2), when they do not fit the tab.
+        public static let rowHeight: CGFloat = chipHeight + SpacingTokens.xs
         public static let spacing: CGFloat = SpacingTokens.xxxs
         /// The hairline between the title and the pages.
         public static let dividerHeight: CGFloat = SpacingTokens.sm
         public static let dividerWidth: CGFloat = SpacingTokens.micro
         /// Space either side of the hairline, besides the title's own gap.
         public static let dividerPadding: CGFloat = SpacingTokens.xxxs
-        /// Icon, gaps, the hairline, close button and padding around the title and pages.
-        public static let tabChrome: CGFloat = 76 + dividerWidth + dividerPadding * 2 + SpacingTokens.xxs2
-        /// A tab with pages never takes more than this share of the strip.
+        /// Close button, icon, gaps, the hairline and padding around the title and pages.
+        public static let tabChrome: CGFloat = 80
+        /// Before round 49 a tab with pages took at most this share of the strip. Kept for Echo
+        /// Labs' record of that look only.
         public static let maxShareOfStrip: CGFloat = 0.62
     }
 }

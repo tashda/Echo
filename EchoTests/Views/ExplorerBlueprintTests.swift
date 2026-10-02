@@ -84,7 +84,7 @@ struct ExplorerBlueprintTests {
         let tools: [ExplorerNodeKind] = management.children.compactMap {
             if case .action(_, let kind, _) = $0.row { kind } else { nil }
         }
-        #expect(tools == [.maintenance, .backUpServer, .backUpGlobals, .psqlConsole])
+        #expect(tools == [.maintenance, .backUpServer, .backUpGlobals, .psqlConsole, .pgTypes, .pgTextAndLanguages, .pgProgramming, .pgStorage])
     }
 
     @Test func mySQLAndSQLiteKeepToolsUnderManagement() {

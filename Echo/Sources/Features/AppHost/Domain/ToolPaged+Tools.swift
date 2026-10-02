@@ -79,6 +79,9 @@ extension PostgresAdvancedObjectsViewModel: ToolPaged {
         get { selectedSection }
         set { selectedSection = newValue }
     }
+
+    /// Each of the four tools has its own pages (round 49, AO2).
+    var availablePages: [Section] { group.sections }
 }
 
 extension MSSQLAdvancedObjectsViewModel: ToolPaged {

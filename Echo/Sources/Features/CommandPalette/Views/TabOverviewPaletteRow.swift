@@ -10,7 +10,7 @@ struct TabOverviewPaletteRow: View {
 
     var body: some View {
         HStack(spacing: SpacingTokens.xs) {
-            Image(systemName: tab.kind.icon)
+            Image(systemName: tab.iconName)
                 .font(TypographyTokens.standard)
                 .foregroundStyle(isSelected ? ColorTokens.accent : ColorTokens.Text.secondary)
                 .frame(width: SpacingTokens.md)

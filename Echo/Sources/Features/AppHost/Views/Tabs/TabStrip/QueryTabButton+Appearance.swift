@@ -11,9 +11,8 @@ extension QueryTabButton {
                 return appearance.dropTabFill
             }
 
-            if isActive {
-                return effectiveHovering ? appearance.activeTabHoverFill : appearance.activeTabFill
-            }
+            // The front tab's plate is the strip's (round 49, MO2): one shape that glides.
+            if isActive { return nil }
 
             if shouldTreatAsHover {
                 return appearance.hoverTabFill
@@ -25,41 +24,13 @@ extension QueryTabButton {
             return tabDropHighlightGradient
         }
 
-        if isActive {
-            return effectiveHovering ? activeHoverGradient : activeIdleGradient
-        }
+        if isActive { return nil }
 
         if shouldTreatAsHover {
             return inactiveHoverGradient
         }
 
         return nil
-    }
-
-    var activeIdleGradient: LinearGradient {
-        if colorScheme == .dark {
-            return LinearGradient(colors: [
-                ColorTokens.TabStrip.ActiveTab.Dark.top,
-                ColorTokens.TabStrip.ActiveTab.Dark.bottom
-            ], startPoint: .top, endPoint: .bottom)
-        }
-        return LinearGradient(colors: [
-            ColorTokens.TabStrip.ActiveTab.Light.top,
-            ColorTokens.TabStrip.ActiveTab.Light.bottom
-        ], startPoint: .top, endPoint: .bottom)
-    }
-
-    var activeHoverGradient: LinearGradient {
-        if colorScheme == .dark {
-            return LinearGradient(colors: [
-                ColorTokens.TabStrip.ActiveTab.Dark.hoverTop,
-                ColorTokens.TabStrip.ActiveTab.Dark.hoverBottom
-            ], startPoint: .top, endPoint: .bottom)
-        }
-        return LinearGradient(colors: [
-            ColorTokens.TabStrip.ActiveTab.Light.hoverTop,
-            ColorTokens.TabStrip.ActiveTab.Light.hoverBottom
-        ], startPoint: .top, endPoint: .bottom)
     }
 
     var inactiveHoverGradient: LinearGradient {
@@ -81,9 +52,7 @@ extension QueryTabButton {
                 return appearance.dropTabBorder
             }
 
-            if isActive {
-                return effectiveHovering ? appearance.activeTabHoverBorder : appearance.activeTabBorder
-            }
+            if isActive { return nil }
 
             if shouldTreatAsHover {
                 return appearance.hoverTabBorder
@@ -95,9 +64,7 @@ extension QueryTabButton {
             return tabDropBorderColor
         }
 
-        if isActive {
-            return colorScheme == .dark ? ColorTokens.TabStrip.Border.activeDark : ColorTokens.TabStrip.Border.activeLight
-        }
+        if isActive { return nil }
 
         if shouldTreatAsHover {
             return colorScheme == .dark ? ColorTokens.TabStrip.Border.hoverDark : ColorTokens.TabStrip.Border.hoverLight
@@ -174,17 +141,13 @@ extension QueryTabButton {
 
     var tabShadowColor: Color {
 #if os(macOS)
-        if let appearance {
-            return isActive ? appearance.shadowColor : Color.clear
-        }
-
-        if !isActive { return Color.clear }
-        return colorScheme == .dark ? ColorTokens.TabStrip.Shadow.dark : ColorTokens.TabStrip.Shadow.light
+        // The plate carries the front tab's shadow.
+        return Color.clear
 #else
         return Color.black.opacity(isActive ? 0.2 : 0)
 #endif
     }
 
-    var tabShadowRadius: CGFloat { isActive ? 2.5 : 0 }
-    var tabShadowYOffset: CGFloat { isActive ? 1.2 : 0 }
+    var tabShadowRadius: CGFloat { 0 }
+    var tabShadowYOffset: CGFloat { 0 }
 }
