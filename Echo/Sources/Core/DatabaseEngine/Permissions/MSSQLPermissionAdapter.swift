@@ -1,7 +1,7 @@
 import Foundation
 import SQLServerKit
 
-/// Adapts ``ServerPermissions`` from sqlserver-nio to the unified ``DatabasePermissionProviding`` protocol.
+/// Adapts ``ServerPermissions`` from echo-sqlserver to the unified ``DatabasePermissionProviding`` protocol.
 nonisolated struct MSSQLPermissionAdapter: DatabasePermissionProviding, Sendable {
     let permissions: ServerPermissions
 

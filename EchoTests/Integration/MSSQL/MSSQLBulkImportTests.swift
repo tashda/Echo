@@ -5,7 +5,7 @@ import SQLServerKit
 /// Integration tests for MSSQL bulk import via BCP (SQLServerBulkCopyClient).
 ///
 /// Verifies that the MSSQL-specific import path in BulkImportViewModel correctly
-/// uses the sqlserver-nio bulk copy API to insert data from CSV and XLSX files.
+/// uses the echo-sqlserver bulk copy API to insert data from CSV and XLSX files.
 final class MSSQLBulkImportTests: MSSQLLabTestCase {
 
     // MARK: - CSV Import via BCP

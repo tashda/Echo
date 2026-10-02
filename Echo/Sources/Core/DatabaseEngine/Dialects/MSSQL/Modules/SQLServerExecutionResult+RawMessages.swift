@@ -17,7 +17,7 @@ extension SQLServerExecutionResult {
                 severity: 0,
                 category: "Driver Response",
                 metadata: [
-                    "source": "sqlserver-nio",
+                    "source": "echo-sqlserver",
                     "token": "DONE",
                     "kind": done.kind.rawValue,
                     "status": status,

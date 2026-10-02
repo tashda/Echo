@@ -2,7 +2,7 @@ import Foundation
 import PostgresKit
 
 /// PostgreSQL implementation of the type editor dialect.
-/// Uses postgres-wire typed metadata APIs — no raw SQL in Echo.
+/// Uses echo-postgres typed metadata APIs — no raw SQL in Echo.
 struct PostgresTypeDialect: TypeEditorDialect, Sendable {
 
     var supportsComposite: Bool { true }

@@ -65,7 +65,7 @@ struct MSSQLNIOFactory: DatabaseFactory {
         }()
         let sqlServerAuth = try makeAuthentication(from: authentication)
 
-        // The Encryption menu alone decides the TLS settings. sqlserver-nio
+        // The Encryption menu alone decides the TLS settings. echo-sqlserver
         // never sends credentials unencrypted: Optional encrypts without
         // checking the certificate (no TLS configuration is passed), Mandatory
         // and Strict check it unless Trust Server Certificate is on (not

@@ -42,7 +42,7 @@ final class MSSQLQueryTests: MSSQLDedicatedLabTestCase {
             SQLServerColumnDefinition(name: "value", definition: .standard(.init(dataType: .int))),
         ])
 
-        // sqlserver-nio derives column metadata from rows, so empty result sets
+        // echo-sqlserver derives column metadata from rows, so empty result sets
         // may not have columns. Verify the query succeeds and returns zero rows.
         let result = try await dedicatedQuery("SELECT * FROM [\(tableName)]")
         XCTAssertEqual(result.rows.count, 0)

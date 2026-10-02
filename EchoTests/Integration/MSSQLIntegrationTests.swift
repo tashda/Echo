@@ -123,7 +123,7 @@ final class MSSQLIntegrationTests: XCTestCase {
         let session = try await connect(config: config)
         defer { Task { @MainActor in await session.close() } }
 
-        // A table in master, made and removed through sqlserver-nio.
+        // A table in master, made and removed through echo-sqlserver.
         let admin = (session as! SQLServerSessionAdapter).client.admin
         let tableName = "echo_test_\(UUID().uuidString.prefix(8).lowercased())"
         try await admin.createTable(name: tableName, columns: [

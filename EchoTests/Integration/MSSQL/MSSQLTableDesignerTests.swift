@@ -102,7 +102,7 @@ final class MSSQLTableDesignerTests: MSSQLLabTestCase {
 
     func testTablePropertiesCompression() async throws {
         let tableName = uniqueTableName()
-        // sqlserver-nio cannot make a compressed table yet: gap GS-03, tashda/echo-sqlserver#15.
+        // echo-sqlserver cannot make a compressed table yet: gap GS-03, tashda/echo-sqlserver#15.
         try await execute("""
             CREATE TABLE dbo.[\(tableName)] (
                 id INT NOT NULL PRIMARY KEY,

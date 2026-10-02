@@ -6,7 +6,7 @@ import Synchronization
 
 /// Base class for the SQL Server suites: every test gets a `DatabaseSession` on a lab server
 /// started from `recipe`, shared by all suites of the test run (`LabSharedServers`). Each suite
-/// works in a database of its own (`scratchDatabase`, made through sqlserver-nio), where sessions
+/// works in a database of its own (`scratchDatabase`, made through echo-sqlserver), where sessions
 /// open unless a test names another database; the server is removed after the run, so nothing in
 /// it needs dropping. Runs only with `SERVERLAB_INTEGRATION=1` (the EchoTests plan).
 class MSSQLLabTestCase: XCTestCase {

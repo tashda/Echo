@@ -51,7 +51,7 @@ extension SQLServerStreamMessage {
             lineNumber: lineNumber,
             category: "Server Response",
             metadata: [
-                "source": "sqlserver-nio",
+                "source": "echo-sqlserver",
                 "token": kind == .error ? "ERROR" : "INFO"
             ]
         )

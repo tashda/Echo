@@ -81,7 +81,7 @@ final class PGQueryTests: PostgresDockerTestCase {
             columns: ["name", "value"],
             values: [["test", 42]]
         )
-        // TODO: postgres-wire doesn't parse command completion tags for affected row counts yet
+        // TODO: echo-postgres doesn't parse command completion tags for affected row counts yet
         // When fixed, change back to XCTAssertEqual(count, 1)
         XCTAssertGreaterThanOrEqual(count, 0, "insert should return non-negative count (expected 1, got \(count))")
     }
@@ -100,7 +100,7 @@ final class PGQueryTests: PostgresDockerTestCase {
             columns: ["name", "value"],
             values: [["a", 1], ["b", 2], ["c", 3]]
         )
-        // TODO: postgres-wire doesn't parse command completion tags for affected row counts yet
+        // TODO: echo-postgres doesn't parse command completion tags for affected row counts yet
         // When fixed, change back to XCTAssertEqual(count, 3)
         XCTAssertGreaterThanOrEqual(count, 0, "insert should return non-negative count (expected 3, got \(count))")
     }
@@ -124,7 +124,7 @@ final class PGQueryTests: PostgresDockerTestCase {
             set: ["value": 99],
             whereClause: "value < 3"
         )
-        // TODO: postgres-wire doesn't parse command completion tags for affected row counts yet
+        // TODO: echo-postgres doesn't parse command completion tags for affected row counts yet
         // When fixed, change back to XCTAssertEqual(count, 2)
         XCTAssertGreaterThanOrEqual(count, 0, "update should return non-negative count (expected 2, got \(count))")
     }
@@ -147,7 +147,7 @@ final class PGQueryTests: PostgresDockerTestCase {
             from: tableName,
             whereClause: "name = 'a'"
         )
-        // TODO: postgres-wire doesn't parse command completion tags for affected row counts yet
+        // TODO: echo-postgres doesn't parse command completion tags for affected row counts yet
         // When fixed, change back to XCTAssertEqual(count, 1)
         XCTAssertGreaterThanOrEqual(count, 0, "delete should return non-negative count (expected 1, got \(count))")
     }

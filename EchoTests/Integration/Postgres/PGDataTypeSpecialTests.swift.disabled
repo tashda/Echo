@@ -133,8 +133,8 @@ final class PGDataTypeSpecialTests: PostgresDockerTestCase {
     // MARK: - Arrays
 
     func testIntegerArray() async throws {
-        // INT[] type returns garbled/raw binary data — pending postgres-wire array decoder fix
-        throw XCTSkip("Integer array decoder not yet implemented in postgres-wire — returns raw binary data")
+        // INT[] type returns garbled/raw binary data — pending echo-postgres array decoder fix
+        throw XCTSkip("Integer array decoder not yet implemented in echo-postgres — returns raw binary data")
     }
 
     func testTextArray() async throws {
@@ -167,8 +167,8 @@ final class PGDataTypeSpecialTests: PostgresDockerTestCase {
     // MARK: - Network Types
 
     func testInetIPv4() async throws {
-        // INET type returns raw binary instead of formatted string — pending postgres-wire decoder fix
-        throw XCTSkip("INET type decoder not yet implemented in postgres-wire — returns raw binary data")
+        // INET type returns raw binary instead of formatted string — pending echo-postgres decoder fix
+        throw XCTSkip("INET type decoder not yet implemented in echo-postgres — returns raw binary data")
     }
 
     func testInetIPv6() async throws {

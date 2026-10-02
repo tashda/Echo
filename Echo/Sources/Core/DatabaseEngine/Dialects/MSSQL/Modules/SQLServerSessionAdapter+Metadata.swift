@@ -38,7 +38,7 @@ extension SQLServerSessionAdapter {
             try await client.metadata.loadDatabaseStructure(database: databaseName, includeComments: false)
         }
         let t1 = CFAbsoluteTimeGetCurrent()
-        print("[PERF] \(databaseName): sqlserver-nio loadDatabaseStructure took \(String(format: "%.3f", t1 - t0))s (\(structure.schemas.count) schemas)")
+        print("[PERF] \(databaseName): echo-sqlserver loadDatabaseStructure took \(String(format: "%.3f", t1 - t0))s (\(structure.schemas.count) schemas)")
 
         let schemaInfos = structure.schemas.map { schema -> SchemaInfo in
             var objects: [SchemaObjectInfo] = []
