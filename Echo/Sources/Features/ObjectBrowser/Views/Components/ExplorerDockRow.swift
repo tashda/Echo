@@ -85,7 +85,7 @@ struct ExplorerDockRow: View {
 
 /// One slot in the dock: an equal share of the capsule, the whole slot clickable. A hovered icon
 /// that isn't the current one grows slightly (round 19).
-private struct ExplorerDockButton<Label: View>: View {
+struct ExplorerDockButton<Label: View>: View {
     let title: String
     let isCurrent: Bool
     let font: Font

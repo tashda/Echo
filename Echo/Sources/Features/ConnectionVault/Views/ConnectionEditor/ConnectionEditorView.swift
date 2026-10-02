@@ -19,9 +19,8 @@ struct ConnectionEditorView: View {
         case additionalHost(Int)
     }
 
-    static let colorPalette: [String] = [
-        "5A9CDE", "6EAE72", "E8943A", "9B72CF", "D4687A"
-    ]
+    /// The thirty server colours (round 50, PC3), as the hex a connection saves.
+    static let colorPalette: [String] = ServerColorPalette.all.map(\.lightHex)
 
     @Environment(\.dismiss) internal var dismiss
     @Environment(ProjectStore.self) internal var projectStore
@@ -119,7 +118,7 @@ struct ConnectionEditorView: View {
             useTLS: true,
             databaseType: .postgresql,
             serverVersion: nil,
-            colorHex: ConnectionEditorView.colorPalette.first ?? "",
+            colorHex: ServerColorPalette.defaultColor.lightHex,
             cachedStructure: nil,
             cachedStructureUpdatedAt: nil
         )
@@ -154,7 +153,7 @@ struct ConnectionEditorView: View {
         _targetSessionAttributes = State(initialValue: model.targetSessionAttributes)
         _loadBalanceHosts = State(initialValue: model.loadBalanceHosts)
         _kerberosServiceName = State(initialValue: model.kerberosServiceName ?? "")
-        _colorHex = State(initialValue: model.colorHex.isEmpty ? (ConnectionEditorView.colorPalette.first ?? "") : model.colorHex)
+        _colorHex = State(initialValue: model.colorHex.isEmpty ? ServerColorPalette.defaultColor.lightHex : model.colorHex)
         _railGlyph = State(initialValue: model.railGlyph)
     }
 

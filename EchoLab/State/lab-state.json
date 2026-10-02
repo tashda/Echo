@@ -134,6 +134,19 @@
     "status": "Decided",
     "verdicts": {}
   },
+  "ongoing.card-to-trail-r54": {
+    "comments": [],
+    "generalNote": "Everything is perfect but let's not add the \"rounded corners\" to customization. Also when the server is collapsed it should not show \"selected session\". Even though maybe we are collapsing servers into the server trail - did I not chose that in a nother round?",
+    "history": [],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {},
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Judging",
+    "verdicts": {}
+  },
   "ongoing.connect-menu-r52": {
     "comments": [
       {
@@ -3665,17 +3678,55 @@
     "verdicts": {}
   },
   "ongoing.server-header-custom-r53": {
-    "comments": [],
-    "generalNote": "Almost perfect. I have selected \"a line under the selected icon\" but I don't want that or a pill - just the icon turning filled and what has been selected. I want the user to be able to have some sort of customization to the card header besides color and icon color. Please make a new round with this selected preset (without underline) and suggest customizations like fonts, sizes, what is simple customization we can offer to the user. In that round also show different chevron ideas as the current one is too basic and has no animation.",
-    "history": [],
+    "comments": [
+      {
+        "date": "2026-10-02T09:02:59Z",
+        "id": "761A0733-7B14-4F31-8B1E-3761DEF6AB5B",
+        "text": "Review of Server card header: customization and the chevron\n1. Customization: picked LV2 \u00b7 Standard: also the eyebrow, the edge and automatic text colour\n2. Chevron: picked CH1 \u00b7 A chevron that turns a quarter, on a spring\n3. Chevron shows: picked CV0 \u00b7 On hover while open, always while collapsed (today)\n4. Chevron motion: picked MO0 \u00b7 The house spring, a little bounce\n5. Per server or for all: picked SC0 \u00b7 One setting for every server card, in Settings \u203a Appearance\nOverall: Everything is perfect but let's not add the \"rounded corners\" to customization. Also when the server is collapsed it should not show \"selected session\". Even though maybe we are collapsing servers into the server trail - did I not chose that in a nother round?"
+      }
+    ],
+    "generalNote": "Everything is perfect but let's not add the \"rounded corners\" to customization. Also when the server is collapsed it should not show \"selected session\". Even though maybe we are collapsing servers into the server trail - did I not chose that in a nother round?",
+    "history": [
+      {
+        "date": "2026-10-02T09:02:59Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-02T09:03:27Z",
+        "text": "Taken by claude-sonnet-header"
+      },
+      {
+        "date": "2026-10-02T09:14:44Z",
+        "text": "Built into Echo: the title banner (F5) is the new default Server Header (eyebrow over a 22pt name, hairline edge, banner dock with no capsule, the engine instead of the section while closed); Settings \u203a Appearance \u203a Server Header has Typeface, Size, Line Above the Name, Banner Edge and Banner Text Color (no rounded corners); the collapse chevron turns on the house spring; thirty server colours with dark variants plus a colour well. A saved Wash moves to the new default once."
+      }
+    ],
     "needsMore": [],
     "optionNotes": {},
     "pickNotes": {},
-    "picks": {},
+    "picks": {
+      "chevron": "CH1 \u00b7 A chevron that turns a quarter, on a spring",
+      "level": "LV2 \u00b7 Standard: also the eyebrow, the edge and automatic text colour",
+      "motion": "MO0 \u00b7 The house spring, a little bounce",
+      "scope": "all",
+      "shows": "CV0 \u00b7 On hover while open, always while collapsed (today)"
+    },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Judging",
-    "verdicts": {}
+    "status": "In Echo",
+    "verdicts": {},
+    "verification": {
+      "checks": [
+        "Open Echo: each server card has a full-colour banner with small capitals over a large name, a hairline along its bottom and the dock icons straight on the colour, the current one filled",
+        "Click different dock icons: the line above the name changes to the section in capitals (DATABASES, SECURITY)",
+        "Collapse a card: the line says the engine (SQL SERVER, POSTGRESQL, MYSQL), never the section, and the chevron turns a quarter on a spring; hover an open card to see it",
+        "Settings \u203a Appearance \u203a Server Header: try Typeface, Size, Line Above the Name and Banner Edge; there is no rounded option",
+        "Set Banner Text Color to Automatic and give a server Amber or Gold: the type turns dark; a blue server keeps white",
+        "Right-click a server's header \u203a Color, or the rail's Customize Appearance: pick one of the thirty colours and then Any Color; switch the appearance light and dark and the palette colour lifts in dark"
+      ],
+      "done": [],
+      "shots": [],
+      "summary": "The title banner is Echo's default server header, with five settings, a chevron that turns on the house spring, and thirty server colours."
+    }
   },
   "ongoing.server-header-look-r30": {
     "comments": [
@@ -3783,6 +3834,11 @@
         "date": "2026-10-02T08:52:37Z",
         "id": "AA24D80A-F80B-43BB-8E62-A1AD12A3D8EF",
         "text": "Review of Server card: a header that looks designed\n1. Header: picked F5 \u00b7 Banner with an eyebrow over a large name\n2. Icon menu: picked D5 \u00b7 No capsule: a line under the selected icon\n3. Selected icon: picked IC3 \u00b7 Bold 15, filled symbol\n4. Pill: picked PL0 \u00b7 A wide capsule, the icon's whole cell\n5. Name: picked NT1 \u00b7 SF Semibold 22\n6. Eyebrow: picked EF1 \u00b7 11pt bold, wide tracking\n7. Banner edge: picked ED2 \u00b7 A sharp edge with a hairline of light\n8. Colours to offer: picked PC3 \u00b7 All thirty and a colour well for any colour\nOverall: Almost perfect. I have selected \"a line under the selected icon\" but I don't want that or a pill - just the icon turning filled and what has been selected. I want the user to be able to have some sort of customization to the card header besides color and icon color. Please make a new round with this selected preset (without underline) and suggest customizations like fonts, sizes, what is simple customization we can offer to the user. In that round also show different chevron ideas as the current one is too basic and has no animation."
+      },
+      {
+        "date": "2026-10-02T09:03:10Z",
+        "id": "FCE27C2C-569A-4EFD-8B9F-18233A6A8983",
+        "text": "Review of Server card: a header that looks designed\n1. Header: picked F5 \u00b7 Banner with an eyebrow over a large name\n2. Icon menu: picked D5 \u00b7 No capsule: a line under the selected icon\n3. Selected icon: picked IC3 \u00b7 Bold 15, filled symbol\n4. Pill: picked PL0 \u00b7 A wide capsule, the icon's whole cell\n5. Name: picked NT1 \u00b7 SF Semibold 22\n6. Eyebrow: picked EF1 \u00b7 11pt bold, wide tracking\n7. Banner edge: picked ED2 \u00b7 A sharp edge with a hairline of light\n8. Colours to offer: picked PC3 \u00b7 All thirty and a colour well for any colour\nOverall: Almost perfect. I have selected \"a line under the selected icon\" but I don't want that or a pill - just the icon turning filled and what has been selected. I want the user to be able to have some sort of customization to the card header besides color and icon color. Please make a new round with this selected preset (without underline) and suggest customizations like fonts, sizes, what is simple customization we can offer to the user. In that round also show different chevron ideas as the current one is too basic and has no animation."
       }
     ],
     "generalNote": "Almost perfect. I have selected \"a line under the selected icon\" but I don't want that or a pill - just the icon turning filled and what has been selected. I want the user to be able to have some sort of customization to the card header besides color and icon color. Please make a new round with this selected preset (without underline) and suggest customizations like fonts, sizes, what is simple customization we can offer to the user. In that round also show different chevron ideas as the current one is too basic and has no animation.",
@@ -3818,6 +3874,10 @@
       {
         "date": "2026-10-02T08:54:11Z",
         "text": "Continued in round 53: the chosen preset without the underline or pill, with customization and chevrons"
+      },
+      {
+        "date": "2026-10-02T09:03:10Z",
+        "text": "Feedback sent"
       }
     ],
     "needsMore": [
@@ -3880,7 +3940,7 @@
         "summary": "F5 and D3 as picked: the pill fixed, and options for the icon, the pill, the typeface, the banner's edge and a palette of 30 colours"
       }
     ],
-    "status": "Judging",
+    "status": "New feedback",
     "verdicts": {}
   },
   "ongoing.server-trail-identity-r51": {

@@ -64,13 +64,17 @@ struct AppearanceSettingsView: View {
 
                 PropertyRow(
                     title: "Server Header",
-                    subtitle: "How each server's name heads its card. Plain is the name and product line alone."
+                    subtitle: "How each server's name heads its card. Banner with Title puts a line of capitals over a large name; Plain is the name and product line alone."
                 ) {
                     Picker("", selection: projectStore.globalSettingBinding(\.serverHeaderStyle)) {
                         ForEach(ServerHeaderStyle.allCases, id: \.self) { Text($0.displayName).tag($0) }
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
+                }
+
+                if projectStore.globalSettings.serverHeaderStyle == .titleBanner {
+                    ServerHeaderLookRows()
                 }
 
                 PropertyRow(

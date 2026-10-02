@@ -9,6 +9,15 @@ Branch: `claude/ecstatic-fermi-u1jxr6`, based on `dev`. See `current-state.md` f
 
 ---
 
+## Round 53 · The title banner header
+
+| # | Task | Files | Check | Status |
+|---|---|---|---|---|
+| H1 | The title banner (F5): eyebrow over a 22pt name, hairline edge, banner dock with no capsule, header slot grown to fit, the default Server Header style. | `ServerHeaderPaint`, `ServerHeaderTokens`, `ServerHeaderTitle`, `ServerTitleBannerFill`, `ExplorerBannerDockRow`, `ObjectBrowserRowView+ServerHeader`, `ExplorerTreeLayout` | Open and close a card; switch sections; eyebrow says the engine when closed | ☑ built, 👁 pending |
+| H2 | Customization at LV2 in Settings › Appearance (typeface, size, line above, edge, automatic text colour). | `ServerHeaderLook`, `ServerHeaderLookRows`, `GlobalSettings+ServerHeader` | Old settings decode; a saved Wash moves once; `ServerHeaderSettingsTests` | ☑ built, 👁 pending |
+| H3 | The collapse chevron turns a quarter on `motion.standard` (CH1, CV0, MO0). | `ObjectBrowserRowView+Headers` | Hover an open card, close it | ☑ built, 👁 pending |
+| H4 | Thirty server colours with dark variants plus a colour well (PC3); saved as the light hex. | `ServerColorPalette`, `ServerColorSwatches`, `SavedConnection.color` | Pick a colour, switch appearance; old colours still draw; `ServerColorPaletteTests` | ☑ built, 👁 pending |
+
 ## Round 51 · Telling servers apart in the trail
 
 | # | Task | Files | Check | Status |

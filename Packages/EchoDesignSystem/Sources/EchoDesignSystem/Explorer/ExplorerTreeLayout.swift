@@ -25,13 +25,16 @@ public struct ExplorerTreeLayout<Node: ExplorerTreeNode> {
     /// Height of all rows plus the room below the last card.
     public let contentHeight: CGFloat
 
-    public init(roots: [Node], expandedNodeIDs: Set<String>, baseRowHeight: CGFloat) {
+    /// `serverHeaderExtraHeight` is added to every server header row: the header's own extra
+    /// height when its look (the title banner's large name) needs more room than an ordinary row.
+    public init(roots: [Node], expandedNodeIDs: Set<String>, baseRowHeight: CGFloat, serverHeaderExtraHeight: CGFloat = 0) {
         var rows: [Row] = []
         var y: CGFloat = 0
         func append(_ nodes: [Node], depth: Int) {
             for node in nodes {
                 let role = node.treeRole
-                let height = Self.height(of: role, baseRowHeight: baseRowHeight)
+                var height = Self.height(of: role, baseRowHeight: baseRowHeight)
+                if case .server = role.kind { height += serverHeaderExtraHeight }
                 rows.append(Row(id: node.id, node: node, role: role, depth: depth, minY: y, height: height))
                 y += height
                 guard expandedNodeIDs.contains(node.id) else { continue }

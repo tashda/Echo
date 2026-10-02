@@ -406,7 +406,7 @@ extension SavedConnection {
         if colorHex.isEmpty || colorHex == "default" {
             return .blue
         }
-        return Color(hex: colorHex) ?? .blue
+        return ServerColorPalette.swiftUIColor(forStored: colorHex) ?? .blue
     }
 
     mutating func updateColor(_ color: Color) {

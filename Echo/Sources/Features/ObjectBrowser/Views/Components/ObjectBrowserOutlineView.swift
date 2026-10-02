@@ -19,6 +19,8 @@ struct ObjectBrowserOutlineView: View {
     let topScrollerInset: CGFloat
     /// Corner radius of the server cards, from the Card Corners setting.
     var cornerRadius: CGFloat = LayoutTokens.Workspace.cardCornerRadius
+    /// What the server headers need beyond an ordinary row's slot (the title banner, round 53).
+    var serverHeaderExtraHeight: CGFloat = 0
     let rowContent: (ObjectBrowserNode, Bool, Int, CGFloat, @escaping () -> Void) -> AnyView
     let onExpansionChanged: (ObjectBrowserNode, Bool) -> Void
     let onActivation: (ObjectBrowserNode) -> Void
@@ -80,7 +82,8 @@ struct ObjectBrowserOutlineView: View {
 
     var body: some View {
         let baseRowHeight = Self.baseRowHeight(for: density)
-        let layout = ObjectBrowserTreeLayout(roots: roots, expandedNodeIDs: expandedNodeIDs, baseRowHeight: baseRowHeight)
+        let layout = ObjectBrowserTreeLayout(roots: roots, expandedNodeIDs: expandedNodeIDs, baseRowHeight: baseRowHeight,
+                                           serverHeaderExtraHeight: serverHeaderExtraHeight)
         let rowIDs = layout.rows.map(\.id)
         let dockSelections = layout.dockSelections
         // Opening or closing a docked server adds or removes its dock, which changes the

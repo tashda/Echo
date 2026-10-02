@@ -15,7 +15,7 @@ extension ObjectBrowserSidebarView {
                     Task { await setServerColor(hex, connectionID: connectionID) }
                 }
                 item.image = Self.serverColorSwatch(hex)
-                item.state = current.caseInsensitiveCompare(hex) == .orderedSame ? .on : .off
+                item.state = ServerColorPalette.normalised(current) == ServerColorPalette.normalised(hex) ? .on : .off
             }
         }
     }
@@ -33,19 +33,12 @@ extension ObjectBrowserSidebarView {
 
     /// The connection sheet's swatches, by name.
     static func serverColorName(_ hex: String) -> String {
-        switch hex.uppercased() {
-        case "5A9CDE": "Blue"
-        case "6EAE72": "Green"
-        case "E8943A": "Orange"
-        case "9B72CF": "Purple"
-        case "D4687A": "Rose"
-        default: hex
-        }
+        ServerColorPalette.name(forStored: hex) ?? hex
     }
 
     /// A round swatch for the menu item.
     static func serverColorSwatch(_ hex: String) -> NSImage? {
-        guard let color = Color(hex: hex) else { return nil }
+        guard let color = ServerColorPalette.swiftUIColor(forStored: hex) else { return nil }
         let fill = NSColor(color)
         let side = SpacingTokens.sm
         return NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in

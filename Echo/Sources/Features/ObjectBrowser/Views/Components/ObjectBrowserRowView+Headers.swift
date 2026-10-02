@@ -26,7 +26,7 @@ extension ObjectBrowserRowView {
             }
 
             if showsDisclosure {
-                disclosureChevron(onFill: paint.isOnFill)
+                serverHeaderChevron(paint: paint)
             }
         }
         .padding(.leading, SpacingTokens.sm)
@@ -41,12 +41,12 @@ extension ObjectBrowserRowView {
     }
 
     /// The product and release, then the dock's current section (round 19).
-    func productLine(_ session: ConnectionSession) -> String {
+    func productLine(_ session: ConnectionSession, includesSection: Bool = true) -> String {
         let product = ServerProductLabel.label(
             rawVersion: session.databaseStructure?.serverVersion ?? session.connection.serverVersion,
             databaseType: session.connection.databaseType
         )
-        guard let section = dockSectionTitles[session.connection.id] else { return product }
+        guard includesSection, let section = dockSectionTitles[session.connection.id] else { return product }
         return "\(product) · \(section)"
     }
 
@@ -86,12 +86,30 @@ extension ObjectBrowserRowView {
         .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
     }
 
-    /// Finder-style: the chevron rotates, and an open section only shows it on hover.
-    /// White on a banner header (round 30.1, HD16).
-    private func disclosureChevron(onFill: Bool = false) -> some View {
+    /// The server header's collapse chevron (round 53, CH1): › turning a quarter to point down when
+    /// the card is open, on the house spring; shown on hover while open and always while closed
+    /// (CV0, TREE-2.5). White on a banner, dark with Automatic type colour on a light one.
+    private func serverHeaderChevron(paint: ServerHeaderPaint) -> some View {
         Image(systemName: "chevron.right")
             .font(SidebarRowConstants.sectionChevronFont)
-            .foregroundStyle(onFill ? ColorTokens.Text.onFill : ColorTokens.Text.tertiary)
+            .foregroundStyle(chevronColor(paint))
+            .rotationEffect(.degrees(isExpanded ? 90 : 0))
+            .frame(width: SidebarRowConstants.chevronWidth)
+            .opacity(isHeaderHovering || !isExpanded ? 1 : 0)
+            .animation(motion.standard, value: isExpanded)
+            .animation(.easeInOut(duration: 0.15), value: isHeaderHovering)
+    }
+
+    private func chevronColor(_ paint: ServerHeaderPaint) -> Color {
+        if paint.isTitleBanner { return paint.ink.opacity(ServerHeaderTokens.chevronOpacity) }
+        return paint.isOnFill ? ColorTokens.Text.onFill : ColorTokens.Text.tertiary
+    }
+
+    /// Finder-style: the chevron rotates, and an open section only shows it on hover.
+    private func disclosureChevron() -> some View {
+        Image(systemName: "chevron.right")
+            .font(SidebarRowConstants.sectionChevronFont)
+            .foregroundStyle(ColorTokens.Text.tertiary)
             .rotationEffect(.degrees(isExpanded ? 90 : 0))
             .frame(width: SidebarRowConstants.chevronWidth)
             .opacity(isHeaderHovering || !isExpanded ? 1 : 0)

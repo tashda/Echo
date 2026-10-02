@@ -44,36 +44,10 @@ struct ServerAppearanceControls: View {
 
     // MARK: Colour
 
-    private var color: Color { Color(hex: colorHex) ?? .accentColor }
+    private var color: Color { ServerColorPalette.swiftUIColor(forStored: colorHex) ?? .accentColor }
 
     private var colorRow: some View {
-        HStack(spacing: SpacingTokens.xs) {
-            ForEach(ConnectionEditorView.colorPalette, id: \.self) { hex in
-                let isSelected = colorHex.caseInsensitiveCompare(hex) == .orderedSame
-                Button { colorHex = hex.uppercased() } label: {
-                    Circle()
-                        .fill(Color(hex: hex) ?? .accentColor)
-                        .frame(width: SpacingTokens.md2, height: SpacingTokens.md2)
-                        .overlay {
-                            if isSelected {
-                                Circle()
-                                    .strokeBorder(ColorTokens.accent, lineWidth: SpacingTokens.xxxs)
-                                    .padding(-SpacingTokens.nano)
-                            }
-                        }
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(ObjectBrowserSidebarView.serverColorName(hex))
-                .accessibilityAddTraits(isSelected ? .isSelected : [])
-            }
-            ColorPicker("", selection: pickedColor, supportsOpacity: false)
-                .labelsHidden()
-        }
-    }
-
-    private var pickedColor: Binding<Color> {
-        Binding(get: { color }, set: { colorHex = $0.toHex() ?? colorHex })
+        ServerColorSwatches(colorHex: $colorHex, cell: Self.glyphCell, columns: Self.glyphColumns)
     }
 
     // MARK: Symbol or emoji
@@ -120,10 +94,10 @@ struct ServerAppearanceControls: View {
         }
     }
 
-    /// Back to what Echo chooses by itself: the letters, in the first colour of the palette.
+    /// Back to what Echo chooses by itself: the letters, in the palette's default colour.
     private func reset() {
         glyph = nil
-        colorHex = ConnectionEditorView.colorPalette.first ?? colorHex
+        colorHex = ServerColorPalette.defaultColor.lightHex
     }
 }
 

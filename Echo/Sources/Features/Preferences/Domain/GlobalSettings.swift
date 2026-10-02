@@ -184,7 +184,9 @@ struct GlobalSettings: Codable, Hashable {
     /// The section dock's icons, apart from the tree's (round 16): mono by default.
     var sidebarDockIconStyle: SidebarDockIconStyle = .mono
     /// Round 30.1: the server card's header, its colour, and the dock's current icon.
-    var serverHeaderStyle: ServerHeaderStyle = .wash
+    var serverHeaderStyle: ServerHeaderStyle = .titleBanner
+    /// Round 53: what the title banner lets the user change, for every server card.
+    var serverHeaderLook = ServerHeaderLook()
     var serverHeaderColorSource: ServerHeaderColorSource = .server
     var sidebarDockCurrentIconTint: SidebarDockCurrentIconTint = .header
     /// Each database type's dock (keyed by `DatabaseType.rawValue`): the sections shown, in
@@ -291,6 +293,7 @@ struct GlobalSettings: Codable, Hashable {
         case sidebarMonochromeVariant
         case sidebarDockIconStyle
         case serverHeaderStyle
+        case serverHeaderLook
         case serverHeaderColorSource
         case sidebarDockCurrentIconTint
         case sidebarDockSections
@@ -413,7 +416,11 @@ struct GlobalSettings: Codable, Hashable {
         railItemSize = (try? container.decodeIfPresent(RailItemSize.self, forKey: .railItemSize)) ?? .medium
         sidebarMonochromeVariant = (try? container.decodeIfPresent(SidebarMonochromeVariant.self, forKey: .sidebarMonochromeVariant)) ?? .accentOnOpen
         sidebarDockIconStyle = (try? container.decodeIfPresent(SidebarDockIconStyle.self, forKey: .sidebarDockIconStyle)) ?? .mono
-        serverHeaderStyle = (try? container.decodeIfPresent(ServerHeaderStyle.self, forKey: .serverHeaderStyle)) ?? .wash
+        serverHeaderLook = (try? container.decodeIfPresent(ServerHeaderLook.self, forKey: .serverHeaderLook)) ?? ServerHeaderLook()
+        serverHeaderStyle = Self.decodedServerHeaderStyle(
+            try? container.decodeIfPresent(ServerHeaderStyle.self, forKey: .serverHeaderStyle),
+            hasLook: container.contains(.serverHeaderLook)
+        )
         serverHeaderColorSource = (try? container.decodeIfPresent(ServerHeaderColorSource.self, forKey: .serverHeaderColorSource)) ?? .server
         sidebarDockCurrentIconTint = (try? container.decodeIfPresent(SidebarDockCurrentIconTint.self, forKey: .sidebarDockCurrentIconTint)) ?? .header
         sidebarDockSections = (try? container.decodeIfPresent([String: [String]].self, forKey: .sidebarDockSections)) ?? [:]
@@ -518,6 +525,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(sidebarMonochromeVariant, forKey: .sidebarMonochromeVariant)
         try container.encode(sidebarDockIconStyle, forKey: .sidebarDockIconStyle)
         try container.encode(serverHeaderStyle, forKey: .serverHeaderStyle)
+        try container.encode(serverHeaderLook, forKey: .serverHeaderLook)
         try container.encode(serverHeaderColorSource, forKey: .serverHeaderColorSource)
         try container.encode(sidebarDockCurrentIconTint, forKey: .sidebarDockCurrentIconTint)
         try container.encode(sidebarDockSections, forKey: .sidebarDockSections)

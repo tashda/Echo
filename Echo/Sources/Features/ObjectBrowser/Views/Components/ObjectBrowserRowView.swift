@@ -18,6 +18,7 @@ struct ObjectBrowserRowView: View {
     @State var isHeaderHovering = false
     @Environment(\.explorerDockSectionTitles) var dockSectionTitles
     @Environment(\.echoMotion) var motion
+    @Environment(\.colorScheme) var colorScheme
 
     var depth: Int {
         max(0, outlineLevel)
@@ -100,15 +101,20 @@ struct ObjectBrowserRowView: View {
                 accessibilityLabel: title
             )
         case .dock(let session, let layout, let selectedID):
-            ExplorerDockRow(
-                connectionID: session.connection.id,
-                layout: layout,
-                selectedID: selectedID,
-                style: projectStore.globalSettings.sidebarDockIconStyle,
-                // The current section: the header's colour (round 30.1, DK1) or the accent.
-                accentColor: serverHeaderPaint(for: session.connection).dockColor,
-                duotoneColor: { $0.mix(with: ColorTokens.Text.secondary, by: ColorTokens.Explorer.colorfulSoftening) }
-            )
+            let paint = serverHeaderPaint(for: session.connection)
+            if paint.isTitleBanner {
+                ExplorerBannerDockRow(connectionID: session.connection.id, layout: layout, selectedID: selectedID, ink: paint.ink)
+            } else {
+                ExplorerDockRow(
+                    connectionID: session.connection.id,
+                    layout: layout,
+                    selectedID: selectedID,
+                    style: projectStore.globalSettings.sidebarDockIconStyle,
+                    // The current section: the header's colour (round 30.1, DK1) or the accent.
+                    accentColor: paint.dockColor,
+                    duotoneColor: { $0.mix(with: ColorTokens.Text.secondary, by: ColorTokens.Explorer.colorfulSoftening) }
+                )
+            }
         case .filter(let filter):
             ExplorerFolderFilterRow(filter: filter, depth: depth)
         case .message(let title, let systemImage):

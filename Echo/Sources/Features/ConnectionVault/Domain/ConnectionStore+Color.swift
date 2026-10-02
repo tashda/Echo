@@ -7,6 +7,12 @@ extension ConnectionStore {
         connections.first { $0.id == connection.id }?.color ?? connection.color
     }
 
+    /// The colour as saved (a hex), read here for the same reason, so the header can tell a light
+    /// colour from a dark one in the current appearance.
+    func currentColorHex(of connection: SavedConnection) -> String {
+        connections.first { $0.id == connection.id }?.colorHex ?? connection.colorHex
+    }
+
     /// A server's symbol or emoji as saved now, read here for the same reason as the colour.
     func currentGlyph(of connection: SavedConnection) -> ServerRailGlyph? {
         (connections.first { $0.id == connection.id } ?? connection).railGlyph

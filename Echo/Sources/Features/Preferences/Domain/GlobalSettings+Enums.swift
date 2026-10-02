@@ -56,12 +56,15 @@ enum SidebarDensity: String, Codable, CaseIterable, Sendable {
     }
 }
 
-/// The server card's header (round 30.1): a wash of colour by default (HD4); plain (HD0), a bar
-/// beside the name (HD12), the name on a glass plate (HD7) or a banner fading into the card (HD16).
+/// The server card's header: a banner with a line of capitals over a large name (round 53, F5) by
+/// default. Round 30.1's five stay: a wash of colour (HD4, the default until round 53), plain
+/// (HD0), a bar beside the name (HD12), the name on a glass plate (HD7) or a banner fading into
+/// the card (HD16). What can be customised about the default is `ServerHeaderLook`.
 enum ServerHeaderStyle: String, Codable, CaseIterable, Sendable {
-    case wash, plain, bar, plate, banner
+    case titleBanner, wash, plain, bar, plate, banner
     var displayName: String {
         switch self {
+        case .titleBanner: return "Banner with Title"
         case .wash: return "Wash"
         case .plain: return "Plain"
         case .bar: return "Bar"

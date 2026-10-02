@@ -102,6 +102,15 @@ extension ObjectBrowserNode.Row {
     /// product line under the name (round 16).
     static let serverHeaderExtraHeight: CGFloat = SpacingTokens.xs + SpacingTokens.sm
 
+    /// What the title banner's header needs beyond `serverHeaderExtraHeight` (round 53): room for
+    /// the line over the name and a larger name. Nothing for the other five styles.
+    @MainActor static func titleBannerExtraHeight(settings: GlobalSettings) -> CGFloat {
+        guard settings.serverHeaderStyle == .titleBanner else { return 0 }
+        let base = ObjectBrowserOutlineView.baseRowHeight(for: settings.sidebarDensity)
+        return CGFloat(ServerHeaderSlot.extraHeight(for: settings.serverHeaderLook.nameSize,
+                                                    originalSlot: Double(base + serverHeaderExtraHeight)))
+    }
+
     /// Extra row-slot height for connection group headers and server-level section headings.
     var extraSlotHeight: CGFloat {
         switch self {

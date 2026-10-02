@@ -71,6 +71,7 @@ struct ObjectBrowserSidebarView: View {
                     density: projectStore.globalSettings.sidebarDensity,
                     topScrollerInset: SpacingTokens.none,
                     cornerRadius: cardCornerRadius,
+                    serverHeaderExtraHeight: ObjectBrowserNode.Row.titleBannerExtraHeight(settings: projectStore.globalSettings),
                     rowContent: { node, isExpanded, outlineLevel, outlineOffset, onActivate in
                         AnyView(
                             ObjectBrowserRowView(
