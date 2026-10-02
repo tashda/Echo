@@ -59,7 +59,7 @@ extension LabTBarStrip {
         let centred = max(14, (width - naturalWidth(tab, isActive: isActive)) / 2)
         let inset: CGFloat = switch motionStyle {
         case .anchored: isActive ? SpacingTokens.sm : 14
-        case .frozen, .layer: 14
+        case .frozen, .layer, .steady: 14
         default: isActive && hasPages ? SpacingTokens.sm : centred
         }
         // MO5 and MO7 put the words in place at once; MO6 animates nothing about them at all.

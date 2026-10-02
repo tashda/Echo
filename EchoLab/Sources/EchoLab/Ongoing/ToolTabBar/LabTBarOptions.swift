@@ -34,7 +34,11 @@ enum LabTBarMotion: String, CaseIterable {
     case frozen = "MO6 · MO2 with the icon and title frozen: no position, colour or weight animates; they ride rigidly with the tab's left edge"
     case layer = "MO7 · MO2 with the icons and titles on a layer of their own at their final positions; the tabs and plate glide beneath them"
 
+    case steady = "MO8 · MO4 exactly, with the icon (and title) at the same inset on every tab, so the icon never moves inside its tab"
+
     static let revision2: [LabTBarMotion] = [.anchored, .printed]
+    /// Added in revision 4: MO4's animation, with nothing moving inside the tab.
+    static let revision4: [LabTBarMotion] = [.steady]
     /// Added in revision 3: the icon was still travelling into place in every motion above.
     static let revision3: [LabTBarMotion] = [.frozen, .layer]
 
@@ -45,6 +49,7 @@ enum LabTBarMotion: String, CaseIterable {
         case .glide: "The selection is one thing that travels, as in the system's segmented controls."
         case .staged: "The slowest and the most deliberate: three short beats instead of one."
         case .anchored: "Every title is left-aligned at the same inset (inactive tabs lose today's centring), so a tab's words move only as far as its edge does."
+        case .steady: "MO4's motion, which you liked, with one change: in MO4 the icon sat 12pt from the edge on the front tab and 14pt on the others, so it slid 2pt when a tab changed. Now it is 14pt on every tab."
         case .frozen: "Nothing about the icon or the title is animated: not where they sit in the tab, not their colour or weight when the tab becomes active. Only the tab's width and the plate move."
         case .layer: "The strictest 'printed on': the labels do not follow their tab as it resizes. They are already where they will end, and the plate and the tab edges sweep over them."
         case .printed: "The words do not travel at all: they are already where they will be, and the plate and the tab edges sweep over and past them."

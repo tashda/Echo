@@ -35,7 +35,7 @@ struct LabTBarStrip: View {
         let scale = motion.durationScale
         switch motionStyle {
         case .today: return motion.standard
-        case .calm, .glide, .anchored, .printed, .frozen, .layer: return .smooth(duration: 0.3 * scale)
+        case .calm, .glide, .anchored, .printed, .frozen, .layer, .steady: return .smooth(duration: 0.3 * scale)
         case .staged: return .smooth(duration: 0.3 * scale).delay(0.12 * scale)
         }
     }
@@ -45,7 +45,7 @@ struct LabTBarStrip: View {
         let scale = motion.durationScale
         switch motionStyle {
         case .today: return motion.press
-        case .calm, .glide, .anchored, .printed, .frozen, .layer: return .easeOut(duration: 0.18 * scale)
+        case .calm, .glide, .anchored, .printed, .frozen, .layer, .steady: return .easeOut(duration: 0.18 * scale)
         case .staged: return .easeOut(duration: 0.12 * scale)
         }
     }

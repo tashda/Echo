@@ -4120,6 +4120,10 @@
       {
         "date": "2026-10-02T08:20:59Z",
         "text": "Revision 3: Two more ways to keep the icon and title still when tabs switch"
+      },
+      {
+        "date": "2026-10-02T08:28:19Z",
+        "text": "Revision 4: MO8: MO4's motion with the icon not moving"
       }
     ],
     "needsMore": [
@@ -4159,6 +4163,14 @@
         "date": "2026-10-02T08:20:59Z",
         "number": 3,
         "summary": "Two more ways to keep the icon and title still when tabs switch"
+      },
+      {
+        "changes": [
+          "New option MO8: MO4 exactly, icon at the same inset on every tab"
+        ],
+        "date": "2026-10-02T08:28:19Z",
+        "number": 4,
+        "summary": "MO8: MO4's motion with the icon not moving"
       }
     ],
     "status": "Judging",
