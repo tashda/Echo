@@ -29,23 +29,13 @@ extension ServerRail {
         return entries.first?.connectionID
     }
 
-    /// One glass shape. Closed it is the pill that hugs the connected servers; open (round 52) the
-    /// same shape widens into the connection list, the servers lying in a row at its top.
+    /// The pill that hugs the connected servers. It is the same while the connect drawer is open.
     func serverPill(entries: [ServerRailEntry], layout: ServerRailLayout, highlightedID: UUID?) -> some View {
-        let isOpen = appState.isConnectTrailOpen
         let closedRadius = LayoutTokens.Rail.width(itemSize: itemSize) / 2
 
         // The rail's one GlassEffectContainer (ServerRail.body) draws this and the other pills.
-        return VStack(spacing: SpacingTokens.none) {
-            if isOpen {
-                openTrail(entries: entries, highlightedID: highlightedID)
-            } else {
-                closedPill(entries: entries, layout: layout, highlightedID: highlightedID)
-            }
-        }
-        .frame(width: isOpen ? Self.connectTrailWidth : nil, alignment: .topLeading)
-        .glassEffect(.regular, in: .rect(cornerRadius: isOpen ? SpacingTokens.lg : closedRadius, style: .continuous))
-        .background { if isOpen { ConnectTrailOutsideClick(onOutsideClick: closeConnectTrail) } }
+        return closedPill(entries: entries, layout: layout, highlightedID: highlightedID)
+            .glassEffect(.regular, in: .rect(cornerRadius: closedRadius, style: .continuous))
     }
 
     func closedPill(entries: [ServerRailEntry], layout: ServerRailLayout, highlightedID: UUID?) -> some View {
@@ -129,19 +119,16 @@ extension ServerRail {
             .accessibilityHidden(true)
     }
 
-    /// A server's item. In the opened trail (`drawsOwnDisc`) each item carries its own selection
-    /// disc, as the trail's one disc moves only inside the closed pill, and a click closes the trail.
+    /// A server's item. A click selects it and leaves the connect drawer as it is (round 56, OT0).
     func item(
         for entry: ServerRailEntry,
         isSelected: Bool,
-        runningQueryCount: Int,
-        drawsOwnDisc: Bool = false
+        runningQueryCount: Int
     ) -> some View {
         let status = entry.status
 
         return Button {
             activate(entry)
-            if drawsOwnDisc { appState.isConnectTrailOpen = false }
         } label: {
             ServerRailItem(
                 monogram: ServerRailMonogram.make(from: entry.displayName),
@@ -153,15 +140,12 @@ extension ServerRail {
                 // Round 30.1, CO1: with the header in the server's colour, the monogram always is.
                 isAlwaysColored: projectStore.globalSettings.serverHeaderColorSource == .server
             )
-            .background {
-                if drawsOwnDisc && isSelected { ownSelectionDisc }
-            }
         }
         .buttonStyle(.plain)
         .matchedGeometryEffect(id: entry.connectionID, in: trail)
         .focusable(false)
         // The name bubble (round 51, NM1) replaces the tooltip; VoiceOver reads the label and value.
-        .onHover(perform: trackHover(of: entry, isActive: !drawsOwnDisc))
+        .onHover(perform: trackHover(of: entry, isActive: true))
         .anchorPreference(key: ServerRailItemBoundsKey.self, value: .bounds) { [entry.connectionID: $0] }
         .popover(isPresented: customizingBinding(for: entry), arrowEdge: .trailing) { appearancePopover(for: entry) }
         .lazyContextMenu { menu(for: entry) }

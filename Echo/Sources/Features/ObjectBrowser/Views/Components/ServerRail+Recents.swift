@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The recents pill and the connect circle (round 55): saved servers that are not connected,
-/// dimmed in a glass capsule of their own, and the button that opens the trail.
+/// dimmed in a glass capsule of their own, and the button that opens the connect drawer.
 extension ServerRail {
     func recentsPill(ids: [UUID]) -> some View {
         VStack(spacing: LayoutTokens.Rail.itemSpacing) {
@@ -57,13 +57,14 @@ extension ServerRail {
     }
 
     /// Connect to a Server (round 55, FM0, CI1): its own glass circle under the pills. It opens the
-    /// trail, and its glyph glides to the ×.
+    /// connect drawer, and while that is open it is the close button: the rack turns to an ×
+    /// (round 56, CB0).
     var connectCircle: some View {
         Button {
-            appState.isConnectTrailOpen = true
+            appState.isConnectTrailOpen.toggle()
         } label: {
             ServerRailToolLabel(
-                symbol: LayoutTokens.Rail.connectSymbol,
+                symbol: appState.isConnectTrailOpen ? "xmark" : LayoutTokens.Rail.connectSymbol,
                 isSelected: false,
                 width: itemSize,
                 height: itemSize,
@@ -71,11 +72,10 @@ extension ServerRail {
             )
         }
         .buttonStyle(.plain)
-        .matchedGeometryEffect(id: "toggle", in: trail)
         .focusable(false)
         .padding(LayoutTokens.Rail.pillPadding)
         .glassEffect(.regular, in: .circle)
-        .help("Connect to a Server")
-        .accessibilityLabel("Connect to a Server")
+        .help(appState.isConnectTrailOpen ? "Close" : "Connect to a Server")
+        .accessibilityLabel(appState.isConnectTrailOpen ? "Close" : "Connect to a Server")
     }
 }

@@ -82,6 +82,7 @@ struct ServerRailToolLabel: View {
             .symbolVariant(isSelected ? .fill : .none)
             .font(.system(size: LayoutTokens.Rail.toolSymbolSize))
             .foregroundStyle(foreground)
+            .contentTransition(.symbolEffect(.replace))
             .frame(width: width, height: height)
             .contentShape(Rectangle())
             .onHover { isHovering = $0 }

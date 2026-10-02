@@ -5,7 +5,7 @@ import SwiftUI
 /// edge. Connected servers are on top, in a pill that hugs them, grows with a spring as they
 /// connect and scrolls when it reaches the window bottom; open servers above minimized ones,
 /// under a short hairline (round 55). Below it, recent servers in a pill of their own, and a
-/// circle that opens the pill itself into the saved connections (round 52, see
+/// circle that opens a drawer of saved connections beside the trail (round 56, see
 /// ServerRail+ConnectTrail).
 ///
 /// The selected server rests on a white disc that moves with a liquid stretch. It follows the
@@ -35,7 +35,7 @@ struct ServerRail: View {
     /// Top and bottom edges of the selection disc, animated separately for the liquid stretch.
     @State var selectionTop: CGFloat = 0
     @State var selectionBottom: CGFloat = 0
-    /// Lets the servers glide from the column into the opened trail's row, and the + into its ×.
+    /// Lets the servers glide between the connected pill and the recents pill.
     @Namespace var trail
 
     /// Recent servers the user clicked and that are connecting: they breathe in the recents pill
@@ -52,29 +52,36 @@ struct ServerRail: View {
         let highlightedID = highlightedConnectionID(in: entries)
         let isOpen = appState.isConnectTrailOpen
 
-        // One container for every glass shape, so they render together while items glide between
-        // them. Its spacing is below the gap between pills, so they never blend into each other.
-        GlassEffectContainer(spacing: SpacingTokens.xxs) {
-            VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-                if isOpen || !entries.isEmpty {
-                    serverPill(entries: entries, layout: layout, highlightedID: highlightedID)
-                }
-                // The opened trail replaces both: the pill widens over the room they leave.
-                if !isOpen {
+        ZStack(alignment: .topLeading) {
+            // One container for every glass shape, so they render together while items glide
+            // between them. Its spacing is below the gap between pills, so they never blend.
+            GlassEffectContainer(spacing: SpacingTokens.xxs) {
+                VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+                    if !entries.isEmpty {
+                        serverPill(entries: entries, layout: layout, highlightedID: highlightedID)
+                    }
                     if !layout.recentIDs.isEmpty {
                         recentsPill(ids: layout.recentIDs)
                             .transition(.opacity)
                     }
                     connectCircle
-                        .transition(.opacity)
+                    Spacer(minLength: LayoutTokens.Rail.minimumPillGap)
                 }
-                Spacer(minLength: LayoutTokens.Rail.minimumPillGap)
             }
+
+            // Beside the trail, over the tree; nothing is there when it is closed.
+            if isOpen { connectDrawer }
         }
-        // The opened trail is wider than the column: it overflows to the right over the tree.
+        // The drawer overflows the column to the right, over the tree.
         .frame(width: LayoutTokens.Rail.width(itemSize: itemSize), alignment: .leading)
         .frame(maxHeight: .infinity)
-        .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { railHeight = $0 }
+        // Outside the drawer and the column, a click dismisses it (the pills and the circle are inside).
+        .background(alignment: .topLeading) {
+            if isOpen {
+                ConnectTrailOutsideClick(onOutsideClick: closeConnectTrail)
+                    .frame(width: connectDrawerReach)
+            }
+        }
         // Beside the hovered item, over the tree (round 51).
         .overlayPreferenceValue(ServerRailItemBoundsKey.self) { nameBubble(for: $0, entries: entries, recentIDs: layout.recentIDs) }
         .animation(motion.standard, value: layout)

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// An icon-only button in the opened trail's header: New Connection, Manage Connections, Quick
+/// An icon-only button in the connect drawer's header: New Connection, Manage Connections, Quick
 /// Connect and the close ×. All four share one size.
 struct ConnectTrailIconButton: View {
     let symbol: String

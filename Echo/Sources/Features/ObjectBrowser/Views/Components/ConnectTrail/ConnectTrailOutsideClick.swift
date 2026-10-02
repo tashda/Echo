@@ -1,10 +1,11 @@
 import AppKit
 import SwiftUI
 
-/// Closes the opened trail on a click anywhere in its window outside the trail (round 52). Placed
-/// as the background of the trail's glass, so its bounds are the trail's. The click is not
-/// consumed: it still reaches what it landed on. Clicks in other windows (a popover, a menu) are
-/// ignored, and so are clicks inside the trail, so its header, list and card never dismiss it.
+/// Closes the connect drawer on a click anywhere in its window outside the rail's column and the
+/// drawer (round 52, kept in round 56). Placed as the background of the rail, sized to reach over
+/// the drawer, so its bounds are what counts as inside: the pills and the connect circle (which
+/// toggles by itself) and the drawer. The click is not consumed: it still reaches what it landed
+/// on. Clicks in other windows (a popover, a menu) are ignored.
 struct ConnectTrailOutsideClick: NSViewRepresentable {
     let onOutsideClick: () -> Void
 

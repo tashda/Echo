@@ -1,12 +1,16 @@
 import SwiftUI
 
-/// The opened trail's list (round 52, CT1 and KB1): a search field with the focus, then the saved
+/// The connect drawer's content (round 56, CD1; round 52, CT1 and KB1): a search field with the
+/// focus and New Connection, Manage Connections, Quick Connect and × beside it, then the saved
 /// connections under their folder's heading. Return connects the highlighted row (the first match
-/// until an arrow key or the pointer picks another); Escape closes the trail.
+/// until an arrow key or the pointer picks another); Escape closes the drawer.
 struct ConnectTrailList: View {
     let entries: [ConnectTrailEntry]
     let markColor: (UUID) -> Color
     let onConnect: (UUID) -> Void
+    let onNewConnection: () -> Void
+    let onManageConnections: () -> Void
+    let onQuickConnect: () -> Void
     let onClose: () -> Void
 
     @State private var query = ""
@@ -18,7 +22,7 @@ struct ConnectTrailList: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.none) {
-            searchField
+            header
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: SpacingTokens.none) {
@@ -62,6 +66,23 @@ struct ConnectTrailList: View {
         return .handled
     }
 
+    private var header: some View {
+        HStack(spacing: SpacingTokens.xxxs) {
+            searchField
+                .padding(.trailing, SpacingTokens.xxxs)
+            ConnectTrailIconButton(symbol: "plus", title: "New Connection", action: onNewConnection)
+            ConnectTrailIconButton(symbol: "gearshape", title: "Manage Connections", action: onManageConnections)
+            ConnectTrailIconButton(symbol: "bolt.fill", title: "Quick Connect", action: onQuickConnect)
+            ConnectTrailIconButton(
+                symbol: "xmark",
+                title: "Close",
+                font: TypographyTokens.detail.weight(.semibold),
+                action: onClose
+            )
+        }
+        .padding(SpacingTokens.xs)
+    }
+
     private var searchField: some View {
         HStack(spacing: SpacingTokens.xxs2) {
             Image(systemName: "magnifyingglass")
@@ -76,9 +97,8 @@ struct ConnectTrailList: View {
                 }
         }
         .padding(.horizontal, SpacingTokens.xs)
-        .frame(height: SpacingTokens.lg + SpacingTokens.xxs)
+        .frame(height: ConnectTrailIconButton.size)
         .background(ColorTokens.Text.primary.opacity(0.06), in: Capsule())
-        .padding(SpacingTokens.xs)
     }
 
     private func heading(_ title: String) -> some View {

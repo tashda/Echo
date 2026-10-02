@@ -1,5 +1,8 @@
 # Decision log
 
+## 2026-10-02 · Round 56 accepted: the connect card is a drawer beside the trail
+Owner's picks: PR3, CD1, CB0, OT0, XB0 ("What I have chosen here looks perfect"). **Overrides** round 52's PR4 (the connected pill widens into the list) and OP1 (the connected servers in a row at the top of the card). Pressing the server rack circle opens a glass drawer (250pt, corners 24pt, the height of the rail, 8pt beside the rail column) over the tree; it holds a search field with New Connection, Manage Connections, Quick Connect and × beside it, then the saved connections by folder. The circle turns its rack into an × while the drawer is open and closes it. The connected and recents pills stay as they are and stay usable (a click on a server selects it and keeps the drawer open). A click outside the rail and the drawer, Escape, the × and the circle close it. Opening springs (`standard`), closing settles (`settle`). Lives in Design/05-components.md (rail) and the Window As built page (2.8, 2.10). Check in Echo pending.
+
 ## 2026-10-02 · Round 51 SH5 decided: a minimised card leaves the tree
 Owner's explicit choice, "Full SH5: the card leaves the list", and "Please delete that setting [Expand one connection at a time] as it is no longer applicable." **Overrides** round 30.2 CC0 (a closed card stays as the header only), TREE-2.1 and 2.5, and round 46's one-at-a-time behaviour. A card closed with its header chevron leaves the tree; its server stays in the rail as a dashed ring; clicking the ring restores and selects the card; every card minimised shows All Servers Are Minimized; cards open and close independently and the setting is deleted. Details under round 51 below. Round 54 (the card's journey to the trail) is still being judged.
 

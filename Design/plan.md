@@ -31,6 +31,10 @@ Branch: `claude/ecstatic-fermi-u1jxr6`, based on `dev`. See `current-state.md` f
 
 - 👁 #52: built (PR4, MP2, CT1, OP1, CX1, KB1, SM1): `ServerRail+ConnectTrail`, `ConnectTrail/`, File › Connect To and ⇧⌘K. Compiles; 7 `ConnectTrailListingTests` pass. Owner check pending in Echo (opening and closing motion, Return and Escape).
 
+## Round 56 · The connect card as a drawer
+
+- 👁 #56: built (PR3, CD1, CB0, OT0, XB0): `ServerRail+ConnectTrail` (the drawer), `ServerRail`, `ServerRail+Recents` (the circle turns to an ×), `ConnectTrail/ConnectTrailList` (search with the actions beside it), `ConnectTrailOutsideClick`. The opened-trail row of servers and its matched geometry are removed. Compiles. Owner check pending in Echo (opening and closing motion, the circle, outside click, Escape, the pills while it is open).
+
 ## Round 55 · Trail items: open, minimized and recent servers
 
 | # | Task | Files | Check | Status |
