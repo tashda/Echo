@@ -14,13 +14,22 @@ extension AppState {
 
     func addToQueryHistory(_ query: String, connectionID: UUID? = nil, databaseName: String? = nil,
                           resultCount: Int? = nil, duration: TimeInterval? = nil,
-                          outcome: String? = nil, connectionName: String? = nil, keepsHistory: Bool = true) {
+                          outcome: String? = nil, connectionName: String? = nil, errorMessage: String? = nil,
+                          keepsHistory: Bool = true) {
         guard keepsHistory, queryHistoryRetentionHours != 0 else { return }
         var item = QueryHistoryItem(query: query, timestamp: Date(), connectionID: connectionID,
                                     databaseName: databaseName, resultCount: resultCount, duration: duration)
         item.outcome = outcome
         item.connectionName = connectionName
+        item.errorMessage = errorMessage
         queryHistory.insert(item, at: 0)
+        pruneQueryHistory()
+    }
+
+    /// Delete from History (round IC): removes these runs and saves.
+    func removeFromQueryHistory(_ ids: Set<UUID>) {
+        guard !ids.isEmpty else { return }
+        queryHistory.removeAll { ids.contains($0.id) }
         pruneQueryHistory()
     }
 

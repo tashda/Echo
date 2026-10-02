@@ -50,6 +50,8 @@ import OSLog
     var validationRequestGeneration: Int = 0
     /// Set to move the editor's caret to a line, as "Show in Editor" on a query error does.
     var editorLineRequest: EditorLineRequest?
+    /// Set to insert text at the caret (round IC, Insert from the inspector's lists).
+    var editorInsertRequest: EditorInsertRequest?
     /// Set by the rows pill's popover for the results card to export or copy (round 41.5, PR0).
     var resultsActionRequest: ResultsActionRequest?
     /// This tab's last runs, oldest first, for the time pill's popover (round 41.5, PT0).

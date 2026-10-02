@@ -10,6 +10,8 @@ nonisolated struct QueryHistoryItem: Codable, Identifiable, Sendable {
     let duration: TimeInterval?
     var outcome: String?
     var connectionName: String?
+    /// The server's message for a failed run (round IC), shown when the row is opened.
+    var errorMessage: String?
 
     init(id: UUID = UUID(), query: String, timestamp: Date, connectionID: UUID? = nil, databaseName: String? = nil, resultCount: Int? = nil, duration: TimeInterval? = nil) {
         self.id = id

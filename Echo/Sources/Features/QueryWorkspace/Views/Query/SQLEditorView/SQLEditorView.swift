@@ -18,6 +18,7 @@ struct SQLEditorView: View {
     var onSchemaLoadNeeded: ((String) -> Void)?
     var validationRequestGeneration: Int = 0
     var editorLineRequest: EditorLineRequest?
+    var editorInsertRequest: EditorInsertRequest?
     var onTextChange: (String) -> Void
     var onSelectionChange: (SQLEditorSelection) -> Void
     var onSelectionPreviewChange: (SQLEditorSelection) -> Void
@@ -48,6 +49,7 @@ struct SQLEditorView: View {
         onSchemaLoadNeeded: ((String) -> Void)? = nil,
         validationRequestGeneration: Int = 0,
         editorLineRequest: EditorLineRequest? = nil,
+        editorInsertRequest: EditorInsertRequest? = nil,
         onTextChange: @escaping (String) -> Void,
         onSelectionChange: @escaping (SQLEditorSelection) -> Void,
         onSelectionPreviewChange: @escaping (SQLEditorSelection) -> Void,
@@ -69,6 +71,7 @@ struct SQLEditorView: View {
         self.onSchemaLoadNeeded = onSchemaLoadNeeded
         self.validationRequestGeneration = validationRequestGeneration
         self.editorLineRequest = editorLineRequest
+        self.editorInsertRequest = editorInsertRequest
         self.onTextChange = onTextChange
         self.onSelectionChange = onSelectionChange
         self.onSelectionPreviewChange = onSelectionPreviewChange
@@ -106,6 +109,7 @@ struct SQLEditorView: View {
             onSchemaLoadNeeded: onSchemaLoadNeeded,
             validationRequestGeneration: validationRequestGeneration,
             editorLineRequest: editorLineRequest,
+            editorInsertRequest: editorInsertRequest,
             isActiveTab: KeptAliveTabsActivity.isActive(tabID, in: tabsActivity)
         )
 #else
