@@ -180,7 +180,17 @@ struct QueryTabButton: View {
                 closeButtonPlaceholder
             }
             .fixedSize()
+            // Centred from the width the tab is moving to, at once, so the words never slide (MO9).
+            .padding(.leading, centringLead)
+            .transaction { $0.animation = nil }
         }
+    }
+
+    /// How far a tab without pages moves its icon and title in from the fixed inset to centre them.
+    var centringLead: CGFloat {
+        guard !isIconOnly, !hasToolPages else { return 0 }
+        return TabLabelLayout.iconInset(title: displayedTitle, width: finalWidth, hasPages: false, isIconOnly: false)
+            - LayoutTokens.TabPages.iconInset
     }
 
     private var leadingControl: some View {

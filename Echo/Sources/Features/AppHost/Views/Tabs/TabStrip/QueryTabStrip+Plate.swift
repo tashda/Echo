@@ -17,18 +17,21 @@ extension QueryTabStrip {
     }
 
     /// Every icon at its final place; the layer does not animate when the front tab changes (MO9).
-    func iconLayer(orderedTabs: [(WorkspaceTab, Bool)], tabWidth: CGFloat, widths: [UUID: CGFloat]) -> some View {
+    func iconLayer(orderedTabs: [(WorkspaceTab, Bool)], tabWidth: CGFloat, widths: [UUID: CGFloat], pagesInTab: Bool) -> some View {
         TabIconLayer(
             items: orderedTabs.enumerated().map { index, element in
                 let tab = element.0
                 let width = width(of: tab, tabWidth: tabWidth, widths: widths)
+                let iconOnly = !widths.isEmpty && TabUnfoldLayout.isIconOnly(width: width, isFront: tab.id == tabStore.activeTabId)
                 return TabIconLayer.Item(
                     id: tab.id,
                     symbol: element.1 ? nil : tab.iconName,
                     isActive: tab.id == tabStore.activeTabId,
                     isRunning: tab.query?.isExecuting == true,
                     width: width,
-                    isIconOnly: !widths.isEmpty && TabUnfoldLayout.isIconOnly(width: width, isFront: tab.id == tabStore.activeTabId),
+                    isIconOnly: iconOnly,
+                    inset: TabLabelLayout.iconInset(title: TabLabelLayout.displayed(tab.title), width: width,
+                                                    hasPages: pagesInTab && !tab.toolPages.isEmpty, isIconOnly: iconOnly),
                     isHovered: hoveredTabID == tab.id,
                     dragOffset: tabOffset(for: tab, index: index, tabWidth: tabWidth)
                 )

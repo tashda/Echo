@@ -11,6 +11,8 @@ struct TabIconLayer: View {
         let isRunning: Bool
         let width: CGFloat
         let isIconOnly: Bool
+        /// Where the icon starts, from the tab's left edge (`TabLabelLayout.iconInset`).
+        let inset: CGFloat
         let isHovered: Bool
         let dragOffset: CGFloat
     }
@@ -41,9 +43,6 @@ struct TabIconLayer: View {
 
     @ViewBuilder
     private func icon(_ item: Item, symbol: String) -> some View {
-        let inset = item.isIconOnly
-            ? (item.width - SpacingTokens.sm2) / 2
-            : LayoutTokens.TabPages.iconInset
         Group {
             if item.isRunning {
                 ProgressView().controlSize(.mini)
@@ -54,7 +53,7 @@ struct TabIconLayer: View {
             }
         }
         .frame(width: SpacingTokens.sm2)
-        .padding(.leading, inset)
+        .padding(.leading, item.inset)
         .opacity(item.isIconOnly && item.isHovered ? 0 : 1)
     }
 }

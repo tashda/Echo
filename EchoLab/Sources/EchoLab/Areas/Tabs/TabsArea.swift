@@ -32,7 +32,7 @@ enum TabsArea {
                 .init(trigger: "⇧⌘O, the overview button, a pinch in, or \"Tab Overview\" in ⌘K", result: "The ⌘K palette turns to this window's tabs, grouped by server, each with its live state (round 35.1). ↩ goes to the tab; ⌫ closes it, ⌘D duplicates it, ⌥⌫ closes the others, and the palette stays open."),
             ],
             motions: [
-                .init(name: "Switching tabs", curve: "smooth, no bounce (EchoMotion.glide)", duration: "0.3s", note: "QueryTabStrip.switchAnimation (round 49, MO9): the plate, every tab's width and the page row move together; titles ride with their tab at a fixed inset and are laid out at their final width at once; the icons are on a still layer (TabIconLayer) and do not travel"),
+                .init(name: "Switching tabs", curve: "smooth, no bounce (EchoMotion.glide)", duration: "0.3s", note: "QueryTabStrip.switchAnimation (round 49, MO9): the plate, every tab's width and the page row move together; icons and titles are placed for the width the tab is moving to, at once; the icons are on a still layer (TabIconLayer) and do not travel"),
                 .init(name: "Pages with their tab", curve: "ease out (EchoMotion.pageFade)", duration: "0.18s", note: "a tool tab's pages fade with it, clipped by the tab as it narrows; an icon-only tab's title fades the same way"),
                 .init(name: "Reorder while dragging", curve: "interactive spring, response 0.2, damping 0.9", duration: "interactive", note: "tabReorderAnimation"),
                 .init(name: "Page chip selection", curve: "snappy", duration: "0.22s"),
@@ -115,13 +115,13 @@ enum TabsArea {
             ], files: [files + "QueryTabButton.swift"]),
             SpecElement(number: "2.2", name: "Icon", summary: "The tab's kind icon, one per tool and none repeated (round 49, IC1), drawn on a still layer above the tabs (MO9).", groups: [
                 .type(.row("Symbol size", "11pt", token: "TypographyTokens.detail"), .row("Frame", "14pt wide", token: "SpacingTokens.sm2"), .row("Gap to the title", "6pt", token: "SpacingTokens.xxs2")),
-                .layout(.row("Inset", "22pt from the tab's left edge; centred in an icon-only tab", token: "LayoutTokens.TabPages.iconInset"),
+                .layout(.row("Inset", "centred with the title in a tab without pages (never closer than 22pt to the left edge); 22pt in a tool tab with pages; centred alone in an icon-only tab", token: "TabLabelLayout.iconInset / LayoutTokens.TabPages.iconInset"),
                         .row("Layer", "TabIconLayer: already at its final place, it does not move when the front tab changes")),
                 .states(.row("Active", "title colour at 80%"), .row("Inactive", "title colour at 70%")),
             ], files: [files + "QueryTabButton+Title.swift"]),
-            SpecElement(number: "2.3", name: "Title", summary: "One line, left to right from a fixed inset, so it rides with its tab and never slides inside it (round 49, MO4).", groups: [
+            SpecElement(number: "2.3", name: "Title", summary: "One line, centred with its icon (owner, 2026-10-02) and never sliding inside its tab (round 49, MO9).", groups: [
                 .type(.row("Font", "11pt regular", token: "TypographyTokens.detail"),
-                      .row("Alignment", "left, after the icon's room; pinned tabs centre their letter"),
+                      .row("Alignment", "icon and title centred in a tab without pages, from the width the tab is moving to (they land there at once and never slide); left from a fixed inset in a tool tab with pages; pinned tabs centre their letter", token: "TabLabelLayout.iconInset"),
                       .row("Lines", "1, truncated at the end"),
                       .row("Active colour", "label", token: "NSColor.labelColor"),
                       .row("Inactive colour", "secondary label", token: "NSColor.secondaryLabelColor")),

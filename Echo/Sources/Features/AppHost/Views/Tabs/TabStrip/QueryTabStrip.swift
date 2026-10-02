@@ -227,7 +227,7 @@ struct QueryTabStrip: View {
             activePlate(orderedTabs: orderedTabs, tabWidth: tabWidth, widths: widths)
             tabRow(orderedTabs: orderedTabs, tabWidth: tabWidth, widths: widths, pagesInTab: pagesInTab,
                    databaseNamesBySessionID: databaseNamesBySessionID)
-            iconLayer(orderedTabs: orderedTabs, tabWidth: tabWidth, widths: widths)
+            iconLayer(orderedTabs: orderedTabs, tabWidth: tabWidth, widths: widths, pagesInTab: pagesInTab)
         }
         .fixedSize()
         // Switching tabs: the plate, the widths and the pages move on one smooth curve (round 49,
