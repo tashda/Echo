@@ -75,7 +75,7 @@ enum ConnectionTableItem: Identifiable, Hashable {
     /// The name the Name column sorts by.
     var name: String {
         switch self {
-        case .folder(_, let title): title
+        case .folder(_, let title): return title
         case .connection(let connection):
             let trimmed = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
             return trimmed.isEmpty ? connection.host : trimmed

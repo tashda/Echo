@@ -58,7 +58,7 @@ extension ManageConnectionsView {
 
     /// Sorted the way the table's columns say.
     func sortedConnections(_ connections: [SavedConnection]) -> [SavedConnection] {
-        connections.map(ConnectionTableItem.connection).sorted(using: connectionSortOrder).compactMap(\.connection)
+        connections.map { ConnectionTableItem.connection($0) }.sorted(using: connectionSortOrder).compactMap(\.connection)
     }
 
     var scopedIdentities: [SavedIdentity] {
