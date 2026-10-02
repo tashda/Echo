@@ -1600,6 +1600,14 @@
       {
         "date": "2026-10-02T11:42:13Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-02T12:02:24Z",
+        "text": "Taken by claude-sonnet-rail"
+      },
+      {
+        "date": "2026-10-02T12:15:52Z",
+        "text": "Built into Echo: with the title banner the name scrolls away and the dock row morphs into a floating clear-glass pill following the scroll exactly, pushed out by the next card; choosing a dock section scrolls smoothly to where it was left or the card's top; a shorter section keeps the bottom room"
       }
     ],
     "needsMore": [],
@@ -1638,8 +1646,21 @@
         "summary": "Your two finalists, a tree of cards, and what happens when an icon is clicked while scrolled"
       }
     ],
-    "status": "Accepted",
-    "verdicts": {}
+    "status": "In Echo",
+    "verdicts": {},
+    "verification": {
+      "checks": [
+        "Scroll into a card slowly and stop half-way: the dock is half-way between the row and the pill",
+        "Scroll back up: it reverses exactly and the banner returns",
+        "Keep scrolling until the next card's top pushes the pill up and out without covering that card's banner",
+        "Scroll down in a card and click another dock icon: the tree scrolls smoothly to the card's top and the pill opens back into the row",
+        "Scroll into Tables, switch to Views and back: Tables returns to where you left it",
+        "At the bottom of a long section, pick a shorter one: the bottom space stays until you scroll up past it"
+      ],
+      "done": [],
+      "shots": [],
+      "summary": "The banner scrolls away and the dock row becomes a glass pill as you scroll into a card; clicking an icon scrolls back to where that section was left."
+    }
   },
   "ongoing.header-sizes-r58": {
     "comments": [

@@ -114,10 +114,22 @@ extension ObjectBrowserRowView {
     /// How far the header's colour reaches: through the dock while the card is open (the header
     /// alone without a dock), the whole card while it is closed.
     var serverBackdropHeight: CGFloat {
-        let base = ObjectBrowserOutlineView.baseRowHeight(for: projectStore.globalSettings.sidebarDensity)
         let header = ObjectBrowserNode.Row.serverHeaderHeight(settings: projectStore.globalSettings)
         guard isExpanded else { return header + LayoutTokens.Workspace.treeCardBottomPadding }
         guard case .dock? = node.children.first?.row else { return header }
-        return header + base + LayoutTokens.ExplorerDock.extraHeight
+        return header + dockSlotHeight
+    }
+
+    /// The dock row's slot: an ordinary row and the room for the capsule's edge.
+    var dockSlotHeight: CGFloat {
+        ObjectBrowserOutlineView.baseRowHeight(for: projectStore.globalSettings.sidebarDensity) + LayoutTokens.ExplorerDock.extraHeight
+    }
+
+    /// The title banner of an open card with a dock: the name block's colour ends at the name's own
+    /// row, and the dock row paints the rest, so it can fade out as the dock morphs into a pill
+    /// (round 57, `ExplorerBannerDockPill`).
+    func bannerEndsAtName(_ paint: ServerHeaderPaint) -> Bool {
+        guard paint.isTitleBanner, isExpanded, case .dock? = node.children.first?.row else { return false }
+        return true
     }
 }

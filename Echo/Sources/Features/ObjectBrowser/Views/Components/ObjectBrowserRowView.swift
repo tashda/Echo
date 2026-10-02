@@ -103,7 +103,9 @@ struct ObjectBrowserRowView: View {
         case .dock(let session, let layout, let selectedID):
             let paint = serverHeaderPaint(for: session.connection)
             if paint.isTitleBanner {
-                ExplorerBannerDockRow(connectionID: session.connection.id, layout: layout, selectedID: selectedID, ink: paint.ink)
+                ExplorerBannerDockPill(connectionID: session.connection.id, layout: layout, selectedID: selectedID, paint: paint,
+                                       nameHeight: ObjectBrowserNode.Row.serverHeaderHeight(settings: projectStore.globalSettings),
+                                       dockHeight: dockSlotHeight)
             } else {
                 ExplorerDockRow(
                     connectionID: session.connection.id,

@@ -24,6 +24,10 @@ extension EchoMotion {
     /// A dock switch moves the card's edge to the new section's size: smooth, no overshoot.
     public var dockEdge: Animation { reduceMotion ? .easeInOut(duration: 0.18) : .smooth(duration: 0.28 * durationScale) }
 
+    /// Choosing a dock section while scrolled into its card: the tree scrolls to the card's top (or to
+    /// where that section was left), smooth with no overshoot; with Reduce Motion, a short ease.
+    public var dockScroll: Animation { reduceMotion ? .easeInOut(duration: 0.18) : .smooth(duration: 0.55 * durationScale) }
+
     /// Rows leaving the tree fade out quickly, so they never sit under rows moving over them.
     public var rowRemoval: Animation { .easeOut(duration: 0.1 * durationScale) }
 }

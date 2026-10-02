@@ -49,6 +49,9 @@ struct ObjectBrowserOutlineView: View {
     var doubleClick: (ObjectBrowserNode) -> (() -> Void)? = { _ in nil }
     /// The menu for the empty space around and below the cards (round 42.6).
     var emptySpaceMenu: () -> NSMenu? = { nil }
+    /// The title banner: a card's name scrolls away and its dock morphs into a floating pill
+    /// (round 57, ObjectBrowserOutlineView+DockMorph).
+    var dockMorphs = false
     /// False makes the next reveal a jump, as a dock switch returning to its place (round 19).
     var revealAnimated = true
 
@@ -71,9 +74,8 @@ struct ObjectBrowserOutlineView: View {
     @State var scroll = ExplorerTreeScrollState()
     @State var position = ScrollPosition(edge: .top)
     @State private var handledRevealRequestID = 0
-    /// How far the view was scrolled into a server's card when it left a section, by
-    /// "connection|section".
-    @State private var dockPlaces: [String: CGFloat] = [:]
+    /// How far the view was scrolled into a server's card when it left each section (round 57, CK1).
+    @State var dockPlaces = ExplorerDockPlaces()
     /// The row whose context menu is open, drawn with the context highlight.
     @State private var contextMenuNodeID: String?
     /// Each card's top before the last change, so rows arriving with a card that moved start
@@ -110,7 +112,7 @@ struct ObjectBrowserOutlineView: View {
         .contentMargins(.bottom, cornerRadius, for: .scrollIndicators)
         // Round 19, S3: the veil that fades a switching card's rows (ExplorerTreeVeilLayer).
         .overlay(alignment: .top) {
-            ExplorerTreeVeilLayer(veils: layout.veils(switching: switchingConnectionIDs, opaque: fadingConnectionIDs),
+            ExplorerTreeVeilLayer(veils: morphAwareVeils(layout.veils(switching: switchingConnectionIDs, opaque: fadingConnectionIDs)),
                                   scroll: scroll, cornerRadius: cornerRadius)
                 // In a fold the veil grows and shrinks with the card's edge (round 46).
                 .animation(foldingConnectionIDs.isEmpty ? motion.dockEdge : motion.expand, value: dockSelections)
@@ -160,6 +162,7 @@ struct ObjectBrowserOutlineView: View {
         }
         .onChange(of: rowIDs) { _, _ in
             previousCardTops = Self.cardTops(layout)
+            forgetDockPlaces(in: layout)
             settleAfterFold(in: layout)
             reportTopVisibleContext(in: layout, baseRowHeight: baseRowHeight)
         }
@@ -174,6 +177,7 @@ struct ObjectBrowserOutlineView: View {
             saveDockPlaces(of: new.subtracting(old), in: layout)
         }
         .onChange(of: dockSelections) { old, new in
+            forgetDockPlaces(in: layout)
             returnToDockPlaces(changedFrom: old, to: new, in: layout)
         }
         .onAppear {
@@ -230,34 +234,10 @@ struct ObjectBrowserOutlineView: View {
         onActivation(node)
     }
 
-    /// Glides so the requested row (or the gap above its card) lands at the top.
-    /// A switch is starting: remember how far each switching server's card was scrolled.
-    private func saveDockPlaces(of connectionIDs: Set<UUID>, in layout: ObjectBrowserTreeLayout) {
-        let selections = layout.dockSelections
-        for connectionID in connectionIDs {
-            guard let section = selections[connectionID], let top = layout.serverTop(connectionID) else { continue }
-            dockPlaces["\(connectionID)|\(section)"] = scroll.offset - top
-        }
-    }
-
-    /// The new section is in: if you had scrolled into the card in that section, jump back there,
-    /// instantly (the rows are faded). Otherwise the view doesn't move.
-    private func returnToDockPlaces(changedFrom old: [UUID: String], to new: [UUID: String], in layout: ObjectBrowserTreeLayout) {
-        for (connectionID, section) in new where old[connectionID] != nil && old[connectionID] != section {
-            guard let place = dockPlaces["\(connectionID)|\(section)"], place > 0,
-                  let top = layout.serverTop(connectionID) else { continue }
-            let maxOffset = max(0, layout.contentHeight - scroll.viewportHeight)
-            var transaction = Transaction()
-            transaction.disablesAnimations = true
-            let y = min(top + place, maxOffset)
-            prepareWindow(for: y)
-            withTransaction(transaction) { position.scrollTo(y: y) }
-        }
-    }
-
     /// The row under a point in the tree's view (a pinned header covers the top), unless it is
     /// the dock, whose icons have menus of their own.
     private func contextTarget(at point: CGPoint, in layout: ObjectBrowserTreeLayout) -> ExplorerTreeContextTarget? {
+        if dockPillRow(at: point, in: layout) != nil { return nil }
         guard let row = row(at: point.y, in: layout) else {
             return ExplorerTreeContextTarget(nodeID: "", menu: emptySpaceMenu)
         }
@@ -271,7 +251,7 @@ struct ObjectBrowserOutlineView: View {
 
     private func row(at y: CGFloat, in layout: ObjectBrowserTreeLayout) -> ObjectBrowserTreeLayout.Row? {
         let offset = scroll.offset
-        for group in layout.groups where !group.header.isEmpty {
+        for group in layout.groups where !group.header.isEmpty && dockMorph(of: group, in: layout) == nil {
             guard let card = layout.cards.first(where: { $0.id == group.header[0].id }) else { continue }
             let headerHeight = group.header.reduce(SpacingTokens.none) { $0 + $1.height }
             let cardBottom = card.minY + card.height

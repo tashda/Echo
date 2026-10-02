@@ -25,6 +25,13 @@ Rules: `05-components` › Connections. Design pages linked in `decisions.md` (2
 | MC-7 | **Round 2 fixes.** Folders back as organisation only (no sign-in): model, `folders.json`, sync, projects, menus, sidebar outline (FS1), Move to Folder, drag to folder, New/Rename/Delete Folder. Sidebar selection bug, window size and frame autosave, Edit on right-click, form alignment, engine-step sizing and keycap. Open decisions R2-A…R2-H on the design page. | `SavedFolder`, `FolderDiskStore`, `ConnectionStore+Folders`, `ManageConnectionsView+Folders`, `InsetRow`, `ManageConnectionsWindowController` | Your folders reappear; drag a row onto a folder | ◐ written, not compiled · 👁 build and check on a Mac |
 | MC-8 | **Round 2 decisions.** PA1 table + inspector, NB1 new connection in the pane, TB1 column toolbars, PJ2 account row, WD1 grouped engine rows, SL1 Security / Behaviour, FS1+FS2 folder grouping in list and table, IF2 identity folders. | `ManageConnectionsView*`, `ConnectionEditorView+EngineStep`, `+SecuritySection`, `+Detail*`, `IdentityEditorPane` | Switch list/table with a row selected; make a connection inside a folder; collapse a folder heading | ◐ written, not compiled · 👁 build and check on a Mac |
 
+## Round 57 · The header while the card scrolls
+
+| # | Task | Files | Check | Status |
+|---|---|---|---|---|
+| H57 | **Dock row morphs into a floating pill** (title banner): the name scrolls away, the dock row narrows to 190 x 30pt, 8pt from the top, clear glass, pushed out by the next card, following the scroll exactly. | `ExplorerDockMorph`, `ExplorerDockMorphHost`, `ExplorerDockMorphLayout`, `ExplorerBannerDockPill`, `ObjectBrowserOutlineView+DockMorph`, `ObjectBrowserOutlineView+Rows`, `ObjectBrowserRowView+Headers`, `ExplorerDockMorphTests` | Scroll slowly and stop half-way; scroll back; scroll until the next card pushes it out | ☑ built, 👁 pending |
+| H57b | **Choosing a section scrolls smoothly** to where it was left (per card and section, this session) or to the card's top; a shorter section keeps the bottom room (N2). | `ExplorerDockPlaces`, `ObjectBrowserOutlineView+DockMorph`, `ExplorerMotion` (`dockScroll`) | Click an icon while scrolled; go back to a section; pick a shorter one at the bottom | ☑ built, 👁 pending |
+
 ## Round 58 · Banner header sizes and spacing
 
 | # | Task | Files | Check | Status |

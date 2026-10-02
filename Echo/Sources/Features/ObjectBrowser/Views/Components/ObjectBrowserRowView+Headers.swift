@@ -34,7 +34,12 @@ extension ObjectBrowserRowView {
         .padding(.top, isExpanded ? paint.headerTopInset : LayoutTokens.Workspace.treeCardBottomPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: isExpanded ? .topLeading : .leading)
         .background(alignment: .top) {
-            ServerHeaderBackdrop(paint: paint, height: serverBackdropHeight, isClosed: !isExpanded)
+            if bannerEndsAtName(paint) {
+                // Cut at the row's own frame: the dock row paints what lies under it (round 57).
+                ServerHeaderBackdrop(paint: paint, height: serverBackdropHeight, isClosed: false).clipped()
+            } else {
+                ServerHeaderBackdrop(paint: paint, height: serverBackdropHeight, isClosed: !isExpanded)
+            }
         }
         .contentShape(Rectangle())
         .onHover { isHeaderHovering = $0 }

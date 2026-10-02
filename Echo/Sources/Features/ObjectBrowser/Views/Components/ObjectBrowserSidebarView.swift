@@ -113,6 +113,7 @@ struct ObjectBrowserSidebarView: View {
                     contextMenu: { contextMenu(for: $0) },
                     doubleClick: { doubleClickAction(for: $0) },
                     emptySpaceMenu: { emptySpaceMenu() },
+                    dockMorphs: projectStore.globalSettings.serverHeaderStyle == .titleBanner,
                     revealAnimated: viewModel.revealAnimated
                 )
                 .background(Color.clear)
