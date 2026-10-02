@@ -1581,12 +1581,22 @@
   },
   "ongoing.header-on-scroll-r57": {
     "comments": [],
+    "generalNote": "",
     "history": [
       {
         "date": "2026-10-02T11:15:47Z",
         "text": "Revision 2: Your ideas: the menu stays (HB5), with the name, or morphs into a glass pill"
+      },
+      {
+        "date": "2026-10-02T11:25:57Z",
+        "text": "Revision 3: Your two finalists, a tree of cards, and what happens when an icon is clicked while scrolled"
       }
     ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {},
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
@@ -1597,9 +1607,21 @@
         "date": "2026-10-02T11:15:47Z",
         "number": 2,
         "summary": "Your ideas: the menu stays (HB5), with the name, or morphs into a glass pill"
+      },
+      {
+        "changes": [
+          "Removed: tinted glass and the other behaviours; the pill and the bar remain",
+          "Changed: the lab is a tree of three cards, each header pinned from its own scroll position and pushed out by the next card",
+          "New: clicking an icon while scrolled, five ways (jump, smooth scroll with the header coming back, stay, a spring reveal, scroll with crossfade)",
+          "New: the morph follows the scroll or springs at a threshold; pill materials (clear glass, solid, frosted, surface); position; spring feel; what the next card does"
+        ],
+        "date": "2026-10-02T11:25:57Z",
+        "number": 3,
+        "summary": "Your two finalists, a tree of cards, and what happens when an icon is clicked while scrolled"
       }
     ],
-    "status": "Judging"
+    "status": "Judging",
+    "verdicts": {}
   },
   "ongoing.mssql-always-encrypted-r29": {
     "comments": [
