@@ -31,7 +31,7 @@ extension ObjectBrowserRowView {
         }
         .padding(.leading, SpacingTokens.sm)
         .padding(.trailing, SidebarRowConstants.rowTrailingPadding + SidebarRowConstants.rowOuterHorizontalPadding)
-        .padding(.top, isExpanded ? SpacingTokens.sm : LayoutTokens.Workspace.treeCardBottomPadding)
+        .padding(.top, isExpanded ? paint.headerTopInset : LayoutTokens.Workspace.treeCardBottomPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: isExpanded ? .topLeading : .leading)
         .background(alignment: .top) {
             ServerHeaderBackdrop(paint: paint, height: serverBackdropHeight, isClosed: !isExpanded)

@@ -1580,7 +1580,13 @@
     "verdicts": {}
   },
   "ongoing.header-on-scroll-r57": {
-    "comments": [],
+    "comments": [
+      {
+        "date": "2026-10-02T11:42:13Z",
+        "id": "A422E24E-5BB8-4BC5-B973-625A3A06FC6B",
+        "text": "Review of The card header while the list scrolls\n1. Form: picked HB3 \u00b7 The menu morphs into a floating pill\n2. The pill: picked MT0 \u00b7 Clear glass\n3. The morph: picked MP0 \u00b7 It follows the scroll: every point of scrolling moves it\n4. Clicking an icon while scrolled: picked CK1 \u00b7 The list scrolls up to the card's top and the header comes back with the scroll\n5. The spring: picked FE0 \u00b7 The house spring, a little bounce\n6. Pill position: picked PO0 \u00b7 Centred\n7. When the next card arrives: picked PS0 \u00b7 It is pushed up and out by the next card's top"
+      }
+    ],
     "generalNote": "",
     "history": [
       {
@@ -1590,13 +1596,25 @@
       {
         "date": "2026-10-02T11:25:57Z",
         "text": "Revision 3: Your two finalists, a tree of cards, and what happens when an icon is clicked while scrolled"
+      },
+      {
+        "date": "2026-10-02T11:42:13Z",
+        "text": "Accepted with picks"
       }
     ],
     "needsMore": [],
     "optionNotes": {},
     "pickNotes": {},
-    "picks": {},
-    "reviewedRevision": 2,
+    "picks": {
+      "click": "CK1 \u00b7 The list scrolls up to the card's top and the header comes back with the scroll",
+      "feel": "FE0 \u00b7 The house spring, a little bounce",
+      "form": "HB3 \u00b7 The menu morphs into a floating pill",
+      "material": "MT0 \u00b7 Clear glass",
+      "morph": "MP0 \u00b7 It follows the scroll: every point of scrolling moves it",
+      "position": "PO0 \u00b7 Centred",
+      "push": "PS0 \u00b7 It is pushed up and out by the next card's top"
+    },
+    "reviewedRevision": 3,
     "revisions": [
       {
         "changes": [
@@ -1620,8 +1638,57 @@
         "summary": "Your two finalists, a tree of cards, and what happens when an icon is clicked while scrolled"
       }
     ],
-    "status": "Judging",
+    "status": "Accepted",
     "verdicts": {}
+  },
+  "ongoing.header-sizes-r58": {
+    "comments": [
+      {
+        "date": "2026-10-02T11:49:29Z",
+        "id": "411F2F44-9453-4143-ADA1-7275E06C2520",
+        "text": "Review of Smaller card headers and what each setting does\n1. Layout: picked LY0 \u00b7 Stacked: line, name, icon menu (as built)\n2. Name size: picked NS4 \u00b7 18 (today's Small)\n3. Line above the name: picked EB0 \u00b7 The section\n4. Spacing: picked DN0 \u00b7 Tight\nOverall: This selection should be the default. There should be options to make it smaller or larger. There should be selection to select \"Nothing above the name\" and then nothing would show. LY2 should also be a option with the section to the right (remember to not interfere with chevron)"
+      }
+    ],
+    "generalNote": "This selection should be the default. There should be options to make it smaller or larger. There should be selection to select \"Nothing above the name\" and then nothing would show. LY2 should also be a option with the section to the right (remember to not interfere with chevron)",
+    "history": [
+      {
+        "date": "2026-10-02T11:49:29Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-02T11:50:16Z",
+        "text": "Taken by claude-sonnet-rail"
+      },
+      {
+        "date": "2026-10-02T12:01:18Z",
+        "text": "Built into Echo: 18pt and Tight are the default; sizes 12 to 26pt; Line Above the Name adds Section at the Right and Nothing Above the Name; new Spacing setting; one ServerHeaderMetrics for layout and drawing; the old default look moves once"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "density": "DN0 \u00b7 Tight",
+      "eyebrow": "EB0 \u00b7 The section",
+      "layout": "LY0 \u00b7 Stacked: line, name, icon menu (as built)",
+      "size": "NS4 \u00b7 18 (today's Small)"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "In Echo",
+    "verdicts": {},
+    "verification": {
+      "checks": [
+        "Open Echo: a server card's banner is tight, with the section over an 18pt name and the icons under it",
+        "Settings \u203a Appearance \u203a Server Header: change Server Name Size from Tiny (12pt) to Extra Large (26pt) and watch the card",
+        "Set Line Above the Name to Nothing Above the Name: only the name and the icons, tight",
+        "Set it to The Section at the Right: DATABASES sits at the right end of the name's row; hover the header and the chevron fades in beside it without moving it; try a long server name",
+        "Set Spacing to Standard: more room above the name and before the icons"
+      ],
+      "done": [],
+      "shots": [],
+      "summary": "The card header is 18pt and tight by default (80pt with the dock, was 96), with sizes, spacing and the section at the right as settings."
+    }
   },
   "ongoing.mssql-always-encrypted-r29": {
     "comments": [
@@ -2664,9 +2731,14 @@
         "date": "2026-10-01T18:37:26Z",
         "id": "13124FAB-D4A4-4D15-8234-798DB744A2BA",
         "text": "Review of Rail tools: Bookmarks\n1. Saving: picked BS2 \u00b7 BS1, and saving opens a small popover: name, folder, note\n2. A bookmark holds: picked BH1 \u00b7 BH0, plus a folder and a note\n3. List: picked BL2 \u00b7 BL1 with the SQL shown under the selected bookmark; NEEDS MORE OPTIONS; note: This, but it needs to look better.\n4. Opening: picked BO1 \u00b7 Click opens a new tab; \u2325-click or drag inserts at the caret\n5. Bookmarks with blanks: picked BP0 \u00b7 Not now; snippets have placeholders (39.3)"
+      },
+      {
+        "date": "2026-10-02T11:59:19Z",
+        "id": "14F6B1D5-090F-4F22-B175-E8501BE6506D",
+        "text": "Review of Rail tools: Bookmarks\n1. Saving: picked BS2 \u00b7 BS1, and saving opens a small popover: name, folder, note\n2. A bookmark holds: picked BH1 \u00b7 BH0, plus a folder and a note\n3. List: picked BL2 \u00b7 BL1 with the SQL shown under the selected bookmark; note: This, but it needs to look better.\n4. Opening: picked BO1 \u00b7 Click opens a new tab; \u2325-click or drag inserts at the caret\n5. Bookmarks with blanks: picked BP0 \u00b7 Not now; snippets have placeholders (39.3)\nOverall: No longer relevant"
       }
     ],
-    "generalNote": "",
+    "generalNote": "No longer relevant",
     "history": [
       {
         "date": "2026-10-01T18:37:26Z",
@@ -2679,11 +2751,13 @@
       {
         "date": "2026-10-01T21:00:35Z",
         "text": "Revision 2: Two native inspector layouts with clearer SQL previews."
+      },
+      {
+        "date": "2026-10-02T11:59:19Z",
+        "text": "Accepted with picks"
       }
     ],
-    "needsMore": [
-      "list"
-    ],
+    "needsMore": [],
     "optionNotes": {},
     "pickNotes": {
       "list": "This, but it needs to look better."
@@ -2708,7 +2782,7 @@
         "summary": "Two native inspector layouts with clearer SQL previews."
       }
     ],
-    "status": "Judging",
+    "status": "Accepted",
     "verdicts": {}
   },
   "ongoing.rail-click-hidden-tree-r40": {

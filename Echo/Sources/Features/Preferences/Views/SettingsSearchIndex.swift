@@ -55,6 +55,7 @@ enum SettingsSearchIndex {
         .init(title: "Server Name Typeface", section: .appearance, group: "Appearance"),
         .init(title: "Server Name Size", section: .appearance, group: "Appearance"),
         .init(title: "Line Above the Name", section: .appearance, group: "Appearance"),
+        .init(title: "Spacing", section: .appearance, group: "Appearance"),
         .init(title: "Banner Edge", section: .appearance, group: "Appearance"),
         .init(title: "Banner Text Color", section: .appearance, group: "Appearance"),
         .init(title: "Toolbar Project Button", section: .appearance, group: "Appearance"),

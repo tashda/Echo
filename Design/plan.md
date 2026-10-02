@@ -24,6 +24,12 @@ Rules: `05-components` › Connections. Design pages linked in `decisions.md` (2
 | MC-6 | **Identities in place.** Identity editor in the pane (no sheet) with Used by; delete names the connections that depend on it; kinds filtered by engine. | `IdentityEditorSheet` → `IdentityEditorPane`, `IdentitiesTableView` | No sheet opens for identities | ◐ written, not compiled · 👁 build and check on a Mac |
 | MC-7 | **Round 2 fixes.** Folders back as organisation only (no sign-in): model, `folders.json`, sync, projects, menus, sidebar outline (FS1), Move to Folder, drag to folder, New/Rename/Delete Folder. Sidebar selection bug, window size and frame autosave, Edit on right-click, form alignment, engine-step sizing and keycap. Open decisions R2-A…R2-H on the design page. | `SavedFolder`, `FolderDiskStore`, `ConnectionStore+Folders`, `ManageConnectionsView+Folders`, `InsetRow`, `ManageConnectionsWindowController` | Your folders reappear; drag a row onto a folder | ◐ written, not compiled · 👁 build and check on a Mac |
 
+## Round 58 · Banner header sizes and spacing
+
+| # | Task | Files | Check | Status |
+|---|---|---|---|---|
+| H58 | 18pt and Tight by default; sizes 12 to 26pt; Line Above the Name adds Section at the Right and Nothing Above the Name; Spacing setting; one `ServerHeaderMetrics` for layout and drawing; a one-time move of the old default look. | `ServerHeaderTitle`, `ServerHeaderLook`, `ServerHeaderTokens`, `ServerHeaderPaint`, `ServerHeaderNameRowLayout`, `ObjectBrowserRowView+ServerHeader`, `ObjectBrowserRowView+Headers`, `ServerHeaderLookRows`, `ServerHeaderTitleTests` | Every size, line and spacing; the right-hand section next to the hover chevron with a long name; Nothing is the name alone | ☑ built, 👁 pending |
+
 ## Round 53 · The title banner header
 
 | # | Task | Files | Check | Status |

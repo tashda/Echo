@@ -69,16 +69,39 @@ struct ServerHeaderSettingsTests {
     @Test func defaultsAreTheChosenLook() {
         let look = ServerHeaderLook()
         #expect(look.typeface == .system)
-        #expect(look.nameSize == .medium)
-        #expect(look.nameSize.points == 22)
+        #expect(look.nameSize == .standard)
+        #expect(look.nameSize.points == 18)
         #expect(look.eyebrow == .section)
+        #expect(look.spacing == .tight)
         #expect(look.edge == .hairline)
         #expect(look.textColor == .white)
         #expect(GlobalSettings().serverHeaderStyle == .titleBanner)
     }
 
-    @Test func sizesAreEighteenTwentyTwoTwentySix() {
-        #expect(ServerHeaderNameSize.allCases.map(\.points) == [18, 22, 26])
+    @Test func sizesRunFromTwelveToTwentySix() {
+        #expect(ServerHeaderNameSize.allCases.map(\.points) == [12, 14, 16, 18, 22, 26])
+    }
+
+    @Test func savedSizesFromBeforeRound58KeepTheirPoints() throws {
+        func decoded(_ raw: String) throws -> ServerHeaderNameSize {
+            try JSONDecoder().decode(ServerHeaderLook.self, from: Data(#"{"spacing":"tight","nameSize":"\#(raw)","eyebrow":"engine"}"#.utf8)).nameSize
+        }
+        #expect(try decoded("small").points == 18)
+        #expect(try decoded("medium").points == 22)
+        #expect(try decoded("large").points == 26)
+    }
+
+    @Test func theOldDefaultMovesToTheNewDefaultOnce() throws {
+        let old = try JSONDecoder().decode(ServerHeaderLook.self, from: Data(#"{"nameSize":"medium","eyebrow":"section"}"#.utf8))
+        #expect(old.nameSize == .standard && old.eyebrow == .section && old.spacing == .tight)
+        // An explicit other choice is kept.
+        let large = try JSONDecoder().decode(ServerHeaderLook.self, from: Data(#"{"nameSize":"large","eyebrow":"section"}"#.utf8))
+        #expect(large.nameSize == .extraLarge)
+        let engine = try JSONDecoder().decode(ServerHeaderLook.self, from: Data(#"{"nameSize":"medium","eyebrow":"engine"}"#.utf8))
+        #expect(engine.nameSize == .large && engine.eyebrow == .engine)
+        // Saved after the move (spacing is there): 22pt and the section are a choice now.
+        let chosen = try JSONDecoder().decode(ServerHeaderLook.self, from: Data(#"{"nameSize":"pt22","eyebrow":"section","spacing":"standard"}"#.utf8))
+        #expect(chosen.nameSize == .large && chosen.spacing == .standard)
     }
 
     @Test func edgesOfferNoRoundedCorners() {
@@ -88,8 +111,9 @@ struct ServerHeaderSettingsTests {
     @Test func lookRoundTrips() throws {
         var look = ServerHeaderLook()
         look.typeface = .serif
-        look.nameSize = .large
-        look.eyebrow = .engineAndSection
+        look.nameSize = .extraLarge
+        look.eyebrow = .sectionAtRight
+        look.spacing = .standard
         look.edge = .frostedFade
         look.textColor = .automatic
         let decoded = try JSONDecoder().decode(ServerHeaderLook.self, from: JSONEncoder().encode(look))
@@ -100,7 +124,7 @@ struct ServerHeaderSettingsTests {
         let decoded = try JSONDecoder().decode(ServerHeaderLook.self, from: Data(#"{"typeface":"wingdings","edge":"sharp"}"#.utf8))
         #expect(decoded.typeface == .system)
         #expect(decoded.edge == .sharp)
-        #expect(decoded.nameSize == .medium)
+        #expect(decoded.nameSize == .standard)
     }
 
     @Test func savedWashBecomesTheNewDefaultOnce() {
@@ -189,41 +213,70 @@ struct ServerColorPaletteTests {
 struct ServerHeaderMetricsTests {
     private static let sizes = ServerHeaderNameSize.allCases
     private static let lines = ServerHeaderEyebrowLine.allCases
+    private static let spacings = ServerHeaderSpacing.allCases
 
-    @Test func noLineLeavesOnlyTheName() {
-        for size in Self.sizes {
-            let metrics = ServerHeaderMetrics(nameSize: size, eyebrow: .none)
-            #expect(metrics.eyebrowBlockHeight == 0)
-            #expect(metrics.linesHeight == metrics.nameLineHeight)
-            #expect(metrics.headerHeight == ServerHeaderMetrics.topInset + metrics.nameLineHeight + ServerHeaderMetrics.bottomInset)
-        }
+    private static func everyLook(_ body: (ServerHeaderMetrics, ServerHeaderNameSize, ServerHeaderEyebrowLine, ServerHeaderSpacing) -> Void) {
+        for size in sizes { for line in lines { for spacing in spacings {
+            body(ServerHeaderMetrics(nameSize: size, eyebrow: line, spacing: spacing), size, line, spacing)
+        } } }
     }
 
-    @Test func everyCombinationIsTheSumOfItsParts() {
+    @Test func theNumbersAreTheAcceptedOnes() {
+        #expect(ServerHeaderMetrics.eyebrowLineHeight == 12)
+        #expect(ServerHeaderMetrics.lineGap == 3)
+        #expect(ServerHeaderSpacing.tight.topInset == 6)
+        #expect(ServerHeaderSpacing.standard.topInset == 10)
+        #expect(ServerHeaderNameSize.allCases.map { ServerHeaderMetrics(nameSize: $0, eyebrow: .none).nameLineHeight } == [14, 17, 19, 22, 26, 31])
+    }
+
+    @Test func nothingAboveTheNameIsTheNameAlone() {
         for size in Self.sizes {
-            for line in Self.lines {
-                let metrics = ServerHeaderMetrics(nameSize: size, eyebrow: line)
-                let eyebrow = line == .none ? 0 : ServerHeaderMetrics.eyebrowLineHeight + ServerHeaderMetrics.lineGap
-                let expected = ServerHeaderMetrics.topInset + eyebrow + (size.points * 1.22).rounded(.up) + ServerHeaderMetrics.bottomInset
-                #expect(metrics.headerHeight == expected, "\(size) \(line)")
+            for spacing in Self.spacings {
+                let metrics = ServerHeaderMetrics(nameSize: size, eyebrow: .none, spacing: spacing)
+                #expect(metrics.eyebrowBlockHeight == 0)
+                #expect(metrics.linesHeight == metrics.nameLineHeight)
+                #expect(metrics.headerHeight == spacing.topInset + metrics.nameLineHeight + spacing.dockGap)
             }
         }
     }
 
-    @Test func theLineAddsExactlyItsHeightAndGap() {
+    @Test func everyCombinationIsTheSumOfItsParts() {
+        Self.everyLook { metrics, size, line, spacing in
+            let above = line.isOverName ? ServerHeaderMetrics.eyebrowLineHeight + ServerHeaderMetrics.lineGap : 0
+            let name = (size.points * 1.2).rounded()
+            let row = line == .sectionAtRight ? max(name, ServerHeaderMetrics.eyebrowLineHeight) : name
+            #expect(metrics.headerHeight == spacing.topInset + above + row + spacing.dockGap, "\(size) \(line) \(spacing)")
+        }
+    }
+
+    @Test func theLineOverTheNameAddsItsHeightAndGapAndTheRightHandSectionAddsNothing() {
         for size in Self.sizes {
-            let none = ServerHeaderMetrics(nameSize: size, eyebrow: .none).headerHeight
-            for line in Self.lines where line != .none {
-                #expect(ServerHeaderMetrics(nameSize: size, eyebrow: line).headerHeight
-                    == none + ServerHeaderMetrics.eyebrowLineHeight + ServerHeaderMetrics.lineGap)
+            for spacing in Self.spacings {
+                let none = ServerHeaderMetrics(nameSize: size, eyebrow: .none, spacing: spacing).headerHeight
+                for line in Self.lines where line.isOverName {
+                    #expect(ServerHeaderMetrics(nameSize: size, eyebrow: line, spacing: spacing).headerHeight
+                        == none + ServerHeaderMetrics.eyebrowLineHeight + ServerHeaderMetrics.lineGap)
+                }
+                #expect(ServerHeaderMetrics(nameSize: size, eyebrow: .sectionAtRight, spacing: spacing).headerHeight == none)
+            }
+        }
+    }
+
+    @Test func standardAddsEightPoints() {
+        for size in Self.sizes {
+            for line in Self.lines {
+                let tight = ServerHeaderMetrics(nameSize: size, eyebrow: line, spacing: .tight).headerHeight
+                #expect(ServerHeaderMetrics(nameSize: size, eyebrow: line, spacing: .standard).headerHeight == tight + 8)
             }
         }
     }
 
     @Test func largerNamesNeedMoreRoom() {
         for line in Self.lines {
-            let heights = Self.sizes.map { ServerHeaderMetrics(nameSize: $0, eyebrow: line).headerHeight }
-            #expect(heights == heights.sorted() && Set(heights).count == 3)
+            for spacing in Self.spacings {
+                let heights = Self.sizes.map { ServerHeaderMetrics(nameSize: $0, eyebrow: line, spacing: spacing).headerHeight }
+                #expect(heights == heights.sorted() && Set(heights).count == heights.count)
+            }
         }
     }
 
@@ -232,21 +285,40 @@ struct ServerHeaderMetricsTests {
         for density in SidebarDensity.allCases {
             let base = Double(ObjectBrowserOutlineView.baseRowHeight(for: density))
             let slot = base + Double(ObjectBrowserNode.Row.serverHeaderExtraHeight)
-            for size in Self.sizes {
-                for line in Self.lines {
-                    let metrics = ServerHeaderMetrics(nameSize: size, eyebrow: line)
-                    #expect(slot + metrics.extraHeight(overSlot: slot) == metrics.headerHeight)
-                }
+            Self.everyLook { metrics, _, _, _ in
+                #expect(slot + metrics.extraHeight(overSlot: slot) == metrics.headerHeight)
+            }
+        }
+    }
+
+    /// What the layout reserves for the server row (`serverHeaderHeight`) is the header, and the
+    /// banner paints the header plus the dock's slot, so the lines never meet the dock.
+    @MainActor @Test func theTreeReservesTheHeadersHeight() {
+        for density in SidebarDensity.allCases {
+            Self.everyLook { _, size, line, spacing in
+                var settings = GlobalSettings()
+                settings.sidebarDensity = density
+                settings.serverHeaderStyle = .titleBanner
+                settings.serverHeaderLook.nameSize = size
+                settings.serverHeaderLook.eyebrow = line
+                settings.serverHeaderLook.spacing = spacing
+                let expected = ServerHeaderMetrics(nameSize: size, eyebrow: line, spacing: spacing).headerHeight
+                #expect(Double(ObjectBrowserNode.Row.serverHeaderHeight(settings: settings)) == expected)
             }
         }
     }
 
     @Test func linesFitBetweenTheInsets() {
-        for size in Self.sizes {
-            for line in Self.lines {
-                let metrics = ServerHeaderMetrics(nameSize: size, eyebrow: line)
-                #expect(ServerHeaderMetrics.topInset + metrics.linesHeight + ServerHeaderMetrics.bottomInset == metrics.headerHeight)
-            }
+        Self.everyLook { metrics, _, _, _ in
+            #expect(metrics.topInset + metrics.linesHeight + metrics.bottomInset == metrics.headerHeight)
+            #expect(metrics.nameRowHeight >= metrics.nameLineHeight)
+            #expect(metrics.nameRowHeight >= (metrics.eyebrow == .sectionAtRight ? ServerHeaderMetrics.eyebrowLineHeight : 0))
         }
+    }
+
+    @Test func theSectionAtTheRightReadsLikeTheSection() {
+        #expect(ServerHeaderEyebrow.text(line: .sectionAtRight, engine: "SQL SERVER", section: "Databases", isOpen: true) == "DATABASES")
+        #expect(ServerHeaderEyebrow.text(line: .sectionAtRight, engine: "SQL SERVER", section: "Databases", isOpen: false) == "SQL SERVER")
+        #expect(ServerHeaderEyebrow.text(line: .none, engine: "SQL SERVER", section: "Databases", isOpen: true) == nil)
     }
 }

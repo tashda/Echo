@@ -3,9 +3,9 @@ import SwiftUI
 /// The title banner header's fixed values (round 53, F5). What the user can change is
 /// `ServerHeaderLook`; these stay Echo's.
 enum ServerHeaderTokens {
-    /// The line over the name: 11pt bold small capitals, tracked out, white at 82%.
-    static let eyebrowFont = Font.system(size: 11, weight: .bold)
-    static let eyebrowTracking: CGFloat = 1.3
+    /// The line over the name: 10pt bold small capitals, tracked out, white at 82%.
+    static let eyebrowFont = Font.system(size: 10, weight: .bold)
+    static let eyebrowTracking: CGFloat = 1.1
     static let eyebrowOpacity = 0.82
     /// Dark type on a light colour (Automatic): the same black at 82% the lab drew.
     static let darkInk = Color.black.opacity(0.82)
