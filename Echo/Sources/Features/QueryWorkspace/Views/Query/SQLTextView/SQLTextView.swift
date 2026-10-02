@@ -280,8 +280,12 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         refreshStatements()
     }
 
+    override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting stillSelectingFlag: Bool) {
+        (layoutManager as? SQLLayoutManager)?.selectedRanges = ranges.map(\.rangeValue)
+        super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: stillSelectingFlag)
+    }
+
     func textViewDidChangeSelection(_ notification: Notification) {
-        (layoutManager as? SQLLayoutManager)?.selectedRanges = selectedRanges.map(\.rangeValue)
         notifySelectionChanged(); updateStatementFocus(); updateErrorBubbles(); checkLineLeft(); let range = selectedLineRange()
         if range.location != NSNotFound { lineNumberRuler?.highlightedLines = IndexSet(integersIn: range.location..<(range.location + range.length)) }
         else { lineNumberRuler?.highlightedLines = IndexSet() }
@@ -292,7 +296,10 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         if let index = snippetPlaceholderIndex(containing: selection) { currentSnippetPlaceholderIndex = index } else { clearSnippetPlaceholders() }
     }
 
-    override func mouseDragged(with event: NSEvent) { super.mouseDragged(with: event); notifySelectionPreview() }
+    override func mouseDragged(with event: NSEvent) {
+        if !selectionMatchRanges.isEmpty { selectionMatchRanges = []; setNeedsDisplay(visibleRect) }
+        super.mouseDragged(with: event); notifySelectionPreview()
+    }
 
     override func copy(_ sender: Any?) {
         let selection = selectedRange(); super.copy(sender)

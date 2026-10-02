@@ -21,8 +21,9 @@ final class SQLLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
 
     /// Round 28.3, 28.15: the selection's corners, from Settings › Editor › Marks › Corners.
     var selectionCorners: EditorMarkCorners = .square
-    /// The text view's selection, handed over whenever it changes, so drawing can tell the
-    /// selection's background from other background fills.
+    /// The text view's selection, handed over on every change (also while the mouse is still
+    /// dragging, when the delegate hears nothing), so drawing can tell the selection's
+    /// background from other background fills.
     var selectedRanges: [NSRange] = []
 
     /// The computed fixed line height used for every line fragment.
@@ -66,9 +67,12 @@ final class SQLLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
             super.fillBackgroundRectArray(rectArray, count: rectCount, forCharacterRange: charRange, color: color)
             return
         }
+        color.setFill()
+        // AppKit merges the full lines of a multi-line selection into one tall rectangle, so the
+        // corner is worked out from one line, never from the rectangle's own height.
         for index in 0..<rectCount {
             let rect = rectArray[index]
-            let radius = min(selectionCorners.radius(forHeight: rect.height), rect.width / 2)
+            let radius = min(selectionCorners.radius(forHeight: fixedLineHeight), rect.width / 2, rect.height / 2)
             NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
         }
     }
