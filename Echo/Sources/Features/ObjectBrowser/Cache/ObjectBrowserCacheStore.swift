@@ -47,12 +47,24 @@ actor ObjectBrowserCacheStore {
         return record.database
     }
 
+    /// Warm only the connected server's remaining metadata on the cache actor, then publish once.
+    func databases(for connection: SavedConnection, fingerprint: String) async throws -> [DatabaseInfo] {
+        try await storage.records(collection: "metadata-database", group: connection.id.uuidString).compactMap {
+            let cached = try JSONDecoder().decode(CachedDatabase.self, from: $0.payload)
+            return cached.fingerprint == fingerprint ? cached.database : nil
+        }
+    }
+
     func migrateLegacyCacheIfNeeded(from connection: SavedConnection, limitBytes: Int,
                                     fingerprint: String? = nil) async {
         let url = configuration.rootDirectory.appendingPathComponent(connection.id.uuidString).appendingPathExtension("json")
         do {
             let marker = "metadata-\(connection.id.uuidString)"
-            guard !(try await storage.hasMigration(marker)) else { return }
+            if try await storage.hasMigration(marker) {
+                if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+                try await storage.remove(collection: "legacy-metadata", id: connection.id.uuidString)
+                return
+            }
             if FileManager.default.fileExists(atPath: url.path) {
                 let old = try JSONDecoder().decode(ObjectBrowserCacheEntry.self, from: Data(contentsOf: url))
                 if old.connectionFingerprint == connection.legacyObjectBrowserCacheFingerprint {
@@ -82,16 +94,39 @@ actor ObjectBrowserCacheStore {
             let id = try await storage.opaqueIdentifier("\(connection.id.uuidString):\(database.name)")
             let payload = CachedDatabase(fingerprint: fingerprint, database: database)
             records.append(LocalRecord(collection: "metadata-database", id: id, group: connection.id.uuidString,
-                payload: try JSONEncoder().encode(payload), position: position, isCache: true))
+                payload: try LocalRecordEncoding.encode(payload), position: position, isCache: true))
         }
         let catalog = ObjectBrowserCacheEntry(key: .init(connectionID: connection.id), connectionFingerprint: fingerprint,
             updatedAt: updatedAt, structure: DatabaseStructure(serverVersion: structure.serverVersion,
                 databases: structure.databases.map { DatabaseInfo(name: $0.name, schemaCount: $0.schemaCount,
                     stateDescription: $0.stateDescription, hasAccess: $0.hasAccess) }))
         records.append(LocalRecord(collection: "metadata-catalog", id: connection.id.uuidString,
-            group: connection.id.uuidString, payload: try JSONEncoder().encode(catalog), isCache: true))
+            group: connection.id.uuidString, payload: try LocalRecordEncoding.encode(catalog), isCache: true))
         try await storage.writeBatch(records)
         await pruneToLimit(limitBytes)
+    }
+
+    func finishLegacyImport(knownConnections: Set<UUID>) async {
+        do {
+            let files = (try? FileManager.default.contentsOfDirectory(at: configuration.rootDirectory,
+                includingPropertiesForKeys: nil)) ?? []
+            for url in files where url.pathExtension == "json" {
+                guard let id = UUID(uuidString: url.deletingPathExtension().lastPathComponent),
+                      !knownConnections.contains(id) else { return }
+                let data = try Data(contentsOf: url)
+                _ = try JSONDecoder().decode(ObjectBrowserCacheEntry.self, from: data)
+                try await storage.write(.init(collection: "metadata-unclaimed", id: id.uuidString, payload: data, isCache: true))
+                _ = try await storage.read(collection: "metadata-unclaimed", id: id.uuidString)
+                try FileManager.default.removeItem(at: url)
+            }
+            if !(try await storage.hasMigration("metadata-import-finished")) {
+                try await storage.remove(collection: "legacy-metadata")
+                try await storage.finishMigration("metadata-import-finished")
+                try await storage.compact()
+            }
+        } catch {
+            Logger(subsystem: "dev.echodb.echo", category: "local-storage").error("Metadata import cleanup paused: \(error.localizedDescription)")
+        }
     }
 
     func currentUsageBytes() async -> UInt64 {
@@ -105,6 +140,7 @@ actor ObjectBrowserCacheStore {
             try await storage.remove(collection: "metadata-catalog")
             try await storage.remove(collection: "metadata-database")
             try await storage.remove(collection: "legacy-metadata")
+            try await storage.remove(collection: "metadata-unclaimed")
         } catch {
             Logger(subsystem: "dev.echodb.echo", category: "local-storage").error("Cache clearing failed: \(error.localizedDescription)")
         }

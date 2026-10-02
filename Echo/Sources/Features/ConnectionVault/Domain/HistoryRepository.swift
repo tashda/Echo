@@ -1,3 +1,6 @@
+import Synchronization
+import EchoLocalStorage
+import OSLog
 import Foundation
 
 struct RecentConnectionRecord: Codable, Identifiable, Equatable, Sendable {
@@ -24,28 +27,35 @@ protocol HistoryRepositoryProtocol: Sendable {
     func saveRecentConnections(_ records: [RecentConnectionRecord])
 }
 
-final class HistoryRepository: HistoryRepositoryProtocol, @unchecked Sendable {
-    private let userDefaults = UserDefaults.standard
-    private let recentConnectionsKey = "recentConnections"
-    private let maxRecords = 20
-    
-    func loadRecentConnections() -> [RecentConnectionRecord] {
-        guard let data = userDefaults.data(forKey: recentConnectionsKey),
-              let records = try? JSONDecoder().decode([RecentConnectionRecord].self, from: data) else {
-            return []
-        }
-        return records
+final class HistoryRepository: HistoryRepositoryProtocol {
+    private struct State { var records: [RecentConnectionRecord] = []; var revision: UInt64 = 0; var available = true }
+    private let state = Mutex(State())
+
+    func hydrate() async throws {
+        do {
+            let data = try await LocalArchive.shared.load(collection: "recent-connections",
+                legacyData: EncryptedRecordStore.isTestHost ? nil : UserDefaults.standard.data(forKey: "recentConnections"))
+            let stored = try data.map { try JSONDecoder().decode([RecentConnectionRecord].self, from: $0) } ?? []
+            state.withLock { $0.records = stored }
+            if !EncryptedRecordStore.isTestHost { UserDefaults.standard.removeObject(forKey: "recentConnections") }
+        } catch { state.withLock { $0.available = false }; throw error }
     }
 
+    func loadRecentConnections() -> [RecentConnectionRecord] { state.withLock { $0.records } }
     func loadRecentConnections(forProjectID projectID: UUID) -> [RecentConnectionRecord] {
         loadRecentConnections().filter { $0.projectID == projectID }
     }
-    
     func saveRecentConnections(_ records: [RecentConnectionRecord]) {
-        let sorted = records.sorted { $0.lastUsedAt > $1.lastUsedAt }
-        let limited = Array(sorted.prefix(maxRecords))
-        if let data = try? JSONEncoder().encode(limited) {
-            userDefaults.set(data, forKey: recentConnectionsKey)
+        let (snapshot, revision, available) = state.withLock { state in
+            state.records = Array(records.sorted { $0.lastUsedAt > $1.lastUsedAt }.prefix(20))
+            state.revision += 1
+            return (state.records, state.revision, state.available)
+        }
+        guard available else { return }
+        Task(name: "Save encrypted recent connections") {
+            do {
+                try await LocalArchive.shared.saveVersioned(LocalRecordEncoding.encode(snapshot), collection: "recent-connections", revision: revision)
+            } catch { Logger(subsystem: "dev.echodb.echo", category: "local-storage").error("Couldn't save recent connections: \(error.localizedDescription)") }
         }
     }
 }

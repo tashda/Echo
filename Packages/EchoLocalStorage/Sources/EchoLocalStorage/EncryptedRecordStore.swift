@@ -13,8 +13,17 @@ public actor EncryptedRecordStore {
         }
     }
 
-    public static let shared = EncryptedRecordStore(configuration: .init(url: defaultURL))
+    public static let shared = EncryptedRecordStore(configuration: .init(url: defaultURL,
+        encryption: isTestHost ? LocalEncryption(key: SymmetricKey(size: .bits256)) : nil))
+    public static var isTestHost: Bool {
+        let environment = ProcessInfo.processInfo.environment
+        return environment["XCTestConfigurationFilePath"] != nil || environment["XCTestBundlePath"] != nil
+            || NSClassFromString("XCTestCase") != nil
+    }
     public static var defaultURL: URL {
+        if isTestHost {
+            return FileManager.default.temporaryDirectory.appendingPathComponent("EchoTestHost-\(ProcessInfo.processInfo.processIdentifier)/LocalStorage.sqlite")
+        }
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
         return base.appendingPathComponent("Echo/LocalStorage.sqlite")
@@ -189,6 +198,15 @@ public actor EncryptedRecordStore {
                 total -= min(total, size)
             }
         }
+    }
+
+    /// Used once after retiring this Mac's duplicate legacy snapshots; not on every cache write.
+    public func compact() throws {
+        let db = try database()
+        try db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        try db.execute("VACUUM")
+        try db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        try secureFiles()
     }
 
     public func hasMigration(_ name: String) throws -> Bool { try read(collection: "migration", id: name) != nil }

@@ -234,6 +234,14 @@ struct SyncDocument: Codable, Sendable, Identifiable, Equatable {
     }
 }
 
+extension SyncDocument {
+    /// Only the routing project ID changes; stable object IDs and E2E field identities are retained.
+    func scoped(to projectID: UUID) -> SyncDocument {
+        SyncDocument(id: id, collection: collection, projectID: projectID, fields: fields,
+            isDeleted: isDeleted, deletedAt: deletedAt)
+    }
+}
+
 // MARK: - Sync Pull Response
 
 /// Response from the server's `sync_pull` RPC function.

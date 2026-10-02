@@ -1,20 +1,22 @@
 import XCTest
+import EchoLocalStorage
 @testable import Echo
 
 final class ResultSpoolerTests: XCTestCase {
+    private var fixture: LocalStorageFixture!
     private var tempRoot: URL!
     private var manager: ResultSpooler!
 
     override func setUp() async throws {
-        tempRoot = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ResultSpoolerTests-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
+        fixture = try LocalStorageFixture()
+        tempRoot = fixture.directory.appendingPathComponent("Results")
         let config = ResultSpoolConfiguration.defaultConfiguration(rootDirectory: tempRoot)
-        manager = ResultSpooler(configuration: config)
+        manager = ResultSpooler(configuration: config, storage: fixture.storage)
     }
 
     override func tearDown() async throws {
-        try? FileManager.default.removeItem(at: tempRoot)
+        await manager.clearAll()
+        fixture.cleanup()
     }
 
     // MARK: - Create Spool

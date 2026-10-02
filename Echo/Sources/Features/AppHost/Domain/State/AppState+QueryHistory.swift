@@ -40,7 +40,9 @@ extension AppState {
         historySaveTask?.cancel()
         queryHistory.removeAll()
         historyWasCleared = true
-        saveQueryHistory()
+        if historyDefaults !== UserDefaults.standard {
+            historyDefaults.set(Data("[]".utf8), forKey: "queryHistory")
+        } else { saveQueryHistory() }
     }
 
     func pruneQueryHistory(now: Date = Date()) {
@@ -63,14 +65,14 @@ extension AppState {
         historyLoadTask = Task(name: "Load encrypted query history") {
             do {
                 let data = try await LocalArchive.shared.load(collection: "query-history",
-                    legacyData: historyDefaults.data(forKey: "queryHistory"))
+                    legacyData: EncryptedRecordStore.isTestHost ? nil : historyDefaults.data(forKey: "queryHistory"))
                 if let data, !historyWasCleared {
                     let stored = try JSONDecoder().decode([QueryHistoryItem].self, from: data)
                     let currentIDs = Set(queryHistory.map(\.id))
                     queryHistory += stored.filter { !currentIDs.contains($0.id) && !removedHistoryIDs.contains($0.id) }
                     queryHistory.sort { $0.timestamp > $1.timestamp }
                 }
-                historyDefaults.removeObject(forKey: "queryHistory")
+                if !EncryptedRecordStore.isTestHost { historyDefaults.removeObject(forKey: "queryHistory") }
                 pruneQueryHistory()
             } catch {
                 historyStorageAvailable = false

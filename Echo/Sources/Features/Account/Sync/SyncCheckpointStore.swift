@@ -8,11 +8,11 @@ actor SyncCheckpointStore {
     func setAccount(_ account: String) { self.account = account }
     func load() async throws {
         _ = try await storage.encryptionContext()
-        let url = LocalConfigurationArchive.legacyURL("sync_checkpoints.json")
-        if FileManager.default.fileExists(atPath: url.path) {
-            let checkpoints = try JSONDecoder().decode([SyncCheckpoint].self, from: Data(contentsOf: url))
+        if try await LocalSyncImport.originalAccount() == account,
+           let data = try await LocalArchive.shared.load(collection: "legacy-sync-checkpoints") {
+            let checkpoints = try JSONDecoder().decode([SyncCheckpoint].self, from: data)
             for checkpoint in checkpoints { try await update(projectID: checkpoint.projectID, checkpoint: checkpoint.checkpoint) }
-            try FileManager.default.removeItem(at: url)
+            try await LocalArchive.shared.remove(collection: "legacy-sync-checkpoints")
         }
     }
 

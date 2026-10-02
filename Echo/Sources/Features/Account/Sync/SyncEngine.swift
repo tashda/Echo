@@ -87,11 +87,13 @@ final class SyncEngine {
     /// Checks if a different user signed in. If so, resets sync state.
     /// Same user signing back in keeps `isSyncEnabled` intact.
     func resetIfUserChanged(currentUserID: String?) async {
-        guard let currentUserID else { return }
-        let currentUserID = currentUserID.lowercased()
+        guard let userID = currentUserID else { return }
+        let currentUserID = userID.lowercased()
 
         do {
-            let previous = try await EncryptedRecordStore.shared.syncContext()?.account
+            let storedAccount = try await EncryptedRecordStore.shared.syncContext()?.account
+            var previous = storedAccount
+            if previous == nil { previous = try await LocalSyncImport.originalAccount() }
             if let previous, previous != currentUserID, let projectStore {
                 for index in projectStore.projects.indices { projectStore.projects[index].isSyncEnabled = false }
                 try await projectStore.saveProjects(projectStore.projects)
@@ -206,7 +208,7 @@ final class SyncEngine {
 
     // MARK: - Pull
 
-    private func pullChanges(for project: Project, serverProjectID: UUID) async throws {
+    func pullChanges(for project: Project, serverProjectID: UUID) async throws {
         let checkpoint = await checkpointStore.checkpoint(for: project.id)
 
         var hasMore = true
@@ -230,7 +232,7 @@ final class SyncEngine {
 
             // Apply remote changes to local stores (filtered by user preferences)
             let enabled = SyncPreferences.enabledCollections()
-            let filtered = response.documents.filter { enabled.contains($0.collection) }
+            let filtered = response.documents.filter { enabled.contains($0.collection) }.map { $0.scoped(to: project.id) }
             try await applyRemoteChanges(filtered, project: project, checkpoint: response.newCheckpoint)
 
             currentCheckpoint = response.newCheckpoint

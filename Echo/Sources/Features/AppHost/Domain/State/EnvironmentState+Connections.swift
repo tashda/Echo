@@ -200,6 +200,7 @@ extension EnvironmentState {
                 fingerprint: connection.cacheFingerprint(identity: connectionStore.identities.first { $0.id == connection.identityID })
             )
         }
+        await objectBrowserCacheStore.finishLegacyImport(knownConnections: Set(connectionStore.connections.map(\.id)))
     }
 
     // MARK: - Bookmarks

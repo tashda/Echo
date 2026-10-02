@@ -67,12 +67,17 @@ struct NotificationHistoryTests {
         #expect(plain.detail == nil)
     }
 
-    @Test func survivesRelaunch() throws {
+    @Test func survivesRelaunch() async throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("notification-history-\(UUID()).json")
         defer { try? FileManager.default.removeItem(at: url) }
-        let first = NotificationHistory(fileURL: url)
+        let fixture = try LocalStorageFixture()
+        defer { fixture.cleanup() }
+        let archive = LocalArchive(storage: fixture.storage)
+        let first = NotificationHistory(fileURL: url, archive: archive)
         first.append(record("kept", server: "alpha"))
-        let second = NotificationHistory(fileURL: url)
+        await first.flushPersistence()
+        let second = NotificationHistory(fileURL: url, archive: archive)
+        await second.flushPersistence()
         #expect(second.records.map(\.message) == ["kept"])
         #expect(second.unreadCount == 1)
     }

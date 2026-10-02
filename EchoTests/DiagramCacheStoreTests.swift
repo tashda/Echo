@@ -36,8 +36,10 @@ final class DiagramCacheStoreTests: XCTestCase {
     }
 
     func testCacheManagerStashAndRetrievePayload() async throws {
-        let tempRoot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let manager = DiagramCacheStore(configuration: DiagramCacheStore.Configuration(rootDirectory: tempRoot))
+        let fixture = try LocalStorageFixture()
+        defer { fixture.cleanup() }
+        let tempRoot = fixture.directory
+        let manager = DiagramCacheStore(configuration: DiagramCacheStore.Configuration(rootDirectory: tempRoot), storage: fixture.storage)
         let key = DiagramCacheKey(
             projectID: UUID(),
             connectionID: UUID(),

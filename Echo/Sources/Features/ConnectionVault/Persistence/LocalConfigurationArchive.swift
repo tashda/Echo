@@ -17,12 +17,7 @@ enum LocalConfigurationArchive {
             if FileManager.default.fileExists(atPath: url.path) {
                 let values = try await decodeLegacy([Value].self, url: url)
                 if let connections = values as? [SavedConnection] {
-                    for connection in connections {
-                        if let structure = connection.cachedStructure {
-                            try await storage.write(LocalRecord(collection: "legacy-metadata", id: connection.id.uuidString,
-                                payload: try LocalRecordEncoding.encode(structure), isCache: true))
-                        }
-                    }
+                    // Metadata is imported separately from fingerprinted ObjectBrowserCache files.
                     try await ConnectionDiskStore().save(connections)
                 } else {
                     try await save(values, collection: collection)

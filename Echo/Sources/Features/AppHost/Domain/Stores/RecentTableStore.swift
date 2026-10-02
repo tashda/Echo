@@ -1,4 +1,6 @@
 import Foundation
+import EchoLocalStorage
+import OSLog
 import Observation
 
 /// A table the user opened from Echo (its data, structure or diagram), remembered per
@@ -31,16 +33,38 @@ final class RecentTableStore {
 
     private(set) var tables: [RecentTable]
     @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private var loadTask: Task<Void, Never>?
+    @ObservationIgnored private var revision: UInt64 = 0
+    @ObservationIgnored private var forgottenConnections: Set<UUID> = []
+    @ObservationIgnored private var available = true
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        if let data = defaults.data(forKey: Self.defaultsKey),
+        if defaults !== UserDefaults.standard, let data = defaults.data(forKey: Self.defaultsKey),
            let stored = try? JSONDecoder().decode([RecentTable].self, from: data) {
             tables = stored
         } else {
             tables = []
         }
+        if defaults === UserDefaults.standard {
+            loadTask = Task(name: "Load encrypted recent tables") {
+                do {
+                    if let data = try await LocalArchive.shared.load(collection: "recent-tables", legacyData: EncryptedRecordStore.isTestHost ? nil : defaults.data(forKey: Self.defaultsKey)) {
+                        let stored = try JSONDecoder().decode([RecentTable].self, from: data)
+                        let ids = Set(tables.map(\.id))
+                        tables += stored.filter { !ids.contains($0.id) && !forgottenConnections.contains($0.connectionID) }
+                        tables = Array(tables.sorted { $0.openedAt > $1.openedAt }.prefix(Self.capacity))
+                    }
+                    if !EncryptedRecordStore.isTestHost { defaults.removeObject(forKey: Self.defaultsKey) }
+                } catch {
+                    available = false
+                    Logger(subsystem: "dev.echodb.echo", category: "local-storage").error("Recent tables are unavailable: \(error.localizedDescription)")
+                }
+            }
+        }
     }
+
+    func finishLoading() async { await loadTask?.value }
 
     func record(connectionID: UUID, databaseName: String?, schema: String, name: String, at date: Date = Date()) {
         let database = databaseName?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -64,13 +88,23 @@ final class RecentTableStore {
     }
 
     func forget(connectionID: UUID) {
+        forgottenConnections.insert(connectionID)
         tables.removeAll { $0.connectionID == connectionID }
         save()
     }
 
     private func save() {
-        if let data = try? JSONEncoder().encode(tables) {
-            defaults.set(data, forKey: Self.defaultsKey)
+        guard defaults === UserDefaults.standard else {
+            if let data = try? LocalRecordEncoding.encode(tables) { defaults.set(data, forKey: Self.defaultsKey) }
+            return
+        }
+        revision += 1
+        let generation = revision
+        Task(name: "Save encrypted recent tables") {
+            await loadTask?.value
+            guard available else { return }
+            do { try await LocalArchive.shared.saveVersioned(LocalRecordEncoding.encode(tables), collection: "recent-tables", revision: generation) }
+            catch { Logger(subsystem: "dev.echodb.echo", category: "local-storage").error("Couldn't save recent tables: \(error.localizedDescription)") }
         }
     }
 }

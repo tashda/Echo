@@ -8,6 +8,7 @@ final class SQLiteConnection {
     }
 
     private let handle: OpaquePointer
+    private var closed = false
     private let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
     init(url: URL) throws {
@@ -28,11 +29,12 @@ final class SQLiteConnection {
             try execute("PRAGMA journal_size_limit=8388608")
         } catch {
             sqlite3_close_v2(handle)
+            closed = true
             throw error
         }
     }
 
-    deinit { sqlite3_close_v2(handle) }
+    deinit { if !closed { sqlite3_close_v2(handle) } }
 
     func execute(_ sql: String, _ values: [Value] = []) throws {
         try query(sql, values) { _ in }

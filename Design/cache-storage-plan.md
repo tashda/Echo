@@ -79,3 +79,16 @@ commit configuration and each page's checkpoint in one transaction, refuse to
 overwrite pending edits, and suppress re-upload of downloaded changes. Installation
 encryption is unchanged by login or logout. Stable canonical encoding avoids
 rewriting unchanged records. Final build/test/runtime and migration review follows.
+
+Final-stage review: 91 targeted checks passed; full UnitTests passed 2,538 with
+two unrelated ServerHeaderPaintTests failures (the expected `.wash` default differs
+from the current UI design). Do not change those unrelated design files. Metadata
+fetch failures now throw rather than masquerading as authoritative empty results.
+Caches warm even if remote refresh fails; remaining connected-server metadata is
+decoded off MainActor and published in one update to avoid repeated tree/search
+re-indexing. Recent servers/tables and Explorer expansion state are encrypted too.
+The test host originally used installation storage: corrected with a dedicated
+process-specific temporary database/key and result directory, with a passing
+isolation regression. Completion history was restored from an authenticated
+snapshot after the full run reset it. The restored three contexts re-encode to
+the original 3,723-byte archive. Temporary recovery code/files have been removed.

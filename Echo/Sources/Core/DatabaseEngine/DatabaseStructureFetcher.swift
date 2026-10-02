@@ -96,10 +96,7 @@ public struct PostgresStructureFetcher: DatabaseStructureFetcher {
             targetSession = try await session.sessionForDatabase(targetDatabase)
         } catch {
             structureLogger.warning("PostgreSQL: failed to connect to database '\(targetDatabase)': \(error.localizedDescription)")
-            let emptyDb = DatabaseInfo(name: targetDatabase, schemas: [], schemaCount: 0)
-            echoDatabases.append(emptyDb)
-            await databaseHandler(emptyDb, targetDatabase, "PostgreSQL")
-            return DatabaseStructure(serverVersion: "PostgreSQL", databases: echoDatabases)
+            throw error
         }
 
         // Fetch schemas and objects for the single target database
@@ -108,7 +105,7 @@ public struct PostgresStructureFetcher: DatabaseStructureFetcher {
             schemas = try await targetSession.listSchemas()
         } catch {
             structureLogger.warning("PostgreSQL listSchemas failed for '\(targetDatabase)': \(error)")
-            schemas = ["public"]
+            throw error
         }
 
         var schemaInfos: [SchemaInfo] = []
@@ -129,6 +126,7 @@ public struct PostgresStructureFetcher: DatabaseStructureFetcher {
                 }
             } catch {
                 structureLogger.warning("PostgreSQL: failed to load schema '\(schema)' in '\(targetDatabase)': \(error)")
+                throw error
             }
         }
 
@@ -229,6 +227,7 @@ public struct SQLiteStructureFetcher: DatabaseStructureFetcher {
                     }
                 } catch {
                     structureLogger.warning("SQLite: failed to load schema for '\(dbName)': \(error)")
+                    throw error
                 }
             } else {
                 // Fallback: load tables and views only
@@ -239,6 +238,7 @@ public struct SQLiteStructureFetcher: DatabaseStructureFetcher {
                     }
                 } catch {
                     structureLogger.warning("SQLite: failed to load objects for '\(dbName)': \(error)")
+                    throw error
                 }
             }
 
@@ -321,9 +321,7 @@ public struct MySQLStructureFetcher: DatabaseStructureFetcher {
                 await databaseHandler(databaseInfo, selectedDatabase, "MySQL")
             } catch {
                 structureLogger.warning("MySQL: failed to load database '\(selectedDatabase)': \(error.localizedDescription)")
-                let fallback = DatabaseInfo(name: selectedDatabase, schemas: [], schemaCount: 0)
-                databases.append(fallback)
-                await databaseHandler(fallback, selectedDatabase, "MySQL")
+                throw error
             }
 
             await progressHandler(Progress(fraction: 1.0, message: "Done"))
@@ -430,9 +428,7 @@ public struct MSSQLStructureFetcher: DatabaseStructureFetcher {
                     await databaseHandler(databaseInfo, selectedDatabase, "Microsoft SQL Server")
                 } catch {
                     structureLogger.warning("SQL Server: failed to load database '\(selectedDatabase)': \(error.localizedDescription)")
-                    let fallback = DatabaseInfo(name: selectedDatabase, schemas: [], schemaCount: 0)
-                    databases.append(fallback)
-                    await databaseHandler(fallback, selectedDatabase, "Microsoft SQL Server")
+                    throw error
                 }
 
                 await progressHandler(Progress(fraction: 1.0, message: "Done"))

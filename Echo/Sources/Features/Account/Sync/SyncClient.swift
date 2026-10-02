@@ -63,7 +63,7 @@ nonisolated final class SyncClient: Sendable {
 
     /// Push local changes to the server.
     func push(changes: [SyncDocument], projectID: UUID) async throws -> SyncPushResponse {
-        let params = SyncPushParams(p_changes: changes)
+        let params = SyncPushParams(p_changes: changes.map { $0.scoped(to: projectID) })
 
         do {
             let response: SyncPushResponse = try await client.rpc(

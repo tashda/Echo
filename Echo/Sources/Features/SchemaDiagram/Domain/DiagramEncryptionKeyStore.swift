@@ -36,10 +36,7 @@ struct DiagramEncryptionKeyStore: Sendable {
     private func loadKey(identifier: String) throws -> SymmetricKey? {
         do {
             let base64 = try keychain.getPassword(account: account(for: identifier))
-            guard let data = Data(base64Encoded: base64) else {
-                try? keychain.deletePassword(account: account(for: identifier))
-                return nil
-            }
+            guard let data = Data(base64Encoded: base64), data.count == 32 else { throw KeyError.invalidKey }
             return SymmetricKey(data: data)
         } catch KeychainVault.KeychainError.unexpectedStatus(let status) where status == errSecItemNotFound {
             return nil
@@ -71,5 +68,6 @@ struct DiagramEncryptionKeyStore: Sendable {
 extension DiagramEncryptionKeyStore {
     enum KeyError: Error {
         case notFound
+        case invalidKey
     }
 }

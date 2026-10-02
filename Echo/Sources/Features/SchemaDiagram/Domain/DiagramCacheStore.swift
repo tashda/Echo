@@ -15,6 +15,7 @@ actor DiagramCacheStore {
     }
 
     static func defaultRootDirectory() -> URL {
+        if EncryptedRecordStore.isTestHost { return EncryptedRecordStore.defaultURL.deletingLastPathComponent().appendingPathComponent("DiagramCache") }
         let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
         return base.appendingPathComponent("Echo/DiagramCache", isDirectory: true)

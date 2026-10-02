@@ -1,11 +1,14 @@
 import Foundation
+import EchoLocalStorage
 import Testing
 @testable import Echo
 
 @Suite("Object Browser Cache Store")
 struct ObjectBrowserCacheStoreTests {
     @Test func ignoresEntryWhenConnectionFingerprintChanges() async throws {
-        let store = ObjectBrowserCacheStore(configuration: .init(rootDirectory: try makeTempDirectory()))
+        let fixture = try LocalStorageFixture()
+        defer { fixture.cleanup() }
+        let store = ObjectBrowserCacheStore(configuration: .init(rootDirectory: fixture.directory), storage: fixture.storage)
         let structure = TestFixtures.databaseStructure(databaseCount: 1, schemasPerDatabase: 1, tablesPerSchema: 1)
         let original = SavedConnection(
             id: UUID(),
@@ -29,7 +32,9 @@ struct ObjectBrowserCacheStoreTests {
     /// Legacy inline caches carry no fingerprint, so they could belong to the server a saved
     /// connection pointed at before it was edited: they are never moved into the store.
     @Test func doesNotMigrateLegacyInlineCache() async throws {
-        let store = ObjectBrowserCacheStore(configuration: .init(rootDirectory: try makeTempDirectory()))
+        let fixture = try LocalStorageFixture()
+        defer { fixture.cleanup() }
+        let store = ObjectBrowserCacheStore(configuration: .init(rootDirectory: fixture.directory), storage: fixture.storage)
         let structure = TestFixtures.databaseStructure(databaseCount: 1, schemasPerDatabase: 1, tablesPerSchema: 2)
         let connection = SavedConnection(
             id: UUID(),
@@ -48,49 +53,43 @@ struct ObjectBrowserCacheStoreTests {
         #expect(await store.entry(for: connection) == nil)
     }
 
-    @Test func prunesOldestEntriesFirstWhenOverLimit() async throws {
-        let directory = try makeTempDirectory()
-        let store = ObjectBrowserCacheStore(configuration: .init(rootDirectory: directory))
-        let oldConnection = SavedConnection(
-            id: UUID(),
-            connectionName: "Old",
-            host: "old.local",
-            port: 5432,
-            database: "old",
-            username: "echo"
-        )
-        let newConnection = SavedConnection(
-            id: UUID(),
-            connectionName: "New",
-            host: "new.local",
-            port: 5432,
-            database: "new",
-            username: "echo"
-        )
+    @Test func initialLoadHydratesOnlySelectedDatabaseAndPreservesActiveCache() async throws {
+        let fixture = try LocalStorageFixture()
+        defer { fixture.cleanup() }
+        let store = ObjectBrowserCacheStore(configuration: .init(rootDirectory: fixture.directory), storage: fixture.storage)
+        let structure = TestFixtures.databaseStructure(databaseCount: 3, schemasPerDatabase: 2, tablesPerSchema: 10)
+        let connection = SavedConnection(id: UUID(), connectionName: "Cache", host: "cache.local", port: 5432,
+            database: structure.databases[0].name, username: "echo")
+        try await store.stashStructure(structure, for: connection, limitBytes: Int.max)
+        let selected = await store.entry(for: connection, databaseName: structure.databases[0].name)
+        #expect(selected?.structure.databases[0].schemas.count == 2)
+        #expect(selected?.structure.databases[1].schemas.isEmpty == true)
+        let later = try await store.database(structure.databases[1].name, for: connection, fingerprint: connection.objectBrowserCacheFingerprint)
+        #expect(later?.schemas.count == 2)
+        #expect(try await store.databases(for: connection, fingerprint: connection.objectBrowserCacheFingerprint).count == 3)
+        await store.setProtectedConnections([connection.id])
+        await store.pruneToLimit(0)
+        #expect(try await store.database(structure.databases[0].name, for: connection, fingerprint: connection.objectBrowserCacheFingerprint) != nil)
+        await store.setProtectedConnections([])
+        await store.pruneToLimit(0)
+        #expect(try await store.database(structure.databases[0].name, for: connection, fingerprint: connection.objectBrowserCacheFingerprint) == nil)
+    }
 
-        let oldEntry = ObjectBrowserCacheEntry(
-            key: ObjectBrowserCacheKey(connectionID: oldConnection.id),
-            connectionFingerprint: oldConnection.objectBrowserCacheFingerprint,
-            updatedAt: Date(timeIntervalSince1970: 1_000),
-            structure: TestFixtures.databaseStructure(databaseCount: 3, schemasPerDatabase: 2, tablesPerSchema: 10)
-        )
-        let newEntry = ObjectBrowserCacheEntry(
-            key: ObjectBrowserCacheKey(connectionID: newConnection.id),
-            connectionFingerprint: newConnection.objectBrowserCacheFingerprint,
-            updatedAt: Date(timeIntervalSince1970: 2_000),
-            structure: TestFixtures.databaseStructure(databaseCount: 3, schemasPerDatabase: 2, tablesPerSchema: 10)
-        )
-
-        let encoder = JSONEncoder()
-        let oldData = try encoder.encode(oldEntry)
-        let newData = try encoder.encode(newEntry)
-        try oldData.write(to: directory.appendingPathComponent("\(oldConnection.id.uuidString).json"))
-        try newData.write(to: directory.appendingPathComponent("\(newConnection.id.uuidString).json"))
-
-        await store.pruneToLimit(oldData.count + 1)
-
-        #expect(await store.entry(for: oldConnection) == nil)
-        #expect(await store.entry(for: newConnection) != nil)
+    @Test func importsFingerprintMatchedLegacyCacheAndRetiresSource() async throws {
+        let fixture = try LocalStorageFixture()
+        defer { fixture.cleanup() }
+        try FileManager.default.createDirectory(at: fixture.directory, withIntermediateDirectories: true)
+        let connection = SavedConnection(connectionName: "Legacy", host: "legacy.local", port: 5432, database: "db_0", username: "test")
+        let structure = TestFixtures.databaseStructure(databaseCount: 1, schemasPerDatabase: 1, tablesPerSchema: 1)
+        let entry = ObjectBrowserCacheEntry(key: .init(connectionID: connection.id),
+            connectionFingerprint: connection.legacyObjectBrowserCacheFingerprint, updatedAt: Date(), structure: structure)
+        let url = fixture.directory.appendingPathComponent(connection.id.uuidString + ".json")
+        try JSONEncoder().encode(entry).write(to: url)
+        let store = ObjectBrowserCacheStore(configuration: .init(rootDirectory: fixture.directory), storage: fixture.storage)
+        await store.migrateLegacyCacheIfNeeded(from: connection, limitBytes: Int.max)
+        let restored = try await store.database(structure.databases[0].name, for: connection, fingerprint: connection.objectBrowserCacheFingerprint)
+        #expect(restored?.schemas.count == 1)
+        #expect(!FileManager.default.fileExists(atPath: url.path))
     }
 
     private func makeTempDirectory() throws -> URL {

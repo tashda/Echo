@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		EC0A10000000000000000003 /* EchoLocalStorage in Frameworks */ = {isa = PBXBuildFile; productRef = EC0A10000000000000000002 /* EchoLocalStorage */; };
 		0A41EC802F7C0B8500AD776A /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 0A41EC7F2F7C0B8500AD776A /* Auth */; };
 		0A41EC822F7C0B8500AD776A /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = 0A41EC812F7C0B8500AD776A /* Functions */; };
 		0A41EC842F7C0B8500AD776A /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = 0A41EC832F7C0B8500AD776A /* PostgREST */; };
@@ -26,6 +25,7 @@
 		0AAD000300000000000000AD /* ActiveDirectory in Frameworks */ = {isa = PBXBuildFile; productRef = 0AAD000200000000000000AD /* ActiveDirectory */; };
 		0ADE5D00000000000000A003 /* EchoDesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 0ADE5D00000000000000A002 /* EchoDesignSystem */; };
 		EA74938A42BEA42306934B73 /* ServerLabClient in Frameworks */ = {isa = PBXBuildFile; productRef = FD3382FC2CB7A2B3917A4282 /* ServerLabClient */; };
+		EC0A10000000000000000003 /* EchoLocalStorage in Frameworks */ = {isa = PBXBuildFile; productRef = EC0A10000000000000000002 /* EchoLocalStorage */; };
 		ELB001000000000000000001 /* CLibpq in Frameworks */ = {isa = PBXBuildFile; productRef = ELB002000000000000000001 /* CLibpq */; };
 		PGT001000000000000000001 /* pg_dump in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000001 /* pg_dump */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		PGT001000000000000000002 /* pg_restore in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000002 /* pg_restore */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
@@ -762,10 +762,13 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		EC0A10000000000000000001 /* XCLocalSwiftPackageReference "Packages/EchoLocalStorage" */ = {isa = XCLocalSwiftPackageReference; relativePath = Packages/EchoLocalStorage; };
 		0ADE5D00000000000000A001 /* XCLocalSwiftPackageReference "Packages/EchoDesignSystem" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/EchoDesignSystem;
+		};
+		EC0A10000000000000000001 /* XCLocalSwiftPackageReference "Packages/EchoLocalStorage" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/EchoLocalStorage;
 		};
 /* End XCLocalSwiftPackageReference section */
 
@@ -863,7 +866,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		EC0A10000000000000000002 /* EchoLocalStorage */ = {isa = XCSwiftPackageProductDependency; productName = EchoLocalStorage; };
 		0A41EC7F2F7C0B8500AD776A /* Auth */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 0A41EC7E2F7C0B8500AD776A /* XCRemoteSwiftPackageReference "supabase-swift" */;
@@ -947,6 +949,10 @@
 		0ADE5D00000000000000A002 /* EchoDesignSystem */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = EchoDesignSystem;
+		};
+		EC0A10000000000000000002 /* EchoLocalStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = EchoLocalStorage;
 		};
 		ELB002000000000000000001 /* CLibpq */ = {
 			isa = XCSwiftPackageProductDependency;

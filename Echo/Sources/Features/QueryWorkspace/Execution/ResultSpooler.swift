@@ -3,13 +3,7 @@ import EchoLocalStorage
 
 actor ResultSpooler {
     static func defaultRootDirectory() -> URL {
-        let fm = FileManager.default
-        #if os(macOS)
-        let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first ?? fm.temporaryDirectory
-        #else
-        let base = fm.urls(for: .cachesDirectory, in: .userDomainMask).first ?? fm.temporaryDirectory
-        #endif
-        return base.appendingPathComponent("Echo", isDirectory: true).appendingPathComponent("ResultCache", isDirectory: true)
+        EncryptedRecordStore.defaultURL.deletingLastPathComponent().appendingPathComponent("ResultCache", isDirectory: true)
     }
 
     private let storage: EncryptedRecordStore

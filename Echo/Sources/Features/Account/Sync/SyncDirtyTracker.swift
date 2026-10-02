@@ -9,18 +9,17 @@ actor SyncDirtyTracker {
     func setAccount(_ account: String) { self.account = account }
     func load() async throws {
         _ = try await storage.pendingChanges(account: account)
-        let url = LocalConfigurationArchive.legacyURL("sync_dirty.json")
-        if FileManager.default.fileExists(atPath: url.path) {
+        if try await LocalSyncImport.originalAccount() == account,
+           let data = try await LocalArchive.shared.load(collection: "legacy-sync-dirty") {
             struct LegacyItem: Codable { let id: UUID; let collection: SyncCollection; let projectID: UUID; let isDelete: Bool }
-            let items = try JSONDecoder().decode([LegacyItem].self, from: Data(contentsOf: url))
+            let items = try JSONDecoder().decode([LegacyItem].self, from: data)
             for item in items {
                 try await storage.markPending(collection: item.collection.rawValue, id: item.id.uuidString,
                     project: item.projectID.uuidString, isDelete: item.isDelete)
             }
-            try FileManager.default.removeItem(at: url)
+            try await LocalArchive.shared.remove(collection: "legacy-sync-dirty")
         }
     }
-
     func markDirty(id: UUID, collection: SyncCollection, projectID: UUID) async throws {
         try await storage.markPending(collection: collection.rawValue, id: id.uuidString,
             project: projectID.uuidString, isDelete: false)

@@ -34,6 +34,8 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
 
             ConnectionDebug.log("[SchemaDiscovery] Starting structure load for \(session.connection.connectionName)")
 
+            // Warm the remaining local metadata even if the subsequent server refresh fails.
+            await self.hydrateCachedDatabases(for: session)
             let handle = AppDirector.shared.activityEngine.begin("Loading databases", connectionSessionID: session.id)
             do {
                 _ = try await self.loadDatabaseStructureForSession(session)
@@ -366,19 +368,25 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
     }
 
     private func hydrateCachedDatabases(for session: ConnectionSession) async {
-        guard let fingerprint = session.cacheFingerprint else { return }
-        let names = session.databaseStructure?.databases.map(\.name) ?? []
-        for name in names {
+        guard let fingerprint = session.cacheFingerprint, session.connectionState.isConnected else { return }
+        do {
+            let cached = try await objectBrowserCacheStore.databases(for: session.connection, fingerprint: fingerprint)
             guard !Task.isCancelled, session.connectionState.isConnected else { return }
-            guard session.metadataFreshness(forDatabase: name) == .listOnly else { continue }
-            do {
-                if let cached = try await objectBrowserCacheStore.database(name, for: session.connection, fingerprint: fingerprint),
-                   session.metadataFreshness(forDatabase: name) == .listOnly {
-                    mergeSingleDatabase(cached, into: session)
-                    session.metadataFreshnessByDatabase[session.schemaLoadKey(name)] = .cached
-                }
-            } catch { ConnectionDebug.log("Cached database unavailable: \(error.localizedDescription)") }
-        }
+            var databases = session.databaseStructure?.databases ?? []
+            let indices = Dictionary(uniqueKeysWithValues: databases.enumerated().map { ($0.element.name, $0.offset) })
+            var changed = false
+            for database in cached {
+                guard let index = indices[database.name], session.metadataFreshness(forDatabase: database.name) == .listOnly else { continue }
+                // Keep live access/state details while filling the catalog's empty schemas.
+                databases[index] = Self.mergeDatabaseInfo(partial: databases[index], existing: database)
+                session.metadataFreshnessByDatabase[session.schemaLoadKey(database.name)] = .cached
+                changed = true
+            }
+            if changed {
+                let updated = DatabaseStructure(serverVersion: session.databaseStructure?.serverVersion, databases: databases)
+                applyStructureUpdate(updated, to: session, cacheResult: false)
+            }
+        } catch { ConnectionDebug.log("Cached database warm-up unavailable: \(error.localizedDescription)") }
     }
 
     static func mergeDatabaseInfo(partial: DatabaseInfo, existing: DatabaseInfo?) -> DatabaseInfo {

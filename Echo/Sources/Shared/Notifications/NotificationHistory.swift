@@ -15,6 +15,7 @@ final class NotificationHistory {
     /// Older records are dropped past this many.
     static let capacity = 500
 
+    @ObservationIgnored private let archive: LocalArchive
     @ObservationIgnored private let fileURL: URL?
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
@@ -23,7 +24,8 @@ final class NotificationHistory {
     @ObservationIgnored private var storageAvailable = true
 
     /// - Parameter fileURL: where the history is saved; nil keeps it in memory (tests, previews).
-    init(fileURL: URL? = NotificationHistory.defaultFileURL) {
+    init(fileURL: URL? = NotificationHistory.defaultFileURL, archive: LocalArchive = .shared) {
+        self.archive = archive
         self.fileURL = fileURL
         load()
     }
@@ -94,12 +96,17 @@ final class NotificationHistory {
         return directory.appendingPathComponent("notification-history.json")
     }
 
+    func flushPersistence() async {
+        await loadTask?.value
+        await saveTask?.value
+    }
+
     private func load() {
         guard let fileURL else { return }
         loadTask = Task(name: "Load encrypted notifications") {
             do {
-                let collection = fileURL == Self.defaultFileURL ? "notifications" : "test-notifications-" + fileURL.path
-                guard let data = try await LocalArchive.shared.load(collection: collection, legacyURL: fileURL) else { return }
+                let collection = "notifications"
+                guard let data = try await archive.load(collection: collection, legacyURL: fileURL) else { return }
                 let archive = try JSONDecoder().decode(Archive.self, from: data)
                 if !wasCleared {
                     let ids = Set(records.map(\.id))
@@ -115,7 +122,7 @@ final class NotificationHistory {
     }
 
     private func save() {
-        guard let fileURL else { return }
+        guard fileURL != nil else { return }
         let previous = saveTask
         saveTask = Task(name: "Save encrypted notifications") {
             await loadTask?.value
@@ -123,8 +130,8 @@ final class NotificationHistory {
             guard storageAvailable else { return }
             do {
                 let data = try LocalRecordEncoding.encode(Archive(records: records, unreadCount: unreadCount))
-                let collection = fileURL == Self.defaultFileURL ? "notifications" : "test-notifications-" + fileURL.path
-                try await LocalArchive.shared.save(data, collection: collection)
+                let collection = "notifications"
+                try await archive.save(data, collection: collection)
             } catch {
                 Logger(subsystem: "dev.echodb.echo", category: "local-storage").error("Couldn't save notification history: \(error.localizedDescription)")
             }

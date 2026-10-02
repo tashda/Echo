@@ -5,11 +5,18 @@ import Foundation
 actor CompletionHistoryPersistence: SQLHistoryPersistence {
     static let shared = CompletionHistoryPersistence()
     private var latestRevision: UInt64 = 0
+    private var saveTask: Task<Void, Error>?
 
     func save(_ data: Data, revision: UInt64) async throws {
         guard revision >= latestRevision else { return }
         latestRevision = revision
-        try await LocalArchive.shared.save(data, collection: "completion-history")
+        let previous = saveTask
+        let task = Task(name: "Save completion snapshot in order") {
+            _ = try? await previous?.value
+            try await LocalArchive.shared.save(data, collection: "completion-history")
+        }
+        saveTask = task
+        try await task.value
     }
 
     func load() async throws {

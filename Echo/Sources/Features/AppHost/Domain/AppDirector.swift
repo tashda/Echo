@@ -190,7 +190,7 @@ final class AppDirector {
         Task {
             await cacheManager.updateKeyProvider { projectID in
                 try await MainActor.run {
-                    try keyStore.symmetricKey(forProjectID: projectID)
+                    try keyStore.symmetricKey(forProjectID: projectID, generateIfNeeded: false)
                 }
             }
         }
@@ -212,6 +212,10 @@ final class AppDirector {
             try await projectStore.load()
             try await connectionStore.load()
             try await CompletionHistoryPersistence.shared.load()
+            try await LocalSyncImport.preserveLegacyState()
+            try await historyRepository.hydrate()
+            try await ExplorerStateStore.hydrate()
+            await environmentState.recentTables.finishLoading()
         } catch {
             isInitializing = false
             environmentState.lastError = DatabaseError.connectionFailed(error.localizedDescription)

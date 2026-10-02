@@ -1,4 +1,5 @@
 import Foundation
+import EchoLocalStorage
 
 extension ResultSpoolHandle {
     func loadRows(offset: Int, limit: Int) throws -> [[String?]] {

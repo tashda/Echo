@@ -29,29 +29,9 @@ struct ClipboardHistoryCrypto {
         case missingCombinedData
     }
 
-    private let keyAccount = "clipboardHistoryKey"
-    private let keychain = KeychainVault()
-
     private static let envelopeMagic = Data("ECHC".utf8)
     private static let envelopeVersion: UInt8 = 1
     private static let authenticationData = Data("EchoClipboardHistory".utf8)
-
-    func loadOrCreateKey() -> SymmetricKey {
-        if let stored = try? keychain.getPassword(account: keyAccount),
-           let data = Data(base64Encoded: stored),
-           data.count == 32 {
-            return SymmetricKey(data: data)
-        }
-
-        let newKey = SymmetricKey(size: .bits256)
-        let keyData = newKey.withUnsafeBytes { Data($0) }
-        do {
-            try keychain.setPassword(keyData.base64EncodedString(), account: keyAccount)
-        } catch {
-            print("Failed to persist clipboard history key: \(error)")
-        }
-        return newKey
-    }
 
     func encrypt(_ plaintext: Data, using key: SymmetricKey) throws -> Data {
         let sealed = try AES.GCM.seal(plaintext, using: key, authenticating: Self.authenticationData)
