@@ -20,7 +20,7 @@ enum LocalConfigurationArchive {
                     for connection in connections {
                         if let structure = connection.cachedStructure {
                             try await storage.write(LocalRecord(collection: "legacy-metadata", id: connection.id.uuidString,
-                                payload: try JSONEncoder().encode(structure), isCache: true))
+                                payload: try LocalRecordEncoding.encode(structure), isCache: true))
                         }
                     }
                     try await ConnectionDiskStore().save(connections)
@@ -44,7 +44,8 @@ enum LocalConfigurationArchive {
     ) async throws where Value.ID == UUID {
         let records = try values.enumerated().map { position, value in
             LocalRecord(collection: collection, id: value.id.uuidString,
-                        payload: try JSONEncoder().encode(value), position: position)
+                        group: (value as? SavedFolder)?.projectID?.uuidString ?? (value as? SavedIdentity)?.projectID?.uuidString ?? (value as? Project)?.id.uuidString,
+                        payload: try LocalRecordEncoding.encode(value), position: position)
         }
         try await storage.replace(collection: collection, with: records)
     }

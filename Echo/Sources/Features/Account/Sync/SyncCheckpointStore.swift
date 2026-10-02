@@ -1,55 +1,41 @@
+import EchoLocalStorage
 import Foundation
 
-/// Persists sync checkpoints per project to disk.
-///
-/// Each checkpoint records the last server HLC that was successfully pulled,
-/// allowing subsequent pulls to fetch only new changes.
 actor SyncCheckpointStore {
-    private let fileURL: URL
-    private var checkpoints: [UUID: SyncCheckpoint] = [:]
-
-    init() {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let echoDir = appSupport.appendingPathComponent("Echo", isDirectory: true)
-        self.fileURL = echoDir.appendingPathComponent("sync_checkpoints.json")
+    private let storage: EncryptedRecordStore
+    private var account = ""
+    init(storage: EncryptedRecordStore = .shared) { self.storage = storage }
+    func setAccount(_ account: String) { self.account = account }
+    func load() async throws {
+        _ = try await storage.encryptionContext()
+        let url = LocalConfigurationArchive.legacyURL("sync_checkpoints.json")
+        if FileManager.default.fileExists(atPath: url.path) {
+            let checkpoints = try JSONDecoder().decode([SyncCheckpoint].self, from: Data(contentsOf: url))
+            for checkpoint in checkpoints { try await update(projectID: checkpoint.projectID, checkpoint: checkpoint.checkpoint) }
+            try FileManager.default.removeItem(at: url)
+        }
     }
 
-    func load() throws {
-        guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
-        let data = try Data(contentsOf: fileURL)
-        let decoded = try JSONDecoder().decode([SyncCheckpoint].self, from: data)
-        checkpoints = Dictionary(uniqueKeysWithValues: decoded.map { ($0.projectID, $0) })
+    func checkpoint(for projectID: UUID) async -> UInt64 {
+        guard let record = try? await storage.read(collection: "sync-checkpoints", id: identifier(projectID)),
+              let checkpoint = try? JSONDecoder().decode(SyncCheckpoint.self, from: record) else { return 0 }
+        return checkpoint.checkpoint
     }
-
-    func checkpoint(for projectID: UUID) -> UInt64 {
-        checkpoints[projectID]?.checkpoint ?? 0
+    func hasCheckpoint(for projectID: UUID) async -> Bool {
+        (try? await storage.read(collection: "sync-checkpoints", id: identifier(projectID))) != nil
     }
-
-    func hasCheckpoint(for projectID: UUID) -> Bool {
-        checkpoints[projectID] != nil
+    func record(projectID: UUID, checkpoint: UInt64) async throws -> LocalRecord {
+        LocalRecord(collection: "sync-checkpoints", id: try await identifier(projectID),
+            group: try await storage.opaqueIdentifier(account), payload: try LocalRecordEncoding.encode(
+                SyncCheckpoint(projectID: projectID, checkpoint: checkpoint, lastSyncedAt: Date())))
     }
-
-    func update(projectID: UUID, checkpoint: UInt64) throws {
-        checkpoints[projectID] = SyncCheckpoint(
-            projectID: projectID,
-            checkpoint: checkpoint,
-            lastSyncedAt: Date()
-        )
-        try save()
+    func update(projectID: UUID, checkpoint: UInt64) async throws {
+        try await storage.write(record(projectID: projectID, checkpoint: checkpoint))
     }
-
-    func clearAll() throws {
-        checkpoints.removeAll()
-        try save()
+    func clearAll() async throws {
+        try await storage.remove(collection: "sync-checkpoints", group: storage.opaqueIdentifier(account))
     }
-
-    private func save() throws {
-        let dir = fileURL.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = .prettyPrinted
-        let data = try encoder.encode(Array(checkpoints.values))
-        try data.write(to: fileURL, options: .atomic)
+    private func identifier(_ projectID: UUID) async throws -> String {
+        try await storage.opaqueIdentifier("checkpoint:\(account):\(projectID)")
     }
 }

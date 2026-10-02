@@ -1,3 +1,4 @@
+import EchoLocalStorage
 import Foundation
 import Security
 
@@ -25,7 +26,7 @@ actor AuthTokenStore {
     // MARK: - Tokens (Keychain)
 
     func saveTokens(_ tokens: AuthTokens) throws {
-        let data = try JSONEncoder().encode(tokens)
+        let data = try LocalRecordEncoding.encode(tokens)
         try deleteKeychainItem(account: "tokens")
         try addKeychainItem(account: "tokens", data: data)
     }
@@ -43,7 +44,7 @@ actor AuthTokenStore {
 
     func saveUser(_ user: AuthUser) async throws {
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted]
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
         let data = try encoder.encode(user)
         try await LocalArchive.shared.save(data, collection: "auth-profile")

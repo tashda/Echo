@@ -9,7 +9,33 @@ actor ProjectDiskStore {
     }
 
     func save(_ projects: [Project]) async throws {
-        try await LocalConfigurationArchive.save(projects, collection: "projects")
+        let snapshots = try await Self.snapshots(projects)
+        try await LocalConfigurationArchive.storage.replaceCollections(snapshots,
+            syncProjects: Set(projects.filter(\.isSyncEnabled).map { $0.id.uuidString }))
+    }
+
+    @MainActor static func snapshots(_ projects: [Project]) throws -> [LocalCollectionSnapshot] {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let records = try projects.enumerated().map { position, project in
+            LocalRecord(collection: "projects", id: project.id.uuidString, group: project.id.uuidString,
+                        payload: try encoder.encode(project), position: position)
+        }
+        let bookmarks = try projects.flatMap { project in
+            try project.bookmarks.enumerated().map { position, bookmark in
+                LocalRecord(collection: "bookmarks", id: bookmark.id.uuidString, group: project.id.uuidString,
+                    payload: try encoder.encode(bookmark), position: position)
+            }
+        }
+        let settings = try projects.compactMap { project -> LocalRecord? in
+            guard let settings = project.projectGlobalSettings else { return nil }
+            return LocalRecord(collection: "settings", id: SyncAdapter().settingsDocumentID(for: project.id).uuidString,
+                group: project.id.uuidString, payload: try encoder.encode(settings))
+        }
+        return [.init(collection: "projects", records: records), .init(collection: "bookmarks", records: bookmarks),
+                .init(collection: "project-settings", records: settings.map {
+                    LocalRecord(collection: "project-settings", id: $0.id, group: $0.group, payload: $0.payload)
+                })]
     }
 
     func loadGlobalSettings() async throws -> GlobalSettings {
@@ -34,7 +60,7 @@ actor ProjectDiskStore {
     }
 
     func saveGlobalSettings(_ settings: GlobalSettings) async throws {
-        let data = try await MainActor.run { try JSONEncoder().encode(settings) }
+        let data = try await MainActor.run { try LocalRecordEncoding.encode(settings) }
         try await LocalConfigurationArchive.storage.write(
             LocalRecord(collection: "settings", id: "global", payload: data)
         )
@@ -67,7 +93,7 @@ actor ProjectDiskStore {
             )
 
             let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted]
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             return try encoder.encode(exportData)
         }
 

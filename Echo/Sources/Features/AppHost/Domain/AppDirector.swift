@@ -118,22 +118,9 @@ final class AppDirector {
             engine.e2eKeyStore = e2eKeyStore
             self.syncScheduler = SyncScheduler(syncEngine: engine)
 
-            // Wire store change notifications to sync engine
-            connectionStore.onDataChanged = { [weak engine] id, collection, projectID, isDelete in
-                if isDelete {
-                    engine?.markDeleted(id: id, collection: collection, projectID: projectID)
-                } else {
-                    engine?.markDirty(id: id, collection: collection, projectID: projectID)
-                }
-                AppDirector.shared.notifySyncDataChanged()
-            }
-
-            // Wire settings changes to sync engine
-            projectStore.onSettingsChanged = { [weak engine] projectID in
-                let settingsDocID = SyncAdapter().settingsDocumentID(for: projectID)
-                engine?.markDirty(id: settingsDocID, collection: .settings, projectID: projectID)
-                AppDirector.shared.notifySyncDataChanged()
-            }
+            // Disk transactions already enqueue changes; callbacks only wake the scheduler.
+            connectionStore.onDataChanged = { _, _, _, _ in AppDirector.shared.notifySyncDataChanged() }
+            projectStore.onSettingsChanged = { _ in AppDirector.shared.notifySyncDataChanged() }
         }
 
         self.environmentState = EnvironmentState(

@@ -72,20 +72,10 @@ final class ProjectStore {
             projects[idx].projectGlobalSettings = settings
             selectedProject = projects[idx]
 
-            // Save projects list (includes this project's settings) asynchronously
-            let procs = projects
-            Task.detached(priority: .background) {
-                try? await self.repository.saveProjects(procs)
-            }
-
-            // Notify sync engine
+            try await repository.saveProjects(projects)
             onSettingsChanged?(project.id)
         }
-
-        // Also update global_settings.json as fallback asynchronously
-        Task.detached(priority: .background) {
-            try? await self.repository.saveGlobalSettings(settings)
-        }
+        try await repository.saveGlobalSettings(settings)
     }
 
     func selectProject(_ project: Project?) {

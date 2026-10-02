@@ -43,7 +43,7 @@ actor DiagramCacheStore {
     func stashPayload(_ payload: DiagramCachePayload) async throws {
         let id = try await identifier(payload.key)
         try await storage.write(LocalRecord(collection: "diagrams", id: id, group: payload.key.projectID.uuidString,
-            payload: try JSONEncoder().encode(payload), isCache: true))
+            payload: try LocalRecordEncoding.encode(payload), isCache: true))
         await enforceSizeLimitIfNeeded()
     }
 
@@ -109,7 +109,7 @@ actor DiagramCacheStore {
     }
 
     private func identifier(_ key: DiagramCacheKey) async throws -> String {
-        let data = try JSONEncoder().encode(key)
+        let data = try LocalRecordEncoding.encode(key)
         return try await storage.opaqueIdentifier(data.base64EncodedString())
     }
 

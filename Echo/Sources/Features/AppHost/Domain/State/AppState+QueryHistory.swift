@@ -1,3 +1,4 @@
+import EchoLocalStorage
 import Foundation
 import OSLog
 
@@ -11,7 +12,7 @@ extension AppState {
         get { historyDefaults.object(forKey: "queryHistoryRetentionHours") as? Int ?? -1 }
         set { historyDefaults.set(newValue, forKey: "queryHistoryRetentionHours"); pruneQueryHistory() }
     }
-    var queryHistoryBytes: Int { (try? JSONEncoder().encode(queryHistory).count) ?? 0 }
+    var queryHistoryBytes: Int { (try? LocalRecordEncoding.encode(queryHistory).count) ?? 0 }
 
     func addToQueryHistory(_ query: String, connectionID: UUID? = nil, databaseName: String? = nil,
                           resultCount: Int? = nil, duration: TimeInterval? = nil,

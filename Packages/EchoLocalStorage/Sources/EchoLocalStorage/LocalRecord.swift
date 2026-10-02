@@ -27,6 +27,7 @@ public enum LocalStorageError: Error, LocalizedError, Sendable {
     case invalidKey
     case invalidEnvelope
     case unsupportedVersion
+    case concurrentChange
     case invalidRecord
 
     public var errorDescription: String? {
@@ -37,6 +38,7 @@ public enum LocalStorageError: Error, LocalizedError, Sendable {
         case .invalidKey: "Echo’s local encryption key is invalid. Existing data has been preserved."
         case .invalidEnvelope: "An encrypted local record is damaged."
         case .unsupportedVersion: "This local record requires a newer version of Echo."
+        case .concurrentChange: "Local data changed during sync. Retry with the current data."
         case .invalidRecord: "The local storage record is invalid."
         }
     }

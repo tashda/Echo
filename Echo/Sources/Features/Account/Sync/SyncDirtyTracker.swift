@@ -1,73 +1,60 @@
+import EchoLocalStorage
 import Foundation
 
-/// Tracks which local documents have been modified since the last successful push.
-///
-/// When a user changes a connection, folder, identity, or project locally,
-/// the tracker records its ID and collection. During the next push cycle,
-/// the SyncEngine reads the dirty set, converts those documents to SyncDocuments,
-/// pushes them, and clears the dirty flag on success.
+/// A durable account-scoped outbox. Normal configuration writes enqueue in the same transaction.
 actor SyncDirtyTracker {
-    private let fileURL: URL
-    private var dirtyItems: Set<DirtyItem> = []
-
-    init() {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let echoDir = appSupport.appendingPathComponent("Echo", isDirectory: true)
-        self.fileURL = echoDir.appendingPathComponent("sync_dirty.json")
+    private let storage: EncryptedRecordStore
+    private var account: String = ""
+    init(storage: EncryptedRecordStore = .shared) { self.storage = storage }
+    func setAccount(_ account: String) { self.account = account }
+    func load() async throws {
+        _ = try await storage.pendingChanges(account: account)
+        let url = LocalConfigurationArchive.legacyURL("sync_dirty.json")
+        if FileManager.default.fileExists(atPath: url.path) {
+            struct LegacyItem: Codable { let id: UUID; let collection: SyncCollection; let projectID: UUID; let isDelete: Bool }
+            let items = try JSONDecoder().decode([LegacyItem].self, from: Data(contentsOf: url))
+            for item in items {
+                try await storage.markPending(collection: item.collection.rawValue, id: item.id.uuidString,
+                    project: item.projectID.uuidString, isDelete: item.isDelete)
+            }
+            try FileManager.default.removeItem(at: url)
+        }
     }
 
-    func load() throws {
-        guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
-        let data = try Data(contentsOf: fileURL)
-        dirtyItems = try JSONDecoder().decode(Set<DirtyItem>.self, from: data)
+    func markDirty(id: UUID, collection: SyncCollection, projectID: UUID) async throws {
+        try await storage.markPending(collection: collection.rawValue, id: id.uuidString,
+            project: projectID.uuidString, isDelete: false)
     }
-
-    /// Mark a document as needing to be pushed.
-    func markDirty(id: UUID, collection: SyncCollection, projectID: UUID) throws {
-        dirtyItems.insert(DirtyItem(id: id, collection: collection, projectID: projectID))
-        try save()
+    func markDeleted(id: UUID, collection: SyncCollection, projectID: UUID) async throws {
+        try await storage.markPending(collection: collection.rawValue, id: id.uuidString,
+            project: projectID.uuidString, isDelete: true)
     }
-
-    /// Mark a document as deleted (needs tombstone push).
-    func markDeleted(id: UUID, collection: SyncCollection, projectID: UUID) throws {
-        dirtyItems.insert(DirtyItem(id: id, collection: collection, projectID: projectID, isDelete: true))
-        try save()
+    func dirtyItems(for projectID: UUID) async throws -> [DirtyItem] {
+        try await storage.pendingChanges(account: account, project: projectID.uuidString).compactMap(DirtyItem.init)
     }
-
-    /// Get all dirty items for a given project.
-    func dirtyItems(for projectID: UUID) -> [DirtyItem] {
-        dirtyItems.filter { $0.projectID == projectID }
+    var allDirtyItems: Set<DirtyItem> {
+        get async throws { Set(try await storage.pendingChanges(account: account).compactMap(DirtyItem.init)) }
     }
-
-    /// Get all dirty items across all projects.
-    var allDirtyItems: Set<DirtyItem> { dirtyItems }
-
-    /// Clear dirty flags for successfully pushed items.
-    func clearDirty(_ items: Set<DirtyItem>) throws {
-        dirtyItems.subtract(items)
-        try save()
+    func clearDirty(_ items: Set<DirtyItem>) async throws {
+        try await storage.acknowledge(items.compactMap(\.pending))
     }
-
-    /// Clear all dirty flags (e.g. after sign-out).
-    func clearAll() throws {
-        dirtyItems.removeAll()
-        try save()
-    }
-
-    private func save() throws {
-        let dir = fileURL.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-
-        let data = try JSONEncoder().encode(dirtyItems)
-        try data.write(to: fileURL, options: .atomic)
-    }
+    func clearAll() async throws { try await storage.clearPending(account: account) }
 }
 
-// MARK: - Dirty Item
-
-struct DirtyItem: Codable, Hashable, Sendable {
+struct DirtyItem: Hashable, Sendable {
     let id: UUID
     let collection: SyncCollection
     let projectID: UUID
     var isDelete: Bool = false
+    var pending: PendingLocalChange?
+
+    init(id: UUID, collection: SyncCollection, projectID: UUID, isDelete: Bool = false) {
+        self.id = id; self.collection = collection; self.projectID = projectID; self.isDelete = isDelete
+    }
+    init?(_ item: PendingLocalChange) {
+        guard let id = UUID(uuidString: item.id), let collection = SyncCollection(rawValue: item.collection),
+              let project = UUID(uuidString: item.projectID) else { return nil }
+        self.id = id; self.collection = collection; self.projectID = project
+        self.isDelete = item.isDelete; self.pending = item
+    }
 }

@@ -1,3 +1,4 @@
+import EchoLocalStorage
 import Foundation
 import OSLog
 
@@ -121,7 +122,7 @@ final class NotificationHistory {
             await previous?.value
             guard storageAvailable else { return }
             do {
-                let data = try JSONEncoder().encode(Archive(records: records, unreadCount: unreadCount))
+                let data = try LocalRecordEncoding.encode(Archive(records: records, unreadCount: unreadCount))
                 let collection = fileURL == Self.defaultFileURL ? "notifications" : "test-notifications-" + fileURL.path
                 try await LocalArchive.shared.save(data, collection: collection)
             } catch {

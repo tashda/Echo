@@ -17,7 +17,7 @@ use `[skip ci]` to honor that request.
   eviction. Preserve search and autocomplete coverage.
 - [x] 4. Other sensitive persistence: encrypted histories, diagrams and streaming
   result chunks; safe legacy migration and key-unavailable behavior.
-- [ ] 5. Cloud sync: account-scoped durable outbox, version-aware acknowledgements,
+- [x] 5. Cloud sync: account-scoped durable outbox, version-aware acknowledgements,
   atomic local edits and sync tracking, remote apply/checkpoint transactions.
 - [ ] 6. Verification: migration, crypto, cache, sync and spool tests; XcodeBuildMCP
   build/run/log verification and performance checks. Commit final repairs.
@@ -69,3 +69,13 @@ legacy importer. Result rows retain binary streaming, with authenticated encrypt
 per chunk; metadata/stats use SQLite. Open result handles are protected from
 automatic eviction. Completion persistence belongs to the host through a typed
 EchoSense API; its package checkpoint was committed/pushed on dev. No testing yet.
+
+Checkpoint 5: configuration snapshots and pending-change revisions commit together
+in SQLite. Project snapshots include independent bookmark/settings routing records.
+Queues and checkpoints are scoped to opaque account IDs and retained on sign-out;
+changing accounts disables upload of existing local projects. Push acknowledgements
+match the exact queued revision and retain ambiguous/conflicted batches. Downloads
+commit configuration and each page's checkpoint in one transaction, refuse to
+overwrite pending edits, and suppress re-upload of downloaded changes. Installation
+encryption is unchanged by login or logout. Stable canonical encoding avoids
+rewriting unchanged records. Final build/test/runtime and migration review follows.

@@ -13,7 +13,7 @@ actor ConnectionDiskStore {
             configuration.cachedStructureUpdatedAt = nil
             return LocalRecord(collection: "connections", id: connection.id.uuidString,
                                group: connection.projectID?.uuidString,
-                               payload: try JSONEncoder().encode(configuration), position: position)
+                               payload: try LocalRecordEncoding.encode(configuration), position: position)
         }
         try await EncryptedRecordStore.shared.replace(collection: "connections", with: records)
     }

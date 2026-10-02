@@ -20,13 +20,13 @@ public actor EncryptedRecordStore {
         return base.appendingPathComponent("Echo/LocalStorage.sqlite")
     }
 
-    private let configuration: Configuration
-    private var connection: SQLiteConnection?
-    private var encryption: LocalEncryption?
+    let configuration: Configuration
+    var connection: SQLiteConnection?
+    var encryption: LocalEncryption?
 
     public init(configuration: Configuration) { self.configuration = configuration }
 
-    private func database() throws -> SQLiteConnection {
+    func database() throws -> SQLiteConnection {
         if let connection { return connection }
         let fm = FileManager.default
         let exists = fm.fileExists(atPath: configuration.url.path)
@@ -44,13 +44,16 @@ public actor EncryptedRecordStore {
             """)
         try db.execute("CREATE INDEX IF NOT EXISTS record_groups ON records(collection,group_id,position)")
         try db.execute("CREATE INDEX IF NOT EXISTS cache_access ON records(is_cache,accessed)")
+        try db.execute("CREATE TABLE IF NOT EXISTS pending_changes(account TEXT NOT NULL,collection TEXT NOT NULL,id TEXT NOT NULL,project_id TEXT NOT NULL,revision INTEGER NOT NULL,is_delete INTEGER NOT NULL,PRIMARY KEY(account,collection,id))")
+        try db.execute("CREATE INDEX IF NOT EXISTS pending_projects ON pending_changes(account,project_id)")
+        try db.execute("CREATE TABLE IF NOT EXISTS local_counters(name TEXT PRIMARY KEY,value INTEGER NOT NULL)")
         self.encryption = crypto
         self.connection = db
         try secureFiles()
         return db
     }
 
-    private func crypto() throws -> LocalEncryption {
+    func crypto() throws -> LocalEncryption {
         _ = try database()
         guard let encryption else { throw LocalStorageError.missingKey }
         return encryption
@@ -105,20 +108,51 @@ public actor EncryptedRecordStore {
 
     /// A collection snapshot updates only changed payloads; unrelated collections are untouched.
     public func replace(collection: String, with records: [LocalRecord]) throws {
+        try replaceCollections([LocalCollectionSnapshot(collection: collection, records: records)])
+    }
+
+    public func replaceCollections(_ snapshots: [LocalCollectionSnapshot], syncProjects: Set<String>? = nil,
+                                   remote: Bool = false, expectedGeneration: Int64? = nil,
+                                   checkpoint: LocalRecord? = nil, expectedAccount: String? = nil,
+                                   project: String? = nil, requireNoPending: Set<String> = []) throws {
+        let db = try database()
+        try db.transaction {
+            if let expectedAccount {
+                guard try syncContext()?.account == expectedAccount else { throw LocalStorageError.concurrentChange }
+                if try pendingChanges(account: expectedAccount, project: project).contains(where: { requireNoPending.contains($0.collection) }) {
+                    throw LocalStorageError.concurrentChange
+                }
+            }
+            if let expectedGeneration, try generation() != expectedGeneration { throw LocalStorageError.concurrentChange }
+            if let syncProjects, let context = try syncContext() {
+                let updated = LocalSyncContext(account: context.account, projects: syncProjects)
+                try put(LocalRecord(collection: "sync-context", id: "current", payload: LocalRecordEncoding.encode(updated)), database: db)
+            }
+            for snapshot in snapshots { try replaceSnapshot(snapshot, database: db, remote: remote) }
+            if let checkpoint { try put(checkpoint, database: db) }
+        }
+        try secureFiles()
+    }
+
+    private func replaceSnapshot(_ snapshot: LocalCollectionSnapshot, database db: SQLiteConnection, remote: Bool) throws {
+        let collection = snapshot.collection
+        let records = snapshot.records
         guard records.allSatisfy({ $0.collection == collection }), Set(records.map(\.id)).count == records.count else {
             throw LocalStorageError.invalidRecord
         }
-        let db = try database()
-        try db.transaction {
-            var existing: [String] = []
-            try db.query("SELECT id FROM records WHERE collection=?", [.text(collection)]) { existing.append(SQLiteConnection.text($0, 0)) }
+        do {
+            var existing: [(String, String?)] = []
+            try db.query("SELECT id,group_id FROM records WHERE collection=?", [.text(collection)]) {
+                existing.append((SQLiteConnection.text($0, 0), sqlite3_column_type($0, 1) == SQLITE_NULL ? nil : SQLiteConnection.text($0, 1)))
+            }
             let ids = Set(records.map(\.id))
-            for id in existing where !ids.contains(id) {
+            for (id, group) in existing where !ids.contains(id) {
+                if !remote { try enqueue(collection: collection, id: id, project: group, isDelete: true, database: db) }
+                if Self.syncedCollections.contains(collection) { _ = try nextCounter("generation", database: db) }
                 try db.execute("DELETE FROM records WHERE collection=? AND id=?", [.text(collection), .text(id)])
             }
-            for record in records { try put(record, database: db) }
+            for record in records { try put(record, database: db, remote: remote) }
         }
-        try secureFiles()
     }
 
     public func remove(collection: String, id: String? = nil, group: String? = nil) throws {
@@ -162,7 +196,7 @@ public actor EncryptedRecordStore {
         try write(LocalRecord(collection: "migration", id: name, payload: Data("complete".utf8)))
     }
 
-    private func put(_ record: LocalRecord, database db: SQLiteConnection) throws {
+    func put(_ record: LocalRecord, database db: SQLiteConnection, remote: Bool = false) throws {
         let crypto = try crypto()
         let digest = crypto.digest(record.payload)
         var revision: Int64 = 0
@@ -177,6 +211,10 @@ public actor EncryptedRecordStore {
                             .text(record.collection), .text(record.id)])
             return
         }
+        if Self.syncedCollections.contains(record.collection) {
+            _ = try nextCounter("generation", database: db)
+            if !remote { try enqueue(collection: record.collection, id: record.id, project: record.group, isDelete: false, database: db) }
+        }
         revision += 1
         let payload = try crypto.seal(record.payload, context: context(record.collection, record.id, revision))
         try db.execute("""
@@ -189,11 +227,11 @@ public actor EncryptedRecordStore {
                   .integer(record.isCache ? 1 : 0), .real(Date().timeIntervalSince1970)])
     }
 
-    private func context(_ collection: String, _ id: String, _ revision: Int64) -> String {
+    func context(_ collection: String, _ id: String, _ revision: Int64) -> String {
         "record:\(collection.utf8.count):\(collection):\(id.utf8.count):\(id):\(revision)"
     }
 
-    private func secureFiles() throws {
+    func secureFiles() throws {
         for suffix in ["", "-wal", "-shm"] {
             let path = configuration.url.path + suffix
             if FileManager.default.fileExists(atPath: path) {
