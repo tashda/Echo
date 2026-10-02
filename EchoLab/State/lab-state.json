@@ -238,6 +238,46 @@
 
     }
   },
+  "ongoing.connect-card-r56" : {
+    "comments" : [
+      {
+        "date" : "2026-10-02T10:33:48Z",
+        "id" : "A7040092-2CD7-46E1-96D8-6EBBC1D952F5",
+        "text" : "Review of The connect card, now its own button\n1. Opens as: picked PR3 · A drawer beside the trail, the height of the window\n2. The card holds: picked CD1 · The search field with the three actions beside it; then the list\n3. The circle meanwhile: picked CB0 · It becomes the close button: the rack turns to an ×\n4. The other pills: picked OT0 · They stay as they are\n5. Close button: picked XB0 · A close button in the card as well"
+      }
+    ],
+    "generalNote" : "",
+    "history" : [
+      {
+        "date" : "2026-10-02T10:33:48Z",
+        "text" : "Accepted with picks"
+      }
+    ],
+    "needsMore" : [
+
+    ],
+    "optionNotes" : {
+
+    },
+    "pickNotes" : {
+
+    },
+    "picks" : {
+      "button" : "CB0 · It becomes the close button: the rack turns to an ×",
+      "close" : "XB0 · A close button in the card as well",
+      "content" : "CD1 · The search field with the three actions beside it; then the list",
+      "others" : "OT0 · They stay as they are",
+      "presentation" : "PR3 · A drawer beside the trail, the height of the window"
+    },
+    "reviewedRevision" : 1,
+    "revisions" : [
+
+    ],
+    "status" : "Accepted",
+    "verdicts" : {
+
+    }
+  },
   "ongoing.connect-menu-r52" : {
     "comments" : [
       {
