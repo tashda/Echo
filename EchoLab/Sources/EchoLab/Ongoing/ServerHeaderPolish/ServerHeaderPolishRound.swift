@@ -1,118 +1,113 @@
 import SwiftUI
 
-/// Round 50 · Server card: a header that looks designed. The owner finds every round-30 header
-/// "90% good" but still AI-made: not the idea but the finish (the font, the colours, where things
-/// sit). This round varies the ingredients (HP designs, colour strength, typeface, second line,
-/// how the dock sits) so the direction can be narrowed. Changes TREE-2.1, TREE-2.2 and TREE-2.6.
+/// Round 50 · Server card: a header that looks designed. Revision 3 is a clean start.
 ///
-/// Why they read as generated: a saturated top-to-bottom gradient, white bold type at the same
-/// 13pt as the rows, a glass capsule floating over the colour, and everything on one axis with
-/// no typographic hierarchy. Each design here removes at least one of those.
+/// The owner tried 45 options in revisions 1 and 2 and kept none; their favourite is still Echo's
+/// banner (R4). They asked to explore (1) the icon menu on a coloured surface, or on a plain
+/// card without it looking like a white strip pasted on top; (2) HQ10's large name with an eyebrow
+/// that is not the database version; (3) HQ30's slim banner with the selected section on the
+/// right instead of the latency, reaching down behind the icon menu. Changes TREE-2.1, TREE-2.2,
+/// TREE-2.6 and the section dock (TREE-3).
 @MainActor
 enum ServerHeaderPolishRound {
     private static let width = LayoutTokens.Workspace.treeIdealWidth + SpacingTokens.xl
 
     static let spec = RoundSpec(
         controls: [
-            .of("design", "Header", LabHPDesign.self, default: .q29,
-                question: "Open Every header (the five Echo has come first, then 32 new ones in groups), then try the ones that stand out in the Proposal. Which look designed rather than generated?",
-                recommend: .q29,
-                why: "You said the five Echo has are better than my first 13 and that the eyebrow (HP4) is interesting, so the best of both: your wash, with the eyebrow's type doing the work. It adds one line of small capitals and changes no colour, no shape, no setting you already have. If you'd rather go further from today, HQ20 (profile row) and HQ17 (project row) are the two that change the structure most; HQ23 and HQ26 change the least.",
-                summary: \.summary,
-                newChoices: (2, [.legacyPlain, .legacyBar, .legacyPlate, .legacyBanner, .q1, .q2, .q3, .q4, .q5, .q6, .q7, .q8, .q9, .q10, .q11, .q12,
-                                 .q13, .q14, .q15, .q16, .q17, .q18, .q19, .q20, .q21, .q22, .q23, .q24, .q25, .q26, .q27, .q28, .q29, .q30, .q31, .q32])),
-            .of("strength", "Colour", LabHPStrength.self, default: .standard,
-                question: "Switch between Muted, Standard and Vivid on the Proposal and on Three servers. How much colour should a header carry?",
-                recommend: .standard,
-                why: "Saturation is most of the generated look: round 30's banners are Vivid, the user's own colour at full strength. Standard darkens it so white type holds contrast and two red and green cards side by side don't glare. Muted is what to ship if you would rather the colour only whispers.",
+            .of("form", "Header", LabHRForm.self, default: .slim,
+                question: "Click the icon menu's icons in the Proposal, then see all eight in Every header. Which one should the server card have?",
+                recommend: .slim,
+                why: "The banner is your favourite because it is the one header that says which server you are on without reading; F4 keeps that and removes what makes it heavy: the second line, and the 20pt of colour under it. It becomes a label for the card, the colour carries on behind the icon menu, and the right side tells you the section. F3 is the one to ship if you would rather change nothing about the banner itself.",
                 summary: \.summary),
-            .of("face", "Name", LabHPFace.self, default: .semibold,
-                question: "Try each typeface on the chosen header, then see them together in Typefaces. Which sets the server's name best?",
-                recommend: .semibold,
-                why: "Bold 13pt is the same size and nearly the same weight as the rows under it, which is why the header doesn't hold. Semibold 14 adds hierarchy without changing the family, so the card still belongs to the sidebar. Mono is the one with character (names are identifiers) but turns every card into a code block; New York is the boldest change and I would not ship it in a database client.",
+            .of("dock", "Icon menu", LabHRDock.self, default: .pill,
+                question: "Click through the icons with each treatment on the Proposal, then see all six in Every icon menu and Every icon menu, plain card. How should the icon menu sit?",
+                recommend: .pill,
+                why: "The frosted strip is the problem on a banner: glass has nothing to blur but a flat colour, so it goes white. With no capsule the icons sit straight on the colour and the selected one is a white pill that slides between them, which is the one idea that works on a banner and on a plain card (there the pill is the server's colour at 18%). D4 is the close second if you want the menu to feel like a control.",
                 summary: \.summary),
-            .of("line", "Second line", LabHPLine.self, default: .today,
-                question: "Compare the lines under the name. What should they say, and how?",
-                recommend: .today,
-                why: "You decided in round 19 that it names the product and the dock's current section. Small caps (SL1) is the sharpest alternative, but they drop the section, which is the only place the card says where you are; the dock only shows an icon.",
+            .of("right", "Right side", LabHRRight.self, default: .section,
+                question: "Click through the sections and watch the header's right side. What should it show?",
+                recommend: .section,
+                why: "The icon menu has no labels, and the selected icon is the only thing that says where you are; the name of the section answers that in words and costs one short word. The icon beside it (RT2, RT3) repeats the menu a few points below.",
                 summary: \.summary),
-            .of("dock", "Dock", LabHPDock.self, default: .below,
-                question: "Compare how the dock sits against the colour. Where should it go?",
-                recommend: .below,
-                why: "In your screenshot the glass dock floats half on the colour and half on the card, which is the most generated-looking part of today's card: it blurs a gradient into a smear. Below the header it sits on the card as it does without colour, and each part has one background.",
+            .of("reach", "Colour reaches", LabHRReach.self, default: .dock,
+                question: "Compare the colour stopping under the name with carrying on behind the icon menu.",
+                recommend: .dock,
+                why: "One surface for the header and the menu is what ties the section name on the right to the icon below it. It is also what the banner does in Echo today, so RC1 changes nothing; RC0 leaves the menu on the card, where the pill works but the glass has nothing behind it.",
+                summary: \.summary),
+            .of("eyebrow", "Eyebrow", LabHREyebrow.self, default: .engine,
+                question: "Choose a large-name form (F5, F7 or F8), then compare the lines over the name. What should it say?",
+                recommend: .engine,
+                why: "You doubted that anyone cares about the version; the engine does not change and tells a PostgreSQL server from a SQL Server one at a glance, which the colour does not. The section (EY1) is the most useful but would then also be on the right in RT1, so pick one. The version stays one tooltip away.",
+                summary: \.summary),
+            .of("tone", "Colour", LabHRTone.self, default: .echo,
+                question: "Compare the banner's colour as Echo draws it with the same colour darkened.",
+                recommend: .echo,
+                why: "You chose R4 as it is; the darker colour is for you to see how much of the generated look is saturation. If white type or the pill feel weak on red or yellow, CL1 is the fix.",
                 summary: \.summary),
             .of("sample", "Server", LabSHSample.self, default: .production),
         ],
         exhibits: [
             .init(id: "today", title: "Echo today",
-                  summary: "The wash header Echo ships as the default, with the same server.",
+                  summary: "The wash header with the glass icon menu (Echo's default). Click an icon.",
                   isEchoToday: true, designWidth: width, designHeight: 400) { values in
-                LabHPColumn {
-                    LabSHCard(server: sample(values), look: LabSHLook(style: .wash, source: .server, secondLine: .productSection, dockTint: .header))
-                }
+                LabHRColumn { LabHRCard(server: sample(values), look: .today) }
             },
-            .init(id: "proposal", title: "Proposal", summary: "Built from the controls. Hover the header for the chevron.",
+            .init(id: "proposal", title: "Proposal",
+                  summary: "Built from the controls. Click the icons: the right side and the eyebrow follow. Hover the header for the chevron.",
                   designWidth: width, designHeight: 400) { values in
-                LabHPColumn { LabHPCard(server: sample(values), look: LabHPLook(values)) }
+                LabHRColumn { LabHRCard(server: sample(values), look: LabHRLook(values)) }
             },
             .init(id: "three", title: "Three servers",
-                  summary: "Production, test and a PostgreSQL server in one column: does each still read as its own at a glance?",
+                  summary: "Production, test and a PostgreSQL server in one column.",
                   designWidth: width, designHeight: 560) { values in
-                LabHPColumn {
-                    LabHPCard(server: .production, look: LabHPLook(values), rowLimit: 3)
-                    LabHPCard(server: .test, look: LabHPLook(values), rowLimit: 2, selectedRow: nil)
-                    LabHPCard(server: .development, look: LabHPLook(values), rowLimit: 2, selectedRow: nil)
+                LabHRColumn {
+                    LabHRCard(server: .production, look: LabHRLook(values), rowLimit: 3)
+                    LabHRCard(server: .test, look: LabHRLook(values), rowLimit: 2, selectedRow: nil)
+                    LabHRCard(server: .development, look: LabHRLook(values), rowLimit: 2, selectedRow: nil)
                 }
             },
-            .init(id: "gallery", title: "Every header",
-                  summary: "All 49 on the chosen server in groups: the five Echo has, the 32 new ones (HQ), then round 50's first thirteen. Scroll for more.",
-                  addedIn: 2, designWidth: 700, designHeight: 620) { values in
-                LabHPGallery(look: LabHPLook(values), server: sample(values))
+            .init(id: "forms", title: "Every header",
+                  summary: "All eight forms with the chosen icon menu, right side and eyebrow. Scroll for more.",
+                  designWidth: 700, designHeight: 620) { values in
+                LabHRFormGallery(look: LabHRLook(values), server: sample(values))
             },
-            .init(id: "typefaces", title: "Typefaces",
-                  summary: "The chosen header in each typeface.",
-                  designWidth: width, designHeight: 620) { values in
-                LabHPTypefaces(look: LabHPLook(values), server: sample(values))
+            .init(id: "docks", title: "Every icon menu",
+                  summary: "The chosen header with each of the six treatments. Click the icons.",
+                  designWidth: 700, designHeight: 620) { values in
+                LabHRDockGallery(look: LabHRLook(values), server: sample(values))
+            },
+            .init(id: "docksPlain", title: "Every icon menu, plain card",
+                  summary: "The six treatments on the plain card (F1), where there is no colour for the menu to sit on.",
+                  designWidth: 700, designHeight: 620) { values in
+                LabHRDockGallery(look: LabHRLook(values).with(form: .plain), server: sample(values))
             },
         ],
         questions: [
-            .init(id: "family", title: "Direction",
-                  question: "Before the details: which way should the server card go?",
+            .init(id: "plainCard", title: "On a plain card",
+                  question: "If the header stays plain (F1), how should the icon menu look? Open Every icon menu, plain card.",
                   choices: [
-                      .init(id: "fill", name: "A · A solid, calm fill (Ink, Enamel, Duotone)", summary: nil),
-                      .init(id: "type", name: "B · No fill: the type carries the colour (Eyebrow, Badge, Numeral, Chips)", summary: nil),
-                      .init(id: "object", name: "C · A small object: a tile, an edge or a glass panel", summary: nil),
-                      .init(id: "soft", name: "D · What we have, finished (Wash or Aurora, better type)", summary: nil),
+                      .init(id: "pill", name: "D3 · The selected icon in a pill of the server's colour", summary: nil),
+                      .init(id: "recessed", name: "D4 · A recessed capsule with a raised disc, as the trail's selection", summary: nil),
+                      .init(id: "tinted", name: "D1 · Glass with a hint of the server's colour", summary: nil),
+                      .init(id: "glass", name: "D0 · Today's glass", summary: nil),
                   ],
-                  recommended: "fill",
-                  why: "You asked in round 30 for presence and said every header was nearly there; a solid fill is the one family that keeps presence, and Ink or Enamel is that with the generated finish removed. If the first answer is that it still feels heavy, B and C are the quieter, more editorial answers."),
-            .init(id: "extras", title: "Information in the header",
-                  question: "Chips (HP12) and Badge (HP9) show more than a grey line does. Should the header carry anything beyond name and product?",
-                  choices: [
-                      .init(id: "none", name: "No: name and product line only", summary: nil),
-                      .init(id: "status", name: "Yes: a status dot and the latency", summary: nil),
-                      .init(id: "env", name: "Yes: an environment label the user sets (PROD, TEST, DEV)", summary: nil),
-                  ],
-                  recommended: "none",
-                  why: "The rail and tabs already say connecting and lost; latency changes every second and would make the header the busiest part of the card. An environment label is the best idea here, but it needs a new field on the connection, so it is its own round if you want it."),
+                  recommended: "recessed",
+                  why: "On the plain card the capsule is what makes it look pasted on, because glass over a white card is white over white. A recess takes its colour from the card and the raised disc is the same disc the trail uses to say \"selected\", so the menu and the trail share one idea."),
         ],
         presets: [
-            .init(id: "recommended", name: "My recommendation", summary: "Ink, standard colour, semibold 14, dock below.",
-                  values: ["design": LabHPDesign.ink.rawValue, "strength": LabHPStrength.standard.rawValue, "face": LabHPFace.semibold.rawValue,
-                           "line": LabHPLine.today.rawValue, "dock": LabHPDock.below.rawValue],
+            .init(id: "recommended", name: "My recommendation", summary: "Slim banner, the section on the right, colour through the icon menu, the selected icon in a white pill.",
+                  values: ["form": LabHRForm.slim.rawValue, "dock": LabHRDock.pill.rawValue, "right": LabHRRight.section.rawValue,
+                           "reach": LabHRReach.dock.rawValue, "eyebrow": LabHREyebrow.engine.rawValue, "tone": LabHRTone.echo.rawValue],
                   isRecommended: true),
-            .init(id: "quiet", name: "Quiet", summary: "Tile, muted, semibold, tinted dock.",
-                  values: ["design": LabHPDesign.tile.rawValue, "strength": LabHPStrength.muted.rawValue, "face": LabHPFace.semibold.rawValue,
-                           "line": LabHPLine.today.rawValue, "dock": LabHPDock.below.rawValue]),
-            .init(id: "editorial", name: "Editorial", summary: "Eyebrow with small caps and a serif name.",
-                  values: ["design": LabHPDesign.eyebrow.rawValue, "strength": LabHPStrength.standard.rawValue, "face": LabHPFace.serif.rawValue,
-                           "line": LabHPLine.none.rawValue, "dock": LabHPDock.below.rawValue]),
-            .init(id: "lit", name: "Lit", summary: "Enamel, vivid, rounded, dock over the colour.",
-                  values: ["design": LabHPDesign.enamel.rawValue, "strength": LabHPStrength.vivid.rawValue, "face": LabHPFace.rounded.rawValue,
-                           "line": LabHPLine.today.rawValue, "dock": LabHPDock.over.rawValue]),
-            .init(id: "code", name: "Code", summary: "Slab with a monospaced name and the host under it.",
-                  values: ["design": LabHPDesign.slab.rawValue, "strength": LabHPStrength.standard.rawValue, "face": LabHPFace.mono.rawValue,
-                           "line": LabHPLine.host.rawValue, "dock": LabHPDock.below.rawValue]),
+            .init(id: "r4", name: "Your banner, a calmer menu", summary: "R4 as it is, with the icon menu in a recess.",
+                  values: ["form": LabHRForm.banner.rawValue, "dock": LabHRDock.recessed.rawValue, "right": LabHRRight.none.rawValue,
+                           "reach": LabHRReach.dock.rawValue, "tone": LabHRTone.echo.rawValue]),
+            .init(id: "title", name: "Large name", summary: "HQ10 on the banner, eyebrow without the version, an underline menu.",
+                  values: ["form": LabHRForm.bannerTitle.rawValue, "dock": LabHRDock.underline.rawValue, "right": LabHRRight.none.rawValue,
+                           "reach": LabHRReach.dock.rawValue, "eyebrow": LabHREyebrow.engine.rawValue, "tone": LabHRTone.echo.rawValue]),
+            .init(id: "plain", name: "Plain, recessed menu", summary: "No colour surface; the menu is a recess with a raised disc.",
+                  values: ["form": LabHRForm.plainTitle.rawValue, "dock": LabHRDock.recessed.rawValue, "right": LabHRRight.none.rawValue,
+                           "reach": LabHRReach.header.rawValue, "eyebrow": LabHREyebrow.engine.rawValue]),
         ]
     )
 

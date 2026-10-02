@@ -3755,6 +3755,11 @@
         "date": "2026-10-02T07:50:02Z",
         "id": "FCF3B7C3-C3BA-4EDE-8D6E-177F3AAA9728",
         "text": "Review of Server card: a header that looks designed\n1. Header: NEEDS MORE OPTIONS; note: I don't like any of the options you provided. The 5 we have are all better than this. The hp4 is interesting but still want too se way more variations - you are stuck on a \"this is how it should look\" and i want you to rethink this.\n2. Colour: no answer yet\n3. Name: no answer yet\n4. Second line: no answer yet\n5. Dock: no answer yet\n6. Direction: no answer yet\n7. Information in the header: no answer yet"
+      },
+      {
+        "date": "2026-10-02T08:13:35Z",
+        "id": "7B84088E-8BBA-44F4-915C-2A3E3D2CFD4F",
+        "text": "Review of Server card: a header that looks designed\n1. Header: NEEDS MORE OPTIONS; note: I don't like any of the options you provided. The 5 we have are all better than this. The hp4 is interesting but still want too se way more variations - you are stuck on a \"this is how it should look\" and i want you to rethink this.\n2. Colour: no answer yet\n3. Name: no answer yet\n4. Second line: no answer yet\n5. Dock: no answer yet\n6. Direction: no answer yet\n7. Information in the header: no answer yet"
       }
     ],
     "generalNote": "",
@@ -3766,6 +3771,14 @@
       {
         "date": "2026-10-02T07:54:46Z",
         "text": "Revision 2: A rethink: Echo's five for comparison and 32 new headers built from pieces"
+      },
+      {
+        "date": "2026-10-02T08:13:35Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-02T08:16:57Z",
+        "text": "Revision 3: Cleaned up: every earlier suggestion removed; eight headers around your banner, six icon-menu treatments"
       }
     ],
     "needsMore": [
@@ -3776,7 +3789,7 @@
       "design": "I don't like any of the options you provided. The 5 we have are all better than this. The hp4 is interesting but still want too se way more variations - you are stuck on a \"this is how it should look\" and i want you to rethink this."
     },
     "picks": {},
-    "reviewedRevision": 1,
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
@@ -3788,6 +3801,17 @@
         "date": "2026-10-02T07:54:46Z",
         "number": 2,
         "summary": "A rethink: Echo's five for comparison and 32 new headers built from pieces"
+      },
+      {
+        "changes": [
+          "Removed: HP0 to HP12 and HQ1 to HQ32",
+          "New: F1 to F8 (Echo's plain, wash and banner; slim banner with the section on the right; banner, plain and wash with an eyebrow over a large name; inset banner)",
+          "New: six icon-menu treatments, on a coloured surface and on a plain card (glass, tinted glass, flat, selected pill, recessed, underline)",
+          "New: right side (nothing, section name, icon, both), colour reach (header or through the icon menu), eyebrow without the version"
+        ],
+        "date": "2026-10-02T08:16:57Z",
+        "number": 3,
+        "summary": "Cleaned up: every earlier suggestion removed; eight headers around your banner, six icon-menu treatments"
       }
     ],
     "status": "Judging",
