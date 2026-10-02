@@ -24,6 +24,7 @@ extension ManageConnectionsView {
 
     func apply(_ target: PendingNavigation) {
         detailHasChanges = false
+        detailSaveBlocker = nil
         switch target {
         case .connections(let ids):
             connectionSelection = ids
@@ -42,17 +43,18 @@ extension ManageConnectionsView {
         }
     }
 
-    /// "Save changes to “postgres18”?"
+    /// "Save changes to “postgres18”?", or "Discard changes to …?" when they can't be saved yet.
     var leaveAlertTitle: String {
+        let verb = detailSaveBlocker == nil ? "Save" : "Discard"
         if activeScope.isConnections, let id = connectionSelection.first,
            let connection = connectionStore.connections.first(where: { $0.id == id }) {
-            return "Save changes to “\(displayName(for: connection))”?"
+            return "\(verb) changes to “\(displayName(for: connection))”?"
         }
-        if !activeScope.isConnections, let id = identitySelection.first,
+        if !activeScope.isConnections, !isCreatingIdentity, let id = identitySelection.first,
            let identity = connectionStore.identities.first(where: { $0.id == id }) {
-            return "Save changes to “\(identity.name)”?"
+            return "\(verb) changes to “\(identity.name)”?"
         }
-        return "Save your changes?"
+        return isCreatingIdentity ? "\(verb) the new identity?" : "\(verb) your changes?"
     }
 
     func saveThenContinue() {

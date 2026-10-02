@@ -8,6 +8,7 @@ struct ManageConnectionEditorPane: View {
     let revision: Int
     let saveRequest: Int
     let onChangesChanged: (Bool) -> Void
+    let onSaveBlockerChanged: (String?) -> Void
     let onSave: (SavedConnection, String?, ConnectionEditorView.SaveAction) -> Void
 
     @State private var discardCount = 0
@@ -19,6 +20,7 @@ struct ManageConnectionEditorPane: View {
             confirmAction: .save,
             saveRequest: saveRequest,
             onChangesChanged: onChangesChanged,
+            onSaveBlockerChanged: onSaveBlockerChanged,
             onRevert: {
                 discardCount += 1
                 onChangesChanged(false)

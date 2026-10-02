@@ -113,6 +113,9 @@ struct ConnectionEditorView: View {
     internal let confirmAction: SaveAction
     /// Told when the form gains or loses unsaved changes (Manage Connections asks before leaving).
     internal let onChangesChanged: ((Bool) -> Void)?
+    /// Told what stops a save (a missing field, in words), or nil when the form can be saved, so
+    /// Manage Connections offers Save in its leave alert only when a save can work.
+    internal let onSaveBlockerChanged: ((String?) -> Void)?
     /// Changing this asks the editor to save (Manage Connections' "Save" in its leave alert).
     internal let saveRequest: Int
     let onSave: (SavedConnection, String?, SaveAction) -> Void
@@ -122,6 +125,7 @@ struct ConnectionEditorView: View {
     init(connection: SavedConnection?, isQuickConnect: Bool = false, presentation: Presentation = .sheet,
          confirmAction: SaveAction = .saveAndConnect, saveRequest: Int = 0,
          onChangesChanged: ((Bool) -> Void)? = nil,
+         onSaveBlockerChanged: ((String?) -> Void)? = nil,
          onRevert: (() -> Void)? = nil, onSave: @escaping (SavedConnection, String?, SaveAction) -> Void) {
         self.originalConnection = connection
         self.isQuickConnect = isQuickConnect
@@ -129,6 +133,7 @@ struct ConnectionEditorView: View {
         self.confirmAction = confirmAction
         self.saveRequest = saveRequest
         self.onChangesChanged = onChangesChanged
+        self.onSaveBlockerChanged = onSaveBlockerChanged
         self.onRevert = onRevert
         self.onSave = onSave
         _saveToConnections = State(initialValue: !isQuickConnect)
@@ -226,6 +231,7 @@ struct ConnectionEditorView: View {
         }
         .onDisappear { cancelActiveTest() }
         .onChange(of: hasChanges) { _, changed in onChangesChanged?(changed) }
+        .onChange(of: missingForTest, initial: true) { _, missing in onSaveBlockerChanged?(missing) }
         .onChange(of: saveRequest) { _, _ in submit(.save) }
         // A result is only true for what was tested: any edit clears it and stops a running test.
         .onChange(of: currentSnapshot) { _, _ in

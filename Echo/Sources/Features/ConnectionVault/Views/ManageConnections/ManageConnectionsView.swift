@@ -31,6 +31,9 @@ struct ManageConnectionsView: View {
     @State internal var isCreatingIdentity = false
     /// Whether the editor in the right column has unsaved changes.
     @State internal var detailHasChanges = false
+    /// What stops the editor saving (a missing field), or nil. The leave alert offers Save only
+    /// when this is nil.
+    @State internal var detailSaveBlocker: String?
     /// A move away from unsaved changes, waiting for the answer to "Save changes?" (MC1).
     @State internal var pendingNavigation: PendingNavigation?
     /// Where to go once a save asked for by that alert has finished.
@@ -213,12 +216,20 @@ private struct ManageConnectionsAlerts: ViewModifier {
                     set: { if !$0 { view.pendingNavigation = nil } }
                 )
             ) {
-                Button("Save") { view.saveThenContinue() }
-                    .keyboardShortcut(.defaultAction)
-                Button("Don't Save", role: .destructive) { view.discardThenContinue() }
+                if view.detailSaveBlocker == nil {
+                    Button("Save") { view.saveThenContinue() }
+                        .keyboardShortcut(.defaultAction)
+                    Button("Don't Save", role: .destructive) { view.discardThenContinue() }
+                } else {
+                    Button("Discard Changes", role: .destructive) { view.discardThenContinue() }
+                }
                 Button("Cancel", role: .cancel) { view.pendingNavigation = nil }
             } message: {
-                Text("Your changes are lost if you don't save them.")
+                if let blocker = view.detailSaveBlocker {
+                    Text("They can't be saved yet. \(blocker)")
+                } else {
+                    Text("Your changes are lost if you don't save them.")
+                }
             }
             .alert(
                 view.pendingDeletion.map { "Delete “\($0.displayName)”?" } ?? "Delete?",

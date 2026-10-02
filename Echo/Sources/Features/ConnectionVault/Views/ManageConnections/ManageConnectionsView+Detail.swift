@@ -21,6 +21,7 @@ extension ManageConnectionsView {
                 revision: editorRevision,
                 saveRequest: saveRequest,
                 onChangesChanged: { detailHasChanges = $0 },
+                onSaveBlockerChanged: { detailSaveBlocker = $0 },
                 onSave: handleConnectionEditorSave
             )
         } else if connectionSelection.count > 1 {
@@ -53,6 +54,7 @@ extension ManageConnectionsView {
                 saveRequest: saveRequest,
                 usedBy: [],
                 onChangesChanged: { detailHasChanges = $0 },
+                onSaveBlockerChanged: { detailSaveBlocker = $0 },
                 onSaved: handleIdentitySaved,
                 onCancel: { isCreatingIdentity = false; detailHasChanges = false },
                 onDelete: { _ in }
@@ -65,6 +67,7 @@ extension ManageConnectionsView {
                 saveRequest: saveRequest,
                 usedBy: connections(using: identity),
                 onChangesChanged: { detailHasChanges = $0 },
+                onSaveBlockerChanged: { detailSaveBlocker = $0 },
                 onSaved: handleIdentitySaved,
                 onCancel: nil,
                 onDelete: { pendingDeletion = .identity($0) }

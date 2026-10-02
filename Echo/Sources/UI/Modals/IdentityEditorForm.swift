@@ -24,14 +24,14 @@ struct IdentityDraft: Equatable {
 
     /// What stops a save, in words, or nil when nothing does.
     func missing(isEditing: Bool, hasDuplicateName: Bool) -> String? {
-        if trimmedName.isEmpty { return "Enter a name" }
-        if hasDuplicateName { return "Another identity has this name" }
+        if trimmedName.isEmpty { return "Enter a name." }
+        if hasDuplicateName { return "Another identity has this name." }
         let needsPassword = !isEditing && password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         if authenticationMethod.usesAccessToken {
-            return needsPassword ? "Enter the access token" : nil
+            return needsPassword ? "Enter the access token." : nil
         }
-        if username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "Enter a user name" }
-        return needsPassword ? "Enter the password" : nil
+        if username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "Enter a user name." }
+        return needsPassword ? "Enter the password." : nil
     }
 
     /// Saves the draft as a new identity or over `existing`, with its password, and returns it.

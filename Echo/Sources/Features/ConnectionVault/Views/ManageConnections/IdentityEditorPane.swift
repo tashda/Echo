@@ -10,6 +10,7 @@ struct IdentityEditorPane: View {
     let saveRequest: Int
     let usedBy: [SavedConnection]
     let onChangesChanged: (Bool) -> Void
+    let onSaveBlockerChanged: (String?) -> Void
     let onSaved: (SavedIdentity) -> Void
     let onCancel: (() -> Void)?
     let onDelete: (SavedIdentity) -> Void
@@ -20,6 +21,7 @@ struct IdentityEditorPane: View {
             saveRequest: saveRequest,
             usedBy: usedBy,
             onChangesChanged: onChangesChanged,
+            onSaveBlockerChanged: onSaveBlockerChanged,
             onSaved: onSaved,
             onCancel: onCancel,
             onDelete: onDelete
@@ -38,6 +40,7 @@ private struct IdentityEditorPaneContent: View {
     let saveRequest: Int
     let usedBy: [SavedConnection]
     let onChangesChanged: (Bool) -> Void
+    let onSaveBlockerChanged: (String?) -> Void
     let onSaved: (SavedIdentity) -> Void
     let onCancel: (() -> Void)?
     let onDelete: (SavedIdentity) -> Void
@@ -51,6 +54,7 @@ private struct IdentityEditorPaneContent: View {
         saveRequest: Int,
         usedBy: [SavedConnection],
         onChangesChanged: @escaping (Bool) -> Void,
+        onSaveBlockerChanged: @escaping (String?) -> Void,
         onSaved: @escaping (SavedIdentity) -> Void,
         onCancel: (() -> Void)?,
         onDelete: @escaping (SavedIdentity) -> Void
@@ -59,6 +63,7 @@ private struct IdentityEditorPaneContent: View {
         self.saveRequest = saveRequest
         self.usedBy = usedBy
         self.onChangesChanged = onChangesChanged
+        self.onSaveBlockerChanged = onSaveBlockerChanged
         self.onSaved = onSaved
         self.onCancel = onCancel
         self.onDelete = onDelete
@@ -73,6 +78,11 @@ private struct IdentityEditorPaneContent: View {
 
     private var hasDuplicateName: Bool {
         !isSaving && connectionStore.identityNameIsTaken(draft.name, projectID: projectID, excluding: identity?.id)
+    }
+
+    /// What stops a save, ignoring "nothing changed": the leave alert's Save depends on it.
+    private var saveBlocker: String? {
+        draft.missing(isEditing: isEditing, hasDuplicateName: hasDuplicateName)
     }
 
     private var missingForSave: String? {
@@ -107,6 +117,7 @@ private struct IdentityEditorPaneContent: View {
             onChangesChanged(changed || !isEditing)
         }
         .onAppear { if !isEditing { onChangesChanged(true) } }
+        .onChange(of: saveBlocker, initial: true) { _, blocker in onSaveBlockerChanged(blocker) }
         .onChange(of: saveRequest) { _, _ in
             if missingForSave == nil { save() }
         }

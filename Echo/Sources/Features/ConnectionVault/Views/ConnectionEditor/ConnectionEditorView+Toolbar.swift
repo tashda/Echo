@@ -105,7 +105,7 @@ extension ConnectionEditorView {
     // MARK: Test
 
     /// The first thing that stops a test or a save, in words, or nil when nothing does.
-    private var missingForTest: String? {
+    var missingForTest: String? {
         if step == .chooseEngine { return "Choose a database first" }
         let order: [EditorField] = [.host, .port, .username, .domain, .password]
         return order.lazy.compactMap { validationIssues[$0] }.first
