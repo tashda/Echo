@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity , tabOverviewDirection , toolTabPages , toolTabPagesWhere , toolTabFamilies , toolTabHeader , toolTabControls , toolTabThemes , toolTabToolbar , treeToolRows , railTools , railBookmarks , railSnippets , railHistory , railClipboard , railClickHiddenTree , resultsHeaderLines , resultsSelectionSummary , resultsErrorPage , resultsMessages , resultsPillPopovers , contextMenuAnatomy , contextMenuServer , contextMenuDatabase , contextMenuTable , contextMenuColumn , contextMenuFolder , settingsPreview , settingsPictures , settingsControls , settingsTemplate , settingsScenarios , footerBlur , toolTabMainAction , serverCardUnfold , resultsGutter , openingAndClosing , toolTabBar , serverHeaderPolish , serverTrailIdentity , connectMenu , serverHeaderCustom , cardToTrail , trailItemStates , connectCard /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity , tabOverviewDirection , toolTabPages , toolTabPagesWhere , toolTabFamilies , toolTabHeader , toolTabControls , toolTabThemes , toolTabToolbar , treeToolRows , railTools , railBookmarks , railSnippets , railHistory , railClipboard , railClickHiddenTree , resultsHeaderLines , resultsSelectionSummary , resultsErrorPage , resultsMessages , resultsPillPopovers , contextMenuAnatomy , contextMenuServer , contextMenuDatabase , contextMenuTable , contextMenuColumn , contextMenuFolder , settingsPreview , settingsPictures , settingsControls , settingsTemplate , settingsScenarios , footerBlur , toolTabMainAction , serverCardUnfold , resultsGutter , openingAndClosing , toolTabBar , serverHeaderPolish , serverTrailIdentity , connectMenu , serverHeaderCustom , cardToTrail , trailItemStates , connectCard , headerOnScroll , headerSizes /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -676,6 +676,20 @@
         status: .judging,
         summary: "The connect button is now its own glass circle under the pills, but its card still opens as if from the top group of active servers. Decide how the card should open from a button of its own, what it holds now that the connected servers are visible beside it, how the button behaves while the card is open, and that clicking outside dismisses it as well as the x.",
         spec: ConnectCardRound.spec)
+
+    /// Round 57: The card header while the list scrolls.
+    static let headerOnScroll = LabPage.round(
+        id: "ongoing.header-on-scroll-r57", group: "Explorer tree", title: "The card header while the list scrolls · round 57", symbol: "arrow.up.and.down.text.horizontal",
+        status: .judging,
+        summary: "When a card's list scrolls, the pinned banner header cuts the rows off with a hard edge and looks bad. Show how the header and the icon menu should behave: rounded bottom corners, the icon menu scrolling away first and then the header, collapsing, or something else.",
+        spec: HeaderOnScrollRound.spec)
+
+    /// Round 58: Smaller card headers and what each setting does.
+    static let headerSizes = LabPage.round(
+        id: "ongoing.header-sizes-r58", group: "Explorer tree", title: "Smaller card headers and what each setting does · round 58", symbol: "textformat.size",
+        status: .judging,
+        summary: "The card headers feel too big even at Small with Banner with Title. Show variations that are smaller, and define exactly what each customization does (Line Above the Name = None must be only the name and tight) with the header's heights shown.",
+        spec: HeaderSizesRound.spec)
 
     // ROUNDS-DEFINITIONS
 }

@@ -19,6 +19,14 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r58", label: "Round 58", title: "Smaller card headers and what each setting does", date: "2 Oct 2026",
+             asked: "The card headers feel too big even at Small with Banner with Title. Show variations that are smaller, and define exactly what each customization does (Line Above the Name = None must be only the name and tight) with the header's heights shown.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.header-sizes-r58"]),
+        Info(id: "r57", label: "Round 57", title: "The card header while the list scrolls", date: "2 Oct 2026",
+             asked: "When a card's list scrolls, the pinned banner header cuts the rows off with a hard edge and looks bad. Show how the header and the icon menu should behave: rounded bottom corners, the icon menu scrolling away first and then the header, collapsing, or something else.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.header-on-scroll-r57"]),
         Info(id: "r56", label: "Round 56", title: "The connect card, now its own button", date: "2 Oct 2026",
              asked: "The connect button is now its own glass circle under the pills, but its card still opens as if from the top group of active servers. Decide how the card should open from a button of its own, what it holds now that the connected servers are visible beside it, how the button behaves while the card is open, and that clicking outside dismisses it as well as the x.",
              outcome: "Being judged.",
