@@ -124,6 +124,8 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
     var credentialSource: CredentialSource
     var identityID: UUID?
     var keychainIdentifier: String?
+    /// The connection folder this connection is filed in (organisation only), or nil for the top level.
+    var folderID: UUID?
     var useTLS: Bool
     var trustServerCertificate: Bool
     var tlsMode: TLSMode
@@ -191,6 +193,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         case credentialSource
         case identityID
         case keychainIdentifier
+        case folderID
         case useTLS
         case trustServerCertificate
         case tlsMode
@@ -234,6 +237,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         credentialSource: CredentialSource = .manual,
         identityID: UUID? = nil,
         keychainIdentifier: String? = nil,
+        folderID: UUID? = nil,
         useTLS: Bool = true,
         trustServerCertificate: Bool = false,
         tlsMode: TLSMode = .prefer,
@@ -270,6 +274,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         self.credentialSource = credentialSource
         self.identityID = identityID
         self.keychainIdentifier = keychainIdentifier
+        self.folderID = folderID
         self.useTLS = useTLS
         self.trustServerCertificate = trustServerCertificate
         self.tlsMode = tlsMode
@@ -309,6 +314,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         credentialSource = try container.decodeIfPresent(CredentialSource.self, forKey: .credentialSource) ?? .manual
         identityID = try container.decodeIfPresent(UUID.self, forKey: .identityID)
         keychainIdentifier = try container.decodeIfPresent(String.self, forKey: .keychainIdentifier)
+        folderID = try container.decodeIfPresent(UUID.self, forKey: .folderID)
         useTLS = try container.decodeIfPresent(Bool.self, forKey: .useTLS) ?? true
         trustServerCertificate = try container.decodeIfPresent(Bool.self, forKey: .trustServerCertificate) ?? false
         tlsMode = try container.decodeIfPresent(TLSMode.self, forKey: .tlsMode) ?? .prefer
@@ -353,6 +359,7 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         try container.encode(credentialSource, forKey: .credentialSource)
         try container.encodeIfPresent(identityID, forKey: .identityID)
         try container.encodeIfPresent(keychainIdentifier, forKey: .keychainIdentifier)
+        try container.encodeIfPresent(folderID, forKey: .folderID)
         try container.encode(useTLS, forKey: .useTLS)
         try container.encode(trustServerCertificate, forKey: .trustServerCertificate)
         try container.encode(tlsMode, forKey: .tlsMode)

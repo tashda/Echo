@@ -5,12 +5,15 @@ final class MockConnectionRepository: ConnectionRepositoryProtocol, @unchecked S
     // MARK: - In-Memory Storage
 
     var connections: [SavedConnection] = []
+    var folders: [SavedFolder] = []
     var identities: [SavedIdentity] = []
 
     // MARK: - Call Tracking
 
     var loadConnectionsCallCount = 0
     var saveConnectionsCallCount = 0
+    var loadFoldersCallCount = 0
+    var saveFoldersCallCount = 0
     var loadIdentitiesCallCount = 0
     var saveIdentitiesCallCount = 0
 
@@ -18,6 +21,8 @@ final class MockConnectionRepository: ConnectionRepositoryProtocol, @unchecked S
 
     var loadConnectionsError: Error?
     var saveConnectionsError: Error?
+    var loadFoldersError: Error?
+    var saveFoldersError: Error?
     var loadIdentitiesError: Error?
     var saveIdentitiesError: Error?
 
@@ -33,6 +38,18 @@ final class MockConnectionRepository: ConnectionRepositoryProtocol, @unchecked S
         saveConnectionsCallCount += 1
         if let error = saveConnectionsError { throw error }
         self.connections = connections
+    }
+
+    func loadFolders() async throws -> [SavedFolder] {
+        loadFoldersCallCount += 1
+        if let error = loadFoldersError { throw error }
+        return folders
+    }
+
+    func saveFolders(_ folders: [SavedFolder]) async throws {
+        saveFoldersCallCount += 1
+        if let error = saveFoldersError { throw error }
+        self.folders = folders
     }
 
     func loadIdentities() async throws -> [SavedIdentity] {

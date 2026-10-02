@@ -14,12 +14,15 @@ enum ManageSection: String, Identifiable, CaseIterable {
 enum ManageScope: Hashable {
     case allConnections
     case recentConnections
+    /// One connection folder (round MC, round 2: folders stay, without sign-in).
+    case folder(UUID)
     case identities
 
     var title: String {
         switch self {
         case .allConnections: "All Connections"
         case .recentConnections: "Recently Used"
+        case .folder: "Folder"
         case .identities: "Identities"
         }
     }
@@ -31,6 +34,20 @@ enum ManageScope: Hashable {
 enum ConnectionsViewMode: String {
     case list
     case table
+}
+
+/// The folder name alert: a new folder (under a parent, optionally moving connections into it)
+/// or a rename.
+enum FolderNameRequest: Identifiable, Equatable {
+    case create(parentID: UUID?, moving: Set<UUID>)
+    case rename(SavedFolder)
+
+    var id: String {
+        switch self {
+        case .create(let parentID, _): "create-\(parentID?.uuidString ?? "top")"
+        case .rename(let folder): "rename-\(folder.id.uuidString)"
+        }
+    }
 }
 
 /// A move away from an editor that has unsaved changes, waiting for Save, Don't Save or Cancel.

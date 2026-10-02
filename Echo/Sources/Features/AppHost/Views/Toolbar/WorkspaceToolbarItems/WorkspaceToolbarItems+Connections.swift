@@ -22,10 +22,25 @@ struct ConnectionsMenuContent: View {
                 Divider()
             }
 
-            // Saved connections (round MC: no folders)
+            // Hierarchical Saved Connections
             let projectID = projectStore.selectedProject?.id
-            let rootConnections = connectionStore.connections
-                .filter { $0.projectID == projectID && !connectedIDs.contains($0.id) }
+            let projectConnections = connectionStore.connections.filter { $0.projectID == projectID && !connectedIDs.contains($0.id) }
+            let projectFolders = connectionStore.folders.filter { $0.projectID == projectID && $0.kind == .connections }
+
+            let rootFolders = connectionStore.folders(kind: .connections, projectID: projectID, parentID: nil)
+
+            ForEach(rootFolders) { folder in
+                ToolbarFolderMenu(
+                    folder: folder,
+                    allFolders: projectFolders,
+                    allConnections: projectConnections,
+                    onConnect: { conn in
+                        environmentState.connectToNewSession(to: conn)
+                    }
+                )
+            }
+
+            let rootConnections = projectConnections.filter { connectionStore.effectiveFolderID(of: $0) == nil }
                 .sorted { $0.connectionName.localizedCaseInsensitiveCompare($1.connectionName) == .orderedAscending }
 
             ForEach(rootConnections) { connection in
@@ -80,6 +95,58 @@ struct ConnectionsMenuContent: View {
                     Image(systemName: "checkmark")
                 }
             }
+        }
+    }
+}
+
+// MARK: - Supporting Views
+
+struct ToolbarFolderMenu: View {
+    let folder: SavedFolder
+    let allFolders: [SavedFolder]
+    let allConnections: [SavedConnection]
+    let onConnect: (SavedConnection) -> Void
+
+    var body: some View {
+        Menu {
+            // Child Folders
+            let childFolders = allFolders.filter { $0.parentFolderID == folder.id }
+                .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+
+            ForEach(childFolders) { child in
+                ToolbarFolderMenu(
+                    folder: child,
+                    allFolders: allFolders,
+                    allConnections: allConnections,
+                    onConnect: onConnect
+                )
+            }
+
+            if !childFolders.isEmpty {
+                Divider()
+            }
+
+            // Connections in this folder
+            let folderConnections = allConnections.filter { $0.folderID == folder.id }
+                .sorted { $0.connectionName.localizedCaseInsensitiveCompare($1.connectionName) == .orderedAscending }
+
+            if folderConnections.isEmpty && childFolders.isEmpty {
+                Text("Empty Folder").foregroundStyle(.secondary)
+            } else {
+                ForEach(folderConnections) { connection in
+                    Button {
+                        onConnect(connection)
+                    } label: {
+                        Label {
+                            Text(connection.connectionName.isEmpty ? connection.host : connection.connectionName)
+                        } icon: {
+                            DatabaseTypeIcon(databaseType: connection.databaseType, presentation: .menu)
+                        }
+                    }
+                }
+            }
+        } label: {
+            Label(folder.displayName, systemImage: folder.icon)
         }
     }
 }

@@ -48,6 +48,8 @@ extension ManageConnectionsView {
                     color: connectionStore.currentColor(of: connection)
                 )
                 .tag(connection.id)
+                // Drag onto a folder in the sidebar to file it there.
+                .draggable(connection.id.uuidString)
             }
         }
         .listStyle(.inset)
@@ -119,11 +121,14 @@ extension ManageConnectionsView {
         if let connection = selected.first, selected.count == 1 {
             Button { connectToConnection(connection) } label: { Label("Connect", systemImage: "bolt.horizontal") }
             Button { navigate(to: .connections([connection.id])) } label: { Label("Edit", systemImage: "pencil") }
+            moveToFolderMenu([connection.id])
             Divider()
             Button { duplicateConnection(connection) } label: { Label("Duplicate", systemImage: "plus.square.on.square") }
             Divider()
             Button(role: .destructive) { pendingDeletion = .connection(connection) } label: { Label("Delete…", systemImage: "trash") }
         } else if !selected.isEmpty {
+            moveToFolderMenu(Set(selected.map(\.id)))
+            Divider()
             Button(role: .destructive) { deleteConnections(selected) } label: { Label("Delete \(selected.count) Connections", systemImage: "trash") }
         } else {
             Button { navigate(to: .newConnection) } label: { Label("New Connection…", systemImage: "externaldrive.badge.plus") }

@@ -173,25 +173,36 @@ final class ProjectStore {
             selectedProject = projects[targetIdx]
         }
 
-        // 2. Handle Connections and Identities
+        // 2. Handle Connections, Identities, and Folders
         if !merge {
             // Clear target resources first
             connectionStore.connections.removeAll { $0.projectID == targetProjectID }
             connectionStore.identities.removeAll { $0.projectID == targetProjectID }
+            connectionStore.folders.removeAll { $0.projectID == targetProjectID }
         }
 
         let sourceConnections = connectionStore.connections.filter { connectionIDs.contains($0.id) }
         let sourceIdentities = connectionStore.identities.filter { identityIDs.contains($0.id) }
-        
+
+        // Copy the folders the selected connections/identities are filed in, with their
+        // ancestors, as new folders in the target project; items keep their place.
+        let folderIDMap = Self.copyFolders(
+            containing: sourceConnections.compactMap(\.folderID) + sourceIdentities.compactMap(\.folderID),
+            into: targetProjectID,
+            connectionStore: connectionStore
+        )
+
         for var conn in sourceConnections {
             conn.id = UUID()
             conn.projectID = targetProjectID
+            conn.folderID = conn.folderID.flatMap { folderIDMap[$0] }
             connectionStore.connections.append(conn)
         }
 
         for var identity in sourceIdentities {
             identity.id = UUID()
             identity.projectID = targetProjectID
+            identity.folderID = identity.folderID.flatMap { folderIDMap[$0] }
             connectionStore.identities.append(identity)
         }
 
@@ -199,6 +210,34 @@ final class ProjectStore {
         try await repository.saveGlobalSettings(globalSettings)
         try await connectionStore.saveConnections()
         try await connectionStore.saveIdentities()
+        try await connectionStore.saveFolders()
+    }
+
+    /// Appends copies (new ids, target project) of the given folders and all their ancestors
+    /// to `connectionStore.folders`, and returns old id → new id.
+    private static func copyFolders(
+        containing folderIDs: [UUID],
+        into targetProjectID: UUID,
+        connectionStore: ConnectionStore
+    ) -> [UUID: UUID] {
+        var needed: [SavedFolder] = []
+        var seen: Set<UUID> = []
+        for folderID in folderIDs {
+            for folder in connectionStore.folderPath(to: folderID) where !seen.contains(folder.id) {
+                seen.insert(folder.id)
+                needed.append(folder)
+            }
+        }
+        var map: [UUID: UUID] = [:]
+        for folder in needed { map[folder.id] = UUID() }
+        for var folder in needed {
+            guard let newID = map[folder.id] else { continue }
+            folder.id = newID
+            folder.projectID = targetProjectID
+            folder.parentFolderID = folder.parentFolderID.flatMap { map[$0] }
+            connectionStore.folders.append(folder)
+        }
+        return map
     }
 
     /// Reset a project's settings to factory defaults.
@@ -219,6 +258,7 @@ final class ProjectStore {
         _ project: Project,
         connections: [SavedConnection],
         identities: [SavedIdentity],
+        folders: [SavedFolder] = [],
         globalSettings: GlobalSettings?,
         clipboardHistory: [ClipboardHistoryStore.Entry]?,
         autocompleteHistory: SQLAutoCompletionHistoryStore.Snapshot?,
@@ -229,6 +269,7 @@ final class ProjectStore {
             project,
             connections: connections,
             identities: identities,
+            folders: folders,
             globalSettings: globalSettings,
             clipboardHistory: clipboardHistory,
             autocompleteHistory: autocompleteHistory,

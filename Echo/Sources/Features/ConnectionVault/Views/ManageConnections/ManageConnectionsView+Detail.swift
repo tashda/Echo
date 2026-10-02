@@ -88,10 +88,13 @@ extension ManageConnectionsView {
     var newConnectionSheet: some View {
         ConnectionEditorView(connection: nil, confirmAction: .save) { connection, password, _ in
             isPresentingNewConnection = false
+            // A connection made while a folder is shown is filed in that folder.
+            var connection = connection
+            if connection.folderID == nil { connection.folderID = currentFolderID }
             Task {
                 await environmentState.upsertConnection(connection, password: password)
                 await MainActor.run {
-                    if scope != .allConnections { scope = .allConnections }
+                    if !activeScope.isConnections { scope = .allConnections }
                     connectionSelection = [connection.id]
                     detailHasChanges = false
                 }

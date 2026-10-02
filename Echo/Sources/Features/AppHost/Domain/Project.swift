@@ -121,6 +121,7 @@ struct ProjectExportData: Codable, Sendable {
     let project: Project
     let connections: [SavedConnection]
     let identities: [SavedIdentity]
+    let folders: [SavedFolder]
     let globalSettings: GlobalSettings?
     let clipboardHistory: [ClipboardHistoryStore.Entry]?
     let autocompleteHistory: SQLAutoCompletionHistoryStore.Snapshot?
@@ -133,6 +134,7 @@ struct ProjectExportData: Codable, Sendable {
         project: Project,
         connections: [SavedConnection],
         identities: [SavedIdentity],
+        folders: [SavedFolder],
         globalSettings: GlobalSettings?,
         clipboardHistory: [ClipboardHistoryStore.Entry]? = nil,
         autocompleteHistory: SQLAutoCompletionHistoryStore.Snapshot? = nil,
@@ -144,6 +146,7 @@ struct ProjectExportData: Codable, Sendable {
         self.project = project
         self.connections = connections
         self.identities = identities
+        self.folders = folders
         self.globalSettings = globalSettings
         self.clipboardHistory = clipboardHistory
         self.autocompleteHistory = autocompleteHistory

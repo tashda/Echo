@@ -54,6 +54,7 @@ final class MSSQLMetadataLoadingTests: XCTestCase {
             credentialSource: .manual,
             identityID: nil,
             keychainIdentifier: nil,
+            folderID: nil,
             useTLS: config.useTLS,
             databaseType: .microsoftSQL,
             serverVersion: nil,

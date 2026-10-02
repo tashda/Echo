@@ -430,6 +430,7 @@ struct ConnectionConfigurationRoundTripTests {
     @Test func asSavedConnectionPreservesAllFields() {
         let id = UUID()
         let identityID = UUID()
+        let folderID = UUID()
         let config = ConnectionConfiguration(
             connectionName: "Full Config",
             host: "db.example.com",
@@ -441,6 +442,7 @@ struct ConnectionConfigurationRoundTripTests {
             keychainIdentifier: "kc-123",
             credentialSource: .manual,
             identityID: identityID,
+            folderID: folderID,
             useTLS: true,
             trustServerCertificate: true,
             tlsMode: .verifyFull,
@@ -463,6 +465,7 @@ struct ConnectionConfigurationRoundTripTests {
         #expect(saved.credentialSource == .manual)
         #expect(saved.identityID == identityID)
         #expect(saved.keychainIdentifier == "kc-123")
+        #expect(saved.folderID == folderID)
         #expect(saved.useTLS == true)
         #expect(saved.trustServerCertificate == true)
         #expect(saved.tlsMode == .verifyFull)
@@ -476,6 +479,7 @@ struct ConnectionConfigurationRoundTripTests {
     @Test func fromSavedConnectionPreservesAllFields() {
         let id = UUID()
         let identityID = UUID()
+        let folderID = UUID()
         var saved = SavedConnection(
             id: id,
             connectionName: "Round Trip",
@@ -488,6 +492,7 @@ struct ConnectionConfigurationRoundTripTests {
             credentialSource: .identity,
             identityID: identityID,
             keychainIdentifier: "kc-abc",
+            folderID: folderID,
             useTLS: true,
             trustServerCertificate: true,
             tlsMode: .require,
@@ -510,6 +515,7 @@ struct ConnectionConfigurationRoundTripTests {
         #expect(config.credentialSource == .identity)
         #expect(config.identityID == identityID)
         #expect(config.keychainIdentifier == "kc-abc")
+        #expect(config.folderID == folderID)
         #expect(config.useTLS == true)
         #expect(config.trustServerCertificate == true)
         #expect(config.tlsMode == .require)
@@ -683,6 +689,7 @@ struct ConnectionConfigurationDefaultsTests {
         #expect(config.keychainIdentifier == nil)
         #expect(config.credentialSource == .manual)
         #expect(config.identityID == nil)
+        #expect(config.folderID == nil)
     }
 
     @Test func hashableConformance() {

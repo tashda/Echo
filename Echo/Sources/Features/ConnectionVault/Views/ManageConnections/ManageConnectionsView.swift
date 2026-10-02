@@ -44,6 +44,11 @@ struct ManageConnectionsView: View {
     @State internal var pendingDeletion: DeletionTarget?
     @State internal var pendingDuplicateConnection: SavedConnection?
 
+    // MARK: Folders
+    @State internal var folderNameRequest: FolderNameRequest?
+    @State internal var folderNameDraft = ""
+    @State internal var pendingFolderDeletion: SavedFolder?
+
     // MARK: Projects
     @State internal var isShowingProjectSettings = false
     @State internal var showDeleteConfirmation = false
@@ -103,7 +108,7 @@ struct ManageConnectionsView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 920, minHeight: 560)
-        .navigationTitle(activeScope.title)
+        .navigationTitle(scopeTitle)
         .navigationSubtitle(countText)
         .searchable(text: $searchText, placement: .toolbar, prompt: activeScope.isConnections ? "Search connections" : "Search identities")
         .toolbar { toolbarContent }
@@ -118,6 +123,7 @@ struct ManageConnectionsView: View {
         .onChange(of: connectionStore.identities.map(\.id)) { _, ids in identitySelection.formIntersection(Set(ids)) }
         .modifier(ManageConnectionsSheets(view: self))
         .modifier(ManageConnectionsAlerts(view: self))
+        .modifier(ManageConnectionsFolderAlerts(view: self))
     }
 
     // MARK: Toolbar
@@ -147,6 +153,13 @@ struct ManageConnectionsView: View {
                     Label("New Identity", systemImage: "person.crop.circle.badge.plus")
                 }
                 .keyboardShortcut("n", modifiers: [.command, .option])
+                Divider()
+                Button {
+                    beginNewFolder(parentID: currentFolderID)
+                } label: {
+                    Label("New Folder…", systemImage: "folder.badge.plus")
+                }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
             } label: {
                 Label("Add", systemImage: "plus")
             } primaryAction: {

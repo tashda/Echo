@@ -80,6 +80,8 @@ extension ConnectionEditorView {
         )
 
         applyPostgresOptions(to: &connection)
+        // Editing keeps the connection in its folder.
+        connection.folderID = originalConnection?.folderID
         persistKeyPassword(for: connection.id)
 
         let passwordToPersist: String?

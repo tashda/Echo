@@ -27,6 +27,7 @@ protocol ProjectRepositoryProtocol: Sendable {
         _ project: Project,
         connections: [SavedConnection],
         identities: [SavedIdentity],
+        folders: [SavedFolder],
         globalSettings: GlobalSettings?,
         clipboardHistory: [ClipboardHistoryStore.Entry]?,
         autocompleteHistory: SQLAutoCompletionHistoryStore.Snapshot?,

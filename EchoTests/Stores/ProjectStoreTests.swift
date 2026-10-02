@@ -124,4 +124,41 @@ final class ProjectStoreTests: XCTestCase {
         }
         XCTAssertEqual(mockRepo.globalSettings.editorShowLineNumbers, false)
     }
+    // MARK: - Import resources
+
+    func testImportResourcesCopiesFoldersAndKeepsPlaces() async throws {
+        let source = TestFixtures.project(name: "Source")
+        let target = TestFixtures.project(name: "Target")
+        mockRepo.projects = [source, target]
+        try await store.load()
+
+        let connectionStore = ConnectionStore(repository: MockConnectionRepository())
+        let parent = TestFixtures.savedFolder(name: "Servers", projectID: source.id)
+        let child = TestFixtures.savedFolder(name: "EU", projectID: source.id, parentFolderID: parent.id)
+        let unrelated = TestFixtures.savedFolder(name: "Other", projectID: source.id)
+        let connection = TestFixtures.savedConnection(projectID: source.id, connectionName: "eu-1", folderID: child.id)
+        connectionStore.folders = [parent, child, unrelated]
+        connectionStore.connections = [connection]
+
+        try await store.importProjectResources(
+            from: source,
+            into: target.id,
+            connectionStore: connectionStore,
+            merge: true,
+            includeSettings: false,
+            connectionIDs: [connection.id],
+            identityIDs: []
+        )
+
+        let copiedFolders = connectionStore.folders.filter { $0.projectID == target.id }
+        XCTAssertEqual(Set(copiedFolders.map(\.name)), ["Servers", "EU"])
+        let copiedParent = try XCTUnwrap(copiedFolders.first { $0.name == "Servers" })
+        let copiedChild = try XCTUnwrap(copiedFolders.first { $0.name == "EU" })
+        XCTAssertNotEqual(copiedChild.id, child.id)
+        XCTAssertEqual(copiedChild.parentFolderID, copiedParent.id)
+        XCTAssertNil(copiedParent.parentFolderID)
+
+        let copiedConnection = try XCTUnwrap(connectionStore.connections.first { $0.projectID == target.id })
+        XCTAssertEqual(copiedConnection.folderID, copiedChild.id)
+    }
 }

@@ -58,6 +58,7 @@ final class ProjectTests: XCTestCase {
             project: project,
             connections: connections,
             identities: [],
+            folders: [],
             globalSettings: GlobalSettings(),
             bookmarks: project.bookmarks,
             version: "1.0"
@@ -69,5 +70,26 @@ final class ProjectTests: XCTestCase {
         XCTAssertEqual(decoded.project.name, "Export Test")
         XCTAssertEqual(decoded.connections.count, 1)
         XCTAssertEqual(decoded.version, "1.0")
+    }
+
+    func testProjectExportDataCarriesFolders() throws {
+        let project = TestFixtures.project(name: "With Folders")
+        let parent = TestFixtures.savedFolder(name: "Servers", projectID: project.id)
+        let child = TestFixtures.savedFolder(name: "EU", projectID: project.id, parentFolderID: parent.id)
+        let connection = TestFixtures.savedConnection(projectID: project.id, folderID: child.id)
+        let exportData = ProjectExportData(
+            project: project,
+            connections: [connection],
+            identities: [],
+            folders: [parent, child],
+            globalSettings: nil
+        )
+
+        let data = try JSONEncoder().encode(exportData)
+        let decoded = try JSONDecoder().decode(ProjectExportData.self, from: data)
+
+        XCTAssertEqual(decoded.folders.map(\.name), ["Servers", "EU"])
+        XCTAssertEqual(decoded.folders[1].parentFolderID, parent.id)
+        XCTAssertEqual(decoded.connections[0].folderID, child.id)
     }
 }

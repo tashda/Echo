@@ -25,6 +25,7 @@ struct SyncAdapter: Sendable {
         fields["domain"] = try field(connection.domain, hlc: hlc)
         fields["credentialSource"] = try field(connection.credentialSource, hlc: hlc)
         fields["identityID"] = try field(connection.identityID, hlc: hlc)
+        fields["folderID"] = try field(connection.folderID, hlc: hlc)
         fields["useTLS"] = try field(connection.useTLS, hlc: hlc)
         fields["trustServerCertificate"] = try field(connection.trustServerCertificate, hlc: hlc)
         fields["tlsMode"] = try field(connection.tlsMode, hlc: hlc)
@@ -77,6 +78,7 @@ struct SyncAdapter: Sendable {
         if let v: String = try value(doc, "domain") { conn.domain = v }
         if let v: CredentialSource = try value(doc, "credentialSource") { conn.credentialSource = v }
         if let v: UUID? = try optionalValue(doc, "identityID") { conn.identityID = v }
+        if let v: UUID? = try optionalValue(doc, "folderID") { conn.folderID = v }
         if let v: Bool = try value(doc, "useTLS") { conn.useTLS = v }
         if let v: Bool = try value(doc, "trustServerCertificate") { conn.trustServerCertificate = v }
         if let v: TLSMode = try value(doc, "tlsMode") { conn.tlsMode = v }
@@ -100,6 +102,48 @@ struct SyncAdapter: Sendable {
         return conn
     }
 
+    // MARK: - Folder ↔ SyncDocument
+
+    func toSyncDocument(_ folder: SavedFolder, hlc: UInt64) throws -> SyncDocument {
+        let projectID = folder.projectID ?? UUID()
+        var fields: [String: SyncField] = [:]
+
+        fields["name"] = try field(folder.name, hlc: hlc)
+        fields["folderDescription"] = try field(folder.folderDescription, hlc: hlc)
+        fields["icon"] = try field(folder.icon, hlc: hlc)
+        fields["parentFolderID"] = try field(folder.parentFolderID, hlc: hlc)
+        fields["colorHex"] = try field(folder.colorHex, hlc: hlc)
+        fields["kind"] = try field(folder.kind, hlc: hlc)
+        fields["createdAt"] = try field(folder.createdAt, hlc: hlc)
+
+        // Folders are organisation only (round MC): no credential fields are sent, and the
+        // credentialMode/identityID fields of older folder documents are ignored on apply.
+        // Children are not synced; they are reconstructed from folderID references.
+
+        return SyncDocument(
+            id: folder.id,
+            collection: .folders,
+            projectID: projectID,
+            fields: fields
+        )
+    }
+
+    func applyToFolder(_ doc: SyncDocument, existing: SavedFolder?) throws -> SavedFolder {
+        var folder = existing ?? SavedFolder(name: "", projectID: doc.projectID)
+        folder.id = doc.id
+        folder.projectID = doc.projectID
+
+        if let v: String = try value(doc, "name") { folder.name = v }
+        if let v: String? = try optionalValue(doc, "folderDescription") { folder.folderDescription = v }
+        if let v: String = try value(doc, "icon") { folder.icon = v }
+        if let v: UUID? = try optionalValue(doc, "parentFolderID") { folder.parentFolderID = v }
+        if let v: String = try value(doc, "colorHex") { folder.colorHex = v }
+        if let v: FolderKind = try value(doc, "kind") { folder.kind = v }
+        if let v: Date = try value(doc, "createdAt") { folder.createdAt = v }
+
+        return folder
+    }
+
     // MARK: - Identity ↔ SyncDocument
 
     func toSyncDocument(_ identity: SavedIdentity, hlc: UInt64) throws -> SyncDocument {
@@ -111,6 +155,7 @@ struct SyncAdapter: Sendable {
         fields["authenticationMethod"] = try field(identity.authenticationMethod, hlc: hlc)
         fields["username"] = try field(identity.username, hlc: hlc)
         fields["domain"] = try field(identity.domain, hlc: hlc)
+        fields["folderID"] = try field(identity.folderID, hlc: hlc)
         fields["createdAt"] = try field(identity.createdAt, hlc: hlc)
         fields["updatedAt"] = try field(identity.updatedAt, hlc: hlc)
 
@@ -138,6 +183,7 @@ struct SyncAdapter: Sendable {
         if let v: DatabaseAuthenticationMethod = try value(doc, "authenticationMethod") { identity.authenticationMethod = v }
         if let v: String = try value(doc, "username") { identity.username = v }
         if let v: String? = try optionalValue(doc, "domain") { identity.domain = v }
+        if let v: UUID? = try optionalValue(doc, "folderID") { identity.folderID = v }
         if let v: Date = try value(doc, "createdAt") { identity.createdAt = v }
         if let v: Date? = try optionalValue(doc, "updatedAt") { identity.updatedAt = v }
 

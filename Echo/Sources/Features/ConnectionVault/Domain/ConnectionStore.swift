@@ -1,12 +1,15 @@
 import Foundation
 import Observation
 
-/// A modular store that manages connections and identities (round MC: no folders).
+/// A modular store that manages connections, folders, and identities.
+/// Folders only organise connections and identities; they hold no credentials (round MC).
 /// Refactored from `EnvironmentState` to adhere to modular MVVM and under-500-line limits.
 @Observable @MainActor
 final class ConnectionStore {
     // MARK: - State
     var connections: [SavedConnection] = []
+    /// Connection and identity folders of every project (see `ConnectionStore+Folders`).
+    var folders: [SavedFolder] = []
     var identities: [SavedIdentity] = []
     
     var selectedConnectionID: UUID?
@@ -33,6 +36,7 @@ final class ConnectionStore {
     
     func load() async throws {
         self.connections = try await repository.loadConnections()
+        self.folders = try await repository.loadFolders()
         self.identities = try await repository.loadIdentities()
 
         if selectedIdentityID == nil {
@@ -44,6 +48,10 @@ final class ConnectionStore {
         try await repository.saveConnections(connections)
     }
     
+    func saveFolders() async throws {
+        try await repository.saveFolders(folders)
+    }
+
     func saveIdentities() async throws {
         try await repository.saveIdentities(identities)
     }

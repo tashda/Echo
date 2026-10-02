@@ -82,6 +82,7 @@ final class AppDirector {
 
         let connectionRepository = ConnectionRepository(
             connectionStore: ConnectionDiskStore(),
+            folderStore: FolderDiskStore(),
             identityStore: IdentityDiskStore()
         )
         self.connectionStore = ConnectionStore(repository: connectionRepository)

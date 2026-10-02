@@ -41,6 +41,10 @@ extension ManageConnectionsView {
         switch activeScope {
         case .recentConnections:
             items = recentConnections
+        case .folder(let folderID):
+            items = projectConnections
+                .filter { connectionStore.effectiveFolderID(of: $0) == folderID }
+                .sorted(using: connectionSortOrder)
         default:
             items = projectConnections.sorted(using: connectionSortOrder)
         }

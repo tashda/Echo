@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Round MC: the sidebar. A project switcher on top (projects are a scope, not a page), then
-/// Connections (All, Recently Used) and Identities. No folders.
+/// Connections (All, Recently Used, then folders) and Identities.
 extension ManageConnectionsView {
     var sidebar: some View {
         List(selection: Binding(get: { scope }, set: { if let new = $0 { navigate(to: .scope(new)) } })) {
@@ -9,9 +9,14 @@ extension ManageConnectionsView {
                 Label("All Connections", systemImage: "externaldrive.connected.to.line.below")
                     .badge(projectConnections.count)
                     .tag(ManageScope.allConnections)
+                    // Dropping connections here takes them out of their folder.
+                    .dropDestination(for: String.self) { items, _ in
+                        dropConnections(items, intoFolder: nil)
+                    }
                 Label("Recently Used", systemImage: "clock")
                     .badge(recentConnections.count)
                     .tag(ManageScope.recentConnections)
+                folderRows
             }
             Section("Identities") {
                 Label("All Identities", systemImage: "person.crop.circle")
