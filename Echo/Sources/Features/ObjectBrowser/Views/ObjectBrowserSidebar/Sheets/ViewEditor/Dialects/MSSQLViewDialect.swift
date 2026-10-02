@@ -2,7 +2,7 @@ import Foundation
 import SQLServerKit
 
 /// MSSQL implementation of the view editor dialect.
-/// Uses sqlserver-nio typed metadata APIs — no raw SQL in Echo.
+/// Uses echo-sqlserver typed metadata APIs — no raw SQL in Echo.
 struct MSSQLViewDialect: ViewEditorDialect, Sendable {
 
     var supportsMaterializedViews: Bool { false }

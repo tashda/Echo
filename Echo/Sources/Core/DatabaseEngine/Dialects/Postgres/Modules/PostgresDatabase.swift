@@ -276,7 +276,7 @@ final class PostgresSession: DatabaseSession {
     }
 
     func listExtensionObjects(extensionName: String) async throws -> [ExtensionObjectInfo] {
-        // TODO: Add listExtensionObjects to postgres-wire .metadata
+        // TODO: Add listExtensionObjects to echo-postgres .metadata
         return []
     }
 
@@ -538,7 +538,7 @@ extension PostgresSession: DatabaseMetadataSession {
     }
 
     func listAvailableExtensions() async throws -> [AvailableExtensionInfo] {
-        // TODO: Add listAvailableExtensions to postgres-wire .metadata
+        // TODO: Add listAvailableExtensions to echo-postgres .metadata
         return []
     }
 

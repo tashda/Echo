@@ -1,6 +1,6 @@
 import SQLServerKit
 
-/// Shorthand for the tables the SQL Server suites make through sqlserver-nio instead of SQL text.
+/// Shorthand for the tables the SQL Server suites make through echo-sqlserver instead of SQL text.
 extension SQLServerColumnDefinition {
     /// A column as `CREATE TABLE` makes it by default: nullable unless it is the primary key.
     static func column(
@@ -24,7 +24,7 @@ extension SQLServerColumnDefinition {
 }
 
 extension MSSQLLabTestCase {
-    /// Makes a table in the suite's scratch database through sqlserver-nio.
+    /// Makes a table in the suite's scratch database through echo-sqlserver.
     func createTable(_ name: String, schema: String = "dbo", _ columns: [SQLServerColumnDefinition]) async throws {
         try await sqlserverClient.withConnection { connection in
             try await connection.createTable(name: name, columns: columns, schema: schema)

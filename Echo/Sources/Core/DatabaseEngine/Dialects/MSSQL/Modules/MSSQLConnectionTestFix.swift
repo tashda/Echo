@@ -1,7 +1,7 @@
 import Foundation
 import SQLServerKit
 
-/// Turns sqlserver-nio's TLS failure into the fix the connection sheet offers
+/// Turns echo-sqlserver's TLS failure into the fix the connection sheet offers
 /// (Echo Labs round 22, TE1).
 enum MSSQLConnectionTestFix {
     static func fix(for error: any Error, encryptionMode: MSSQLEncryptionMode) -> ConnectionTestFix? {

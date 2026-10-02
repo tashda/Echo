@@ -2,7 +2,7 @@ import XCTest
 import SQLServerKit
 @testable import Echo
 
-/// SQL Server security through the sqlserver-nio APIs Echo's security screens use: logins, users,
+/// SQL Server security through the echo-sqlserver APIs Echo's security screens use: logins, users,
 /// roles, permissions and schema owners are made and read back with the typed clients.
 final class MSSQLSecurityTests: MSSQLLabTestCase {
     private let loginPassword = "StrongPass123!"

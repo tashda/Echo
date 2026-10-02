@@ -31,11 +31,6 @@ jobs:
         rm -rf ~/Library/Caches/org.swift.swiftpm/repositories
         rm -rf ~/Library/Developer/Xcode/DerivedData/*/SourcePackages
 
-    - name: Access to echo-server-lab
-      uses: ./.github/actions/lab-repo-access
-      with:
-        deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
-
     - name: Placeholder secrets for test builds
       run: cp Echo/Configuration/Secrets.xcconfig.example Echo/Configuration/Secrets.xcconfig
 
@@ -82,11 +77,11 @@ jobs:
       id: lab
       uses: ./.github/actions/lab-tests-setup
       with:
-        lab-deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
         tailscale-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
         tailscale-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
         testlab-ssh-key: ${{ secrets.TESTLAB_SSH_KEY }}
         testlab-known-hosts: ${{ secrets.TESTLAB_KNOWN_HOSTS }}
+        testlab-address: ${{ vars.TESTLAB_ADDRESS }}
 
     - name: Run the LabTests plan against the lab
       env:
@@ -157,11 +152,6 @@ jobs:
         # Add to search list so codesign finds it
         security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-
-    - name: Access to echo-server-lab
-      uses: ./.github/actions/lab-repo-access
-      with:
-        deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
 
     - name: Resolve packages
       run: xcodebuild -resolvePackageDependencies -project Echo.xcodeproj -scheme Echo

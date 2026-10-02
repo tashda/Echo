@@ -73,7 +73,7 @@ struct LabConnection: Identifiable, Equatable {
     static let folders = ["Corporate", "Local", "Cloud"]
 
     static let samples: [LabConnection] = [
-        LabConnection(id: "mssql", name: "Test MSSQL", engine: .sqlServer, host: "192.168.1.234", port: "14332", method: "SQL Server login", user: "sa", password: "••••••••", folder: "Local", colorIndex: 2, encryption: "Mandatory", trustsCertificate: true),
+        LabConnection(id: "mssql", name: "Test MSSQL", engine: .sqlServer, host: "192.0.2.34", port: "14332", method: "SQL Server login", user: "sa", password: "••••••••", folder: "Local", colorIndex: 2, encryption: "Mandatory", trustsCertificate: true),
         LabConnection(id: "pg", name: "Local Postgres", engine: .postgres, host: "localhost", method: "Password", user: "postgres", folder: "Local", encryption: "Prefer TLS"),
         LabConnection(id: "prod", name: "Prod SQL", engine: .sqlServer, host: "prod-sql-01.contoso.com", database: "Sales", method: "Windows (Kerberos)", user: "CONTOSO\\echo", folder: "Corporate", colorIndex: 4, encryption: "Strict"),
         LabConnection(id: "shop", name: "Shop MySQL", engine: .mysql, host: "db.internal", method: "Password", user: "shop_ro", folder: "Cloud", colorIndex: 3, encryption: "Require TLS"),

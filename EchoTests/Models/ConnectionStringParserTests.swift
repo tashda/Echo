@@ -28,8 +28,8 @@ struct ConnectionStringParserTests {
     }
 
     @Test func sqlServerJDBCStyleURL() throws {
-        let result = try #require(ConnectionStringParser.parse("sqlserver://192.168.1.234:14332;databaseName=AdventureWorks2022;user=sa;password=pw"))
-        #expect(result == .init(databaseType: .microsoftSQL, host: "192.168.1.234", port: 14332, database: "AdventureWorks2022", username: "sa", password: "pw"))
+        let result = try #require(ConnectionStringParser.parse("sqlserver://192.0.2.34:14332;databaseName=AdventureWorks2022;user=sa;password=pw"))
+        #expect(result == .init(databaseType: .microsoftSQL, host: "192.0.2.34", port: 14332, database: "AdventureWorks2022", username: "sa", password: "pw"))
     }
 
     @Test func adoNetConnectionString() throws {

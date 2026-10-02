@@ -7,7 +7,7 @@ import Testing
 /// Round 21, open transaction on close (accepted): the tab's store finds its open transactions
 /// (checked with the server), commits or rolls them back, and a failed one is only rolled back.
 /// The transactions are SQL a user types in the editor; the tables around them are made with
-/// postgres-wire's typed APIs.
+/// echo-postgres's typed APIs.
 @Suite(.enabled(if: labIntegrationEnabled, labIntegrationNote), .server("pg-17-empty"), .timeLimit(.minutes(10)))
 @MainActor
 struct PostgresOpenTransactionGuardTests {

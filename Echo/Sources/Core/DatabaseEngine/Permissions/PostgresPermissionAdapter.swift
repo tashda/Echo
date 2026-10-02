@@ -1,7 +1,7 @@
 import Foundation
 import PostgresKit
 
-/// Adapts ``PostgresPermissions`` from postgres-wire to the unified ``DatabasePermissionProviding`` protocol.
+/// Adapts ``PostgresPermissions`` from echo-postgres to the unified ``DatabasePermissionProviding`` protocol.
 nonisolated struct PostgresPermissionAdapter: DatabasePermissionProviding, Sendable {
     let permissions: PostgresPermissions
 

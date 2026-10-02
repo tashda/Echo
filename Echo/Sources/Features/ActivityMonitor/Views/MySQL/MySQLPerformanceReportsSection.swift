@@ -9,7 +9,7 @@ struct MySQLPerformanceReportsSection: View {
         SectionContainer(
             title: "Performance Reports",
             icon: "speedometer",
-            info: "Performance Schema and sys schema reports surfaced through mysql-wire."
+            info: "Performance Schema and sys schema reports surfaced through echo-mysql."
         ) {
             VStack(alignment: .leading, spacing: SpacingTokens.sm) {
                 header

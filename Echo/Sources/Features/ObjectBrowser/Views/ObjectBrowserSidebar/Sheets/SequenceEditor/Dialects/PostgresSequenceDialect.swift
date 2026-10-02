@@ -2,7 +2,7 @@ import Foundation
 import PostgresKit
 
 /// PostgreSQL implementation of the sequence editor dialect.
-/// Uses postgres-wire typed metadata APIs — no raw SQL in Echo.
+/// Uses echo-postgres typed metadata APIs — no raw SQL in Echo.
 struct PostgresSequenceDialect: SequenceEditorDialect, Sendable {
 
     var supportsOwnership: Bool { true }

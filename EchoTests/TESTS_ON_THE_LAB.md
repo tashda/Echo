@@ -67,7 +67,7 @@ below were made by the owner (2026-10-01). Failures the lab suites found are in
   `EchoTests/Integration/Postgres/` and `PostgresDockerTestCase`, which still use
   `EchoDockerManager`; the Postgres version matrix; `PostgresStreamingBenchmarkTests` (needs a
   recipe with a large table).
-- **SQL Server content** is made through sqlserver-nio in each suite's scratch database; the SQL
+- **SQL Server content** is made through echo-sqlserver in each suite's scratch database; the SQL
   text left is what a user types in a query tab, plus two driver gaps (GS-03 compressed tables,
   tashda/echo-sqlserver#15; GS-41 finishing a restore, tashda/echo-sqlserver#16).
 - **Removed:** the old plans (IntegrationTests, MSSQLCompatibilityTests,

@@ -1,18 +1,19 @@
 name: "Set up lab tests"
 description: >
   Everything a job needs before running a test plan whose suites start echo-server-lab servers:
-  access to the private echo-server-lab package and to testlab, the serverlab tool built from the
+  access to testlab, the serverlab tool built from the
   lab revision Echo is pinned to, placeholder secrets for the build, and resolved packages.
   Run it after checkout, Xcode selection and the PostgreSQL tools step. It joins the tailnet last,
   so every download (packages, caches, Homebrew) happens on the runner's own network.
 inputs:
-  lab-deploy-key:
-    required: true
   tailscale-oauth-client-id:
     required: true
   tailscale-oauth-secret:
     required: true
   testlab-ssh-key:
+    required: true
+  testlab-address:
+    description: "testlab's LAN address (repository variable TESTLAB_ADDRESS)"
     required: true
   testlab-known-hosts:
     required: true
@@ -23,11 +24,6 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Access to echo-server-lab
-      uses: ./.github/actions/lab-repo-access
-      with:
-        deploy-key: ${{ inputs.lab-deploy-key }}
-
     - name: Lab revision Echo is pinned to
       id: lab
       shell: bash
@@ -40,7 +36,6 @@ runs:
       with:
         repository: tashda/echo-server-lab
         ref: ${{ steps.lab.outputs.revision }}
-        ssh-key: ${{ inputs.lab-deploy-key }}
         path: echo-server-lab
 
     - name: Cache the serverlab build
@@ -68,3 +63,4 @@ runs:
         tailscale-oauth-secret: ${{ inputs.tailscale-oauth-secret }}
         ssh-key: ${{ inputs.testlab-ssh-key }}
         known-hosts: ${{ inputs.testlab-known-hosts }}
+        address: ${{ inputs.testlab-address }}

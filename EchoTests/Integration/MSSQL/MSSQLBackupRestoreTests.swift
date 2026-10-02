@@ -15,7 +15,7 @@ class MSSQLBackupRestoreTests: MSSQLLabTestCase {
 
     // MARK: - Test Database Setup
 
-    /// A database with dbo.test_data and five rows, made through sqlserver-nio.
+    /// A database with dbo.test_data and five rows, made through echo-sqlserver.
     private func setupTestDB(_ name: String) async throws {
         try await sqlserverClient.admin.createDatabase(name: name)
         try await sqlserverClient.withConnection { connection in
