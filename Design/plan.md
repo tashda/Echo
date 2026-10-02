@@ -9,6 +9,20 @@ Branch: `claude/ecstatic-fermi-u1jxr6`, based on `dev`. See `current-state.md` f
 
 ---
 
+## Round IC · The inspector column
+
+Rules: `05-components` › Inspector, Toolbar, Notifications. Review page: https://claude.ai/artifact/XCvaSjmyAvyd27tWgSFS91. Branch: `claude/inspector-round-ic`, based on `dev`. Written in a Linux container without a Swift toolchain: every task needs the owner's build and check on a Mac.
+
+| # | Task | Files | Check | Status |
+|---|---|---|---|---|
+| IC1 | **Column state.** `InspectorPage` (details, bookmarks, history, notifications), visible + page in `AppState`, the last page remembered; `toggleInspector`, `toggleInspectorPage`, `showDetails(passive:)` with the dot; every caller of `showInfoSidebar`, `workspaceLibrary` and `isNotificationHistoryVisible` moved. | `AppState`, `AppState+Inspector`, callers | Every row of the review page's table | ☐ |
+| IC2 | **Toolbar and strip.** [Bell · Inspector] in their own group, Inspector a plain button; `InspectorPageStrip` on the tab strip's line replaces `WorkspaceInspectorPicker`; View › Inspector submenu with ⌥⌘1–4. | `WorkspaceToolbarItems`, `ToolbarActionButtons`, `NotificationBellToolbarButton`, `WorkspaceInspectorColumn`, `InspectorPageStrip`, `EchoApp+ViewMenu` | The strip lines up with the tab strip; no count in it 👁 | ☐ |
+| IC3 | **List kit.** Page header line, search field, group heading, grouped box, two-line row with its opened part; `LayoutTokens.InspectorList`. | `Shared/DesignSystem/Components/InspectorList/*` | Light, dark, Increase Contrast 👁 | ☐ |
+| IC4 | **History** on the kit: statement on one line, outcome glyph, time at the right, server dot, opened part, ⋯ menu, Connect and Open; filtered once per change. | `QueryHistoryPanelView`, `QueryHistoryItem`, `EnvironmentState+SavedQueries` | A run on a disconnected server can be read, copied and opened 👁 | ☐ |
+| IC5 | **Bookmarks and folders:** `folder`, `note`, order on `Bookmark`; `bookmarkFolders` on `Project`; the page on the kit; create, rename, reorder, move, delete with the keep-or-delete alert; Sort Once By; insert at the cursor. | `Bookmark`, `Project`, `BookmarkRepository`, `Inspector/Bookmarks/*` | Old projects decode; delete a folder both ways 👁 | ☐ |
+| IC5b | **Saving:** the tab's home (none, bookmark, file); the Save card (Bookmarks or File; folder pop-up with New Folder…); File menu items; opening a bookmark sets the home; Save As keeps the file; Open SQL File… ⌘O. | `WorkspaceTab`, `EnvironmentState+UnsavedChanges`, `EchoApp`, `SaveQueryCard` | Save As then ⌘S writes the same file; ⌘S after opening a bookmark updates it 👁 | ☐ |
+| IC6 | **Notifications and Details** on the kit: two-line notifications in boxes with clock times; Details under the strip. | `NotificationHistoryPanel`, `NotificationHistoryCard`, `InfoSidebarView` | All four pages share the strip and the list 👁 | ☐ |
+
 ## Round 53 · The title banner header
 
 | # | Task | Files | Check | Status |

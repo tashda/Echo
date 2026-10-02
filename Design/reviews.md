@@ -16,6 +16,7 @@ Each review round is an interactive page where every option was marked Yes, Mayb
 | 10 | 2026-09-29 | How the results card appears, the pinned path header, the Inspector (new phase); in the Design Lab: the footer's right-hand side and the database switcher | https://claude.ai/artifact/BfUjeUCPDv9rd6cDXzCwEA |
 | Tree card | 2026-09-29 | The content of the server cards: six styles, palettes, schema names, sections; tree blueprints (answered in the Design Lab) | https://claude.ai/artifact/N7UL1qHMGicpthQmSKVa89 |
 | Design board | 2026-09-30 | Tree card layouts and icons, tool tabs, connecting, the tab bar, the query editor, EchoSense: 80 ideas with live mockups | https://claude.ai/artifact/8gQM8VJCknMvFRsCTTSnHJ |
+| IC | 2026-10-02 | The inspector column: toolbar group, page strip, Details, Bookmarks (folders), History, Notifications, saving; answered in chat | https://claude.ai/artifact/XCvaSjmyAvyd27tWgSFS91 |
 | 14 | 2026-09-30 | The board's Maybes in the Design Lab: tab bar and tool pages, section dock, editing in Manage Connections, EchoSense selection and corners | Design Lab, Round 14 pages |
 
 Earlier exploration pages: [Echo Navigation Concepts](https://claude.ai/artifact/4Qpv59JDzYej7vuLGfXCQK) and [Echo Sidebar Rethink](https://claude.ai/artifact/YUkxDY7HGiDqdYTBRzmeYG).
