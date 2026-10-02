@@ -136,6 +136,12 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
             throw DatabaseError.connectionFailed("Unsupported database type")
         }
 
+        // SQL Server: this load always refreshes the server's database list, which is what
+        // notices a dropped database. The focused database's schema loads afterwards, on its
+        // own, so one database failing (it was just dropped, went offline) never fails the server.
+        let isSQLServer = connectionSession.session is SQLServerSessionAdapter
+        let fetchedDatabase = isSQLServer ? nil : selectedDatabase
+
         try Task.checkCancellation()
         let fetchStart = CFAbsoluteTimeGetCurrent()
         print("[PERF] initialLoad: calling fetchStructure at +\(String(format: "%.3f", fetchStart - sessionStart))s")
@@ -144,7 +150,7 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
             let structure = try await fetcher.fetchStructure(
                 for: connectionSession.connection,
                 credentials: ConnectionCredentials(authentication: credentials),
-                selectedDatabase: selectedDatabase,
+                selectedDatabase: fetchedDatabase,
                 reuseSession: connectionSession.session,
                 databaseFilter: nil as String?,
                 cachedStructure: connectionSession.databaseStructure,
@@ -166,8 +172,7 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
                 interimServerVersion = serverVersion
             }
 
-            let isSQLServerInitialListRefresh = connectionSession.session is SQLServerSessionAdapter && selectedDatabase == nil
-            var mergedDatabases = isSQLServerInitialListRefresh
+            var mergedDatabases = isSQLServer
                 ? Self.mergeAuthoritativeDatabaseList(
                     liveDatabases: structure.databases,
                     existingDatabases: connectionSession.databaseStructure?.databases ?? []
@@ -207,6 +212,10 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
             connectionSession.structureLoadingMessage = nil
 
             ensureSelectedDatabaseIfNeeded(for: connectionSession, availableDatabases: finalStructure.databases)
+
+            if isSQLServer, let focused = connectionSession.sidebarFocusedDatabase, !focused.isEmpty {
+                await loadFocusedDatabase(focused, for: connectionSession)
+            }
             return connectionSession.databaseStructure ?? finalStructure
         } catch {
             if error is CancellationError {
@@ -216,6 +225,19 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
             }
             throw error
         }
+    }
+
+    /// Loads the focused database's schema after the server's list. A failure marks that
+    /// database failed (the tree shows "Schema refresh failed" under it) and nothing else.
+    private func loadFocusedDatabase(_ databaseName: String, for session: ConnectionSession) async {
+        // An offline or inaccessible database has no schema to read; its row says why.
+        if let info = session.databaseStructure?.databases.first(where: { $0.name == databaseName }),
+           !(info.isOnline && info.isAccessible) { return }
+        guard !session.isRefreshingMetadata(forDatabase: databaseName) else { return }
+        session.markMetadataRefreshStarted(forDatabase: databaseName)
+        guard session.beginSchemaLoad(forDatabase: databaseName) else { return }
+        await loadDatabaseSchemaOnly(databaseName, for: session)
+        session.finishSchemaLoad(forDatabase: databaseName)
     }
 
     func refreshStructure(for session: ConnectionSession, scope: EnvironmentState.StructureRefreshScope) async {

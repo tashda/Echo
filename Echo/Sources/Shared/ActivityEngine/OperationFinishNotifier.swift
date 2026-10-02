@@ -5,7 +5,8 @@ import Foundation
 /// long operation ends silently: "Backup shop finished in 1:12" or "Backup shop failed: reason".
 @MainActor
 final class OperationFinishNotifier {
-    /// Operations shorter than this end quietly; the spinner was enough.
+    /// Operations shorter than this end quietly when they succeed; the spinner was enough.
+    /// A failure is always told, however quickly it came: nothing else on screen says so.
     nonisolated static let minimumDuration: TimeInterval = 5
     /// How long to wait for the operation's own notification, which callers post around `succeed()`.
     static let grace: Duration = .seconds(1)
@@ -38,16 +39,23 @@ final class OperationFinishNotifier {
         }
     }
 
-    /// Shown on the bell, not cancelled, and at least `minimumDuration` long.
+    /// Shown on the bell and not cancelled; a success also needs at least `minimumDuration`.
     nonisolated static func isLongEnough(_ result: OperationResult) -> Bool {
-        guard result.showsOnBell, result.duration >= minimumDuration else { return false }
-        if case .cancelled = result.outcome { return false }
-        return true
+        guard result.showsOnBell else { return false }
+        switch result.outcome {
+        case .cancelled: return false
+        case .failed: return true
+        default: return result.duration >= minimumDuration
+        }
     }
 
-    /// Whether a notification was recorded around the operation's end: its own.
+    /// Whether a notification was recorded around the operation's end: its own. A failure
+    /// counts only an error, so an unrelated toast close by never hides it.
     nonisolated static func alreadyNotified(_ result: OperationResult, records: [NotificationRecord]) -> Bool {
-        records.contains { abs($0.date.timeIntervalSince(result.completedAt)) <= matchWindow }
+        records.contains {
+            abs($0.date.timeIntervalSince(result.completedAt)) <= matchWindow
+                && (!result.isFailure || $0.severity == .error)
+        }
     }
 
     nonisolated static func message(for result: OperationResult) -> String {

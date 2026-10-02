@@ -80,6 +80,21 @@ struct RefreshAndActivityTests {
         #expect(!OperationFinishNotifier.isLongEnough(result(.cancelled)))
     }
 
+    @Test func aFailureIsToldHoweverQuicklyItCame() {
+        #expect(OperationFinishNotifier.isLongEnough(result(.failed(message: "Invalid object name"), duration: 0.2)))
+        #expect(!OperationFinishNotifier.isLongEnough(result(.failed(message: "x"), duration: 0.2, showsOnBell: false)))
+        #expect(!OperationFinishNotifier.isLongEnough(result(.succeeded, duration: 0.2)))
+    }
+
+    @Test func onlyAnErrorCountsAsAFailuresOwnNotice() {
+        let end = Date(timeIntervalSince1970: 10_000)
+        let toast = NotificationRecord(date: end.addingTimeInterval(0.3), category: .generalSuccess, message: "Dropped", severity: .success)
+        let error = NotificationRecord(date: end.addingTimeInterval(0.3), category: .generalError, message: "Failed", severity: .error)
+        let failed = result(.failed(message: "boom"), completedAt: end)
+        #expect(!OperationFinishNotifier.alreadyNotified(failed, records: [toast]))
+        #expect(OperationFinishNotifier.alreadyNotified(failed, records: [toast, error]))
+    }
+
     @Test func anOperationsOwnNotificationIsNotDoubled() {
         let end = Date(timeIntervalSince1970: 10_000)
         let own = NotificationRecord(date: end.addingTimeInterval(0.3), category: .generalSuccess, message: "Backup of shop finished", severity: .success)
