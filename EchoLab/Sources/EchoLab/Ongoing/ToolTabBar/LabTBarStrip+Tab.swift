@@ -39,10 +39,13 @@ extension LabTBarStrip {
                     .frame(width: width, height: Self.tabHeight)
                     .background { if isActive { plate } }
             } else {
-                let lead = isActive && hasPages ? SpacingTokens.sm : max(14, (width - naturalWidth(tab, isActive: isActive)) / 2)
+                let centred = max(14, (width - naturalWidth(tab, isActive: isActive)) / 2)
+                let lead = isActive && hasPages || motionStyle == .anchored ? SpacingTokens.sm : centred
                 calmContent(tab, isActive: isActive, hasPages: hasPages, iconOnly: iconOnly)
                     .fixedSize()
-                    .padding(.leading, lead)
+                    .padding(.leading, motionStyle == .anchored && !isActive ? max(14, min(lead, 14)) : lead)
+                    // MO5: the words go to their final place at once; only the plate and edges move.
+                    .transaction { if motionStyle == .printed { $0.animation = nil } }
                     .frame(width: width, height: Self.tabHeight, alignment: .leading)
                     .clipShape(Capsule())
                     .background { if !usesSlidingPlate { plate.opacity(isActive ? 1 : 0) } }

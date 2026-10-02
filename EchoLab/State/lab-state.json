@@ -173,6 +173,10 @@
       {
         "date": "2026-10-02T07:52:26Z",
         "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-02T08:00:45Z",
+        "text": "Taken by claude-sonnet-rail"
       }
     ],
     "needsMore": [],
@@ -214,6 +218,11 @@
       }
     ],
     "status": "Accepted",
+    "takenBy": {
+      "agent": "claude-sonnet-rail",
+      "date": "2026-10-02T08:00:45Z",
+      "status": "Accepted"
+    },
     "verdicts": {}
   },
   "ongoing.content-during-slide-r26": {
@@ -3772,6 +3781,48 @@
     "status": "Judging",
     "verdicts": {}
   },
+  "ongoing.server-trail-identity-r51": {
+    "comments": [
+      {
+        "date": "2026-10-02T08:00:16Z",
+        "id": "F1634861-D533-4DE9-A22F-5146DC70099B",
+        "text": "Review of Server trail: telling servers apart, and a shelf for minimized cards\n1. Trail item: picked TI0 \u00b7 Monogram in the colour (Echo today)\n2. Name: picked NM1 \u00b7 A glass bubble beside the item, at once\n3. Minimized cards: picked SH5 \u00b7 Stay in the trail as dashed rings; the card leaves the list\n4. Customization: picked CU2 \u00b7 The colour and a symbol or emoji\n5. Where to customize: picked WH2 \u00b7 Both: the popover and the connection's sheet\n6. Where the look appears: picked WS0 \u00b7 The trail only; note: Trail, Manage Connections, Edi, Edit Connection"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-02T08:00:16Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-02T08:00:45Z",
+        "text": "Taken by claude-sonnet-rail"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {
+      "scope": "Trail, Manage Connections, Edi, Edit Connection"
+    },
+    "picks": {
+      "custom": "CU2 \u00b7 The colour and a symbol or emoji",
+      "names": "NM1 \u00b7 A glass bubble beside the item, at once",
+      "scope": "rail",
+      "shelf": "SH5 \u00b7 Stay in the trail as dashed rings; the card leaves the list",
+      "style": "TI0 \u00b7 Monogram in the colour (Echo today)",
+      "where": "both"
+    },
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "takenBy": {
+      "agent": "claude-sonnet-rail",
+      "date": "2026-10-02T08:00:45Z",
+      "status": "Accepted"
+    },
+    "verdicts": {}
+  },
   "ongoing.settings-controls-r43": {
     "comments": [
       {
@@ -3999,6 +4050,58 @@
     "reviewedRevision": 1,
     "revisions": [],
     "status": "Decided",
+    "verdicts": {}
+  },
+  "ongoing.tool-tab-bar-r49": {
+    "comments": [
+      {
+        "date": "2026-10-02T08:06:49Z",
+        "id": "8FD2E652-2AB3-42F3-82B1-EC16B5EB46BC",
+        "text": "Review of Tool tabs: every page, calmer switching, icons\n1. Advanced Objects: picked AO1 \u00b7 Six pages; related ones share a page (Types: domains, composite, range); NEEDS MORE OPTIONS; note: I don't want them sharing a page but maybe we can split Advanced Objects into seperate \"Pages\" so we don't have 13 subpages in 1 page. \n2. Pages in the tab: picked FP4 \u00b7 FP3, and when even that does not fit the window, the pages take a row under the strip\n3. Switching tabs: picked MO2 \u00b7 MO1, and the white plate glides from tab to tab as one shape; NEEDS MORE OPTIONS; note: It is good, but I don't like how the icon and text on the tab animates - it should be \"printed steady\" on the tab, not animating alongside with it.\n4. Icons: picked IC1 \u00b7 A new set: one icon per tool, none repeated, in grey\n5. Server dot on tabs: picked SD2 \u00b7 No dot; the tooltip and the window's header say which server\n6. Server dot on the pill: picked PD1 \u00b7 No dot; the pill is its words"
+      }
+    ],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-02T08:06:49Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-02T08:08:38Z",
+        "text": "Revision 2: Advanced Objects split into four tools; two motions that keep the icon and title still"
+      }
+    ],
+    "needsMore": [
+      "advanced",
+      "motion"
+    ],
+    "optionNotes": {},
+    "pickNotes": {
+      "advanced": "I don't want them sharing a page but maybe we can split Advanced Objects into seperate \"Pages\" so we don't have 13 subpages in 1 page. ",
+      "motion": "It is good, but I don't like how the icon and text on the tab animates - it should be \"printed steady\" on the tab, not animating alongside with it."
+    },
+    "picks": {
+      "advanced": "AO1 \u00b7 Six pages; related ones share a page (Types: domains, composite, range)",
+      "fit": "FP4 \u00b7 FP3, and when even that does not fit the window, the pages take a row under the strip",
+      "icons": "IC1 \u00b7 A new set: one icon per tool, none repeated, in grey",
+      "motion": "MO2 \u00b7 MO1, and the white plate glides from tab to tab as one shape",
+      "pillDot": "PD1 \u00b7 No dot; the pill is its words",
+      "tabDot": "SD2 \u00b7 No dot; the tooltip and the window's header say which server"
+    },
+    "reviewedRevision": 1,
+    "revisions": [
+      {
+        "changes": [
+          "New option AO2: Advanced Objects as four tools (Types, Text and Languages, Programming, Storage)",
+          "New options MO4 (words fixed to the tab's left edge) and MO5 (words printed in place)",
+          "New exhibit: Advanced Objects as four tools"
+        ],
+        "date": "2026-10-02T08:08:38Z",
+        "number": 2,
+        "summary": "Advanced Objects split into four tools; two motions that keep the icon and title still"
+      }
+    ],
+    "status": "Judging",
     "verdicts": {}
   },
   "ongoing.tool-tab-controls-r37": {

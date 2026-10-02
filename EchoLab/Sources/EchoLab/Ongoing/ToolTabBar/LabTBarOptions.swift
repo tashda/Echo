@@ -27,6 +27,11 @@ enum LabTBarMotion: String, CaseIterable {
     case calm = "MO1 · One smooth curve, no bounce; titles keep their shape and are clipped, never squeezed"
     case glide = "MO2 · MO1, and the white plate glides from tab to tab as one shape"
     case staged = "MO3 · MO2, in order: pages fold away, the plate glides, pages unfold"
+    case anchored = "MO4 · MO2 with the icon and title fixed to the tab's left edge: they ride with the tab and never slide inside it"
+    case printed = "MO5 · MO2 with the icon and title printed in place: they take their final position at once; only the plate and the tab edges move"
+
+    /// The motions added in revision 2, after the owner found the icon and title moving inside the tab.
+    static let revision2: [LabTBarMotion] = [.anchored, .printed]
 
     var summary: String {
         switch self {
@@ -34,6 +39,8 @@ enum LabTBarMotion: String, CaseIterable {
         case .calm: "Widths follow a critically damped curve; text never changes size or wraps while it moves."
         case .glide: "The selection is one thing that travels, as in the system's segmented controls."
         case .staged: "The slowest and the most deliberate: three short beats instead of one."
+        case .anchored: "Every title is left-aligned at the same inset (inactive tabs lose today's centring), so a tab's words move only as far as its edge does."
+        case .printed: "The words do not travel at all: they are already where they will be, and the plate and the tab edges sweep over and past them."
         }
     }
 }
@@ -82,6 +89,34 @@ enum LabTBarPillDot: String, CaseIterable {
 enum LabTBarAdvanced: String, CaseIterable {
     case all = "AO0 · All thirteen pages, as today"
     case grouped = "AO1 · Six pages; related ones share a page (Types: domains, composite, range)"
+    case split = "AO2 · Four tools of their own (Types, Text and Languages, Programming, Storage), 2 to 4 pages each"
+
+    static let revision2: [LabTBarAdvanced] = [.split]
+
+    var summary: String {
+        switch self {
+        case .all: "Too wide for any window once other tabs are open."
+        case .grouped: "Fits, but a page now holds several lists behind a second control."
+        case .split: "Every page keeps its own list; the Explorer's folder gains four rows instead of one."
+        }
+    }
+}
+
+/// With AO2, the thirteen pages become four tools; the Explorer's Advanced Objects folder opens each.
+enum LabTBarSplitPart: String, CaseIterable {
+    case types = "Types"
+    case text = "Text and Languages"
+    case programming = "Programming"
+    case storage = "Storage"
+
+    var pages: [String] {
+        switch self {
+        case .types: ["Domains", "Composite Types", "Range Types", "Casts"]
+        case .text: ["Collations", "Text Search", "Languages"]
+        case .programming: ["Aggregates", "Operators", "Rules", "Event Triggers"]
+        case .storage: ["Tablespaces", "Foreign Data"]
+        }
+    }
 }
 
 /// The size of the window: what the tab strip gets is the window less the rail and the tree.
@@ -116,6 +151,10 @@ enum LabTBarTool: String, CaseIterable {
     case maintenance = "Maintenance · SQL Server (5 pages)"
     case policy = "Policy Management (4 pages)"
 
+    func title(_ advanced: LabTBarAdvanced, part: LabTBarSplitPart) -> String {
+        self == .advanced && advanced == .split ? part.rawValue : title
+    }
+
     var title: String {
         switch self {
         case .activity: "Activity Monitor"
@@ -136,12 +175,13 @@ enum LabTBarTool: String, CaseIterable {
         }
     }
 
-    func pages(_ advanced: LabTBarAdvanced) -> [String] {
+    func pages(_ advanced: LabTBarAdvanced, part: LabTBarSplitPart = .types) -> [String] {
         switch self {
         case .activity:
             ["Sessions", "Locks", "Database", "Operations", "Queries", "Replication", "I/O Stats", "WAL", "BGWriter", "Prepared Txns", "Configuration"]
         case .advanced:
-            advanced == .all
+            advanced == .split ? part.pages
+            : advanced == .all
                 ? ["Foreign Data", "Event Triggers", "Domains", "Composite Types", "Range Types", "Collations", "Text Search", "Rules",
                    "Tablespaces", "Aggregates", "Operators", "Languages", "Casts"]
                 : ["Foreign Data", "Triggers & Rules", "Types", "Text", "Tablespaces", "Functions"]

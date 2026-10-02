@@ -15,11 +15,12 @@ enum ToolTabBarRound {
 
     /// Query 1, the tool, Query 2 and Agent Jobs; with two servers the last two belong to the second.
     private static func tabs(_ v: RoundValues, advanced: LabTBarAdvanced) -> [LabTBarTab] {
+        let part = LabTBarSplitPart(rawValue: v["part"]) ?? .types
         let second = (LabTBarServers(rawValue: v["servers"]) ?? .two) == .two ? 1 : 0
         let tool = tool(v)
         return [
             LabTBarTab(id: "q1", title: "Query 1", kind: .query, server: 0),
-            LabTBarTab(id: "tool", title: tool.title, kind: .named(tool.kindName), server: 0, pages: tool.pages(advanced)),
+            LabTBarTab(id: "tool", title: tool.title(advanced, part: part), kind: .named(tool.kindName), server: 0, pages: tool.pages(advanced, part: part)),
             LabTBarTab(id: "q2", title: "Query 2", kind: .query, server: second),
             LabTBarTab(id: "jobs", title: "Agent Jobs", kind: .jobs, server: second),
         ]
@@ -44,20 +45,23 @@ enum ToolTabBarRound {
             .of("tool", "Tool", LabTBarTool.self, default: .activity),
             .of("window", "Window", LabTBarWindow.self, default: .small),
             .of("servers", "Tabs from", LabTBarServers.self, default: .two),
+            .of("part", "Split tool", LabTBarSplitPart.self, default: .types,
+                question: nil, addedIn: 2),
             .of("advanced", "Advanced Objects", LabTBarAdvanced.self, default: .grouped,
-                question: "Choose Advanced Objects above and compare its thirteen pages with six. Which should the tool have?",
+                question: "Choose Advanced Objects above. Compare its thirteen pages, six shared pages, and four tools of their own (pick which one under Split tool). Which should it be?",
                 recommend: .grouped,
-                why: "Thirteen pages need 1,265 pt as chips: more than a 16-inch window's strip once other tabs are open, so no layout can show them all. Six pages (Types holds domains, composite and range types, with a segmented control inside the page) need 656 pt and fit everywhere. Keeping thirteen means More, which you just ruled out."),
+                why: "Thirteen pages need 1,265 pt as chips: more than a 16-inch window's strip once other tabs are open, so no layout can show them all. Six pages (Types holds domains, composite and range types, with a segmented control inside the page) need 656 pt and fit everywhere. Keeping thirteen means More, which you just ruled out. Revision 2: you did not want pages sharing a page, so AO2 splits the folder into four tools of 2 to 4 pages (190 to 440 pt each); it is the cleaner answer if you do not mind four entries under Advanced Objects in the Explorer, and I would now ship it over AO1.",
+                summary: \.summary, newChoices: (2, LabTBarAdvanced.revision2)),
             .of("fit", "Pages in the tab", LabTBarFit.self, default: .adaptive,
                 question: "Pick Activity Monitor (11 pages) and the 13-inch window, then click through the other windows. How should every page always show?",
                 recommend: .adaptive,
                 why: "Measured at 11pt: Activity Monitor on PostgreSQL needs 990 pt, but a 13-inch window gives the tab 860 pt (980 pt strip, three tabs at 40 pt). Shorter names and tighter pages bring it to 799 pt, so it fits. FP4 does that and, only when even that cannot fit (a very narrow window), puts the pages in a row under the strip rather than hiding them. FP1 alone fails on the 13-inch laptop for two tools; FP2 moves every tool's pages out of the tab, which undoes round 36.1.",
                 summary: \.summary),
-            .of("motion", "Switching tabs", LabTBarMotion.self, default: .glide,
-                question: "Press Play on today's strip and then on each Proposal, with Fast on and off. Which motion would you accept for something you do hundreds of times a day?",
-                recommend: .glide,
-                why: "Today's bounce overshoots every tab's width at once, so tabs grow past their size and settle back, and titles are re-laid out into 'Mainten…' every frame. MO1 removes both. MO2 adds what the system's own segmented controls do: the selection is one shape that travels. MO3 is the same in three beats and takes longer than a tab click should.",
-                summary: \.summary),
+            .of("motion", "Switching tabs", LabTBarMotion.self, default: .anchored,
+                question: "Press Play on today's strip and then on each Proposal, with Fast on and off. Watch the icons and titles: do they stay put on their tab?",
+                recommend: .anchored,
+                why: "You picked the gliding plate (MO2) but not how the icon and title move: in MO2 an inactive tab's words are re-centred as its width changes, so they slide inside the tab. MO4 fixes each title to its tab's left edge, so words move only as far as the tab does, which reads as printed on it. MO5 keeps them still entirely, but they jump to their final place when you click, which the neighbouring tabs' words do too; I would pick MO4 because nothing jumps.",
+                summary: \.summary, newChoices: (2, LabTBarMotion.revision2)),
             .of("icons", "Icons", LabTBarIcons.self, default: .literal,
                 question: "Compare the icons in 'Every tab icon' and on the strips. Which set do you want?",
                 recommend: .literal,
@@ -85,6 +89,10 @@ enum ToolTabBarRound {
             .init(id: "measurements", title: "How much room the pages need", summary: "Measured at 11pt like Echo; which window each tool's pages fit.",
                   isWide: true, designWidth: 940, designHeight: 330) { _ in
                 LabTBarMeasurements()
+            },
+            .init(id: "splitTools", title: "Advanced Objects as four tools", summary: "AO2: the thirteen pages and where each goes, with the room each tool needs.",
+                  isWide: true, addedIn: 2, designWidth: 940, designHeight: 250) { _ in
+                LabTBarSplitMap()
             },
             .init(id: "icons", title: "Every tab icon", summary: "Each kind of tab: the icon today, with the ones that repeat or do not exist, and the proposal.",
                   isWide: true, designWidth: 940, designHeight: 640) { v in

@@ -18,7 +18,7 @@ struct LabTBarStrip: View {
 
     var activeID: String { selectedTab.flatMap { id in tabs.contains { $0.id == id } ? id : nil } ?? firstActive }
     var planner: LabTBarPlanner { LabTBarPlanner(tabs: tabs, fit: fit, stripWidth: stripWidth, icons: icons) }
-    var usesSlidingPlate: Bool { motionStyle == .glide || motionStyle == .staged }
+    var usesSlidingPlate: Bool { motionStyle != .today && motionStyle != .calm }
     var isToday: Bool { motionStyle == .today }
     var activeTab: LabTBarTab? { tabs.first { $0.id == activeID } }
 
@@ -35,7 +35,7 @@ struct LabTBarStrip: View {
         let scale = motion.durationScale
         switch motionStyle {
         case .today: return motion.standard
-        case .calm, .glide: return .smooth(duration: 0.3 * scale)
+        case .calm, .glide, .anchored, .printed: return .smooth(duration: 0.3 * scale)
         case .staged: return .smooth(duration: 0.3 * scale).delay(0.12 * scale)
         }
     }
@@ -45,7 +45,7 @@ struct LabTBarStrip: View {
         let scale = motion.durationScale
         switch motionStyle {
         case .today: return motion.press
-        case .calm, .glide: return .easeOut(duration: 0.18 * scale)
+        case .calm, .glide, .anchored, .printed: return .easeOut(duration: 0.18 * scale)
         case .staged: return .easeOut(duration: 0.12 * scale)
         }
     }

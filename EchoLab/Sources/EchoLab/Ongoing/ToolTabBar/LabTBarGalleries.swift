@@ -168,3 +168,34 @@ struct LabTBarPillPair: View {
         }
     }
 }
+
+/// AO2: the four tools that Advanced Objects (PostgreSQL) would become, with the room each needs.
+struct LabTBarSplitMap: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.sm) {
+            ForEach(LabTBarSplitPart.allCases, id: \.self) { part in
+                let tab = LabTBarTab(id: part.rawValue, title: part.rawValue, kind: .named("Advanced Objects (PostgreSQL)"), server: 0, pages: part.pages)
+                HStack(spacing: SpacingTokens.sm) {
+                    Label(part.rawValue, systemImage: tab.kind.proposed).font(TypographyTokens.detail.weight(.medium))
+                        .frame(width: 190, alignment: .leading)
+                    HStack(spacing: LabTBarMetrics.chipSpacing) {
+                        ForEach(part.pages, id: \.self) { page in
+                            Text(page).font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
+                                .padding(.horizontal, LabTBarMetrics.chipPadding).frame(height: LayoutTokens.TabPages.chipHeight)
+                                .background(ColorTokens.TabStrip.Pages.selected.opacity(0.5), in: Capsule())
+                        }
+                    }
+                    Spacer(minLength: 0)
+                    Text("\(part.pages.count) pages · \(Int(LabTBarMetrics.needed(tab, compact: false, icon: true))) pt")
+                        .font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.secondary)
+                }
+            }
+            Text("Each opens from its own row under Advanced Objects in the Explorer; none has a page that is not in the list. Total: 13 pages, as today.")
+                .font(TypographyTokens.detail).foregroundStyle(ColorTokens.Text.tertiary)
+                .fixedSize(horizontal: false, vertical: true).frame(minWidth: 400, alignment: .leading)
+        }
+        .padding(SpacingTokens.md)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(ColorTokens.Workspace.canvas)
+    }
+}
