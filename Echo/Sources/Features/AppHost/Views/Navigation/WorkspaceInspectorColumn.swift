@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// The inspector as a column of cards on the canvas (plan I1, round 10 IN1): the tree's mirror on
-/// the trailing side, with its resize edge in the gutter before it and the tree's show/hide motion.
-/// JSON widens it with one spring and it returns to the chosen width after (I3). The bell shows the
-/// notification history in the same column (round 15, option B).
+/// The inspector as a column on the canvas (plan I1, round 10 IN1): the tree's mirror on the
+/// trailing side, with its resize edge in the gutter before it and the tree's show/hide motion.
+/// Round IC: four pages (Details, Bookmarks, History, Notifications) switched by the page strip,
+/// which sits on the tab strip's line; the page's card follows one gutter below, as the tab's
+/// cards follow the tabs. JSON widens Details with one spring and it returns to the chosen width
+/// after (I3).
 struct WorkspaceInspectorColumn: View {
     let gutter: CGFloat
 
@@ -15,10 +17,10 @@ struct WorkspaceInspectorColumn: View {
 
     var body: some View {
         let isVisible = appState.isInspectorColumnVisible
-        let showsHistory = appState.isNotificationHistoryVisible
+        let page = appState.inspectorPage
         let width = Self.displayedWidth(
             chosen: chosenWidth,
-            isJson: appState.inspectorPage == .details && environmentState.dataInspectorContent?.isJson == true
+            isJson: page == .details && environmentState.dataInspectorContent?.isJson == true
         )
 
         HStack(spacing: SpacingTokens.none) {
@@ -32,21 +34,12 @@ struct WorkspaceInspectorColumn: View {
             )
             .allowsHitTesting(isVisible)
 
-            ZStack {
-                if showsHistory, let history = environmentState.notificationEngine?.history {
-                    NotificationHistoryPanel(history: history)
+            VStack(spacing: gutter) {
+                InspectorPageStrip()
+                ZStack {
+                    pageContent(page)
+                        .id(page)
                         .transition(.opacity)
-                } else {
-                    VStack(spacing: SpacingTokens.xs) {
-                        WorkspaceInspectorPicker()
-                        Group {
-                            switch appState.inspectorPage {
-                            case .bookmarks: BookmarksSidebarView().workspaceCard()
-                            case .history: QueryHistoryPanelView(connectionID: nil).workspaceCard()
-                            case .details, .notifications: InfoSidebarView()
-                            }
-                        }.transition(.opacity)
-                    }
                 }
             }
             .frame(width: width)
@@ -61,9 +54,26 @@ struct WorkspaceInspectorColumn: View {
         .frame(width: isVisible ? width + gutter * 2 : 0, alignment: .leading)
         .allowsHitTesting(isVisible)
         .accessibilityHidden(!isVisible)
-        .animation(motion.standard, value: appState.inspectorPage)
-        .animation(motion.standard, value: showsHistory)
+        .animation(motion.pageFade, value: page)
         .animation(motion.standard, value: width)
+    }
+
+    @ViewBuilder
+    private func pageContent(_ page: InspectorPage) -> some View {
+        switch page {
+        case .details:
+            InfoSidebarView()
+        case .bookmarks:
+            BookmarksSidebarView().workspaceCard()
+        case .history:
+            QueryHistoryPanelView(connectionID: nil).workspaceCard()
+        case .notifications:
+            if let history = environmentState.notificationEngine?.history {
+                NotificationHistoryPanel(history: history)
+            } else {
+                Color.clear.workspaceCard()
+            }
+        }
     }
 
     /// The width on screen: the chosen width, widened for JSON (never narrowed).

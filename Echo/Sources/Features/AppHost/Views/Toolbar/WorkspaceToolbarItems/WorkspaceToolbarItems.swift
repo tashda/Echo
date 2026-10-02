@@ -131,7 +131,8 @@ struct WorkspaceToolbarItems: ToolbarContent {
 
     // MARK: - Right Side: Workspace Actions
 
-    /// [Search · Overview · Refresh · Bell · Inspector] share one capsule; Inspector stays last.
+    /// [Search · Overview · Refresh] [Bell · Inspector] (round IC, A1): the two buttons that open
+    /// the inspector column share their own capsule at the trailing edge, above the column.
     /// Refresh is there only while the front tab can reload (round 34, RL1). In a narrow window
     /// these stay and the tab's buttons give way first (round 37.5, NW1).
     @ToolbarContentBuilder
@@ -142,6 +143,12 @@ struct WorkspaceToolbarItems: ToolbarContent {
             if toolbarContext.canReload {
                 RefreshToolbarButton()
             }
+        }
+        .keptOutOfOverflow()
+
+        ToolbarSpacer(.fixed, placement: .primaryAction)
+
+        ToolbarItemGroup(placement: .primaryAction) {
             NotificationBellToolbarButton()
             InspectorToolbarButton()
         }

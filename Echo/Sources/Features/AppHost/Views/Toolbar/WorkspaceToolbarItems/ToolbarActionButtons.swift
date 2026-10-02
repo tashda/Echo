@@ -5,26 +5,23 @@ import SwiftUI
 // view body, preventing the @ToolbarContentBuilder from re-evaluating
 // when appState / tabStore / environmentState change.
 
+/// Shows or hides the inspector column on the page it was last on (round IC, A1). A plain button:
+/// the pages are switched in the column's page strip.
 struct InspectorToolbarButton: View {
     @Environment(AppState.self) private var appState
 
-    private var showsDetails: Bool { appState.showInfoSidebar && !appState.isNotificationHistoryVisible }
+    private var isOpen: Bool { appState.isInspectorColumnVisible }
 
     var body: some View {
-        Menu {
-            Button("Details", systemImage: "sidebar.right") { appState.showInfoSidebar = true }
-            Button("Bookmarks", systemImage: "bookmark") { appState.showInspectorPage(.bookmarks) }
-            Button("Query History", systemImage: "clock") { appState.showInspectorPage(.history) }
-        } label: {
-            Label("Inspector", systemImage: "sidebar.right")
-                .symbolVariant(showsDetails ? .fill : .none)
-        } primaryAction: {
+        Button {
             appState.toggleInspector()
+        } label: {
+            Label(isOpen ? "Hide Inspector" : "Show Inspector", systemImage: "sidebar.right")
+                .symbolVariant(isOpen ? .fill : .none)
         }
-        .help(showsDetails ? "Hide Inspector" : "Show Inspector")
+        .help(isOpen ? "Hide Inspector (⌥⌘I)" : "Show Inspector (⌥⌘I)")
         .labelStyle(.iconOnly)
         .contentTransition(.identity)
-        .accessibilityLabel(showsDetails ? "Hide Inspector" : "Show Inspector")
     }
 }
 
