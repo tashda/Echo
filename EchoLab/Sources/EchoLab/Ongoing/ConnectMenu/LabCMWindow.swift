@@ -8,13 +8,19 @@ struct LabCMWindow: View {
     @Namespace private var glass
     @Environment(\.echoMotion) private var motion
 
-    private let servers = ["TP", "TM"]
+    @Namespace private var trail
+    @State private var selected = "test"
+    private var trailServers: [LabTIServer] { Array(LabTIServer.all.prefix(look.openServers.count)) }
+    private var isPacked: Bool { isRailOpen && look.opened != .classic }
+    /// The widened trail: wide enough for a search field and four icon buttons, narrower than the tree.
+    private var openWidth: CGFloat { SpacingTokens.xxxl * 3.9 }
+    private var listHeight: CGFloat { SpacingTokens.xxxl * 5 }
     private var itemSize: CGFloat { SpacingTokens.xl + SpacingTokens.nano - SpacingTokens.micro }
     private var railPad: CGFloat { LayoutTokens.Rail.pillPadding }
     private var railWidth: CGFloat { itemSize + railPad * 2 }
     private var gap: CGFloat { SpacingTokens.xxs2 }
     /// The + sits under the servers.
-    private var plusTop: CGFloat { railPad + CGFloat(servers.count) * (itemSize + LayoutTokens.Rail.itemSpacing) }
+    private var plusTop: CGFloat { railPad + CGFloat(trailServers.count) * (itemSize + LayoutTokens.Rail.itemSpacing) }
     private var panelWidth: CGFloat { SpacingTokens.xxxl * 4.6 }
     private var isRailOpen: Bool { look.presentation == .rail && isOpen }
 
@@ -39,40 +45,34 @@ struct LabCMWindow: View {
 
     // MARK: Rail
 
+    /// One glass shape that grows from the trail's pill to the list: the servers glide from a column into
+    /// a row, the + glides to the close button, and the list fades in under them.
     private var rail: some View {
         GlassEffectContainer(spacing: SpacingTokens.xs) {
-            Group {
-                if isRailOpen, look.opened != .classic {
-                    // Revision 2: the servers lie down into a row, the actions are icons.
-                    VStack(spacing: SpacingTokens.xxs) {
-                        LabCMOpenedHeader(look: look, onClose: { toggle() })
-                        LabCMList(look: look, onConnect: { toggle() })
-                            .frame(width: panelWidth - railPad * 2, height: SpacingTokens.xxxl * 5.4)
-                    }
-                    .padding(railPad)
-                    .transition(.opacity)
+            VStack(spacing: isPacked ? SpacingTokens.xxs : LayoutTokens.Rail.itemSpacing) {
+                if isPacked {
+                    LabCMOpenedHeader(look: look, servers: trailServers, selected: $selected, namespace: trail, onClose: { toggle() })
+                    LabCMList(look: look, onConnect: { toggle() })
+                        .frame(height: listHeight)
+                        .transition(.opacity)
                 } else {
-                    closedColumn
+                    ForEach(trailServers) { server in
+                        Button { selected = server.id } label: { LabCMTrailItem(server: server, isSelected: server.id == selected) }
+                            .buttonStyle(.plain)
+                            .matchedGeometryEffect(id: server.id, in: trail)
+                    }
+                    if isRailOpen {
+                        LabCMList(look: look, onConnect: { toggle() })
+                            .frame(height: listHeight)
+                            .transition(.opacity)
+                    }
+                    plus.modifier(LabCMMatched(namespace: look.presentation == .rail && look.opened != .classic ? trail : nil))
                 }
             }
-            .glassEffect(.regular, in: .rect(cornerRadius: isRailOpen && look.opened != .classic ? SpacingTokens.lg : railWidth / 2, style: .continuous))
+            .padding(railPad)
+            .frame(width: isRailOpen ? openWidth : nil, alignment: .topLeading)
+            .glassEffect(.regular, in: .rect(cornerRadius: isPacked ? SpacingTokens.lg : railWidth / 2, style: .continuous))
         }
-    }
-
-    /// The trail as it is: a column of servers and the +; revision 1 widened it to a list below the servers.
-    private var closedColumn: some View {
-        VStack(spacing: LayoutTokens.Rail.itemSpacing) {
-            ForEach(servers, id: \.self) { code in
-                LabTIMark(server: code == "TP" ? .named("dev") : .named("test"), style: .monogram, isSelected: code == "TM")
-            }
-            if isRailOpen {
-                LabCMList(look: look, onConnect: { toggle() })
-                    .frame(width: panelWidth - railPad * 2, height: SpacingTokens.xxxl * 5.4)
-                    .transition(.opacity)
-            }
-            plus
-        }
-        .padding(railPad)
     }
 
     @ViewBuilder

@@ -140,9 +140,14 @@
         "date": "2026-10-02T07:41:39Z",
         "id": "33E5C4AD-7925-48ED-B1DF-8355C04BAD8B",
         "text": "Review of The + button: connecting to a server\n1. Where it opens: picked PR4 \u00b7 The trail itself opens: the pill widens into the list\n2. The +: picked MP2 \u00b7 The + becomes a chevron pointing back at the trail\n3. The list: picked CT1 \u00b7 Search first; open connections, then folders as headings\n4. Actions: picked FT1 \u00b7 A footer bar of three labelled buttons\n5. Keyboard: picked KB1 \u00b7 A shortcut opens it with the search field focused; Return connects, Escape closes\n6. The menu bar: picked SM1 \u00b7 Yes: File \u203a Connect To keeps the menu for the menu bar\nOverall: I love the PR4 that is exactly what should be. But with that maybe the already opened servers should be horizontal on the top and we don't need \"OPen servers\" on the list and maybe the three buttons at the bottom could also go to the top (servers left side, buttons right side) and just make them 3 servers with icons, no text. And the chevron in the bottom when opened is not looking good so think of another button to close it (maybe an x alongside the 3 other buttons). Give it another spin"
+      },
+      {
+        "date": "2026-10-02T07:47:34Z",
+        "id": "9390F498-C2E9-489D-8C92-68854CBFAAB1",
+        "text": "Review of The + button: connecting to a server\n1. Where it opens: picked PR4 \u00b7 The trail itself opens: the pill widens into the list\n2. The +: picked MP2 \u00b7 The + becomes a chevron pointing back at the trail\n3. The list: picked CT1 \u00b7 Search first; open connections, then folders as headings\n4. Actions: picked FT1 \u00b7 A footer bar of three labelled buttons\n5. Opened trail: picked OP1 \u00b7 A header row: servers left, New, Manage, Quick Connect and close right, icons only\n6. Closing: no answer yet\n7. Keyboard: picked KB1 \u00b7 A shortcut opens it with the search field focused; Return connects, Escape closes\n8. The menu bar: picked SM1 \u00b7 Yes: File \u203a Connect To keeps the menu for the menu bar\nOverall: It is much better but the opened glass card is now too wide and the animation is now gone. The animation before was perfect. Please make this lab round exactly as how it should look in production. Also the opened pills in the top should look the same as they do in the server trail and the scroll be to the side should look better."
       }
     ],
-    "generalNote": "I love the PR4 that is exactly what should be. But with that maybe the already opened servers should be horizontal on the top and we don't need \"OPen servers\" on the list and maybe the three buttons at the bottom could also go to the top (servers left side, buttons right side) and just make them 3 servers with icons, no text. And the chevron in the bottom when opened is not looking good so think of another button to close it (maybe an x alongside the 3 other buttons). Give it another spin",
+    "generalNote": "It is much better but the opened glass card is now too wide and the animation is now gone. The animation before was perfect. Please make this lab round exactly as how it should look in production. Also the opened pills in the top should look the same as they do in the server trail and the scroll be to the side should look better.",
     "history": [
       {
         "date": "2026-10-02T07:41:39Z",
@@ -151,6 +156,14 @@
       {
         "date": "2026-10-02T07:43:37Z",
         "text": "Revision 2: Opened trail: servers in a row on top, the three actions as icons, a close button"
+      },
+      {
+        "date": "2026-10-02T07:47:34Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-02T07:48:59Z",
+        "text": "Revision 3: Opened trail: one glass shape that grows, narrower, the trail's own pills, softer scrolling"
       }
     ],
     "needsMore": [],
@@ -161,10 +174,11 @@
       "footer": "FT1 \u00b7 A footer bar of three labelled buttons",
       "menuStays": "file",
       "morph": "MP2 \u00b7 The + becomes a chevron pointing back at the trail",
+      "opened": "OP1 \u00b7 A header row: servers left, New, Manage, Quick Connect and close right, icons only",
       "presentation": "PR4 \u00b7 The trail itself opens: the pill widens into the list",
       "shortcut": "open"
     },
-    "reviewedRevision": 1,
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
@@ -176,6 +190,17 @@
         "date": "2026-10-02T07:43:37Z",
         "number": 2,
         "summary": "Opened trail: servers in a row on top, the three actions as icons, a close button"
+      },
+      {
+        "changes": [
+          "Changed: the trail opens as one continuous glass shape again (servers glide from a column into a row, the + glides to the \u00d7, the list fades in)",
+          "Changed: the opened trail is 256pt wide instead of 294pt",
+          "Changed: the servers in the row are the trail's own items (monogram, white disc on the selected one)",
+          "Changed: the server row scrolls sideways and the list scrolls up and down, both under a soft scroll edge with no scroller"
+        ],
+        "date": "2026-10-02T07:48:59Z",
+        "number": 3,
+        "summary": "Opened trail: one glass shape that grows, narrower, the trail's own pills, softer scrolling"
       }
     ],
     "status": "Judging",

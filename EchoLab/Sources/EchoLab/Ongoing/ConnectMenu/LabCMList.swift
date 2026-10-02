@@ -24,6 +24,7 @@ struct LabCMList: View {
                     .padding(.vertical, SpacingTokens.xxs)
             }
             .scrollIndicators(.hidden)
+            .scrollEdgeEffectStyle(.soft, for: .vertical)
             if !look.hidesOpen { footer }
         }
     }
@@ -327,6 +328,7 @@ struct LabCMActionIcons: View {
     let onClose: (() -> Void)?
     let look: LabCMLook
     var onlyClose = false
+    var namespace: Namespace.ID?
 
     var body: some View {
         HStack(spacing: SpacingTokens.xxxs) {
@@ -345,6 +347,7 @@ struct LabCMActionIcons: View {
                 }
                 .buttonStyle(.plain)
                 .help("Close")
+                .modifier(LabCMMatched(namespace: namespace))
             }
         }
     }
@@ -360,36 +363,66 @@ struct LabCMActionIcons: View {
     }
 }
 
-/// The opened trail's top: the connected servers lying in a row, and the actions (OP1 to OP3).
-struct LabCMOpenedHeader: View {
-    let look: LabCMLook
-    let onClose: () -> Void
-    private let maxVisible = 6
+/// A server as the trail draws it (monogram, the white disc when selected), so the opened trail's row
+/// looks like the trail it came from.
+struct LabCMTrailItem: View {
+    let server: LabTIServer
+    var isSelected = false
+    private var size: CGFloat { SpacingTokens.xl + SpacingTokens.nano - SpacingTokens.micro }
 
     var body: some View {
-        let servers = LabCMConnection.openServers(look.openServers.count)
+        LabTIMark(server: server, style: .monogram, isSelected: isSelected, size: size)
+            .background {
+                if isSelected {
+                    Capsule().fill(ColorTokens.Workspace.railSelection).shadow(ShadowTokens.railSelection)
+                        .padding(LayoutTokens.Rail.selectionInset)
+                }
+            }
+            .frame(width: size, height: size)
+            .contentShape(Circle())
+    }
+}
+
+/// The opened trail's top: the connected servers lying in a row, as in the trail, and the actions.
+/// The row scrolls sideways under a soft edge when there are more servers than room.
+struct LabCMOpenedHeader: View {
+    let look: LabCMLook
+    let servers: [LabTIServer]
+    @Binding var selected: String
+    let namespace: Namespace.ID
+    let onClose: () -> Void
+
+    var body: some View {
         VStack(spacing: SpacingTokens.xxs) {
             HStack(spacing: SpacingTokens.xxs) {
-                ForEach(servers.prefix(maxVisible)) { server in
-                    Button(action: onClose) { LabCMMark(connection: server, size: SpacingTokens.lg + SpacingTokens.xxs) }
-                        .buttonStyle(.plain)
-                        .help(server.name)
+                ScrollView(.horizontal) {
+                    HStack(spacing: LayoutTokens.Rail.itemSpacing) {
+                        ForEach(servers) { server in
+                            Button { selected = server.id; onClose() } label: { LabCMTrailItem(server: server, isSelected: server.id == selected) }
+                                .buttonStyle(.plain)
+                                .help(server.server.name)
+                                .matchedGeometryEffect(id: server.id, in: namespace)
+                        }
+                    }
                 }
-                if servers.count > maxVisible {
-                    Text("+\(servers.count - maxVisible)").font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
-                        .padding(.horizontal, SpacingTokens.xxs1)
-                }
-                Spacer(minLength: SpacingTokens.xxs)
+                .scrollIndicators(.hidden)
+                .scrollEdgeEffectStyle(.soft, for: .horizontal)
                 switch look.opened {
-                case .header: LabCMActionIcons(onClose: onClose, look: look)
-                default: LabCMActionIcons(onClose: onClose, look: look, onlyClose: true)
+                case .header: LabCMActionIcons(onClose: onClose, look: look, namespace: namespace)
+                default: LabCMActionIcons(onClose: onClose, look: look, onlyClose: true, namespace: namespace)
                 }
             }
             if look.opened == .stacked {
                 HStack { Spacer(minLength: SpacingTokens.none); LabCMActionIcons(onClose: nil, look: look) }
             }
         }
-        .padding(.horizontal, SpacingTokens.xxs1)
-        .padding(.top, SpacingTokens.xxs)
+    }
+}
+
+/// Lets the + glide to the close button's place as the trail opens.
+struct LabCMMatched: ViewModifier {
+    let namespace: Namespace.ID?
+    func body(content: Content) -> some View {
+        if let namespace { content.matchedGeometryEffect(id: "toggle", in: namespace) } else { content }
     }
 }
