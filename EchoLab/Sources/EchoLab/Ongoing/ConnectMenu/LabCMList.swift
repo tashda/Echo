@@ -5,6 +5,8 @@ import SwiftUI
 struct LabCMList: View {
     let look: LabCMLook
     var onConnect: () -> Void = {}
+    /// With the actions inside the search field (OP2), a close button after them.
+    var onClose: (() -> Void)?
     @State private var query = ""
     @State private var folded: Set<String> = ["corporate", "All connections"]
 
@@ -189,7 +191,7 @@ struct LabCMList: View {
             .padding(.horizontal, SpacingTokens.xs)
             .frame(height: SpacingTokens.lg + SpacingTokens.xxs)
             .background(ColorTokens.Text.primary.opacity(0.06), in: Capsule())
-            if look.hidesOpen, look.opened == .search { LabCMActionIcons(onClose: nil, look: look) }
+            if look.hidesOpen, look.opened == .search { LabCMActionIcons(onClose: onClose, look: look) }
             if !look.hidesOpen, look.footer == .split {
                 Button { onConnect() } label: {
                     Label("New", systemImage: "plus").font(TypographyTokens.detail.weight(.medium))
