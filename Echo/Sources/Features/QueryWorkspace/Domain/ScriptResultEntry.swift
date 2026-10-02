@@ -113,7 +113,8 @@ nonisolated struct ScriptResultEntry: Identifiable, Equatable, Sendable {
                 outcome = .rows(resultSetIndex: resultSetIndex, count: set.totalRowCount ?? set.rows.count)
                 resultSetIndex += result.resultSets.count
             } else {
-                outcome = .command(tag: result.messages.first?.message ?? "Done")
+                // The command tag is the statement's last "Server Response" (notices come before it).
+                outcome = .command(tag: result.messages.last { $0.category == "Server Response" }?.message ?? "Done")
             }
             entries.append(ScriptResultEntry(
                 id: index, label: label(for: sql), outcome: outcome, duration: result.duration,

@@ -108,20 +108,36 @@ enum AboutMetadata {
             notice: "Verified from the package license bundled in the local checkout."
         ),
         AboutDependency(
-            name: "MySQLNIO",
-            purpose: "Low-level MySQL protocol support",
-            licenseName: "MIT",
-            repositoryURL: URL(string: "https://github.com/vapor/mysql-nio")!,
-            licenseURL: URL(string: "https://raw.githubusercontent.com/vapor/mysql-nio/main/LICENSE"),
-            notice: "Verified from the package license bundled in the local checkout."
+            name: "PostgreSQL (libpq and tools)",
+            purpose: "PostgreSQL connections, and pg_dump, pg_restore, pg_dumpall and psql for backups",
+            licenseName: "PostgreSQL License",
+            repositoryURL: URL(string: "https://www.postgresql.org")!,
+            licenseURL: URL(string: "https://www.postgresql.org/about/licence/"),
+            notice: "PostgreSQL 18.6, built by echo-libraries."
         ),
         AboutDependency(
-            name: "PostgresNIO",
-            purpose: "Low-level PostgreSQL protocol support",
-            licenseName: "MIT",
-            repositoryURL: URL(string: "https://github.com/vapor/postgres-nio")!,
-            licenseURL: URL(string: "https://raw.githubusercontent.com/vapor/postgres-nio/main/LICENSE"),
-            notice: "Verified from the package license bundled in the local checkout."
+            name: "MariaDB Connector/C",
+            purpose: "MySQL and MariaDB connections",
+            licenseName: "LGPL 2.1 or later",
+            repositoryURL: URL(string: "https://github.com/mariadb-corporation/mariadb-connector-c")!,
+            licenseURL: URL(string: "https://raw.githubusercontent.com/mariadb-corporation/mariadb-connector-c/3.4/COPYING.LIB"),
+            notice: "Version 3.4.11, unmodified and dynamically linked as its own framework (EchoMariaDB.framework), which you may replace with another build of the same version. Source: https://archive.mariadb.org/connector-c-3.4.11/"
+        ),
+        AboutDependency(
+            name: "OpenSSL",
+            purpose: "TLS for PostgreSQL, MySQL and MariaDB connections",
+            licenseName: "Apache 2.0",
+            repositoryURL: URL(string: "https://www.openssl.org")!,
+            licenseURL: URL(string: "https://www.openssl.org/source/license.html"),
+            notice: "OpenSSL 3.5.9, built by echo-libraries."
+        ),
+        AboutDependency(
+            name: "zstd and lz4",
+            purpose: "Compression for PostgreSQL backups and connections",
+            licenseName: "BSD",
+            repositoryURL: URL(string: "https://github.com/facebook/zstd")!,
+            licenseURL: URL(string: "https://raw.githubusercontent.com/facebook/zstd/dev/LICENSE"),
+            notice: "zstd 1.5.7 (BSD-3-Clause) and lz4 1.10.0 (BSD-2-Clause), built by echo-libraries."
         ),
         AboutDependency(
             name: "Swift Crypto",

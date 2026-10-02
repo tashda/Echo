@@ -1,5 +1,5 @@
 import SwiftUI
-import PostgresWire
+import PostgresKit
 
 struct PostgresActivityOperations: View {
     let operations: [PostgresOperationProgress]

@@ -1,6 +1,5 @@
 import Foundation
 import PostgresKit
-import PostgresWire
 import os
 
 extension PostgresSession {
@@ -36,27 +35,47 @@ extension PostgresSession {
             throw normalizeError(error, contextSQL: sanitizedSQL)
         }
         if let pinned {
-            return try await consumeStreamedRows(
+            var result = try await consumeStreamedRows(
                 sanitizedSQL: sanitizedSQL,
                 progressHandler: progressHandler,
                 makeRows: { try await pinned.query(sanitizedSQL) }
             )
+            result.serverMessages = Self.serverMessages(await pinned.takeNotices())
+            return result
         }
         return try await self.client.withConnection { connection in
-            try await self.consumeStreamedRows(
+            var result = try await self.consumeStreamedRows(
                 sanitizedSQL: sanitizedSQL,
                 progressHandler: progressHandler,
                 makeRows: { try await connection.simpleQuery(sanitizedSQL) }
             )
+            result.serverMessages = Self.serverMessages(await connection.takeNotices())
+            return result
         }
     }
 
-    /// Streams rows into the result worker: 200 formatted preview rows, the rest as raw bytes.
-    private func consumeStreamedRows<Rows: AsyncSequence>(
+    /// `RAISE NOTICE` / `WARNING` / `INFO` for the Messages tab (Echo #37), in order, with the
+    /// server's level as the category. Shown when the statement finishes; showing them while it
+    /// runs is decision D14 (Echo Labs round B2).
+    nonisolated static func serverMessages(_ notices: [PostgresNotice]) -> [ServerMessage] {
+        notices.map { notice in
+            var text = notice.message
+            if let detail = notice.detail, !detail.isEmpty { text += "\n" + detail }
+            if let hint = notice.hint, !hint.isEmpty { text += "\nHint: " + hint }
+            var metadata: [String: String] = [:]
+            if let sqlState = notice.sqlState { metadata["sqlState"] = sqlState }
+            if let context = notice.context { metadata["context"] = context }
+            return ServerMessage(kind: .info, number: 0, message: text, state: 0, severity: 0, category: notice.severity, metadata: metadata)
+        }
+    }
+
+    /// Streams rows into the result worker: 200 formatted preview rows, the rest as encoded bytes
+    /// (the server's text, formatted when shown).
+    private func consumeStreamedRows<Rows: PostgresStreamedRows>(
         sanitizedSQL: String,
         progressHandler: @escaping QueryProgressHandler,
         makeRows: () async throws -> Rows
-    ) async throws -> QueryResultSet where Rows.Element == PostgresRow {
+    ) async throws -> QueryResultSet {
         let operationStart = CFAbsoluteTimeGetCurrent()
 
         let initialPreviewBatch = 200
@@ -83,7 +102,7 @@ extension PostgresSession {
             var pendingPayloads: [ResultStreamBatchWorker.Payload] = []
             pendingPayloads.reserveCapacity(batchEnqueueSize)
 
-            var columnCount = 0
+            let encodingContext = PostgresRowExtractor.EncodingContext()
 
             do {
                 let rowSequence = try await makeRows()
@@ -94,18 +113,7 @@ extension PostgresSession {
                     }
 
                     if columns.isEmpty {
-                        let wireColumns = PostgresRowExtractor.columns(from: row)
-                        columns.reserveCapacity(wireColumns.count)
-                        for col in wireColumns {
-                            columns.append(ColumnInfo(
-                                name: col.name,
-                                dataType: col.dataType,
-                                isPrimaryKey: col.isPrimaryKey,
-                                isNullable: col.isNullable,
-                                maxLength: col.maxLength
-                            ))
-                        }
-                        columnCount = columns.count
+                        columns = await self.columnInfo(PostgresColumn.columns(of: row.result))
 
                         worker = ResultStreamBatchWorker(
                             label: "dev.echodb.echo.postgres.simpleStreamWorker",
@@ -139,32 +147,16 @@ extension PostgresSession {
                             decodeDuration: 0
                         ))
                     } else {
-                        // Fast path: capture raw ByteBuffer slices — worker encodes on GCD queue.
-                        var buffers: [NIOCore.ByteBuffer?] = []
-                        var lengths: [Int] = []
-                        var totalLength = 0
-                        buffers.reserveCapacity(columnCount)
-                        lengths.reserveCapacity(columnCount)
-                        for cell in row {
-                            if let bytes = cell.bytes {
-                                let byteCount = bytes.readableBytes
-                                buffers.append(bytes)
-                                lengths.append(byteCount)
-                                totalLength += 5 + byteCount
-                            } else {
-                                buffers.append(nil)
-                                lengths.append(-1)
-                                totalLength += 1
-                            }
-                        }
-
+                        // Fast path: the row's text bytes into a reused buffer, no formatting.
+                        let (encodedData, _) = PostgresRowExtractor.encodeBinaryRow(
+                            from: row,
+                            formatPreview: false,
+                            formatter: formatter,
+                            context: encodingContext
+                        )
                         pendingPayloads.append(ResultStreamBatchWorker.Payload(
                             previewValues: nil,
-                            storage: .raw(ResultStreamBatchWorker.RawRow(
-                                buffers: buffers,
-                                lengths: lengths,
-                                totalLength: totalLength
-                            )),
+                            storage: .encoded(ResultBinaryRow(data: encodedData)),
                             totalRowCount: totalRowCount,
                             decodeDuration: 0
                         ))
@@ -180,6 +172,10 @@ extension PostgresSession {
                         let firstRowLatency = CFAbsoluteTimeGetCurrent() - operationStart
                         os.Logger.postgres.debug("[PostgresStream] first-row latency=\(String(format: "%.3f", firstRowLatency))s")
                     }
+                }
+                if columns.isEmpty {
+                    // No rows: the columns still come with the result.
+                    columns = await self.columnInfo(try await rowSequence.columns())
                 }
             } catch {
                 throw normalizeError(error, contextSQL: sanitizedSQL)
@@ -218,4 +214,21 @@ extension PostgresSession {
         }
     }
 
+    /// Column metadata for the grid, with the server's names for types the built-in table doesn't
+    /// know (extension types, enums, domains), looked up once per type on a pooled connection.
+    func columnInfo(_ columns: [PostgresColumn]) async -> [ColumnInfo] {
+        let unknown = columns.map(\.typeOID).filter { PGTypeNames.name(of: $0) == nil }
+        let names = unknown.isEmpty ? [:] : ((try? await client.typeNames(for: unknown)) ?? [:])
+        return PostgresRowExtractor.columns(from: columns, typeNames: names).map {
+            ColumnInfo(name: $0.name, dataType: $0.dataType, isPrimaryKey: $0.isPrimaryKey, isNullable: $0.isNullable, maxLength: $0.maxLength)
+        }
+    }
 }
+
+/// Rows of one statement, from a pooled connection or a query tab's pinned session.
+protocol PostgresStreamedRows: AsyncSequence, Sendable where Element == PostgresRow {
+    func columns() async throws -> [PostgresColumn]
+}
+
+extension PostgresRows: PostgresStreamedRows {}
+extension PostgresSessionRows: PostgresStreamedRows {}

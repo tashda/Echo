@@ -37,22 +37,26 @@ struct PostgresBackupRestoreIntegrationTests {
 
     private let runner = PostgresProcessRunner()
 
+    /// What Echo's backup sheet passes for a password sign-in without TLS
+    /// (`PostgresToolConnection`). GSS encryption stays off: libpq would
+    /// otherwise probe Apple's GSS.framework, and pg_dump/pg_restore's parallel workers (fork) die.
+    private func toolEnvironment(_ config: PGConfig) -> [String: String] {
+        ["PGPASSWORD": config.password, "PGSSLMODE": "disable", "PGGSSENCMODE": "disable"]
+    }
+
     private func pgDump(config: PGConfig, args: [String]) async throws -> ProcessResult {
         guard let exe = PostgresToolLocator.pgDumpURL() else { throw PGTestError.toolNotFound("pg_dump") }
-        let env: [String: String] = ["PGPASSWORD": config.password, "PGSSLMODE": "disable"]
-        return try await runner.run(executable: exe, arguments: args, environment: env)
+        return try await runner.run(executable: exe, arguments: args, environment: toolEnvironment(config))
     }
 
     private func pgRestore(config: PGConfig, args: [String]) async throws -> ProcessResult {
         guard let exe = PostgresToolLocator.pgRestoreURL() else { throw PGTestError.toolNotFound("pg_restore") }
-        let env: [String: String] = ["PGPASSWORD": config.password, "PGSSLMODE": "disable"]
-        return try await runner.run(executable: exe, arguments: args, environment: env)
+        return try await runner.run(executable: exe, arguments: args, environment: toolEnvironment(config))
     }
 
     private func psql(config: PGConfig, args: [String]) async throws -> ProcessResult {
         guard let exe = PostgresToolLocator.psqlURL() else { throw PGTestError.toolNotFound("psql") }
-        let env: [String: String] = ["PGPASSWORD": config.password, "PGSSLMODE": "disable"]
-        return try await runner.run(executable: exe, arguments: args, environment: env)
+        return try await runner.run(executable: exe, arguments: args, environment: toolEnvironment(config))
     }
 
     private func restorePlainSQL(config: PGConfig, file: URL) async throws -> ProcessResult {

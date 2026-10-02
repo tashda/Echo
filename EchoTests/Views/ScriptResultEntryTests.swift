@@ -31,7 +31,7 @@ struct ScriptResultEntryTests {
         var skipped = BatchResult(batchIndex: 3, resultSets: [], error: nil, messages: [])
         skipped.skipped = true
         let results = [
-            BatchResult(batchIndex: 0, resultSets: [], error: nil, messages: [ServerMessage(kind: .info, number: 0, message: "INSERT 0 2", state: 0, severity: 0, serverName: nil, procedureName: nil, lineNumber: nil, category: nil, metadata: [:])]),
+            BatchResult(batchIndex: 0, resultSets: [], error: nil, messages: [ServerMessage(kind: .info, number: 0, message: "INSERT 0 2", state: 0, severity: 0, serverName: nil, procedureName: nil, lineNumber: nil, category: "Server Response", metadata: [:])]),
             BatchResult(batchIndex: 1, resultSets: [set], error: nil, messages: []),
             failed, skipped,
         ]

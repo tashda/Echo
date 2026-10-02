@@ -18,28 +18,18 @@
 		0A41ECB42F7C856800AD776A /* _CryptoExtras in Frameworks */ = {isa = PBXBuildFile; productRef = 0A41ECB32F7C856800AD776A /* _CryptoExtras */; };
 		0A6970C22F5EEF090027641E /* SQLiteNIO in Frameworks */ = {isa = PBXBuildFile; productRef = 0A6970C12F5EEF090027641E /* SQLiteNIO */; };
 		0A6970C52F5EEF5E0027641E /* PostgresKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A6970C42F5EEF5E0027641E /* PostgresKit */; };
-		0A6970C72F5EEF5E0027641E /* PostgresWire in Frameworks */ = {isa = PBXBuildFile; productRef = 0A6970C62F5EEF5E0027641E /* PostgresWire */; };
 		0A6970CA2F5EEFA40027641E /* SQLServerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A6970C92F5EEFA40027641E /* SQLServerKit */; };
 		0A697AEE2F5EF8220027641E /* EchoSense in Frameworks */ = {isa = PBXBuildFile; productRef = 0A697AED2F5EF8220027641E /* EchoSense */; };
+		ELB001000000000000000001 /* CLibpq in Frameworks */ = {isa = PBXBuildFile; productRef = ELB002000000000000000001 /* CLibpq */; };
 		0A698A422F5F88AA0027641E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 0A698A412F5F88AA0027641E /* Sparkle */; };
 		0A79557E2E8F10A9002279AE /* MySQLKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0A79557D2E8F10A9002279AE /* MySQLKit */; };
-		0A7955802E8F10A9002279AE /* MySQLWire in Frameworks */ = {isa = PBXBuildFile; productRef = 0A79557F2E8F10A9002279AE /* MySQLWire */; };
 		0AAD000300000000000000AD /* ActiveDirectory in Frameworks */ = {isa = PBXBuildFile; productRef = 0AAD000200000000000000AD /* ActiveDirectory */; };
 		0ADE5D00000000000000A003 /* EchoDesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 0ADE5D00000000000000A002 /* EchoDesignSystem */; };
 		EA74938A42BEA42306934B73 /* ServerLabClient in Frameworks */ = {isa = PBXBuildFile; productRef = FD3382FC2CB7A2B3917A4282 /* ServerLabClient */; };
 		PGT001000000000000000001 /* pg_dump in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000001 /* pg_dump */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		PGT001000000000000000002 /* pg_restore in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000002 /* pg_restore */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		PGT001000000000000000003 /* libpq.5.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000003 /* libpq.5.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		PGT001000000000000000004 /* libssl.3.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000004 /* libssl.3.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		PGT001000000000000000005 /* libcrypto.3.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000005 /* libcrypto.3.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		PGT001000000000000000006 /* libintl.8.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000006 /* libintl.8.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		PGT001000000000000000007 /* libzstd.1.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000007 /* libzstd.1.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		PGT001000000000000000008 /* liblz4.1.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000008 /* liblz4.1.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		PGT001000000000000000009 /* libgssapi_krb5.2.2.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT002000000000000000009 /* libgssapi_krb5.2.2.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		PGT00100000000000000000A /* libkrb5.3.3.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT00200000000000000000A /* libkrb5.3.3.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		PGT00100000000000000000B /* libk5crypto.3.1.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT00200000000000000000B /* libk5crypto.3.1.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		PGT00100000000000000000C /* libcom_err.3.0.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT00200000000000000000C /* libcom_err.3.0.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		PGT00100000000000000000D /* libkrb5support.1.1.dylib in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT00200000000000000000D /* libkrb5support.1.1.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT00100000000000000000E /* pg_dumpall in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT00200000000000000000E /* pg_dumpall */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		PGT00100000000000000000F /* psql in Copy PostgresTools */ = {isa = PBXBuildFile; fileRef = PGT00200000000000000000F /* psql */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -67,17 +57,8 @@
 			files = (
 				PGT001000000000000000001 /* pg_dump in Copy PostgresTools */,
 				PGT001000000000000000002 /* pg_restore in Copy PostgresTools */,
-				PGT001000000000000000003 /* libpq.5.dylib in Copy PostgresTools */,
-				PGT001000000000000000004 /* libssl.3.dylib in Copy PostgresTools */,
-				PGT001000000000000000005 /* libcrypto.3.dylib in Copy PostgresTools */,
-				PGT001000000000000000006 /* libintl.8.dylib in Copy PostgresTools */,
-				PGT001000000000000000007 /* libzstd.1.dylib in Copy PostgresTools */,
-				PGT001000000000000000008 /* liblz4.1.dylib in Copy PostgresTools */,
-				PGT001000000000000000009 /* libgssapi_krb5.2.2.dylib in Copy PostgresTools */,
-				PGT00100000000000000000A /* libkrb5.3.3.dylib in Copy PostgresTools */,
-				PGT00100000000000000000B /* libk5crypto.3.1.dylib in Copy PostgresTools */,
-				PGT00100000000000000000C /* libcom_err.3.0.dylib in Copy PostgresTools */,
-				PGT00100000000000000000D /* libkrb5support.1.1.dylib in Copy PostgresTools */,
+				PGT00100000000000000000E /* pg_dumpall in Copy PostgresTools */,
+				PGT00100000000000000000F /* psql in Copy PostgresTools */,
 			);
 			name = "Copy PostgresTools";
 		};
@@ -91,17 +72,8 @@
 		C7719E187414448D93AD6120 /* EchoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EchoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		PGT002000000000000000001 /* pg_dump */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = pg_dump; path = Tools/PostgresTools/pg_dump; sourceTree = "<group>"; };
 		PGT002000000000000000002 /* pg_restore */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = pg_restore; path = Tools/PostgresTools/pg_restore; sourceTree = "<group>"; };
-		PGT002000000000000000003 /* libpq.5.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libpq.5.dylib; path = Tools/PostgresTools/libpq.5.dylib; sourceTree = "<group>"; };
-		PGT002000000000000000004 /* libssl.3.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libssl.3.dylib; path = Tools/PostgresTools/libssl.3.dylib; sourceTree = "<group>"; };
-		PGT002000000000000000005 /* libcrypto.3.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libcrypto.3.dylib; path = Tools/PostgresTools/libcrypto.3.dylib; sourceTree = "<group>"; };
-		PGT002000000000000000006 /* libintl.8.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libintl.8.dylib; path = Tools/PostgresTools/libintl.8.dylib; sourceTree = "<group>"; };
-		PGT002000000000000000007 /* libzstd.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libzstd.1.dylib; path = Tools/PostgresTools/libzstd.1.dylib; sourceTree = "<group>"; };
-		PGT002000000000000000008 /* liblz4.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = liblz4.1.dylib; path = Tools/PostgresTools/liblz4.1.dylib; sourceTree = "<group>"; };
-		PGT002000000000000000009 /* libgssapi_krb5.2.2.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libgssapi_krb5.2.2.dylib; path = Tools/PostgresTools/libgssapi_krb5.2.2.dylib; sourceTree = "<group>"; };
-		PGT00200000000000000000A /* libkrb5.3.3.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libkrb5.3.3.dylib; path = Tools/PostgresTools/libkrb5.3.3.dylib; sourceTree = "<group>"; };
-		PGT00200000000000000000B /* libk5crypto.3.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libk5crypto.3.1.dylib; path = Tools/PostgresTools/libk5crypto.3.1.dylib; sourceTree = "<group>"; };
-		PGT00200000000000000000C /* libcom_err.3.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libcom_err.3.0.dylib; path = Tools/PostgresTools/libcom_err.3.0.dylib; sourceTree = "<group>"; };
-		PGT00200000000000000000D /* libkrb5support.1.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libkrb5support.1.1.dylib; path = Tools/PostgresTools/libkrb5support.1.1.dylib; sourceTree = "<group>"; };
+		PGT00200000000000000000E /* pg_dumpall */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = pg_dumpall; path = Tools/PostgresTools/pg_dumpall; sourceTree = "<group>"; };
+		PGT00200000000000000000F /* psql */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = psql; path = Tools/PostgresTools/psql; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -145,13 +117,12 @@
 				0A41EC822F7C0B8500AD776A /* Functions in Frameworks */,
 				0A6970C52F5EEF5E0027641E /* PostgresKit in Frameworks */,
 				0A41ECB22F7C856800AD776A /* CryptoExtras in Frameworks */,
-				0A6970C72F5EEF5E0027641E /* PostgresWire in Frameworks */,
 				0A41EC862F7C0B8500AD776A /* Realtime in Frameworks */,
 				0A41EC802F7C0B8500AD776A /* Auth in Frameworks */,
 				0A79557E2E8F10A9002279AE /* MySQLKit in Frameworks */,
-				0A7955802E8F10A9002279AE /* MySQLWire in Frameworks */,
 				0A41EC842F7C0B8500AD776A /* PostgREST in Frameworks */,
 				0A697AEE2F5EF8220027641E /* EchoSense in Frameworks */,
+				ELB001000000000000000001 /* CLibpq in Frameworks */,
 				0ADE5D00000000000000A003 /* EchoDesignSystem in Frameworks */,
 				0A41EC882F7C0B8500AD776A /* Storage in Frameworks */,
 				0A6970CA2F5EEFA40027641E /* SQLServerKit in Frameworks */,
@@ -219,17 +190,8 @@
 			children = (
 				PGT002000000000000000001 /* pg_dump */,
 				PGT002000000000000000002 /* pg_restore */,
-				PGT002000000000000000003 /* libpq.5.dylib */,
-				PGT002000000000000000004 /* libssl.3.dylib */,
-				PGT002000000000000000005 /* libcrypto.3.dylib */,
-				PGT002000000000000000006 /* libintl.8.dylib */,
-				PGT002000000000000000007 /* libzstd.1.dylib */,
-				PGT002000000000000000008 /* liblz4.1.dylib */,
-				PGT002000000000000000009 /* libgssapi_krb5.2.2.dylib */,
-				PGT00200000000000000000A /* libkrb5.3.3.dylib */,
-				PGT00200000000000000000B /* libk5crypto.3.1.dylib */,
-				PGT00200000000000000000C /* libcom_err.3.0.dylib */,
-				PGT00200000000000000000D /* libkrb5support.1.1.dylib */,
+				PGT00200000000000000000E /* pg_dumpall */,
+				PGT00200000000000000000F /* psql */,
 			);
 			name = PostgresTools;
 			sourceTree = "<group>";
@@ -254,12 +216,11 @@
 			name = Echo;
 			packageProductDependencies = (
 				0A79557D2E8F10A9002279AE /* MySQLKit */,
-				0A79557F2E8F10A9002279AE /* MySQLWire */,
 				0A6970C12F5EEF090027641E /* SQLiteNIO */,
 				0A6970C42F5EEF5E0027641E /* PostgresKit */,
-				0A6970C62F5EEF5E0027641E /* PostgresWire */,
 				0A6970C92F5EEFA40027641E /* SQLServerKit */,
 				0A697AED2F5EF8220027641E /* EchoSense */,
+				ELB002000000000000000001 /* CLibpq */,
 				0ADE5D00000000000000A002 /* EchoDesignSystem */,
 				0AAD000200000000000000AD /* ActiveDirectory */,
 				0A698A412F5F88AA0027641E /* Sparkle */,
@@ -360,6 +321,7 @@
 				0A6970C32F5EEF5E0027641E /* XCRemoteSwiftPackageReference "postgres-wire" */,
 				0A6970C82F5EEFA40027641E /* XCRemoteSwiftPackageReference "sqlserver-nio" */,
 				0A697AEC2F5EF8220027641E /* XCRemoteSwiftPackageReference "EchoSense" */,
+				ELB003000000000000000001 /* XCRemoteSwiftPackageReference "echo-libraries" */,
 				0ADE5D00000000000000A001 /* XCLocalSwiftPackageReference "Packages/EchoDesignSystem" */,
 				0AAD000100000000000000AD /* XCRemoteSwiftPackageReference "swift-active-directory" */,
 				0A698A402F5F88AA0027641E /* XCRemoteSwiftPackageReference "Sparkle" */,
@@ -853,6 +815,14 @@
 				kind = branch;
 			};
 		};
+		ELB003000000000000000001 /* XCRemoteSwiftPackageReference "echo-libraries" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/tashda/echo-libraries";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.0;
+			};
+		};
 		0A698A402F5F88AA0027641E /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sparkle-project/Sparkle";
@@ -943,11 +913,6 @@
 			package = 0A6970C32F5EEF5E0027641E /* XCRemoteSwiftPackageReference "postgres-wire" */;
 			productName = PostgresKit;
 		};
-		0A6970C62F5EEF5E0027641E /* PostgresWire */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 0A6970C32F5EEF5E0027641E /* XCRemoteSwiftPackageReference "postgres-wire" */;
-			productName = PostgresWire;
-		};
 		0A6970C92F5EEFA40027641E /* SQLServerKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 0A6970C82F5EEFA40027641E /* XCRemoteSwiftPackageReference "sqlserver-nio" */;
@@ -958,6 +923,11 @@
 			package = 0A697AEC2F5EF8220027641E /* XCRemoteSwiftPackageReference "EchoSense" */;
 			productName = EchoSense;
 		};
+		ELB002000000000000000001 /* CLibpq */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = ELB003000000000000000001 /* XCRemoteSwiftPackageReference "echo-libraries" */;
+			productName = CLibpq;
+		};
 		0A698A412F5F88AA0027641E /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 0A698A402F5F88AA0027641E /* XCRemoteSwiftPackageReference "Sparkle" */;
@@ -967,11 +937,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-wire" */;
 			productName = MySQLKit;
-		};
-		0A79557F2E8F10A9002279AE /* MySQLWire */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-wire" */;
-			productName = MySQLWire;
 		};
 		0AAD000200000000000000AD /* ActiveDirectory */ = {
 			isa = XCSwiftPackageProductDependency;

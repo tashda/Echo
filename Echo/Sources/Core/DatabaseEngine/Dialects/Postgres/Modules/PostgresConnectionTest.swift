@@ -1,6 +1,5 @@
 import Foundation
 import PostgresKit
-import PostgresWire
 
 /// The PostgreSQL side of the connection sheet's Test (Echo Labs round 23): every server of a
 /// connection with several (TS1), and the one fix a failure needs (NT1, KF1, KE1).

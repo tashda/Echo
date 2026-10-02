@@ -52,6 +52,8 @@ public enum ResultGridValueClassifier {
         guard !tokens.isEmpty else { return .text }
         let tokenSet = Set(tokens)
         if !tokenSet.intersection(booleanTypeTokens).isEmpty { return .boolean }
+        // MySQL BIT(n) with n > 1 is a bit string (shown as b'…'), not a boolean.
+        if tokenSet.contains("bit"), tokens.contains(where: { Int($0).map { $0 > 1 } ?? false }) { return .text }
         if tokenSet.contains("bit") && tokenSet.intersection(bitBooleanExclusionTokens).isEmpty { return .boolean }
         if !tokenSet.intersection(numericTypeTokens).isEmpty { return .numeric }
         if !tokenSet.intersection(temporalTypeTokens).isEmpty { return .temporal }

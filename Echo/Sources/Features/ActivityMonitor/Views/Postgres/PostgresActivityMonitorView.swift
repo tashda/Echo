@@ -1,5 +1,5 @@
 import SwiftUI
-import PostgresWire
+import PostgresKit
 
 struct PostgresActivityMonitorView: View {
     @Bindable var viewModel: ActivityMonitorViewModel

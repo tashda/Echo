@@ -1,4 +1,5 @@
 import Foundation
+import PostgresKit
 
 extension PostgresBackupRestoreViewModel {
     func splitPatterns(_ input: String) -> [String] {
@@ -8,34 +9,28 @@ extension PostgresBackupRestoreViewModel {
             .filter { !$0.isEmpty }
     }
 
-    func buildConnectionURI(database: String) -> String {
-        let sslmode = "prefer"
-        let host = connection.host.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? connection.host
-        let effectiveUsername = resolvedUsername ?? connection.username
-        let user = effectiveUsername.addingPercentEncoding(withAllowedCharacters: .urlUserAllowed) ?? effectiveUsername
-        let db = database.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? database
-
-        var userInfo = user
-        if let password = connectionPassword, !password.isEmpty {
-            let encodedPassword = password.addingPercentEncoding(withAllowedCharacters: .urlPasswordAllowed) ?? password
-            userInfo = "\(user):\(encodedPassword)"
+    /// How the tools reach the server for `database`, as this session's connection does: hosts,
+    /// TLS mode and files, Kerberos, the password only in the environment (#34). Keep it until the
+    /// tool has finished.
+    func toolConnection(database: String) async throws -> PostgresToolConnection {
+        if let postgres = session as? PostgresSession {
+            return try await postgres.client.toolConnection(database: database)
         }
-
-        return "postgresql://\(userInfo)@\(host):\(connection.port)/\(db)?sslmode=\(sslmode)"
+        return try await PostgresToolConnection.make(
+            for: connection, database: database,
+            authentication: DatabaseAuthenticationConfiguration(
+                method: connection.authenticationMethod, username: resolvedUsername ?? connection.username, password: connectionPassword
+            )
+        )
     }
 
-    func buildEnvironment() -> [String: String] {
-        var env: [String: String] = [:]
-        if let password = connectionPassword, !password.isEmpty {
-            env["PGPASSWORD"] = password
-        }
-        env["PGSSLMODE"] = connection.useTLS ? "require" : "disable"
-        if let sharedSupport = Bundle.main.sharedSupportURL {
-            let toolsDir = sharedSupport.appendingPathComponent("PostgresTools").path
-            env["DYLD_LIBRARY_PATH"] = toolsDir
-            env["DYLD_FALLBACK_LIBRARY_PATH"] = toolsDir
-        }
-        return env
+    /// How many jobs the tools run. With a Kerberos sign-in, one: their forked workers can't use
+    /// this Mac's Kerberos ticket (Apple's Kerberos isn't usable after fork, #43); Messages says so.
+    func effectiveJobs(_ requested: Int, category: String) -> Int {
+        guard requested > 1, connection.authenticationMethod == .kerberos else { return requested }
+        log("Kerberos sign-in: running with one job instead of \(requested). The tools' parallel workers can't use this Mac's Kerberos ticket.",
+            severity: .info, category: category)
+        return 1
     }
 
     func detectFormat() {

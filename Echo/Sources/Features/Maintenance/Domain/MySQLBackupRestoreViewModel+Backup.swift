@@ -24,13 +24,23 @@ extension MySQLBackupRestoreViewModel {
             includeData: includeData,
             singleTransaction: singleTransaction
         )
+        let tls: MySQLToolTLS?
+        do {
+            tls = try await toolTLS(for: mysqldump)
+        } catch {
+            let message = error.localizedDescription
+            backupPhase = .failed(message: message)
+            handle?.fail(message)
+            return
+        }
         let command = mysqlSession.client.backupRestore.backupCommand(
             host: connection.host,
             port: connection.port,
             username: resolvedUsername ?? connection.username,
             database: databaseName,
             outputPath: outputPath,
-            options: options
+            options: options,
+            tlsArguments: tls?.arguments ?? []
         )
 
         do {
@@ -39,6 +49,7 @@ extension MySQLBackupRestoreViewModel {
                 arguments: Array(command.dropFirst()),
                 environment: processEnvironment()
             )
+            withExtendedLifetime(tls) {}
             backupOutput = result.stderrLines
 
             if result.exitCode == 0 {

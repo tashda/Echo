@@ -1,6 +1,5 @@
 import Foundation
 import PostgresKit
-import PostgresWire
 import os
 
 /// PostgreSQL options the generic factory parameters don't carry (Echo Labs round 23): several

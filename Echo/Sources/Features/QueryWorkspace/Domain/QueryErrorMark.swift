@@ -1,6 +1,5 @@
 import Foundation
 import PostgresKit
-import PostgresWire
 import SQLServerKit
 
 /// Where a failed run's error is, marked in the editor (Echo Labs round 21, Postgres: where the
@@ -43,6 +42,9 @@ nonisolated enum QueryErrorMarker {
         }
         if let pointer = PostgresPointer(error) {
             return postgresMark(pointer, in: located)
+        }
+        if let pointer = MySQLPointer(error) {
+            return mysqlMark(pointer, in: located)
         }
         return nil
     }
@@ -188,12 +190,7 @@ nonisolated enum QueryErrorMarker {
                 message = kit.serverMessage ?? kit.message
                 position = kit.position
                 hint = kit.hint
-                context = nil
-            } else if let psql = candidate as? PSQLError, let info = psql.serverInfo {
-                message = info[.message] ?? psql.localizedDescription
-                position = info[.position].flatMap { Int($0) }
-                hint = info[.hint]
-                context = info[.locationContext]
+                context = kit.context
             } else {
                 return nil
             }
@@ -238,7 +235,7 @@ nonisolated enum QueryErrorMarker {
 
     // MARK: - Text helpers
 
-    private static func make(range: NSRange, in located: Located, message: String, detail: String?, fix: QueryErrorMark.Fix?) -> QueryErrorMark {
+    static func make(range: NSRange, in located: Located, message: String, detail: String?, fix: QueryErrorMark.Fix?) -> QueryErrorMark {
         QueryErrorMark(
             range: range,
             line: editorLineNumber(at: range.location, in: located.editorText),
@@ -263,7 +260,7 @@ nonisolated enum QueryErrorMarker {
     }
 
     /// The line without leading and trailing whitespace (the whole line when it is blank).
-    private static func trimmedLine(_ line: NSRange, in text: NSString) -> NSRange {
+    static func trimmedLine(_ line: NSRange, in text: NSString) -> NSRange {
         let content = text.substring(with: line)
         let leading = content.prefix { $0.isWhitespace }.utf16.count
         let trailing = content.reversed().prefix { $0.isWhitespace }.map { String($0) }.joined().utf16.count

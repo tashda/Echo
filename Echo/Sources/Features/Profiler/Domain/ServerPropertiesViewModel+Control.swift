@@ -1,6 +1,5 @@
 import Foundation
 import MySQLKit
-import MySQLWire
 
 extension ServerPropertiesViewModel {
     var isLocalMySQLHost: Bool {

@@ -8,9 +8,13 @@ extension WorkspaceTabContainerView {
         let entries = ScriptResultEntry.entries(for: run.results, statements: statements, editorRanges: ranges)
 
         // Round 41.4 (ML1): each statement's line under its own heading; the summary under the run's.
+        // Each statement's notices (RAISE NOTICE …, Echo #37) come before its line.
         let runStatement = state.messageStatement
         for entry in entries {
             state.messageStatement = entry.editorRange.flatMap { QueryMessageStatement.heading(for: state.sql, range: $0) } ?? runStatement
+            for notice in run.results.first(where: { $0.batchIndex == entry.id })?.messages ?? [] where notice.category != "Server Response" {
+                state.appendServerMessage(notice)
+            }
             state.appendMessage(message: entry.messageLine, severity: entry.isFailure ? .error : .info, category: "Script")
         }
         state.messageStatement = runStatement

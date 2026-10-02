@@ -1,7 +1,6 @@
 import Foundation
 import SQLServerKit
 import PostgresKit
-import PostgresWire
 import MySQLKit
 
 // MARK: - MySQL Process Info

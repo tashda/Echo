@@ -1,6 +1,5 @@
 import Foundation
 import PostgresKit
-import PostgresWire
 
 /// How a PostgreSQL script runs (Echo Labs round 21, script results: E3 and OT1).
 struct PostgresScriptOptions: Sendable, Equatable {
@@ -37,17 +36,23 @@ extension PostgresSession {
 
     func executeScript(_ statements: [String], options: PostgresScriptOptions, progressHandler: BatchProgressHandler?) async throws -> PostgresScriptRun {
         if let pinned = try await pinnedSessionForBatches() {
-            return try await runStatements(statements, options: options, progressHandler: progressHandler) { sql in
-                PostgresSQLSplitter.returnsRows(sql)
-                    ? .rows(try await pinned.query(sql).collect())
-                    : .command(try await pinned.queryResult(sql))
+            return try await runStatements(statements, options: options, progressHandler: progressHandler, notices: {
+                await pinned.takeNotices()
+            }) { sql in
+                guard PostgresSQLSplitter.returnsRows(sql) else { return .command(try await pinned.queryResult(sql)) }
+                let rows = try await pinned.query(sql)
+                let collected = try await rows.collect()
+                return .rows(try await rows.columns(), collected)
             }
         }
         return try await client.withConnection { connection in
-            try await self.runStatements(statements, options: options, progressHandler: progressHandler) { sql in
-                PostgresSQLSplitter.returnsRows(sql)
-                    ? .rows(try await connection.simpleQuery(sql).collect())
-                    : .command(try await connection.queryResult(sql))
+            try await self.runStatements(statements, options: options, progressHandler: progressHandler, notices: {
+                await connection.takeNotices()
+            }) { sql in
+                guard PostgresSQLSplitter.returnsRows(sql) else { return .command(try await connection.queryResult(sql)) }
+                let rows = try await connection.simpleQuery(sql)
+                let collected = try await rows.collect()
+                return .rows(try await rows.columns(), collected)
             }
         }
     }
@@ -78,7 +83,7 @@ extension PostgresSession {
     // MARK: - Internals
 
     private enum StatementOutput {
-        case rows([PostgresRow])
+        case rows([PostgresColumn], [PostgresRow])
         case command(WireQueryResult)
     }
 
@@ -94,6 +99,7 @@ extension PostgresSession {
         _ statements: [String],
         options: PostgresScriptOptions,
         progressHandler: BatchProgressHandler?,
+        notices: () async -> [PostgresNotice],
         execute: (String) async throws -> StatementOutput
     ) async throws -> PostgresScriptRun {
         let managesOwnTransaction = statements.contains { PostgresSQLSplitter.transactionEffect(of: $0) != .none }
@@ -120,20 +126,18 @@ extension PostgresSession {
                 do {
                     var result: BatchResult
                     switch try await execute(sql) {
-                    case .rows(let rows):
-                        let columns = rows.first.map { row in
-                            PostgresRowExtractor.columns(from: row).map {
-                                ColumnInfo(name: $0.name, dataType: $0.dataType, isPrimaryKey: false, isNullable: true, maxLength: nil)
-                            }
-                        } ?? []
+                    case .rows(let resultColumns, let rows):
+                        let columns = await columnInfo(resultColumns)
                         let values = rows.map { row in row.map { formatter.stringValue(for: $0) } }
                         let set = QueryResultSet(columns: columns.isEmpty ? [ColumnInfo(name: "result", dataType: "text")] : columns, rows: values, totalRowCount: values.count)
-                        result = BatchResult(batchIndex: index, resultSets: [set], error: nil, messages: [Self.serverMessage("SELECT \(values.count)")])
+                        let messages = Self.serverMessages(await notices()) + [Self.serverMessage("SELECT \(values.count)")]
+                        result = BatchResult(batchIndex: index, resultSets: [set], error: nil, messages: messages)
                     case .command(let output):
                         var tag = output.metadata.command
                         if let oid = output.metadata.oid { tag += " \(oid)" }
                         if let rows = output.metadata.rows { tag += " \(rows)" }
-                        result = BatchResult(batchIndex: index, resultSets: [], error: nil, messages: [Self.serverMessage(tag)])
+                        let messages = Self.serverMessages(await notices()) + [Self.serverMessage(tag)]
+                        result = BatchResult(batchIndex: index, resultSets: [], error: nil, messages: messages)
                     }
                     result.duration = Self.seconds(since: started)
                     results.append(result)
@@ -142,7 +146,7 @@ extension PostgresSession {
                     throw CancellationError()
                 } catch {
                     let message = normalizeError(error, contextSQL: sql).localizedDescription
-                    var failed = BatchResult(batchIndex: index, resultSets: [], error: message, messages: [])
+                    var failed = BatchResult(batchIndex: index, resultSets: [], error: message, messages: Self.serverMessages(await notices()))
                     failed.duration = Self.seconds(since: started)
                     results.append(failed)
                     failedIndex = failedIndex ?? index

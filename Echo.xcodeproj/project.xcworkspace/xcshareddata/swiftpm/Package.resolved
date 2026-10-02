@@ -1,13 +1,22 @@
 {
-  "originHash" : "c27923dc7c379c3154d7adb934c2b897da39ab46d30e7884c26b65502f35c473",
+  "originHash" : "205b801487d4ae092d12d2d53e2517e6cd35d959a3cd90799f379517197fd21a",
   "pins" : [
+    {
+      "identity" : "echo-libraries",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tashda/echo-libraries",
+      "state" : {
+        "revision" : "5a80804f2c91faa5548bfa1a6f7c4512b0f0d2b9",
+        "version" : "1.1.0"
+      }
+    },
     {
       "identity" : "echo-server-lab",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tashda/echo-server-lab",
       "state" : {
         "branch" : "dev",
-        "revision" : "1bffd13bbac2d1677f64b6ed988ced87a583e531"
+        "revision" : "31d0cbb9ed5f92a2ba599735e32da143401fc941"
       }
     },
     {
@@ -20,21 +29,12 @@
       }
     },
     {
-      "identity" : "mysql-nio",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/vapor/mysql-nio.git",
-      "state" : {
-        "revision" : "7fa853040169b604a16b963f23b481772f4ac181",
-        "version" : "1.9.1"
-      }
-    },
-    {
       "identity" : "mysql-wire",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tashda/mysql-wire",
       "state" : {
         "branch" : "dev",
-        "revision" : "6fd5039ec034729a377b7caca2891ff12e4f88da"
+        "revision" : "69cb51069a24f0eba967deeb390495444705c95f"
       }
     },
     {
@@ -43,7 +43,7 @@
       "location" : "https://github.com/tashda/postgres-wire",
       "state" : {
         "branch" : "dev",
-        "revision" : "7bc20ca2ce12a7396f91756eaa94ec0f34d612bb"
+        "revision" : "a4d47b964e04d49565c00e7805263aace3159e40"
       }
     },
     {
@@ -92,15 +92,6 @@
       }
     },
     {
-      "identity" : "swift-algorithms",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-algorithms.git",
-      "state" : {
-        "revision" : "87e50f483c54e6efd60e885f7f5aa946cee68023",
-        "version" : "1.2.1"
-      }
-    },
-    {
       "identity" : "swift-argument-parser",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-argument-parser.git",
@@ -116,15 +107,6 @@
       "state" : {
         "revision" : "3b6410f7dee09eb33cdd26260c5fd47fda19b0e2",
         "version" : "1.7.3"
-      }
-    },
-    {
-      "identity" : "swift-async-algorithms",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-async-algorithms.git",
-      "state" : {
-        "revision" : "13713a4ffdee8abd929f92568ee9462a46ae26e0",
-        "version" : "1.1.7"
       }
     },
     {
@@ -209,15 +191,6 @@
       }
     },
     {
-      "identity" : "swift-metrics",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-metrics.git",
-      "state" : {
-        "revision" : "087e8074afa97040c3b870c8664fe5482fb87cc4",
-        "version" : "2.11.0"
-      }
-    },
-    {
       "identity" : "swift-nio",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio.git",
@@ -233,33 +206,6 @@
       "state" : {
         "revision" : "322f3c2a4a21df31c84ca416bf65ee5e9059e440",
         "version" : "2.37.5"
-      }
-    },
-    {
-      "identity" : "swift-nio-transport-services",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-nio-transport-services.git",
-      "state" : {
-        "revision" : "67787bb645a5e67d2edcdfbe48a216cc549222d5",
-        "version" : "1.28.0"
-      }
-    },
-    {
-      "identity" : "swift-numerics",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-numerics.git",
-      "state" : {
-        "revision" : "0c0290ff6b24942dadb83a929ffaaa1481df04a2",
-        "version" : "1.1.1"
-      }
-    },
-    {
-      "identity" : "swift-service-lifecycle",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swift-server/swift-service-lifecycle.git",
-      "state" : {
-        "revision" : "7f9326b0326ff86e3646295ea6e891f68c471c5e",
-        "version" : "2.12.0"
       }
     },
     {

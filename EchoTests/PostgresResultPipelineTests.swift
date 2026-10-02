@@ -15,7 +15,8 @@ import XCTest
 final class PostgresResultPipelineTests: XCTestCase {
     private var retained: [AnyObject] = []
 
-    /// One row in Echo's binary row format: per cell 0x01 + UInt32-LE length + Postgres binary bytes.
+    /// One row in Echo's spool row format: per cell 0x01 + UInt32-LE length + the server's text
+    /// bytes (libpq returns text).
     nonisolated private static func encodeRow(id: Int32, name: String) -> Data {
         var data = Data()
         func appendCell(_ bytes: [UInt8]) {
@@ -24,7 +25,7 @@ final class PostgresResultPipelineTests: XCTestCase {
             withUnsafeBytes(of: &length) { data.append(contentsOf: $0) }
             data.append(contentsOf: bytes)
         }
-        appendCell(withUnsafeBytes(of: id.bigEndian) { Array($0) })
+        appendCell(Array(String(id).utf8))
         appendCell(Array(name.utf8))
         return data
     }

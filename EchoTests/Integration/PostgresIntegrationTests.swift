@@ -95,8 +95,6 @@ final class PostgresIntegrationTests: XCTestCase {
     // MARK: - Execute Update
 
     func testExecuteUpdateDDL() async throws {
-        // Remove when it passes (an expected failure that does not happen fails the test).
-        XCTExpectFailure("executeUpdate reports 0 rows for a Postgres INSERT: tashda/Echo#30")
         let config = try await loadConfig()
         let session = try await connect(config: config)
         defer { Task { @MainActor in await session.close() } }

@@ -1,10 +1,7 @@
 import Foundation
 import PostgresKit
-import PostgresWire
 import Logging
 import os
-
-typealias PostgresQueryResult = PostgresRowSequence
 
 struct PostgresNIOFactory: DatabaseFactory {
     private let packageLogger = Logging.Logger(label: "dev.echodb.echo.postgres")
@@ -240,11 +237,10 @@ final class PostgresSession: DatabaseSession {
         return try await simpleQuery(pagedSQL)
     }
 
+    /// Rows the statement changed, from its command tag (`INSERT 0 2`); rows returned otherwise (#30).
     func executeUpdate(_ sql: String) async throws -> Int {
-        let result = try await client.simpleQuery(sql)
-        var count = 0
-        for try await _ in result { count += 1 }
-        return count
+        let result = try await client.simpleQueryResult(sql)
+        return result.metadata.rows ?? result.rows.count
     }
 
     func renameTable(schema: String?, oldName: String, newName: String) async throws {

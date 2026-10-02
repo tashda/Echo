@@ -1,4 +1,5 @@
 import Foundation
+import PostgresKit
 
 extension PostgresBackupRestoreViewModel {
     func executeRestore(customToolPath: String?) async {
@@ -18,8 +19,16 @@ extension PostgresBackupRestoreViewModel {
         restoreStderrOutput = []
         let handle = activityEngine?.begin("Restore \(restoreDatabaseName)", connectionSessionID: connectionSessionID)
 
+        let tool: PostgresToolConnection
+        do {
+            tool = try await toolConnection(database: restoreDatabaseName)
+        } catch {
+            restorePhase = .failed(message: error.localizedDescription)
+            handle?.fail(error.localizedDescription)
+            return
+        }
         var args: [String] = []
-        args.append(contentsOf: ["--dbname", buildConnectionURI(database: restoreDatabaseName)])
+        args.append(contentsOf: ["--dbname", tool.connectionString])
 
         if restoreSchemaOnly { args.append("--schema-only") }
         if restoreDataOnly { args.append("--data-only") }
@@ -33,7 +42,8 @@ extension PostgresBackupRestoreViewModel {
         if restoreDisableTriggers { args.append("--disable-triggers") }
         args.append("--no-password")
         if restoreParallelJobs > 1 {
-            args.append(contentsOf: ["--jobs", String(restoreParallelJobs)])
+            let jobs = effectiveJobs(restoreParallelJobs, category: "Restore")
+            if jobs > 1 { args.append(contentsOf: ["--jobs", String(jobs)]) }
         }
         if restoreVerbose { args.append("--verbose") }
 
@@ -45,7 +55,7 @@ extension PostgresBackupRestoreViewModel {
 
         args.append(inputURL.path)
 
-        let env = buildEnvironment()
+        let env = tool.environment
         log("Starting restore to \(restoreDatabaseName)\u{2026}", severity: .info, category: "Restore")
         nonisolated(unsafe) let panel = panelState
 
@@ -61,6 +71,7 @@ extension PostgresBackupRestoreViewModel {
                 }
             }
 
+            withExtendedLifetime(tool) {}
             restoreStderrOutput = result.stderrLines
             if result.exitCode == 0 {
                 restorePhase = .completed(messages: [])
@@ -134,14 +145,22 @@ extension PostgresBackupRestoreViewModel {
             return
         }
 
-        let env = buildEnvironment()
+        let tool: PostgresToolConnection
+        do {
+            tool = try await toolConnection(database: restoreDatabaseName)
+        } catch {
+            restorePhase = .failed(message: error.localizedDescription)
+            handle?.fail(error.localizedDescription)
+            return
+        }
+        let env = tool.environment
         nonisolated(unsafe) let panel = panelState
 
         do {
             let result = try await processRunner.run(
                 executable: psql,
                 arguments: [
-                    "--dbname", buildConnectionURI(database: restoreDatabaseName),
+                    "--dbname", tool.connectionString,
                     "--file", url.path,
                     "--no-password"
                 ],
@@ -153,6 +172,7 @@ extension PostgresBackupRestoreViewModel {
                 }
             }
 
+            withExtendedLifetime(tool) {}
             restoreStderrOutput = result.stderrLines
             if result.exitCode == 0 {
                 restorePhase = .completed(messages: ["Plain SQL restore completed."])

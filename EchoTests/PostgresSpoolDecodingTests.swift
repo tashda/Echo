@@ -11,8 +11,9 @@ final class PostgresSpoolDecodingTests: XCTestCase {
     }
 
     func testDecodesSpooledPostgresRows() {
-        var row = Data([0x01, 4, 0, 0, 0])
-        row.append(contentsOf: withUnsafeBytes(of: Int32(251).bigEndian) { Array($0) })
+        // Cells hold the server's text, as libpq returns it.
+        var row = Data([0x01, 3, 0, 0, 0])
+        row.append(contentsOf: Array("251".utf8))
         row.append(0x00)
         row.append(contentsOf: [0x01, 2, 0, 0, 0] + Array("hi".utf8))
         let values = PostgresSpoolColumns.decodeRow(row, oids: [23, 25, 25], formatter: .init())

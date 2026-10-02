@@ -23,23 +23,8 @@ jobs:
       with:
         xcode-version: '27'
 
-    - name: Install PostgreSQL tools
-      run: |
-        brew list libpq >/dev/null 2>&1 || brew install libpq
-        brew list krb5 >/dev/null 2>&1 || brew install krb5
-        brew list zstd >/dev/null 2>&1 || brew install zstd
-        brew list lz4 >/dev/null 2>&1 || brew install lz4
-        brew list gettext >/dev/null 2>&1 || brew install gettext
-        LIBPQ_PREFIX="$(brew --prefix libpq)"
-        mkdir -p Tools/PostgresTools
-        cp "$LIBPQ_PREFIX/bin/pg_dump" Tools/PostgresTools/
-        cp "$LIBPQ_PREFIX/bin/pg_restore" Tools/PostgresTools/
-        SEARCH_DIRS="$LIBPQ_PREFIX/lib $(brew --prefix krb5)/lib $(brew --prefix zstd)/lib $(brew --prefix lz4)/lib $(brew --prefix gettext)/lib $(brew --prefix openssl@3)/lib /opt/homebrew/lib /usr/local/lib"
-        for lib in libpq.5.dylib libzstd.1.dylib liblz4.1.dylib libssl.3.dylib libcrypto.3.dylib libintl.8.dylib libgssapi_krb5.2.2.dylib libkrb5.3.3.dylib libk5crypto.3.1.dylib libkrb5support.1.1.dylib libcom_err.3.0.dylib; do
-          for dir in $SEARCH_DIRS; do
-            if [ -f "$dir/$lib" ]; then cp "$dir/$lib" Tools/PostgresTools/ && break; fi
-          done
-        done
+    - name: PostgreSQL tools from echo-libraries
+      run: Tools/fetch-postgres-tools.sh
 
     - name: Clear SPM cache
       run: |
@@ -90,23 +75,8 @@ jobs:
       with:
         xcode-version: '27'
 
-    - name: Install PostgreSQL tools
-      run: |
-        brew list libpq >/dev/null 2>&1 || brew install libpq
-        brew list krb5 >/dev/null 2>&1 || brew install krb5
-        brew list zstd >/dev/null 2>&1 || brew install zstd
-        brew list lz4 >/dev/null 2>&1 || brew install lz4
-        brew list gettext >/dev/null 2>&1 || brew install gettext
-        LIBPQ_PREFIX="$(brew --prefix libpq)"
-        mkdir -p Tools/PostgresTools
-        cp "$LIBPQ_PREFIX/bin/pg_dump" Tools/PostgresTools/
-        cp "$LIBPQ_PREFIX/bin/pg_restore" Tools/PostgresTools/
-        SEARCH_DIRS="$LIBPQ_PREFIX/lib $(brew --prefix krb5)/lib $(brew --prefix zstd)/lib $(brew --prefix lz4)/lib $(brew --prefix gettext)/lib $(brew --prefix openssl@3)/lib /opt/homebrew/lib /usr/local/lib"
-        for lib in libpq.5.dylib libzstd.1.dylib liblz4.1.dylib libssl.3.dylib libcrypto.3.dylib libintl.8.dylib libgssapi_krb5.2.2.dylib libkrb5.3.3.dylib libk5crypto.3.1.dylib libkrb5support.1.1.dylib libcom_err.3.0.dylib; do
-          for dir in $SEARCH_DIRS; do
-            if [ -f "$dir/$lib" ]; then cp "$dir/$lib" Tools/PostgresTools/ && break; fi
-          done
-        done
+    - name: PostgreSQL tools from echo-libraries
+      run: Tools/fetch-postgres-tools.sh
 
     - name: Set up lab tests
       id: lab
@@ -162,23 +132,10 @@ jobs:
     - uses: maxim-lobanov/setup-xcode@v1
       with:
         xcode-version: '27'
-    - name: Install PostgreSQL tools
-      run: |
-        brew list libpq >/dev/null 2>&1 || brew install libpq
-        brew list krb5 >/dev/null 2>&1 || brew install krb5
-        brew list zstd >/dev/null 2>&1 || brew install zstd
-        brew list lz4 >/dev/null 2>&1 || brew install lz4
-        brew list gettext >/dev/null 2>&1 || brew install gettext
-        LIBPQ_PREFIX="$(brew --prefix libpq)"
-        mkdir -p Tools/PostgresTools
-        cp "$LIBPQ_PREFIX/bin/pg_dump" Tools/PostgresTools/
-        cp "$LIBPQ_PREFIX/bin/pg_restore" Tools/PostgresTools/
-        SEARCH_DIRS="$LIBPQ_PREFIX/lib $(brew --prefix krb5)/lib $(brew --prefix zstd)/lib $(brew --prefix lz4)/lib $(brew --prefix gettext)/lib $(brew --prefix openssl@3)/lib /opt/homebrew/lib /usr/local/lib"
-        for lib in libpq.5.dylib libzstd.1.dylib liblz4.1.dylib libssl.3.dylib libcrypto.3.dylib libintl.8.dylib libgssapi_krb5.2.2.dylib libkrb5.3.3.dylib libk5crypto.3.1.dylib libkrb5support.1.1.dylib libcom_err.3.0.dylib; do
-          for dir in $SEARCH_DIRS; do
-            if [ -f "$dir/$lib" ]; then cp "$dir/$lib" Tools/PostgresTools/ && break; fi
-          done
-        done
+
+    - name: PostgreSQL tools from echo-libraries
+      run: Tools/fetch-postgres-tools.sh
+
     - name: Import signing certificate
       env:
         DEVELOPER_ID_CERT_BASE64: ${{ secrets.DEVELOPER_ID_CERT_BASE64 }}
@@ -253,14 +210,13 @@ jobs:
     - name: Sign bundled tools and libraries
       run: |
         APP="build/Build/Products/Release/Echo.app"
-        # Sign all dylibs first (dependencies before executables)
-        find "$APP" -name '*.dylib' -exec \
-          codesign --force --sign "Developer ID Application" --timestamp --options runtime {} \;
-        # Sign pg_dump and pg_restore
-        for tool in pg_dump pg_restore; do
-          if [ -f "$APP/Contents/Resources/$tool" ]; then
-            codesign --force --sign "Developer ID Application" --timestamp --options runtime "$APP/Contents/Resources/$tool"
-          fi
+        SIGN=(codesign --force --sign "Developer ID Application" --timestamp --options runtime)
+        # The echo-libraries frameworks first (the tools load them), then the PostgreSQL tools.
+        for framework in "$APP"/Contents/Frameworks/Echo*.framework; do
+          "${SIGN[@]}" "$framework"
+        done
+        for tool in "$APP"/Contents/SharedSupport/PostgresTools/*; do
+          "${SIGN[@]}" "$tool"
         done
         # Re-sign the app bundle (picks up nested changes)
         codesign --force --deep --sign "Developer ID Application" --timestamp --options runtime "$APP"

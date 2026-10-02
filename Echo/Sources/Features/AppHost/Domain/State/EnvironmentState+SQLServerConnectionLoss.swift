@@ -10,6 +10,8 @@ extension EnvironmentState {
     func watchConnectionLoss(for tab: WorkspaceTab, session: DatabaseSession) {
         if let sqlServer = session as? MSSQLDedicatedQuerySession {
             watchSQLServerConnectionLoss(for: tab, session: sqlServer)
+        } else if let mysql = session as? MySQLSession {
+            watchMySQLConnection(for: tab, session: mysql)
         } else {
             watchPostgresConnectionLoss(for: tab, session: session)
         }

@@ -131,12 +131,7 @@ actor PostgresPinnedSessionStore {
     }
 
     /// A transaction still open on one of this tab's sessions (round 21, open transaction on close).
-    struct OpenTransaction: Sendable, Equatable {
-        let database: String
-        let failed: Bool
-        let startedAt: Date?
-        let statements: Int
-    }
+    typealias OpenTransaction = QueryOpenTransaction
 
     /// The tab's open transactions, checked with the server (K1: a procedure may have committed or
     /// begun one without Echo seeing it). Two short queries per open session; only called before

@@ -75,6 +75,7 @@
         "PostgresQueryTabSessionTests",
         "PostgresQueryTimeLimitTests",
         "PostgresScriptRunTests",
+        "PostgresToolTLSTests",
         "PostgresTransactionStateTests",
         "SessionProtocolComplianceTests"
       ],
