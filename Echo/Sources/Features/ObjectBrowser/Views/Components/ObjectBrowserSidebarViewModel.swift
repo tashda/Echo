@@ -106,7 +106,7 @@ final class ObjectBrowserSidebarViewModel {
         setExpanded(isExpanded, nodeID: Self.serverNodeID(connectionID: connectionID))
     }
 
-    /// Which servers' cards are minimized, so they leave the tree and take a ring in the trail.
+    /// Which servers' cards are minimized, so they leave the tree and the trail lists them below the hairline.
     func minimizedServers(sessions: [ConnectionSession]) -> ExplorerMinimizedServers {
         ExplorerMinimizedServers(
             sessionConnectionIDs: sessions.map(\.connection.id),

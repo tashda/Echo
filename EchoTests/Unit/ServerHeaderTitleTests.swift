@@ -62,16 +62,6 @@ struct ServerHeaderTitleTests {
         #expect(ServerHeaderContrast.luminance(red: 1, green: 1, blue: 1) == 1)
         #expect(ServerHeaderContrast.luminance(red: 0, green: 1, blue: 0) == 0.7152)
     }
-
-    // MARK: Slot
-
-    @Test func largerNamesNeedMoreRoom() {
-        let small = ServerHeaderSlot.requiredHeight(for: .small)
-        let large = ServerHeaderSlot.requiredHeight(for: .large)
-        #expect(large > small)
-        #expect(ServerHeaderSlot.extraHeight(for: .large, originalSlot: 1000) == 0)
-        #expect(ServerHeaderSlot.extraHeight(for: .medium, originalSlot: 49) > 0)
-    }
 }
 
 @Suite("Server header settings (round 53)")
@@ -191,6 +181,72 @@ struct ServerColorPaletteTests {
             let lightLuma = ServerHeaderContrast.luminance(red: light.red, green: light.green, blue: light.blue)
             let darkLuma = ServerHeaderContrast.luminance(red: dark.red, green: dark.green, blue: dark.blue)
             #expect(darkLuma >= lightLuma - 0.001, "\(entry.name)")
+        }
+    }
+}
+
+@Suite("Server header metrics")
+struct ServerHeaderMetricsTests {
+    private static let sizes = ServerHeaderNameSize.allCases
+    private static let lines = ServerHeaderEyebrowLine.allCases
+
+    @Test func noLineLeavesOnlyTheName() {
+        for size in Self.sizes {
+            let metrics = ServerHeaderMetrics(nameSize: size, eyebrow: .none)
+            #expect(metrics.eyebrowBlockHeight == 0)
+            #expect(metrics.linesHeight == metrics.nameLineHeight)
+            #expect(metrics.headerHeight == ServerHeaderMetrics.topInset + metrics.nameLineHeight + ServerHeaderMetrics.bottomInset)
+        }
+    }
+
+    @Test func everyCombinationIsTheSumOfItsParts() {
+        for size in Self.sizes {
+            for line in Self.lines {
+                let metrics = ServerHeaderMetrics(nameSize: size, eyebrow: line)
+                let eyebrow = line == .none ? 0 : ServerHeaderMetrics.eyebrowLineHeight + ServerHeaderMetrics.lineGap
+                let expected = ServerHeaderMetrics.topInset + eyebrow + (size.points * 1.22).rounded(.up) + ServerHeaderMetrics.bottomInset
+                #expect(metrics.headerHeight == expected, "\(size) \(line)")
+            }
+        }
+    }
+
+    @Test func theLineAddsExactlyItsHeightAndGap() {
+        for size in Self.sizes {
+            let none = ServerHeaderMetrics(nameSize: size, eyebrow: .none).headerHeight
+            for line in Self.lines where line != .none {
+                #expect(ServerHeaderMetrics(nameSize: size, eyebrow: line).headerHeight
+                    == none + ServerHeaderMetrics.eyebrowLineHeight + ServerHeaderMetrics.lineGap)
+            }
+        }
+    }
+
+    @Test func largerNamesNeedMoreRoom() {
+        for line in Self.lines {
+            let heights = Self.sizes.map { ServerHeaderMetrics(nameSize: $0, eyebrow: line).headerHeight }
+            #expect(heights == heights.sorted() && Set(heights).count == 3)
+        }
+    }
+
+    /// The row the layout reserves is exactly the header, for every sidebar size: no gap, no overlap.
+    @MainActor @Test func theReservedRowEqualsTheHeader() {
+        for density in SidebarDensity.allCases {
+            let base = Double(ObjectBrowserOutlineView.baseRowHeight(for: density))
+            let slot = base + Double(ObjectBrowserNode.Row.serverHeaderExtraHeight)
+            for size in Self.sizes {
+                for line in Self.lines {
+                    let metrics = ServerHeaderMetrics(nameSize: size, eyebrow: line)
+                    #expect(slot + metrics.extraHeight(overSlot: slot) == metrics.headerHeight)
+                }
+            }
+        }
+    }
+
+    @Test func linesFitBetweenTheInsets() {
+        for size in Self.sizes {
+            for line in Self.lines {
+                let metrics = ServerHeaderMetrics(nameSize: size, eyebrow: line)
+                #expect(ServerHeaderMetrics.topInset + metrics.linesHeight + ServerHeaderMetrics.bottomInset == metrics.headerHeight)
+            }
         }
     }
 }

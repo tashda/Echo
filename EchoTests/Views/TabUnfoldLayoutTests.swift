@@ -140,3 +140,30 @@ struct TabKindIconTests {
         }
     }
 }
+
+/// Round 49, MO9: tabs without pages centre their icon and title from the width they move to.
+@Suite("Tab label centring")
+@MainActor
+struct TabLabelLayoutTests {
+    @Test func aWideTabCentresItsIconAndTitle() {
+        let inset = TabLabelLayout.iconInset(title: "Query 1", width: 600, hasPages: false, isIconOnly: false)
+        #expect(inset > LayoutTokens.TabPages.iconInset)
+        #expect(inset < 300)
+    }
+
+    @Test func aNarrowTabKeepsTheFixedInset() {
+        #expect(TabLabelLayout.iconInset(title: "A long query title", width: 120, hasPages: false, isIconOnly: false) == LayoutTokens.TabPages.iconInset)
+    }
+
+    @Test func aToolTabWithPagesKeepsTheFixedInset() {
+        #expect(TabLabelLayout.iconInset(title: "Activity Monitor", width: 900, hasPages: true, isIconOnly: false) == LayoutTokens.TabPages.iconInset)
+    }
+
+    @Test func anIconOnlyTabCentresItsIcon() {
+        #expect(TabLabelLayout.iconInset(title: "Query 2", width: 40, hasPages: false, isIconOnly: true) == (40 - SpacingTokens.sm2) / 2)
+    }
+
+    @Test func emptyTitlesReadUntitled() {
+        #expect(TabLabelLayout.displayed("  ") == "Untitled")
+    }
+}

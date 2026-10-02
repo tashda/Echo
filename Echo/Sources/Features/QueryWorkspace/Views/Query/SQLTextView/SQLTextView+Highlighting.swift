@@ -59,8 +59,17 @@ extension SQLTextView {
         }
     }
 
+    /// Large scripts wait a moment so moving the caret stays cheap; others update at once, so a
+    /// mark never outlives the selection it belonged to.
+    private static let immediateHighlightLimit = 100_000
+
     func scheduleSymbolHighlights(for descriptor: SelectionDescriptor, immediate: Bool = false) {
         symbolHighlightWorkItem?.cancel()
+        let immediate = immediate || (string as NSString).length < Self.immediateHighlightLimit
+        if !immediate, !selectionMatchRanges.isEmpty {
+            selectionMatchRanges = []
+            setNeedsDisplay(visibleRect)
+        }
         let workItem = DispatchWorkItem { [weak self] in
             guard let self else { return }
             self.updateSymbolHighlights(for: descriptor)

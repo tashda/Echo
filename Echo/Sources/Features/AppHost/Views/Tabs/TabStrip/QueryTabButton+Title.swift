@@ -43,7 +43,8 @@ extension QueryTabButton {
     }
 
     /// A tab with pages keeps its title whole; any other tab's title is laid out at the width the
-    /// tab is moving to, at once, so it truncates there and never re-flows on the way.
+    /// tab is moving to, at once, so it truncates there and never re-flows on the way, and sits
+    /// centred with its icon.
     @ViewBuilder
     private var titleText: some View {
         let text = Text(displayedTitle)
@@ -54,7 +55,7 @@ extension QueryTabButton {
             text.fixedSize()
         } else {
             text
-                .frame(width: max(finalWidth - Self.fixedChrome, 0), alignment: .leading)
+                .frame(width: max(finalWidth - Self.fixedChrome - centringLead, 0), alignment: .leading)
                 .transaction { $0.animation = nil }
         }
     }

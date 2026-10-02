@@ -15,6 +15,12 @@ public final class ExplorerTreeScrollState {
     /// The room held under the last card (N2). Stored, and set only when it changes, so the
     /// spacer (and the stack holding every row) isn't laid out again on every scrolled frame.
     public var holdHeight: CGFloat = 0
+    /// The rows' height `holdHeight` was worked out for. While the rows are another height (they
+    /// just changed), the spacer works the hold out itself, in the same layout pass.
+    public var holdContent: CGFloat = -1
+    /// The last metrics from the scroll view, readable without observing them: the spacer uses
+    /// them while the rows change, and must not be redrawn by every scrolled frame.
+    @ObservationIgnored public private(set) var latest = ExplorerTreeScrollMetrics(offset: 0, viewportHeight: 0, contentWidth: 0)
     @ObservationIgnored public var lastReportedContext: ExplorerTreeTopContext?
 
     public init() {}
@@ -46,24 +52,40 @@ public enum ExplorerTreeHold {
 }
 
 extension ExplorerTreeScrollState {
+    /// Remembers what the scroll view reported (see `latest`).
+    public func record(_ metrics: ExplorerTreeScrollMetrics) { latest = metrics }
+
+    /// The hold for rows of `contentHeight`, from the last reported metrics.
+    public func carriedHold(contentHeight: CGFloat) -> CGFloat {
+        ExplorerTreeHold.spacerHeight(offset: latest.offset, viewport: latest.viewportHeight,
+                                      contentHeight: contentHeight, previousTotal: latest.totalHeight)
+    }
+
     /// Works the hold out again for the rows' height now; call it after the view scrolls and
     /// whenever the rows change height.
     public func updateHold(contentHeight: CGFloat) {
         let height = ExplorerTreeHold.spacerHeight(offset: offset, viewport: viewportHeight,
                                                    contentHeight: contentHeight, previousTotal: totalHeight)
         if abs(height - holdHeight) > 0.5 { holdHeight = height }
+        if holdContent != contentHeight { holdContent = contentHeight }
     }
 }
 
-/// The spacer itself, under the rows. It reads only `holdHeight`, which rarely changes.
+/// The spacer itself, under the rows. It reads only `holdHeight`, which rarely changes. When the
+/// rows change height it takes the hold from the metrics the scroll view last reported, in the
+/// same layout pass as the rows, so the view is never clamped for a frame and no card moves; the
+/// hold then follows the scrolling (`updateHold`).
 public struct ExplorerTreeHoldSpacer: View {
     let scroll: ExplorerTreeScrollState
+    let contentHeight: CGFloat
 
-    public init(scroll: ExplorerTreeScrollState) {
+    public init(scroll: ExplorerTreeScrollState, contentHeight: CGFloat) {
         self.scroll = scroll
+        self.contentHeight = contentHeight
     }
 
     public var body: some View {
-        Color.clear.frame(height: scroll.holdHeight)
+        let height = scroll.holdContent == contentHeight ? scroll.holdHeight : scroll.carriedHold(contentHeight: contentHeight)
+        Color.clear.frame(height: height)
     }
 }

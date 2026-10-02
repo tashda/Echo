@@ -19,6 +19,22 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r58", label: "Round 58", title: "Smaller card headers and what each setting does", date: "2 Oct 2026",
+             asked: "The card headers feel too big even at Small with Banner with Title. Show variations that are smaller, and define exactly what each customization does (Line Above the Name = None must be only the name and tight) with the header's heights shown.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.header-sizes-r58"]),
+        Info(id: "r57", label: "Round 57", title: "The card header while the list scrolls", date: "2 Oct 2026",
+             asked: "When a card's list scrolls, the pinned banner header cuts the rows off with a hard edge and looks bad. Show how the header and the icon menu should behave: rounded bottom corners, the icon menu scrolling away first and then the header, collapsing, or something else.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.header-on-scroll-r57"]),
+        Info(id: "r56", label: "Round 56", title: "The connect card, now its own button", date: "2 Oct 2026",
+             asked: "The connect button is now its own glass circle under the pills, but its card still opens as if from the top group of active servers. Decide how the card should open from a button of its own, what it holds now that the connected servers are visible beside it, how the button behaves while the card is open, and that clicking outside dismisses it as well as the x.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.connect-card-r56"]),
+        Info(id: "r55", label: "Round 55", title: "Trail items: open, minimized and recent servers", date: "2 Oct 2026",
+             asked: "The dashed ring for a minimized server looks ugly. Show how a trail item should look when its server is connected and open or connected and minimized, and whether the trail should also show recently connected servers (dimmed, in the same pill or in a second pill) that connect when clicked and move into the active group.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.trail-item-states-r55"]),
         Info(id: "r54", label: "Round 54", title: "Minimizing a card into the trail", date: "2 Oct 2026",
              asked: "Show different animations for how a server card is moved into the server trail when it is minimized (and brought back), since a closed card now leaves the tree and its trail item takes a dashed ring.",
              outcome: "Being judged.",

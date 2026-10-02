@@ -157,6 +157,10 @@ enum LabAreas {
         "ongoing.connect-menu-r52": "explorer-tree",
         "ongoing.server-header-custom-r53": "explorer-tree",
         "ongoing.card-to-trail-r54": "explorer-tree",
+        "ongoing.trail-item-states-r55": "explorer-tree",
+        "ongoing.connect-card-r56": "explorer-tree",
+        "ongoing.header-on-scroll-r57": "explorer-tree",
+        "ongoing.header-sizes-r58": "explorer-tree",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 

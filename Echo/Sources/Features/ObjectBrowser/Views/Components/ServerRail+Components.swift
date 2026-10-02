@@ -29,63 +29,77 @@ extension ServerRail {
         return entries.first?.connectionID
     }
 
-    /// One glass shape. Closed it is the pill that hugs its servers and the +; open (round 52) the
-    /// same shape widens into the connection list, the servers lying in a row at its top.
-    func serverPill(entries: [ServerRailEntry], highlightedID: UUID?) -> some View {
-        let isOpen = appState.isConnectTrailOpen
+    /// The pill that hugs the connected servers. It is the same while the connect drawer is open.
+    func serverPill(entries: [ServerRailEntry], layout: ServerRailLayout, highlightedID: UUID?) -> some View {
         let closedRadius = LayoutTokens.Rail.width(itemSize: itemSize) / 2
 
-        return GlassEffectContainer(spacing: SpacingTokens.xs) {
-            VStack(spacing: SpacingTokens.none) {
-                if isOpen {
-                    openTrail(entries: entries, highlightedID: highlightedID)
-                } else {
-                    closedPill(entries: entries, highlightedID: highlightedID)
-                }
-            }
-            .frame(width: isOpen ? Self.connectTrailWidth : nil, alignment: .topLeading)
-            .glassEffect(.regular, in: .rect(cornerRadius: isOpen ? SpacingTokens.lg : closedRadius, style: .continuous))
-        }
+        // The rail's one GlassEffectContainer (ServerRail.body) draws this and the other pills.
+        return closedPill(entries: entries, layout: layout, highlightedID: highlightedID)
+            .glassEffect(.regular, in: .rect(cornerRadius: closedRadius, style: .continuous))
     }
 
-    func closedPill(entries: [ServerRailEntry], highlightedID: UUID?) -> some View {
+    func closedPill(entries: [ServerRailEntry], layout: ServerRailLayout, highlightedID: UUID?) -> some View {
         let spacing = LayoutTokens.Rail.itemSpacing
         let padding = LayoutTokens.Rail.pillPadding
-        // Servers plus the + button. Every item has the same size, so the pill's natural height
-        // is exact without measuring.
-        let count = CGFloat(entries.count + 1)
-        let contentHeight = count * itemSize + max(0, count - 1) * spacing + padding * 2
+        // Every item has the same size, so the pill's natural height is exact without measuring.
+        let contentHeight = layout.connectedHeight(itemSize: itemSize, spacing: spacing) + padding * 2
         let runningCounts = tabStore.runningQueryCountsByConnection
+        let openEntries = Array(entries.prefix(layout.openIDs.count))
+        let minimizedEntries = Array(entries.dropFirst(layout.openIDs.count))
 
-        return ScrollViewReader { proxy in
-            ScrollView(.vertical) {
-                ZStack(alignment: .top) {
-                    selectionDisc(isVisible: highlightedID != nil)
-
-                    // Keyed by connection rather than entry, so a server keeps its place and its
-                    // state as it goes from connecting to connected.
-                    VStack(spacing: spacing) {
-                        ForEach(entries, id: \.connectionID) { entry in
-                            item(
-                                for: entry,
-                                isSelected: entry.connectionID == highlightedID,
-                                runningQueryCount: runningCounts[entry.connectionID] ?? 0
-                            )
-                            .transition(.scale(scale: 0.4).combined(with: .opacity))
-                        }
-                        connectButton
-                    }
-                }
-                .padding(padding)
+        func items(_ group: [ServerRailEntry]) -> some View {
+            // Keyed by connection rather than entry, so a server keeps its place and its state
+            // as it goes from connecting to connected, and glides between the groups.
+            ForEach(group, id: \.connectionID) { entry in
+                item(
+                    for: entry,
+                    isSelected: entry.connectionID == highlightedID,
+                    runningQueryCount: runningCounts[entry.connectionID] ?? 0
+                )
             }
-            .scrollIndicators(.never)
-            .scrollBounceBehavior(.basedOnSize)
-            // Hugs its servers, and only scrolls once they outgrow the window height.
-            .frame(maxHeight: contentHeight)
-            .onChange(of: highlightedID) { _, id in
-                // Scrolls only as far as needed, so a visible selection never moves the rail.
-                guard let id else { return }
-                withAnimation(motion.standard) { proxy.scrollTo(id) }
+        }
+
+        let column = ZStack(alignment: .top) {
+            selectionDisc(isVisible: highlightedID != nil)
+
+            VStack(spacing: spacing) {
+                items(openEntries)
+                if layout.showsHairline {
+                    ServerRailHairline(itemSize: itemSize)
+                        .transition(.opacity)
+                }
+                items(minimizedEntries)
+            }
+        }
+        .padding(padding)
+
+        let overflows = layout.connectedPillOverflows(
+            itemSize: itemSize,
+            spacing: spacing,
+            padding: padding,
+            pillGap: SpacingTokens.xs,
+            minimumGap: LayoutTokens.Rail.minimumPillGap,
+            railHeight: railHeight
+        )
+
+        // Servers glide between this pill and the recents pill (matchedGeometryEffect), and a
+        // scroll view would clip them in flight and re-lay out every frame. So it scrolls only
+        // once the servers outgrow the window height (round 55).
+        return Group {
+            if overflows {
+                ScrollViewReader { proxy in
+                    ScrollView(.vertical) { column }
+                        .scrollIndicators(.never)
+                        .scrollBounceBehavior(.basedOnSize)
+                        .frame(maxHeight: contentHeight)
+                        .onChange(of: highlightedID) { _, id in
+                            // Scrolls only as far as needed, so a visible selection never moves the rail.
+                            guard let id else { return }
+                            withAnimation(motion.standard) { proxy.scrollTo(id) }
+                        }
+                }
+            } else {
+                column
             }
         }
     }
@@ -105,19 +119,16 @@ extension ServerRail {
             .accessibilityHidden(true)
     }
 
-    /// A server's item. In the opened trail (`drawsOwnDisc`) each item carries its own selection
-    /// disc, as the trail's one disc moves only inside the closed pill, and a click closes the trail.
+    /// A server's item. A click selects it and leaves the connect drawer as it is (round 56, OT0).
     func item(
         for entry: ServerRailEntry,
         isSelected: Bool,
-        runningQueryCount: Int,
-        drawsOwnDisc: Bool = false
+        runningQueryCount: Int
     ) -> some View {
         let status = entry.status
 
         return Button {
             activate(entry)
-            if drawsOwnDisc { appState.isConnectTrailOpen = false }
         } label: {
             ServerRailItem(
                 monogram: ServerRailMonogram.make(from: entry.displayName),
@@ -127,18 +138,14 @@ extension ServerRail {
                 isSelected: isSelected,
                 size: itemSize,
                 // Round 30.1, CO1: with the header in the server's colour, the monogram always is.
-                isAlwaysColored: projectStore.globalSettings.serverHeaderColorSource == .server,
-                isMinimized: bridge.minimizedConnectionIDs.contains(entry.connectionID)
+                isAlwaysColored: projectStore.globalSettings.serverHeaderColorSource == .server
             )
-            .background {
-                if drawsOwnDisc && isSelected { ownSelectionDisc }
-            }
         }
         .buttonStyle(.plain)
         .matchedGeometryEffect(id: entry.connectionID, in: trail)
         .focusable(false)
         // The name bubble (round 51, NM1) replaces the tooltip; VoiceOver reads the label and value.
-        .onHover(perform: trackHover(of: entry, isActive: !drawsOwnDisc))
+        .onHover(perform: trackHover(of: entry, isActive: true))
         .anchorPreference(key: ServerRailItemBoundsKey.self, value: .bounds) { [entry.connectionID: $0] }
         .popover(isPresented: customizingBinding(for: entry), arrowEdge: .trailing) { appearancePopover(for: entry) }
         .lazyContextMenu { menu(for: entry) }
@@ -149,6 +156,7 @@ extension ServerRail {
 
     func accessibilityValue(for entry: ServerRailEntry, runningQueryCount: Int) -> String {
         let status = entry.status
+        // Nothing marks a minimized server in the rail; VoiceOver still says so.
         let minimized = bridge.minimizedConnectionIDs.contains(entry.connectionID) ? ", minimized" : ""
         guard status == .ready, runningQueryCount > 0 else { return status.accessibilityDescription + minimized }
         return (runningQueryCount == 1 ? "1 query running" : "\(runningQueryCount) queries running") + minimized

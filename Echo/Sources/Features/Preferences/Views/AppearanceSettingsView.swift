@@ -150,6 +150,30 @@ struct AppearanceSettingsView: View {
                 }
             }
 
+            Section("Server Trail") {
+                PropertyRow(
+                    title: "Show Recent Servers",
+                    subtitle: "Servers you used lately but are not connected to, dimmed in the rail. Click one to connect."
+                ) {
+                    Toggle("", isOn: projectStore.globalSettingBinding(\.showsRecentServers))
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+
+                PropertyRow(
+                    title: "Number of Recent Servers",
+                    subtitle: "How many recent servers the rail shows at most."
+                ) {
+                    Picker("", selection: projectStore.globalSettingBinding(\.recentServerCount)) {
+                        ForEach(RecentServerCount.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .fixedSize()
+                    .disabled(!projectStore.globalSettings.showsRecentServers)
+                }
+            }
+
             Section("Theme") {
                 PropertyRow(title: "Accent Color") {
                     Picker("", selection: accentColorSourceBinding) {

@@ -23,9 +23,11 @@ struct WindowRailSpecimen: View {
                             }
                     }.buttonStyle(.plain)
                 }
-                Image(systemName: "plus").font(TypographyTokens.standard).foregroundStyle(ColorTokens.Text.secondary)
-                    .frame(width: itemSize, height: itemSize)
             }.padding(LayoutTokens.Rail.pillPadding).glassEffect(.regular, in: .capsule)
+            // Connect to a Server: its own circle (round 55).
+            Image(systemName: LayoutTokens.Rail.connectSymbol).font(.system(size: LayoutTokens.Rail.toolSymbolSize)).foregroundStyle(ColorTokens.Text.secondary)
+                .frame(width: itemSize, height: itemSize)
+                .padding(LayoutTokens.Rail.pillPadding).glassEffect(.regular, in: .circle)
             Spacer(minLength: SpacingTokens.none)
         }.frame(width: LayoutTokens.Rail.width(itemSize: itemSize))
     }

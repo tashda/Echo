@@ -349,6 +349,13 @@ final class EnvironmentState {
         saveRecentConnections()
     }
 
+    /// Takes a server off the rail's recents (its context menu). The connection itself stays saved
+    /// and comes back to the recents the next time it is connected.
+    func removeFromRecents(connectionID: UUID) {
+        recentConnections = recentConnections.removing(connectionID: connectionID)
+        saveRecentConnections()
+    }
+
     private func synchronizeRecentConnectionsWithConnections() {
         let existingIDs = Set(connectionStore.connections.map { $0.id })
         recentConnections.removeAll { !existingIDs.contains($0.id) }

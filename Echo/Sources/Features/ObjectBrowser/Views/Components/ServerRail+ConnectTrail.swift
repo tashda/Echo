@@ -1,105 +1,51 @@
 import SwiftUI
 
-/// The opened server trail (round 52, PR4, OP1 and CX1): the pill itself widens into the list of
-/// saved connections. The connected servers lie in a row at the top, built from the same items as
-/// the closed trail, with New Connection, Manage Connections, Quick Connect and × at the right.
+/// The connect drawer (round 56, PR3, CD1, CB0, OT0, XB0): the connect circle opens a glass panel
+/// beside the trail, the height of the rail, over the tree. A search field with New Connection,
+/// Manage Connections, Quick Connect and × beside it, then the saved connections by folder. The
+/// pills stay as they are and stay usable while it is open (this replaces round 52's widening pill).
 extension ServerRail {
-    /// The widened pill: wide enough for a search field and four icon buttons, narrower than the tree.
-    static let connectTrailWidth = SpacingTokens.xxxl * 3.9
-    /// The list under the header; it scrolls when there are more connections.
-    static let connectTrailListHeight = SpacingTokens.xxxl * 5
+    /// Wide enough for a search field and four icon buttons, narrower than the tree.
+    static let connectDrawerWidth = SpacingTokens.xxxl * 3.9
+    /// The gap between the rail's trailing edge and the drawer.
+    static let connectDrawerGap = SpacingTokens.sm - SpacingTokens.xxs
 
-    /// The list is gone before the glass starts to shrink under it, so it never shows through the
-    /// server circles the pill is returning to.
-    private var connectTrailListFade: AnyTransition {
-        .asymmetric(insertion: .opacity, removal: .opacity.animation(.easeOut(duration: 0.12)))
+    /// How far the drawer reaches from the rail's leading edge: the column, the gap and the drawer.
+    var connectDrawerReach: CGFloat {
+        LayoutTokens.Rail.width(itemSize: itemSize) + Self.connectDrawerGap + Self.connectDrawerWidth
     }
 
-    func openTrail(entries: [ServerRailEntry], highlightedID: UUID?) -> some View {
-        let runningCounts = tabStore.runningQueryCountsByConnection
-
-        return VStack(spacing: SpacingTokens.xxs) {
-            connectTrailHeader(entries: entries, highlightedID: highlightedID, runningCounts: runningCounts)
-            ConnectTrailList(
-                entries: connectTrailEntries,
-                markColor: { connectTrailColor(for: $0) },
-                onConnect: connectFromTrail,
-                onClose: closeConnectTrail
-            )
-            .frame(height: Self.connectTrailListHeight)
-            .transition(connectTrailListFade)
-        }
-        .padding(LayoutTokens.Rail.pillPadding)
-    }
-
-    private func connectTrailHeader(
-        entries: [ServerRailEntry],
-        highlightedID: UUID?,
-        runningCounts: [UUID: Int]
-    ) -> some View {
-        HStack(spacing: SpacingTokens.xxs) {
-            // Sideways under a soft edge when there are more servers than room.
-            ScrollView(.horizontal) {
-                HStack(spacing: LayoutTokens.Rail.itemSpacing) {
-                    ForEach(entries, id: \.connectionID) { entry in
-                        item(
-                            for: entry,
-                            isSelected: entry.connectionID == highlightedID,
-                            runningQueryCount: runningCounts[entry.connectionID] ?? 0,
-                            drawsOwnDisc: true
-                        )
-                    }
-                }
-            }
-            .scrollIndicators(.never)
-            .scrollBounceBehavior(.basedOnSize)
-            .scrollEdgeEffectStyle(.soft, for: .horizontal)
-
-            HStack(spacing: SpacingTokens.xxxs) {
-                ConnectTrailIconButton(symbol: "plus", title: "New Connection") {
-                    closeConnectTrail()
-                    ManageConnectionsWindowController.shared.present(startingNewConnection: true)
-                }
-                ConnectTrailIconButton(symbol: "gearshape", title: "Manage Connections") {
-                    closeConnectTrail()
-                    ManageConnectionsWindowController.shared.present()
-                }
-                ConnectTrailIconButton(symbol: "bolt.fill", title: "Quick Connect") {
-                    closeConnectTrail()
-                    appState.showSheet(.quickConnect)
-                }
-                ConnectTrailIconButton(
-                    symbol: "xmark",
-                    title: "Close",
-                    font: TypographyTokens.detail.weight(.semibold),
-                    action: closeConnectTrail
-                )
-                // The + glides here as the trail opens, and back as it closes.
-                .matchedGeometryEffect(id: "toggle", in: trail)
-            }
-        }
-    }
-
-    /// The selection disc drawn behind one item of the opened trail's row, as the closed trail's.
-    var ownSelectionDisc: some View {
-        Capsule()
-            .fill(ColorTokens.Workspace.railSelection)
-            .shadow(ShadowTokens.railSelection)
-            .padding(LayoutTokens.Rail.selectionInset)
-    }
-
-    /// The + at the foot of the closed trail. It opens the trail and glides to the ×.
-    var connectButton: some View {
-        Button {
-            appState.isConnectTrailOpen = true
-        } label: {
-            ServerRailToolLabel(symbol: "plus", isSelected: false, width: itemSize, height: itemSize)
-        }
-        .buttonStyle(.plain)
-        .matchedGeometryEffect(id: "toggle", in: trail)
-        .focusable(false)
-        .help("Connect to a Server")
-        .accessibilityLabel("Connect to a Server")
+    /// The drawer's glass, over the tree. It slides in from the rail with its opacity; closing is
+    /// set by the rail's animation (no overshoot).
+    var connectDrawer: some View {
+        ConnectTrailList(
+            entries: connectTrailEntries,
+            markColor: { connectTrailColor(for: $0) },
+            onConnect: connectFromTrail,
+            onNewConnection: {
+                closeConnectTrail()
+                ManageConnectionsWindowController.shared.present(startingNewConnection: true)
+            },
+            onManageConnections: {
+                closeConnectTrail()
+                ManageConnectionsWindowController.shared.present()
+            },
+            onQuickConnect: {
+                closeConnectTrail()
+                appState.showSheet(.quickConnect)
+            },
+            onClose: closeConnectTrail
+        )
+        .frame(width: Self.connectDrawerWidth)
+        .frame(maxHeight: .infinity)
+        .glassEffect(.regular, in: .rect(cornerRadius: SpacingTokens.lg, style: .continuous))
+        .offset(x: LayoutTokens.Rail.width(itemSize: itemSize) + Self.connectDrawerGap)
+        // Its own width from under the trail, with a fade; closing is the same in reverse. The
+        // distance is explicit, so it never depends on the container the transition is in.
+        .transition(.modifier(
+            active: ConnectDrawerSlide(distance: Self.connectDrawerWidth, isHidden: true),
+            identity: ConnectDrawerSlide(distance: Self.connectDrawerWidth, isHidden: false)
+        ))
     }
 
     func closeConnectTrail() {
@@ -135,5 +81,18 @@ extension ServerRail {
         guard let connection = connectionStore.connections.first(where: { $0.id == id }) else { return }
         closeConnectTrail()
         environmentState.connectToNewSession(to: connection)
+    }
+}
+
+/// The connect drawer's entry and exit: it travels its own width, from under the trail, fading in;
+/// removing it plays the same in reverse.
+struct ConnectDrawerSlide: ViewModifier {
+    let distance: CGFloat
+    let isHidden: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .offset(x: isHidden ? -distance : 0)
+            .opacity(isHidden ? 0 : 1)
     }
 }

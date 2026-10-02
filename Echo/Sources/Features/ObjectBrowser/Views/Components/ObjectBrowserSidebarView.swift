@@ -45,10 +45,10 @@ struct ObjectBrowserSidebarView: View {
                 ExplorerEmptyState(
                     symbol: "server.rack",
                     title: "No Servers Connected",
-                    hint: "Connect with the + button in the rail."
+                    hint: "Connect with the server button in the rail."
                 )
             } else if minimized.leavesTreeEmpty(sessionConnectionIDs: sessionIDs, pendingCount: pendingConnections.count) {
-                // Round 51, SH5: every card is minimized; each server is a ring in the trail.
+                // Round 51, SH5: every card is minimized; each server waits below the rail's hairline.
                 ExplorerEmptyState(
                     symbol: "rectangle.on.rectangle.slash",
                     title: "All Servers Are Minimized",
@@ -133,7 +133,7 @@ struct ObjectBrowserSidebarView: View {
         .onChange(of: sessions.map(\.connection.id)) { _, _ in
             synchronizeDefaults()
         }
-        // Round 51, SH5: the rail draws a ring on each minimized server.
+        // Round 55: the rail lists minimized servers below the open ones.
         .onChange(of: minimized.connectionIDs, initial: true) { old, new in
             applyMinimizedServers(from: old, to: new)
         }

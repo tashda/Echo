@@ -1,24 +1,36 @@
 import SwiftUI
 
-/// The opened trail's list (round 52, CT1 and KB1): a search field with the focus, then the saved
+/// The connect drawer's content (round 56, CD1; round 52, CT1 and KB1): a search field with the
+/// focus and New Connection, Manage Connections, Quick Connect and × beside it, then the saved
 /// connections under their folder's heading. Return connects the highlighted row (the first match
-/// until an arrow key or the pointer picks another); Escape closes the trail.
+/// until an arrow key or the pointer picks another); Escape closes the drawer.
 struct ConnectTrailList: View {
     let entries: [ConnectTrailEntry]
     let markColor: (UUID) -> Color
     let onConnect: (UUID) -> Void
+    let onNewConnection: () -> Void
+    let onManageConnections: () -> Void
+    let onQuickConnect: () -> Void
     let onClose: () -> Void
 
     @State private var query = ""
     @State private var highlightedID: UUID?
     @FocusState private var isSearching: Bool
+    /// The user clicked into the search: the field takes the row and the icon buttons step aside.
+    /// The focus the drawer takes on opening does not count; the row stays compact until a click
+    /// or typing.
+    @State private var hasClickedSearch = false
+    @State private var isAutoFocusing = false
+    @Environment(\.echoMotion) private var motion
+
+    private var isSearchExpanded: Bool { hasClickedSearch || !query.isEmpty }
 
     private var sections: [ConnectTrailSection] { ConnectTrailListing.sections(entries, query: query) }
     private var orderedIDs: [UUID] { ConnectTrailListing.orderedIDs(sections) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.none) {
-            searchField
+            header
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: SpacingTokens.none) {
@@ -47,7 +59,17 @@ struct ConnectTrailList: View {
                 }
             }
         }
-        .task { isSearching = true }
+        .task {
+            isAutoFocusing = true
+            isSearching = true
+        }
+        .onChange(of: isSearching) { _, focused in
+            if focused {
+                if isAutoFocusing { isAutoFocusing = false } else { hasClickedSearch = true }
+            } else {
+                hasClickedSearch = false
+            }
+        }
         .onAppear { highlightedID = ConnectTrailListing.highlight(current: nil, in: orderedIDs) }
         .onChange(of: query) { _, _ in
             highlightedID = ConnectTrailListing.highlight(current: nil, in: orderedIDs)
@@ -62,12 +84,39 @@ struct ConnectTrailList: View {
         return .handled
     }
 
+    private var header: some View {
+        HStack(spacing: SpacingTokens.xxxs) {
+            searchField
+                .frame(maxWidth: .infinity)
+            if !isSearchExpanded {
+                actionButtons
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+            }
+        }
+        .padding(SpacingTokens.xs)
+        .animation(motion.standard, value: isSearchExpanded)
+    }
+
+    private var actionButtons: some View {
+        HStack(spacing: SpacingTokens.xxxs) {
+            ConnectTrailIconButton(symbol: "plus", title: "New Connection", action: onNewConnection)
+            ConnectTrailIconButton(symbol: "gearshape", title: "Manage Connections", action: onManageConnections)
+            ConnectTrailIconButton(symbol: "bolt.fill", title: "Quick Connect", action: onQuickConnect)
+            ConnectTrailIconButton(
+                symbol: "xmark",
+                title: "Close",
+                font: TypographyTokens.detail.weight(.semibold),
+                action: onClose
+            )
+        }
+    }
+
     private var searchField: some View {
         HStack(spacing: SpacingTokens.xxs2) {
             Image(systemName: "magnifyingglass")
                 .font(TypographyTokens.detail)
                 .foregroundStyle(ColorTokens.Text.tertiary)
-            TextField("", text: $query, prompt: Text("Search connections"))
+            TextField("", text: $query, prompt: Text(isSearchExpanded ? "Search connections" : "Search"))
                 .textFieldStyle(.plain)
                 .font(TypographyTokens.standard)
                 .focused($isSearching)
@@ -76,9 +125,10 @@ struct ConnectTrailList: View {
                 }
         }
         .padding(.horizontal, SpacingTokens.xs)
-        .frame(height: SpacingTokens.lg + SpacingTokens.xxs)
+        .frame(height: ConnectTrailIconButton.size)
         .background(ColorTokens.Text.primary.opacity(0.06), in: Capsule())
-        .padding(SpacingTokens.xs)
+        .contentShape(Capsule())
+        .onTapGesture { hasClickedSearch = true; isSearching = true }
     }
 
     private func heading(_ title: String) -> some View {

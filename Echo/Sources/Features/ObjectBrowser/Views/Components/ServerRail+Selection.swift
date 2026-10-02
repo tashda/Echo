@@ -3,13 +3,12 @@ import SwiftUI
 extension ServerRail {
     // MARK: - Selection motion
 
-    func offset(of id: UUID?, in ids: [UUID]) -> CGFloat? {
-        guard let id, let index = ids.firstIndex(of: id) else { return nil }
-        return CGFloat(index) * (itemSize + LayoutTokens.Rail.itemSpacing)
+    func offset(of id: UUID?, in layout: ServerRailLayout) -> CGFloat? {
+        layout.offset(of: id, itemSize: itemSize, spacing: LayoutTokens.Rail.itemSpacing)
     }
 
-    func placeSelection(on id: UUID?, in ids: [UUID], animated: Bool) {
-        guard let top = offset(of: id, in: ids) else { return }
+    func placeSelection(on id: UUID?, in layout: ServerRailLayout, animated: Bool) {
+        guard let top = offset(of: id, in: layout) else { return }
         let place = {
             selectionTop = top
             selectionBottom = top + itemSize
@@ -25,10 +24,10 @@ extension ServerRail {
 
     /// The leading edge races to the target and the trailing edge follows, so the disc stretches
     /// toward it like a drop of liquid and settles back (Design/04-motion.md).
-    func moveSelection(from oldID: UUID?, to newID: UUID?, in ids: [UUID]) {
-        guard let target = offset(of: newID, in: ids) else { return }
-        guard !motion.reduceMotion, let origin = offset(of: oldID, in: ids), origin != target else {
-            placeSelection(on: newID, in: ids, animated: true)
+    func moveSelection(from oldID: UUID?, to newID: UUID?, in layout: ServerRailLayout) {
+        guard let target = offset(of: newID, in: layout) else { return }
+        guard !motion.reduceMotion, let origin = offset(of: oldID, in: layout), origin != target else {
+            placeSelection(on: newID, in: layout, animated: true)
             return
         }
         if target > origin {

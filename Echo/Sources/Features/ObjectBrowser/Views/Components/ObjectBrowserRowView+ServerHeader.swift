@@ -23,7 +23,9 @@ extension ObjectBrowserRowView {
             section: dockSectionTitles[session.connection.id],
             isOpen: isExpanded
         )
-        return VStack(alignment: .leading, spacing: SpacingTokens.xxxs) {
+        let metrics = ServerHeaderMetrics(look: look)
+        // Each line has the height the layout reserved for it, so nothing moves or clips.
+        return VStack(alignment: .leading, spacing: ServerHeaderMetrics.lineGap) {
             if let eyebrow {
                 Text(eyebrow)
                     .font(ServerHeaderTokens.eyebrowFont)
@@ -31,19 +33,15 @@ extension ObjectBrowserRowView {
                     .foregroundStyle(paint.ink.opacity(ServerHeaderTokens.eyebrowOpacity))
                     .contentTransition(.identity)
                     .lineLimit(1)
+                    .frame(height: ServerHeaderMetrics.eyebrowLineHeight, alignment: .leading)
             }
             Text(serverDisplayName(session))
                 .font(ServerHeaderTokens.nameFont(look))
                 .foregroundStyle(paint.ink)
                 .lineLimit(1)
-            if look.eyebrow == .none {
-                Text(productLine(session, includesSection: isExpanded))
-                    .contentTransition(.identity)
-                    .font(SidebarRowConstants.trailingFont)
-                    .foregroundStyle(paint.ink.opacity(ServerHeaderTokens.eyebrowOpacity))
-                    .lineLimit(1)
-            }
+                .frame(height: metrics.nameLineHeight, alignment: .leading)
         }
+        .frame(height: metrics.linesHeight, alignment: .topLeading)
     }
 
     /// The name and product line: on the card, on a banner (white), beside a bar of colour (HD12),
@@ -100,8 +98,7 @@ extension ObjectBrowserRowView {
     /// alone without a dock), the whole card while it is closed.
     var serverBackdropHeight: CGFloat {
         let base = ObjectBrowserOutlineView.baseRowHeight(for: projectStore.globalSettings.sidebarDensity)
-        let header = base + ObjectBrowserNode.Row.serverHeaderExtraHeight
-            + ObjectBrowserNode.Row.titleBannerExtraHeight(settings: projectStore.globalSettings)
+        let header = ObjectBrowserNode.Row.serverHeaderHeight(settings: projectStore.globalSettings)
         guard isExpanded else { return header + LayoutTokens.Workspace.treeCardBottomPadding }
         guard case .dock? = node.children.first?.row else { return header }
         return header + base + LayoutTokens.ExplorerDock.extraHeight

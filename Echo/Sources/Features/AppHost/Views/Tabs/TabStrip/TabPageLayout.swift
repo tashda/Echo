@@ -84,3 +84,27 @@ enum TabUnfoldLayout {
         !isFront && width < LayoutTokens.TabPages.smallestTitledWidth
     }
 }
+
+/// Where a tab's icon and title start (round 49, MO9). A tab with its pages after the title, and a
+/// pinned tab, keep the fixed inset; any other tab centres its icon and title, from the width it is
+/// moving to, so they land there at once and never slide.
+enum TabLabelLayout {
+    /// Everything left of the title besides the icon room, and right of it: see `QueryTabButton.fixedChrome`.
+    @MainActor
+    static func iconInset(title: String, width: CGFloat, hasPages: Bool, isIconOnly: Bool) -> CGFloat {
+        if isIconOnly { return (width - SpacingTokens.sm2) / 2 }
+        guard !hasPages, width > 0 else { return LayoutTokens.TabPages.iconInset }
+        let font = NSFont.systemFont(ofSize: TypographyTokens.AppKit.detail.pointSize, weight: .regular)
+        let text = ceil((title as NSString).size(withAttributes: [.font: font]).width)
+        // A title that does not fit is truncated from the fixed inset, as before.
+        guard text <= width - QueryTabButton.fixedChrome else { return LayoutTokens.TabPages.iconInset }
+        let block = SpacingTokens.sm2 + SpacingTokens.xxs2 + text
+        return max(LayoutTokens.TabPages.iconInset, ((width - block) / 2).rounded())
+    }
+
+    /// The title shown for a tab: trimmed, or "Untitled".
+    static func displayed(_ title: String) -> String {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "Untitled" : trimmed
+    }
+}

@@ -59,11 +59,15 @@ public enum LayoutTokens {
         /// Opacity of a server whose connection was lost, and of a connecting server with
         /// Reduce Motion on.
         public static let lostOpacity: Double = 0.4
-        /// A server whose card is minimized is drawn with a dashed ring (round 51, SH5): the ring's
-        /// line width, its dash pattern, and the opacity of the mark inside it.
-        public static let minimizedRingWidth: CGFloat = 1.5
-        public static let minimizedRingDash: [CGFloat] = [3, 3]
-        public static let minimizedOpacity: Double = 0.7
+        /// The short hairline between open and minimized servers (round 55, DV0): its height, its
+        /// width as a share of an item's, and the opacity of the primary text colour it is drawn in.
+        public static let hairlineHeight: CGFloat = 1
+        public static let hairlineWidthRatio: CGFloat = 0.6
+        public static let hairlineOpacity: Double = 0.14
+        /// A recent server, which is not connected, is its colour at this opacity (round 55).
+        public static let recentOpacity: Double = 0.38
+        /// Glyph of the Connect to a Server button (round 55, CI1).
+        public static let connectSymbol = "server.rack"
         /// Inset between the selection disc and its item, so the disc never echoes the pill's edge.
         public static let selectionInset: CGFloat = 3
         /// Monogram point size as a share of the item size (12.5pt at the default 34pt).
