@@ -63,20 +63,10 @@ extension QueryTabStrip {
         }
     }
 
+    /// A tab's Add to Bookmarks: the Save card on Bookmarks (round IC). A tab without a home takes
+    /// the bookmark as its home.
     func bookmark(tab: WorkspaceTab) {
-        guard let queryState = tab.query else { return }
-        let trimmed = queryState.sql.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        let database = queryState.clipboardMetadata.databaseName ?? tab.connection.database
-        Task {
-            await environmentState.addBookmark(
-                for: tab.connection,
-                databaseName: database,
-                title: tab.title,
-                query: trimmed,
-                source: .tab
-            )
-        }
+        environmentState.presentSaveCard(for: tab, destination: .bookmarks)
     }
 
     // MARK: - Database Switching

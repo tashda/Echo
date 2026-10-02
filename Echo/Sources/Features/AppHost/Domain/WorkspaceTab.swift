@@ -107,6 +107,8 @@ final class WorkspaceTab: Identifiable {
     var toolbarSection: TabToolbarSection?
     /// The bookmark the tab came from, or was last saved to; Save writes back to it.
     @ObservationIgnored var bookmarkContext: BookmarkTabContext?
+    /// The .sql file this tab was saved to or opened from (round IC): with it, Save writes the file.
+    @ObservationIgnored var fileURL: URL?
 
     @ObservationIgnored let resultsGridState = QueryResultsGridState()
     let panelState: BottomPanelState

@@ -32,14 +32,6 @@ extension EnvironmentState {
         if let onOpen, let tab = tabStore.activeTab, tab.id != before { onOpen(tab) }
     }
 
-    /// Add to Bookmarks from a history row (round IC). Saved straight to No Folder, named after the
-    /// statement's first line, until the Save card (IC5b) asks.
-    func requestBookmark(sql: String, connectionID: UUID?, database: String?, suggestedName: String?) {
-        guard let connectionID,
-              let connection = connectionStore.connections.first(where: { $0.id == connectionID }) else { return }
-        Task { await addBookmark(for: connection, databaseName: database, title: suggestedName, query: sql, source: .savedQuery) }
-    }
-
     /// Whether the front tab is a query tab that can take inserted SQL.
     var canInsertIntoActiveEditor: Bool { tabStore.activeTab?.query != nil }
 

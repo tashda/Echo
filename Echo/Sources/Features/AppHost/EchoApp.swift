@@ -223,26 +223,55 @@ struct QueryCommands: Commands {
             .keyboardShortcut(key(for: "Close Query Tab", default: "w"), modifiers: mods(for: "Close Query Tab", default: [.command]))
         }
 
-        // Save keeps the query as a bookmark (the tab's own, or a new one); Save As writes a .sql
-        // file (owner, 2026-10-01). The same choices the close alert offers.
+        // Round IC (H1): Save writes to the tab's home (its bookmark or .sql file); the first time
+        // the Save card asks where. Save As… always asks and moves the home; Save to Bookmarks…
+        // and Save to File… keep a copy without moving it.
         CommandGroup(replacing: .saveItem) {
             Button {
                 guard let tab = savableTab else { return }
-                Task { await environmentState.saveToBookmark(tab) }
+                environmentState.saveTab(tab)
             } label: {
-                Label("Save", systemImage: "bookmark")
+                Label("Save", systemImage: "square.and.arrow.down")
             }
             .keyboardShortcut(key(for: "Save", default: "s"), modifiers: mods(for: "Save", default: [.command]))
             .disabled(savableTab == nil)
 
             Button {
                 guard let tab = savableTab else { return }
-                Task { await environmentState.saveAsFile(tab) }
+                environmentState.presentSaveCard(for: tab, destination: nil, movesHome: true)
             } label: {
-                Label("Save As", systemImage: "square.and.arrow.down")
+                Label("Save As…", systemImage: "square.and.arrow.down.on.square")
             }
             .keyboardShortcut(key(for: "Save As", default: "s"), modifiers: mods(for: "Save As", default: [.command, .shift]))
             .disabled(savableTab == nil)
+
+            Divider()
+
+            Button {
+                guard let tab = savableTab else { return }
+                environmentState.presentSaveCard(for: tab, destination: .bookmarks)
+            } label: {
+                Label("Save to Bookmarks…", systemImage: "bookmark")
+            }
+            .disabled(savableTab == nil)
+
+            Button {
+                guard let tab = savableTab else { return }
+                environmentState.presentSaveCard(for: tab, destination: .file)
+            } label: {
+                Label("Save to File…", systemImage: "doc")
+            }
+            .disabled(savableTab == nil)
+        }
+
+        CommandGroup(after: .newItem) {
+            Button {
+                Task { await environmentState.openSQLFile() }
+            } label: {
+                Label("Open SQL File…", systemImage: "doc.text")
+            }
+            .keyboardShortcut(key(for: "Open SQL File", default: "o"), modifiers: mods(for: "Open SQL File", default: [.command]))
+            .disabled(!navigationStore.isWorkspaceWindowKey)
         }
     }
 }

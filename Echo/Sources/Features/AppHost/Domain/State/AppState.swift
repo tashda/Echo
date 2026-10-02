@@ -33,6 +33,8 @@ import SwiftUI
     }
     /// Details changed while another page showed (round IC, F1): the page strip marks Details.
     var hasUnseenDetails = false
+    /// The Save card, while it shows (round IC, H1).
+    var saveCardRequest: SaveCardRequest?
     /// The ⌘K palette (plan K4).
     var isCommandPaletteVisible = false {
         didSet {
