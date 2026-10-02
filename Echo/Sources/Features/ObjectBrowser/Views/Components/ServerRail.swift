@@ -37,6 +37,8 @@ struct ServerRail: View {
     @State var selectionBottom: CGFloat = 0
     /// Lets the servers glide between the connected pill and the recents pill.
     @Namespace var trail
+    /// The server-rack circle and its drawer are one Liquid Glass transition.
+    @Namespace var connectDrawerGlass
 
     /// Recent servers the user clicked and that are connecting: they breathe in the recents pill
     /// until they are connected, then glide up into the connected pill (round 55).
@@ -44,8 +46,6 @@ struct ServerRail: View {
 
     /// The rail's height, so the connected pill knows when it has to scroll.
     @State var railHeight: CGFloat = .infinity
-    /// The rack button's frame, used to make the connect drawer grow from and return to it.
-    @State var connectButtonFrame: CGRect = .zero
 
     var body: some View {
         let allEntries = self.entries
@@ -78,7 +78,6 @@ struct ServerRail: View {
         // The drawer overflows the column to the right, over the tree.
         .frame(width: LayoutTokens.Rail.width(itemSize: itemSize), alignment: .leading)
         .frame(maxHeight: .infinity)
-        .coordinateSpace(name: "server-rail")
         // Outside the drawer and the column, a click dismisses it (the pills and the circle are inside).
         .background(alignment: .topLeading) {
             if isOpen {
@@ -103,7 +102,6 @@ struct ServerRail: View {
         .onChange(of: itemSize) { _, _ in
             placeSelection(on: highlightedID, in: layout, animated: false)
         }
-        .onPreferenceChange(ConnectButtonFrameKey.self) { connectButtonFrame = $0 }
     }
 
 }

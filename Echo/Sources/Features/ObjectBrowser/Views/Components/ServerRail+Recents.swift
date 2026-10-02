@@ -33,7 +33,10 @@ extension ServerRail {
                 size: itemSize,
                 isAlwaysColored: projectStore.globalSettings.serverHeaderColorSource == .server
             )
-            .opacity(LayoutTokens.Rail.recentOpacity)
+            // The separate pill already says “recent”; a full-strength mark on hover is the
+            // immediate, local confirmation that clicking here reconnects this server.
+            .opacity(hoveredServerID == connection.id ? 1 : LayoutTokens.Rail.recentOpacity)
+            .animation(motion.hover, value: hoveredServerID == connection.id)
         }
         .buttonStyle(.plain)
         .matchedGeometryEffect(id: connection.id, in: trail)
@@ -78,25 +81,8 @@ extension ServerRail {
         .focusable(false)
         .padding(LayoutTokens.Rail.pillPadding)
         .glassEffect(.regular, in: .circle)
-        .background {
-            GeometryReader { proxy in
-                Color.clear.preference(
-                    key: ConnectButtonFrameKey.self,
-                    value: proxy.frame(in: .named("server-rail"))
-                )
-            }
-        }
+        .glassEffectID("connect-drawer", in: connectDrawerGlass)
         .help(appState.isConnectTrailOpen ? "Close" : "Connect to a Server")
         .accessibilityLabel(appState.isConnectTrailOpen ? "Close" : "Connect to a Server")
-    }
-}
-
-/// The source frame for the drawer's open and close morph. It is a value preference so a resize
-/// (or a different number of rail pills) moves the origin before the next transition begins.
-struct ConnectButtonFrameKey: PreferenceKey {
-    static let defaultValue = CGRect.zero
-
-    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
-        value = nextValue()
     }
 }

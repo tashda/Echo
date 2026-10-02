@@ -131,7 +131,7 @@ enum WindowSpec {
                 .layout(.row("Holds", "saved connections of the project that are not connected and not connecting, most recently used first, at most 3, 5 (default) or 8", token: "ServerRailLayout / GlobalSettings.recentServerCount"),
                         .row("Source", "the persisted connection history: a connection is moved to its top when it connects and when it is disconnected", token: "EnvironmentState.recentConnections / HistoryRepository"),
                         .row("Absent", "when there are no recents, or Show Recent Servers is off")),
-                .states(.row("Item", "the server's own mark, dimmed: its colour at 38%, the letters as the rail draws them", token: "LayoutTokens.Rail.recentOpacity"),
+                .states(.row("Item", "the server's own mark, dimmed: its colour at 38%, the letters as the rail draws them; on hover it reaches full strength on the 0.12s hover motion", token: "LayoutTokens.Rail.recentOpacity / EchoMotion.hover"),
                         .row("Connecting", "the item breathes (the connecting breathing) while it connects; it stays here until connected")),
                 .behaviour(.row("Click", "connects the server; once connected it glides up into the connected pill, open group, card in the tree"),
                            .row("Failure", "the server joins the connected pill as a lost server"),

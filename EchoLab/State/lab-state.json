@@ -231,6 +231,18 @@
       {
         "date": "2026-10-02T14:10:56Z",
         "text": "Built into Echo: PR3's drawer now grows from the server-rack button on open and shrinks back into that same button on close."
+      },
+      {
+        "date": "2026-10-02T14:16:44Z",
+        "text": "Taken by Codex"
+      },
+      {
+        "date": "2026-10-02T14:17:47Z",
+        "text": "Owner feedback: the custom morph enters from the top-left. Use the native Liquid Glass matched-geometry transition so the drawer grows from and settles back into the server-rack button."
+      },
+      {
+        "date": "2026-10-02T14:20:38Z",
+        "text": "Built into Echo: the native Liquid Glass matched-geometry transition grows the drawer from the server-rack button and settles it back there; recent server marks brighten to full strength on hover."
       }
     ],
     "needsMore": [],
@@ -249,12 +261,12 @@
     "verdicts": {},
     "verification": {
       "checks": [
-        "Open Server list: it should expand out of the server-rack circle on the house spring, while the circle turns into \u00d7.",
-        "Close with the circle, \u00d7, Escape or an outside click: the drawer should settle smoothly back into the same circle without a sideways slide."
+        "Open and close Server list several times: the glass should grow from and return to the server-rack circle, never the top-left corner.",
+        "Hover a recent server: its rail mark should become fully opaque over the short hover motion while its name bubble remains visible."
       ],
       "done": [],
       "shots": [],
-      "summary": "The drawer now shares one button-origin morph in both directions."
+      "summary": "The drawer now uses native glass morphing; recent servers brighten fully on hover."
     }
   },
   "ongoing.connect-menu-r52": {
