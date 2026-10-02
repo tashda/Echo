@@ -68,6 +68,13 @@ cp Resources/EchoLab.icns "$app/Contents/Resources/EchoLab.icns"
 cp "$bin/EchoLab" "$app/Contents/MacOS/EchoLab"
 # SwiftPM resource bundles (server-lab recipes, scenarios, ...): Bundle.module aborts when they are missing.
 for resources in "$bin"/*.bundle(N); do cp -R "$resources" "$app/Contents/Resources/"; done
+# Binary frameworks the drivers link (EchoLibpq, EchoMariaDB, OpenSSL, ...): dyld aborts at launch without them.
+frameworks=("$bin"/*.framework(N))
+if (( ${#frameworks} )); then
+  mkdir -p "$app/Contents/Frameworks"
+  for framework in $frameworks; do cp -R "$framework" "$app/Contents/Frameworks/"; done
+  install_name_tool -add_rpath @executable_path/../Frameworks "$app/Contents/MacOS/EchoLab" 2>/dev/null || true
+fi
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -83,7 +90,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
 </dict></plist>
 PLIST
 # Sign ad hoc so macOS lets the bundle post notifications.
-codesign --force --sign - "$app" >/dev/null 2>&1 || true
+codesign --force --deep --sign - "$app" >/dev/null 2>&1 || true
 
 [[ "$1" == "--no-launch" ]] && { echo "Built (not launched)."; exit 0; }
 
