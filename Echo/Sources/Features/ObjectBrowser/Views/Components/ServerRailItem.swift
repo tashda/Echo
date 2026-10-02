@@ -71,6 +71,8 @@ struct ServerRailToolLabel: View {
     let isSelected: Bool
     let width: CGFloat
     var height: CGFloat = LayoutTokens.Rail.toolHeight
+    /// Drawn in the primary text colour at rest, as a server's item is bright, not the dim secondary.
+    var restsInPrimary = false
 
     @Environment(\.echoMotion) private var motion
     @State private var isHovering = false
@@ -89,6 +91,6 @@ struct ServerRailToolLabel: View {
 
     private var foreground: Color {
         if isSelected { return .accentColor }
-        return isHovering ? ColorTokens.Text.primary : ColorTokens.Text.secondary
+        return isHovering || restsInPrimary ? ColorTokens.Text.primary : ColorTokens.Text.secondary
     }
 }

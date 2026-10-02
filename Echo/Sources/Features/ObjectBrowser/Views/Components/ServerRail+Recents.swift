@@ -38,13 +38,19 @@ extension ServerRail {
         .buttonStyle(.plain)
         .matchedGeometryEffect(id: connection.id, in: trail)
         .focusable(false)
-        .help("\(name): click to connect")
+        // The same glass name bubble as a connected server's, saying it is not connected.
+        .onHover(perform: trackHover(of: connection.id, isActive: true))
+        .anchorPreference(key: ServerRailItemBoundsKey.self, value: .bounds) { [connection.id: $0] }
+        .popover(isPresented: customizingBinding(forID: connection.id), arrowEdge: .trailing) {
+            appearancePopover(forID: connection.id)
+        }
+        .lazyContextMenu { recentMenu(for: connection) }
         .accessibilityLabel(name)
         .accessibilityValue(isConnecting ? "Connecting" : "Disconnected")
         .accessibilityHint("Connects to this server")
     }
 
-    private func connectRecent(_ connection: SavedConnection) {
+    func connectRecent(_ connection: SavedConnection) {
         guard !connectingRecentIDs.contains(connection.id) else { return }
         connectingRecentIDs.insert(connection.id)
         environmentState.connectToNewSession(to: connection)
@@ -56,7 +62,13 @@ extension ServerRail {
         Button {
             appState.isConnectTrailOpen = true
         } label: {
-            ServerRailToolLabel(symbol: LayoutTokens.Rail.connectSymbol, isSelected: false, width: itemSize, height: itemSize)
+            ServerRailToolLabel(
+                symbol: LayoutTokens.Rail.connectSymbol,
+                isSelected: false,
+                width: itemSize,
+                height: itemSize,
+                restsInPrimary: true
+            )
         }
         .buttonStyle(.plain)
         .matchedGeometryEffect(id: "toggle", in: trail)

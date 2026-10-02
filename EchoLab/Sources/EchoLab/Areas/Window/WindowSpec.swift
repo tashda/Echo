@@ -101,7 +101,7 @@ enum WindowSpec {
             ], files: [rail]),
             SpecElement(number: "2.8", name: "Connect to a Server button", summary: "A glass circle under the recents pill, or under the connected pill when there are no recents (round 55: FM0, CI1). It replaced the +.", groups: [
                 .material(.row("Glass", "Liquid Glass, regular, circle; padded as the pills", token: "LayoutTokens.Rail.pillPadding")),
-                .type(.row("Glyph", "server.rack, 13pt, secondary", token: "LayoutTokens.Rail.connectSymbol, toolSymbolSize")),
+                .type(.row("Glyph", "server.rack, 13pt, in the primary text colour at rest like the servers beside it (not the dim secondary)", token: "LayoutTokens.Rail.connectSymbol, toolSymbolSize")),
                 .behaviour(.row("Click", "opens the trail into the saved connections (2.10); ⇧⌘K does the same", token: "AppState.isConnectTrailOpen"),
                            .row("File › Connect To", "the system menu with open sessions, saved connections by folder, Manage Connections and Quick Connect, for the menu bar", token: "ConnectionsMenuContent"),
                            .row("Never selected", "the disc never moves onto it"), .row("Tooltip", "Connect to a Server")),
@@ -119,7 +119,8 @@ enum WindowSpec {
                 .behaviour(.row("Open", "the server rack button or ⇧⌘K; the search field has the focus"),
                            .row("Search", "name or host · database, ignoring case and accents; the first match is highlighted", token: "ConnectTrailListing"),
                            .row("Return", "connects the highlighted row and closes"), .row("↑ ↓", "move the highlight"),
-                           .row("Escape or ×", "closes"), .row("A server in the header", "selects it and closes"),
+                           .row("Escape or ×", "closes"), .row("A click outside the trail", "anywhere else in the window (the tree, the canvas, the toolbar) closes it the same way, with the no-overshoot settle; the click still reaches what it landed on. Clicks inside the trail (header, list) and in other windows (a popover, a menu) never dismiss it", token: "ConnectTrailOutsideClick"),
+                           .row("A server in the header", "selects it and closes"),
                            .row("New Connection", "opens Manage Connections on an empty form", token: "ManageConnectionsWindowController.present(startingNewConnection:)")),
                 .motion(.row("Open", "house spring: the recents pill and the circle fade out, the servers glide from the column into the row, the rack to the ×, the list fades in", token: "echoMotion.standard"),
                         .row("Close", "the list fades out first (0.12s), then the glass settles with no overshoot", token: "echoMotion.settle")),
@@ -134,9 +135,11 @@ enum WindowSpec {
                 .behaviour(.row("Click", "connects the server; once connected it glides up into the connected pill, open group, card in the tree"),
                            .row("Failure", "the server joins the connected pill as a lost server"),
                            .row("Disconnect", "the server drops to the top of the recents, dimmed"),
-                           .row("Setting", "Settings › Appearance › Server Trail: Show Recent Servers and Number of Recent Servers (3, 5, 8; disabled while off)", token: "GlobalSettings.showsRecentServers, recentServerCount")),
-                .motion(.row("Move", "items glide between the groups and the pills with one matched-geometry namespace on the house spring", token: "echoMotion.standard")),
-            ], rounds: ["ongoing.trail-item-states-r55"], files: [rail, "Echo/Sources/Features/ObjectBrowser/Views/Components/ServerRail+Recents.swift", "Echo/Sources/Features/ObjectBrowser/Views/Components/ServerRailLayout.swift"]),
+                           .row("Setting", "Settings › Appearance › Server Trail: Show Recent Servers and Number of Recent Servers (3, 5, 8; disabled while off)", token: "GlobalSettings.showsRecentServers, recentServerCount"),
+                           .row("Hover", "the glass name bubble opens beside the item as for a connected server: name, product, and \"Not connected, click to connect\" (\"Connecting\" while it connects)", token: "ServerRailNameBubble, ServerRailBubbleCaption"),
+                           .row("Right-click", "Connect, Customize Appearance (the round 51 popover), Edit Connection (Manage Connections on it), Remove from Recents (takes it off the persisted recents; it returns when connected again)", token: "ServerRail+RecentsMenu, EnvironmentState.removeFromRecents")),
+                .motion(.row("Move", "items glide between the groups and the pills with one matched-geometry namespace on the house spring; every glass shape is in one GlassEffectContainer; items carry no transition of their own (a scale transition fought the gliding); the connected pill has no scroll view, which would clip a server in flight, until it outgrows the window height", token: "echoMotion.standard, ServerRailLayout.connectedPillOverflows")),
+            ], rounds: ["ongoing.trail-item-states-r55"], files: [rail, "Echo/Sources/Features/ObjectBrowser/Views/Components/ServerRail+Recents.swift", "Echo/Sources/Features/ObjectBrowser/Views/Components/ServerRail+RecentsMenu.swift", "Echo/Sources/Features/ObjectBrowser/Views/Components/ServerRailLayout.swift"]),
         ]),
         SpecPart(number: "3", name: "Tree column", summary: "The Explorer's cards, between the rail and the content.", elements: [
             SpecElement(number: "3.1", name: "Column", summary: "One card per server; see the Explorer tree area.", groups: [

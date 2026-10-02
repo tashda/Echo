@@ -110,6 +110,36 @@ struct ServerRailLayoutTests {
         #expect(failed.connectedIDs == [a, b])
         #expect(failed.recentIDs == [c])
     }
+
+    // MARK: Scrolling, only when needed
+
+    private func overflows(_ result: ServerRailLayout, railHeight: CGFloat) -> Bool {
+        result.connectedPillOverflows(
+            itemSize: 34, spacing: 4, padding: 4, pillGap: 8, minimumGap: 12, railHeight: railHeight
+        )
+    }
+
+    @Test func the_connected_pill_scrolls_only_when_it_outgrows_the_room_above_the_circle() {
+        let two = layout(sessions: [a, b])
+        // Two items: 34 + 4 + 34 + 8 padding = 80; the circle takes 42 + 8 + 12 = 62.
+        #expect(!overflows(two, railHeight: 142))
+        #expect(overflows(two, railHeight: 141))
+        #expect(!overflows(two, railHeight: .infinity))
+    }
+
+    @Test func the_recents_pill_takes_room_from_the_connected_pill() {
+        let withRecents = layout(sessions: [a, b], recents: [c, d])
+        // The recents pill: 34 + 4 + 34 + 8 = 80, and the gap above it, 8.
+        #expect(!overflows(withRecents, railHeight: 230))
+        #expect(overflows(withRecents, railHeight: 229))
+    }
+
+    // MARK: Name bubble on recents
+
+    @Test func a_recent_says_it_is_not_connected_and_that_a_click_connects_it() {
+        #expect(ServerRailBubbleCaption.recentStatus(isConnecting: false) == "Not connected, click to connect")
+        #expect(ServerRailBubbleCaption.recentStatus(isConnecting: true) == "Connecting")
+    }
 }
 
 @Suite("Server Trail Settings")
@@ -137,5 +167,29 @@ struct ServerTrailSettingsTests {
         let decoded = try JSONDecoder().decode(GlobalSettings.self, from: JSONEncoder().encode(settings))
         #expect(!decoded.showsRecentServers)
         #expect(decoded.recentServerCount == .eight)
+    }
+}
+
+/// Remove from Recents (round 55): every record of the connection goes, others stay.
+@Suite("Recent Connection Removal")
+struct RecentConnectionRemovalTests {
+    private func record(_ id: UUID, database: String?) -> RecentConnectionRecord {
+        RecentConnectionRecord(
+            id: id, connectionName: "S", host: "h", databaseName: database, username: "u",
+            databaseType: .postgresql, colorHex: nil, lastUsedAt: Date(), projectID: nil
+        )
+    }
+
+    @Test func removing_a_connection_drops_all_its_records_and_keeps_the_others() {
+        let a = UUID(), b = UUID()
+        let records = [record(a, database: "one"), record(b, database: nil), record(a, database: "two")]
+        let result = records.removing(connectionID: a)
+        #expect(result.map(\.id) == [b])
+    }
+
+    @Test func removing_an_unknown_connection_changes_nothing() {
+        let a = UUID()
+        let records = [record(a, database: nil)]
+        #expect(records.removing(connectionID: UUID()) == records)
     }
 }

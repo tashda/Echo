@@ -42,6 +42,9 @@ struct ServerRail: View {
     /// until they are connected, then glide up into the connected pill (round 55).
     @State var connectingRecentIDs: Set<UUID> = []
 
+    /// The rail's height, so the connected pill knows when it has to scroll.
+    @State var railHeight: CGFloat = .infinity
+
     var body: some View {
         let allEntries = self.entries
         let layout = self.layout(for: allEntries)
@@ -49,26 +52,31 @@ struct ServerRail: View {
         let highlightedID = highlightedConnectionID(in: entries)
         let isOpen = appState.isConnectTrailOpen
 
-        VStack(alignment: .leading, spacing: SpacingTokens.xs) {
-            if isOpen || !entries.isEmpty {
-                serverPill(entries: entries, layout: layout, highlightedID: highlightedID)
-            }
-            // The opened trail replaces both: the pill widens over the room they leave.
-            if !isOpen {
-                if !layout.recentIDs.isEmpty {
-                    recentsPill(ids: layout.recentIDs)
+        // One container for every glass shape, so they render together while items glide between
+        // them. Its spacing is below the gap between pills, so they never blend into each other.
+        GlassEffectContainer(spacing: SpacingTokens.xxs) {
+            VStack(alignment: .leading, spacing: SpacingTokens.xs) {
+                if isOpen || !entries.isEmpty {
+                    serverPill(entries: entries, layout: layout, highlightedID: highlightedID)
+                }
+                // The opened trail replaces both: the pill widens over the room they leave.
+                if !isOpen {
+                    if !layout.recentIDs.isEmpty {
+                        recentsPill(ids: layout.recentIDs)
+                            .transition(.opacity)
+                    }
+                    connectCircle
                         .transition(.opacity)
                 }
-                connectCircle
-                    .transition(.opacity)
+                Spacer(minLength: LayoutTokens.Rail.minimumPillGap)
             }
-            Spacer(minLength: LayoutTokens.Rail.minimumPillGap)
         }
         // The opened trail is wider than the column: it overflows to the right over the tree.
         .frame(width: LayoutTokens.Rail.width(itemSize: itemSize), alignment: .leading)
         .frame(maxHeight: .infinity)
+        .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { railHeight = $0 }
         // Beside the hovered item, over the tree (round 51).
-        .overlayPreferenceValue(ServerRailItemBoundsKey.self) { nameBubble(for: $0, entries: entries) }
+        .overlayPreferenceValue(ServerRailItemBoundsKey.self) { nameBubble(for: $0, entries: entries, recentIDs: layout.recentIDs) }
         .animation(motion.standard, value: layout)
         // Opening springs; closing settles with no overshoot, so the shrinking glass never passes
         // under the server circles it returns to.

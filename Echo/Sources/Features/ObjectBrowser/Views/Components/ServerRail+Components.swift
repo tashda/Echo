@@ -35,17 +35,17 @@ extension ServerRail {
         let isOpen = appState.isConnectTrailOpen
         let closedRadius = LayoutTokens.Rail.width(itemSize: itemSize) / 2
 
-        return GlassEffectContainer(spacing: SpacingTokens.xs) {
-            VStack(spacing: SpacingTokens.none) {
-                if isOpen {
-                    openTrail(entries: entries, highlightedID: highlightedID)
-                } else {
-                    closedPill(entries: entries, layout: layout, highlightedID: highlightedID)
-                }
+        // The rail's one GlassEffectContainer (ServerRail.body) draws this and the other pills.
+        return VStack(spacing: SpacingTokens.none) {
+            if isOpen {
+                openTrail(entries: entries, highlightedID: highlightedID)
+            } else {
+                closedPill(entries: entries, layout: layout, highlightedID: highlightedID)
             }
-            .frame(width: isOpen ? Self.connectTrailWidth : nil, alignment: .topLeading)
-            .glassEffect(.regular, in: .rect(cornerRadius: isOpen ? SpacingTokens.lg : closedRadius, style: .continuous))
         }
+        .frame(width: isOpen ? Self.connectTrailWidth : nil, alignment: .topLeading)
+        .glassEffect(.regular, in: .rect(cornerRadius: isOpen ? SpacingTokens.lg : closedRadius, style: .continuous))
+        .background { if isOpen { ConnectTrailOutsideClick(onOutsideClick: closeConnectTrail) } }
     }
 
     func closedPill(entries: [ServerRailEntry], layout: ServerRailLayout, highlightedID: UUID?) -> some View {
@@ -66,34 +66,50 @@ extension ServerRail {
                     isSelected: entry.connectionID == highlightedID,
                     runningQueryCount: runningCounts[entry.connectionID] ?? 0
                 )
-                .transition(.scale(scale: 0.4).combined(with: .opacity))
             }
         }
 
-        return ScrollViewReader { proxy in
-            ScrollView(.vertical) {
-                ZStack(alignment: .top) {
-                    selectionDisc(isVisible: highlightedID != nil)
+        let column = ZStack(alignment: .top) {
+            selectionDisc(isVisible: highlightedID != nil)
 
-                    VStack(spacing: spacing) {
-                        items(openEntries)
-                        if layout.showsHairline {
-                            ServerRailHairline(itemSize: itemSize)
-                                .transition(.opacity)
-                        }
-                        items(minimizedEntries)
-                    }
+            VStack(spacing: spacing) {
+                items(openEntries)
+                if layout.showsHairline {
+                    ServerRailHairline(itemSize: itemSize)
+                        .transition(.opacity)
                 }
-                .padding(padding)
+                items(minimizedEntries)
             }
-            .scrollIndicators(.never)
-            .scrollBounceBehavior(.basedOnSize)
-            // Hugs its servers, and only scrolls once they outgrow the window height.
-            .frame(maxHeight: contentHeight)
-            .onChange(of: highlightedID) { _, id in
-                // Scrolls only as far as needed, so a visible selection never moves the rail.
-                guard let id else { return }
-                withAnimation(motion.standard) { proxy.scrollTo(id) }
+        }
+        .padding(padding)
+
+        let overflows = layout.connectedPillOverflows(
+            itemSize: itemSize,
+            spacing: spacing,
+            padding: padding,
+            pillGap: SpacingTokens.xs,
+            minimumGap: LayoutTokens.Rail.minimumPillGap,
+            railHeight: railHeight
+        )
+
+        // Servers glide between this pill and the recents pill (matchedGeometryEffect), and a
+        // scroll view would clip them in flight and re-lay out every frame. So it scrolls only
+        // once the servers outgrow the window height (round 55).
+        return Group {
+            if overflows {
+                ScrollViewReader { proxy in
+                    ScrollView(.vertical) { column }
+                        .scrollIndicators(.never)
+                        .scrollBounceBehavior(.basedOnSize)
+                        .frame(maxHeight: contentHeight)
+                        .onChange(of: highlightedID) { _, id in
+                            // Scrolls only as far as needed, so a visible selection never moves the rail.
+                            guard let id else { return }
+                            withAnimation(motion.standard) { proxy.scrollTo(id) }
+                        }
+                }
+            } else {
+                column
             }
         }
     }

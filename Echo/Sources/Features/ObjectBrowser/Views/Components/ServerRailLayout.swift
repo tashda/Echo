@@ -75,4 +75,26 @@ nonisolated struct ServerRailLayout: Equatable, Sendable {
         let items = count * itemSize + (count - 1) * spacing
         return showsHairline ? items + Self.hairlineBlockHeight + spacing : items
     }
+
+    /// Whether the connected pill outgrows the rail and has to scroll. While it fits it is drawn
+    /// without a scroll view, so servers gliding between it and the recents pill are never clipped
+    /// (round 55): everything below it (the recents pill and the connect circle, each with its
+    /// padding, and the gaps) is subtracted from the rail's height.
+    func connectedPillOverflows(
+        itemSize: CGFloat,
+        spacing: CGFloat,
+        padding: CGFloat,
+        pillGap: CGFloat,
+        minimumGap: CGFloat,
+        railHeight: CGFloat
+    ) -> Bool {
+        let connected = connectedHeight(itemSize: itemSize, spacing: spacing) + padding * 2
+        let circle = itemSize + padding * 2
+        var below = pillGap + circle + minimumGap
+        if !recentIDs.isEmpty {
+            let count = CGFloat(recentIDs.count)
+            below += pillGap + count * itemSize + (count - 1) * spacing + padding * 2
+        }
+        return connected > railHeight - below
+    }
 }
