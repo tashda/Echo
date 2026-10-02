@@ -53,6 +53,9 @@ extension ServerRail {
     func connectRecent(_ connection: SavedConnection) {
         guard !connectingRecentIDs.contains(connection.id) else { return }
         connectingRecentIDs.insert(connection.id)
+        // The pointer is still on the item; a bubble open there would redraw with every update
+        // while the server connects.
+        hoveredServerID = nil
         environmentState.connectToNewSession(to: connection)
     }
 

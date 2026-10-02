@@ -28,7 +28,11 @@ extension ServerRail {
             minimizedIDs: bridge.minimizedConnectionIDs,
             recentCandidates: environmentState.recentConnections.map(\.id).filter { savedIDs.contains($0) },
             connectingFromRecents: connectingRecentIDs.intersection(connectingIDs),
-            showsRecents: settings.showsRecentServers && appState.welcomeDeparture != .leaving,
+            showsRecents: ServerRailLayout.showsRecents(
+                setting: settings.showsRecentServers,
+                welcomeIsLeaving: appState.welcomeDeparture == .leaving,
+                hasClickedRecent: !connectingRecentIDs.isEmpty
+            ),
             recentLimit: settings.recentServerCount.rawValue
         )
     }

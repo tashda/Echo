@@ -40,7 +40,12 @@ extension ServerRail {
         .frame(maxHeight: .infinity)
         .glassEffect(.regular, in: .rect(cornerRadius: SpacingTokens.lg, style: .continuous))
         .offset(x: LayoutTokens.Rail.width(itemSize: itemSize) + Self.connectDrawerGap)
-        .transition(.move(edge: .leading).combined(with: .opacity))
+        // Its own width from under the trail, with a fade; closing is the same in reverse. The
+        // distance is explicit, so it never depends on the container the transition is in.
+        .transition(.modifier(
+            active: ConnectDrawerSlide(distance: Self.connectDrawerWidth, isHidden: true),
+            identity: ConnectDrawerSlide(distance: Self.connectDrawerWidth, isHidden: false)
+        ))
     }
 
     func closeConnectTrail() {
@@ -87,5 +92,18 @@ extension ServerRail {
         guard let connection = connectionStore.connections.first(where: { $0.id == id }) else { return }
         closeConnectTrail()
         environmentState.connectToNewSession(to: connection)
+    }
+}
+
+/// The connect drawer's entry and exit: it travels its own width, from under the trail, fading in;
+/// removing it plays the same in reverse.
+struct ConnectDrawerSlide: ViewModifier {
+    let distance: CGFloat
+    let isHidden: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .offset(x: isHidden ? -distance : 0)
+            .opacity(isHidden ? 0 : 1)
     }
 }

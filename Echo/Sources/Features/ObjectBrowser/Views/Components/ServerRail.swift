@@ -53,6 +53,10 @@ struct ServerRail: View {
         let isOpen = appState.isConnectTrailOpen
 
         ZStack(alignment: .topLeading) {
+            // Beside the trail, over the tree, under the pills so it emerges from beneath them
+            // (round 56, PR3); nothing is there when it is closed.
+            if isOpen { connectDrawer }
+
             // One container for every glass shape, so they render together while items glide
             // between them. Its spacing is below the gap between pills, so they never blend.
             GlassEffectContainer(spacing: SpacingTokens.xxs) {
@@ -68,9 +72,6 @@ struct ServerRail: View {
                     Spacer(minLength: LayoutTokens.Rail.minimumPillGap)
                 }
             }
-
-            // Beside the trail, over the tree; nothing is there when it is closed.
-            if isOpen { connectDrawer }
         }
         // The drawer overflows the column to the right, over the tree.
         .frame(width: LayoutTokens.Rail.width(itemSize: itemSize), alignment: .leading)

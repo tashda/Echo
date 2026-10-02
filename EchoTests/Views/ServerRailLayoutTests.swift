@@ -136,8 +136,15 @@ struct ServerRailLayoutTests {
 
     // MARK: Name bubble on recents
 
-    @Test func a_recent_says_it_is_not_connected_and_that_a_click_connects_it() {
-        #expect(ServerRailBubbleCaption.recentStatus(isConnecting: false) == "Not connected, click to connect")
+    @Test func the_recents_stay_while_the_welcome_leaves_only_for_a_click_in_the_rail() {
+        #expect(ServerRailLayout.showsRecents(setting: true, welcomeIsLeaving: false, hasClickedRecent: false))
+        #expect(!ServerRailLayout.showsRecents(setting: true, welcomeIsLeaving: true, hasClickedRecent: false))
+        #expect(ServerRailLayout.showsRecents(setting: true, welcomeIsLeaving: true, hasClickedRecent: true))
+        #expect(!ServerRailLayout.showsRecents(setting: false, welcomeIsLeaving: false, hasClickedRecent: true))
+    }
+
+    @Test func a_resting_recent_has_no_status_line_and_a_connecting_one_says_so() {
+        #expect(ServerRailBubbleCaption.recentStatus(isConnecting: false) == nil)
         #expect(ServerRailBubbleCaption.recentStatus(isConnecting: true) == "Connecting")
     }
 }

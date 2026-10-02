@@ -6,9 +6,9 @@ nonisolated struct ServerRailBubbleCaption: Equatable, Sendable {
     let product: String
     let status: String?
 
-    /// What the bubble says under a recent server's product: it is not connected and a click
-    /// connects it, or that it is connecting.
-    static func recentStatus(isConnecting: Bool) -> String {
-        isConnecting ? "Connecting" : "Not connected, click to connect"
+    /// What the bubble says under a recent server's product: nothing while it rests (its dimming
+    /// and place already say it is not connected), "Connecting" while it connects.
+    static func recentStatus(isConnecting: Bool) -> String? {
+        isConnecting ? "Connecting" : nil
     }
 }

@@ -51,6 +51,13 @@ nonisolated struct ServerRailLayout: Equatable, Sendable {
         )
     }
 
+    /// Whether the recents pill is drawn. While the welcome's pills leave the rail waits, except
+    /// for a recent the user clicked in the rail itself: that one has to stay and breathe in its
+    /// place, and morph into the connected pill, instead of the whole pill leaving and coming back.
+    static func showsRecents(setting: Bool, welcomeIsLeaving: Bool, hasClickedRecent: Bool) -> Bool {
+        setting && (!welcomeIsLeaving || hasClickedRecent)
+    }
+
     /// The connected servers top to bottom: open, then minimized.
     var connectedIDs: [UUID] { openIDs + minimizedIDs }
 
