@@ -37,7 +37,6 @@ extension ServerRail {
             onClose: closeConnectTrail
         )
         .frame(width: Self.connectDrawerWidth)
-        .frame(maxHeight: .infinity)
         .glassEffect(.regular, in: .rect(cornerRadius: SpacingTokens.lg, style: .continuous))
         .offset(x: LayoutTokens.Rail.width(itemSize: itemSize) + Self.connectDrawerGap)
         // Its own width from under the trail, with a fade; closing is the same in reverse. The

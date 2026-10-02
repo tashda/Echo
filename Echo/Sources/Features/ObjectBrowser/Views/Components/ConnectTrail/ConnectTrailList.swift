@@ -31,33 +31,7 @@ struct ConnectTrailList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.none) {
             header
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: SpacingTokens.none) {
-                        ForEach(sections) { section in
-                            heading(section.title)
-                            ForEach(section.entries) { entry in
-                                ConnectTrailRow(
-                                    entry: entry,
-                                    color: markColor(entry.id),
-                                    isHighlighted: entry.id == highlightedID,
-                                    onHover: { highlightedID = entry.id },
-                                    action: { onConnect(entry.id) }
-                                )
-                                .id(entry.id)
-                            }
-                        }
-                        emptyMessage
-                    }
-                    .padding(.horizontal, SpacingTokens.xxs1)
-                    .padding(.vertical, SpacingTokens.xxs)
-                }
-                .scrollIndicators(.hidden)
-                .scrollEdgeEffectStyle(.soft, for: .vertical)
-                .onChange(of: highlightedID) { _, id in
-                    if let id { proxy.scrollTo(id) }
-                }
-            }
+            connectionList
         }
         .task {
             isAutoFocusing = true
@@ -77,6 +51,52 @@ struct ConnectTrailList: View {
         .onKeyPress(.downArrow) { moveHighlight(by: 1) }
         .onKeyPress(.upArrow) { moveHighlight(by: -1) }
         .onKeyPress(.escape) { onClose(); return .handled }
+    }
+
+    /// A short result set should leave no blank glass below its last row. When the rows would
+    /// exceed the rail, keep the drawer within that space and restore the scrolling list.
+    @ViewBuilder
+    private var connectionList: some View {
+        ViewThatFits(in: .vertical) {
+            connectionRows
+                .fixedSize(horizontal: false, vertical: true)
+
+            scrollingConnectionRows
+        }
+    }
+
+    private var scrollingConnectionRows: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                connectionRows
+            }
+            .scrollIndicators(.hidden)
+            .scrollEdgeEffectStyle(.soft, for: .vertical)
+            .onChange(of: highlightedID) { _, id in
+                if let id { proxy.scrollTo(id) }
+            }
+        }
+    }
+
+    private var connectionRows: some View {
+        VStack(alignment: .leading, spacing: SpacingTokens.none) {
+            ForEach(sections) { section in
+                heading(section.title)
+                ForEach(section.entries) { entry in
+                    ConnectTrailRow(
+                        entry: entry,
+                        color: markColor(entry.id),
+                        isHighlighted: entry.id == highlightedID,
+                        onHover: { highlightedID = entry.id },
+                        action: { onConnect(entry.id) }
+                    )
+                    .id(entry.id)
+                }
+            }
+            emptyMessage
+        }
+        .padding(.horizontal, SpacingTokens.xxs1)
+        .padding(.vertical, SpacingTokens.xxs)
     }
 
     private func moveHighlight(by step: Int) -> KeyPress.Result {

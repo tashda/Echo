@@ -112,7 +112,7 @@ enum WindowSpec {
             SpecElement(number: "2.10", name: "Connect drawer", summary: "A glass drawer beside the trail with the saved connections (round 56: PR3, CD1, CB0, OT0, XB0; replaces round 52's widening pill, PR4, and OP1's row of servers).", groups: [
                 .material(.row("Glass", "Liquid Glass, regular, rounded rectangle, corners 24pt", token: "SpacingTokens.lg")),
                 .layout(.row("Width", "250pt (3.9 × 64); it overflows the rail column to the right, over the tree", token: "ServerRail.connectDrawerWidth"),
-                        .row("Place", "8pt from the rail column's trailing edge, the height of the rail (top and bottom as the pills)", token: "ServerRail.connectDrawerGap"),
+                        .row("Place", "8pt from the rail column's trailing edge; the drawer hugs its header and matching rows, up to the rail's height, then its list scrolls", token: "ServerRail.connectDrawerGap / ConnectTrailList.connectionList"),
                         .row("Header", "a capsule search field (magnifying glass, prompt Search connections), then New Connection, Manage Connections, Quick Connect and ×, 28pt icon buttons, the × 11pt semibold", token: "ConnectTrailList, ConnectTrailIconButton"),
                         .row("Rows", "a 24pt mark with two letters, the name (13pt), host · database under it (11pt, tertiary); folders as small semibold headings, Saved for connections in none"),
                         .row("List holds", "saved connections not already open (the pills show those); no Open section, no footer, no row of servers")),
