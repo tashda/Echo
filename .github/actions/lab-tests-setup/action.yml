@@ -14,6 +14,9 @@ inputs:
     required: true
   testlab-ssh-key:
     required: true
+  testlab-address:
+    description: "testlab's LAN address (repository variable TESTLAB_ADDRESS)"
+    required: true
   testlab-known-hosts:
     required: true
 outputs:
@@ -68,3 +71,4 @@ runs:
         tailscale-oauth-secret: ${{ inputs.tailscale-oauth-secret }}
         ssh-key: ${{ inputs.testlab-ssh-key }}
         known-hosts: ${{ inputs.testlab-known-hosts }}
+        address: ${{ inputs.testlab-address }}

@@ -1,6 +1,6 @@
 name: "Access to testlab"
 description: >
-  Joins the tailnet as tag:ci (testlab advertises 192.168.1.153/32 as a route), sets up
+  Joins the tailnet as tag:ci (testlab advertises its address, repository variable TESTLAB_ADDRESS, as a /32 route), sets up
   `ssh testlab` for the lab's Docker commands, installs the Docker command-line tool, and checks
   that testlab's Docker answers.
 inputs:
@@ -13,6 +13,9 @@ inputs:
     required: true
   known-hosts:
     description: "testlab's host key line (secret TESTLAB_KNOWN_HOSTS)"
+    required: true
+  address:
+    description: "testlab's LAN address (repository variable TESTLAB_ADDRESS)"
     required: true
 runs:
   using: composite
@@ -31,35 +34,39 @@ runs:
       env:
         TESTLAB_SSH_KEY: ${{ inputs.ssh-key }}
         TESTLAB_KNOWN_HOSTS: ${{ inputs.known-hosts }}
+        TESTLAB_ADDRESS: ${{ inputs.address }}
       run: |
+        [ -n "$TESTLAB_ADDRESS" ] || { echo "::error::Set the repository variable TESTLAB_ADDRESS"; exit 1; }
         mkdir -p ~/.ssh && chmod 700 ~/.ssh
         printf '%s\n' "$TESTLAB_SSH_KEY" > ~/.ssh/testlab
         chmod 600 ~/.ssh/testlab
         printf '%s\n' "$TESTLAB_KNOWN_HOSTS" >> ~/.ssh/known_hosts
-        cat >> ~/.ssh/config <<'CONFIG'
+        cat >> ~/.ssh/config <<CONFIG
         Host testlab
-          HostName 192.168.1.153
+          HostName $TESTLAB_ADDRESS
           User lab
           IdentityFile ~/.ssh/testlab
           IdentitiesOnly yes
           ConnectTimeout 15
           ServerAliveInterval 30
         CONFIG
-        # The tailnet route to 192.168.1.153 can take a few seconds to arrive.
+        # The tailnet route to the address can take a few seconds to arrive.
         for attempt in 1 2 3 4 5 6; do
           ssh testlab true && break
-          [ "$attempt" = 6 ] && { echo "::error::testlab (192.168.1.153) is not reachable over Tailscale"; exit 1; }
+          [ "$attempt" = 6 ] && { echo "::error::testlab ($TESTLAB_ADDRESS) is not reachable over Tailscale"; exit 1; }
           sleep 10
         done
         docker --host ssh://testlab version --format 'testlab Docker {{.Server.Version}}'
 
     # The lab tool no longer has a built-in testlab: tell it which host to use.
     - shell: bash
+      env:
+        TESTLAB_ADDRESS: ${{ inputs.address }}
       run: |
         {
           echo "SERVERLAB_HOST=testlab"
           echo "SERVERLAB_DOCKER_HOST=ssh://testlab"
-          echo "SERVERLAB_ADDRESS=192.168.1.153"
+          echo "SERVERLAB_ADDRESS=$TESTLAB_ADDRESS"
           echo "SERVERLAB_MEMORY_MB=18432"
           echo "SERVERLAB_DEDICATED=1"
         } >> "$GITHUB_ENV"

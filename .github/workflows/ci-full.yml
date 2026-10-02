@@ -87,6 +87,7 @@ jobs:
         tailscale-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
         testlab-ssh-key: ${{ secrets.TESTLAB_SSH_KEY }}
         testlab-known-hosts: ${{ secrets.TESTLAB_KNOWN_HOSTS }}
+        testlab-address: ${{ vars.TESTLAB_ADDRESS }}
 
     - name: Run the LabTests plan against the lab
       env:
