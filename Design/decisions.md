@@ -7,6 +7,10 @@ The owner accepted RT2 / KB0 / KS2 / KH0 / KC0 in #39.1, HG0 / HR0 / HK1 / HA1 /
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-02 · Round 52 accepted: the + opens the trail into the saved connections
+
+Echo Labs › Explorer tree › The + button (#52). Accepted: **PR4** the server pill itself widens into the list (not a menu, panel, drawer or palette); **MP2** the closed + glides into the header's close button at the top right; **CT1** a search field first, then the saved connections under their folder's name as small headings, each a mark, a name and host · database; **OP1** the opened trail's header holds the connected servers in a row on the left (the rail's own items with the white disc, scrolling sideways under a soft edge) and four icon-only buttons on the right, New Connection, Manage Connections, Quick Connect and the close ×, so the list has no Open section and no footer; **CX1** the × is plain beside the three actions; **KB1** a shortcut opens it with the search field focused, Return connects the highlighted row (the first match), Escape closes; **SM1** File › Connect To keeps the system menu. The owner's note: closing must never let the shrinking glass bounce under the server circles, so the list fades out first (0.12s) and the glass settles with no overshoot; opening uses the house spring. The shortcut is ⇧⌘K. Not chosen: PR0 to PR3, MP0, MP1, MP3, MP4, CT0, CT2 to CT4, FT0 to FT2, OP0, OP2, OP3, CX2, CX3. Rule: Design/05-components.md › Rail. In Echo; owner confirmation pending.
+
 ## 2026-10-02 · The tree places its rows; folding a card keeps the tree in view
 
 The owner's bugs after round 46: cards overlapped the next server's card when a server connected while a card was open, and collapsing the bottom server while scrolled into it left the tree out of view. Built in 38e19682.

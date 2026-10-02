@@ -29,7 +29,26 @@ extension ServerRail {
         return entries.first?.connectionID
     }
 
+    /// One glass shape. Closed it is the pill that hugs its servers and the +; open (round 52) the
+    /// same shape widens into the connection list, the servers lying in a row at its top.
     func serverPill(entries: [ServerRailEntry], highlightedID: UUID?) -> some View {
+        let isOpen = appState.isConnectTrailOpen
+        let closedRadius = LayoutTokens.Rail.width(itemSize: itemSize) / 2
+
+        return GlassEffectContainer(spacing: SpacingTokens.xs) {
+            VStack(spacing: SpacingTokens.none) {
+                if isOpen {
+                    openTrail(entries: entries, highlightedID: highlightedID)
+                } else {
+                    closedPill(entries: entries, highlightedID: highlightedID)
+                }
+            }
+            .frame(width: isOpen ? Self.connectTrailWidth : nil, alignment: .topLeading)
+            .glassEffect(.regular, in: .rect(cornerRadius: isOpen ? SpacingTokens.lg : closedRadius, style: .continuous))
+        }
+    }
+
+    func closedPill(entries: [ServerRailEntry], highlightedID: UUID?) -> some View {
         let spacing = LayoutTokens.Rail.itemSpacing
         let padding = LayoutTokens.Rail.pillPadding
         // Servers plus the + button. Every item has the same size, so the pill's natural height
@@ -63,7 +82,6 @@ extension ServerRail {
             .scrollBounceBehavior(.basedOnSize)
             // Hugs its servers, and only scrolls once they outgrow the window height.
             .frame(maxHeight: contentHeight)
-            .glassEffect(.regular, in: .capsule)
             .onChange(of: highlightedID) { _, id in
                 // Scrolls only as far as needed, so a visible selection never moves the rail.
                 guard let id else { return }
@@ -87,11 +105,19 @@ extension ServerRail {
             .accessibilityHidden(true)
     }
 
-    func item(for entry: ServerRailEntry, isSelected: Bool, runningQueryCount: Int) -> some View {
+    /// A server's item. In the opened trail (`drawsOwnDisc`) each item carries its own selection
+    /// disc, as the trail's one disc moves only inside the closed pill, and a click closes the trail.
+    func item(
+        for entry: ServerRailEntry,
+        isSelected: Bool,
+        runningQueryCount: Int,
+        drawsOwnDisc: Bool = false
+    ) -> some View {
         let status = entry.status
 
         return Button {
             activate(entry)
+            if drawsOwnDisc { appState.isConnectTrailOpen = false }
         } label: {
             ServerRailItem(
                 monogram: ServerRailMonogram.make(from: entry.displayName),
@@ -102,8 +128,12 @@ extension ServerRail {
                 // Round 30.1, CO1: with the header in the server's colour, the monogram always is.
                 isAlwaysColored: projectStore.globalSettings.serverHeaderColorSource == .server
             )
+            .background {
+                if drawsOwnDisc && isSelected { ownSelectionDisc }
+            }
         }
         .buttonStyle(.plain)
+        .matchedGeometryEffect(id: entry.connectionID, in: trail)
         .focusable(false)
         .help(entry.tooltip(runningQueryCount: runningQueryCount))
         .lazyContextMenu { menu(for: entry) }
@@ -144,23 +174,6 @@ extension ServerRail {
         case .pending(let pending):
             return bridge.pendingMenu?(pending) ?? NSMenu()
         }
-    }
-
-    /// Opens the connections menu: open sessions, saved connections, Manage Connections and
-    /// Quick Connect.
-    var connectButton: some View {
-        Menu {
-            ConnectionsMenuContent()
-        } label: {
-            ServerRailToolLabel(symbol: "plus", isSelected: false, width: itemSize, height: itemSize)
-        }
-        .menuStyle(.button)
-        .buttonStyle(.plain)
-        .menuIndicator(.hidden)
-        .fixedSize()
-        .focusable(false)
-        .help("Connect to a Server")
-        .accessibilityLabel("Connect to a Server")
     }
 
 }

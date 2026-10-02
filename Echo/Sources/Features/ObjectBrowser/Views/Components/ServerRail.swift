@@ -4,7 +4,7 @@ import SwiftUI
 /// The server rail (Design/02-layout.md › Rail): one glass pill on the canvas at the window's
 /// leading edge. Servers are on top, in a pill that hugs them, grows with a spring as they
 /// connect and scrolls when it reaches the window bottom; its last item is the + that opens the
-/// connections menu.
+/// pill itself into the saved connections (round 52, see ServerRail+ConnectTrail).
 ///
 /// The selected server rests on a white disc that moves with a liquid stretch. It follows the
 /// server at the top of the tree while scrolling, and holds on a clicked server while the tree
@@ -29,21 +29,27 @@ struct ServerRail: View {
     /// Top and bottom edges of the selection disc, animated separately for the liquid stretch.
     @State var selectionTop: CGFloat = 0
     @State var selectionBottom: CGFloat = 0
+    /// Lets the servers glide from the column into the opened trail's row, and the + into its ×.
+    @Namespace var trail
 
     var body: some View {
         let entries = self.entries
         let highlightedID = highlightedConnectionID(in: entries)
         let entryIDs = entries.map(\.connectionID)
 
-        VStack(spacing: SpacingTokens.none) {
+        VStack(alignment: .leading, spacing: SpacingTokens.none) {
             serverPill(entries: entries, highlightedID: highlightedID)
                 // Takes all the height it needs within the window.
                 .layoutPriority(1)
             Spacer(minLength: LayoutTokens.Rail.minimumPillGap)
         }
-        .frame(width: LayoutTokens.Rail.width(itemSize: itemSize))
+        // The opened trail is wider than the column: it overflows to the right over the tree.
+        .frame(width: LayoutTokens.Rail.width(itemSize: itemSize), alignment: .leading)
         .frame(maxHeight: .infinity)
         .animation(motion.standard, value: entryIDs)
+        // Opening springs; closing settles with no overshoot, so the shrinking glass never passes
+        // under the server circles it returns to.
+        .animation(appState.isConnectTrailOpen ? motion.standard : motion.settle, value: appState.isConnectTrailOpen)
         .onAppear { placeSelection(on: highlightedID, in: entryIDs, animated: false) }
         .onChange(of: highlightedID) { oldID, newID in
             moveSelection(from: oldID, to: newID, in: entryIDs)

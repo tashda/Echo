@@ -87,6 +87,13 @@ struct EchoApp: App {
             AppSettingsCommands()
             SparkleCommands()
 #if os(macOS)
+            ConnectToCommands(
+                appState: coordinator.appState,
+                environmentState: coordinator.environmentState,
+                projectStore: coordinator.projectStore,
+                connectionStore: coordinator.connectionStore,
+                navigationStore: coordinator.navigationStore
+            )
             ConnectMenuCommands(
                 environmentState: coordinator.environmentState,
                 projectStore: coordinator.projectStore,

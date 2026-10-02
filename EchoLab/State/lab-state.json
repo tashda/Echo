@@ -177,6 +177,10 @@
       {
         "date": "2026-10-02T08:00:45Z",
         "text": "Taken by claude-sonnet-rail"
+      },
+      {
+        "date": "2026-10-02T08:11:01Z",
+        "text": "Built into Echo: the + opens the server pill into a searchable list of saved connections (one glass shape; servers in a row with New, Manage, Quick Connect and close icons); \u21e7\u2318K opens it, Return connects the first match, Escape closes; File > Connect To keeps the menu"
       }
     ],
     "needsMore": [],
@@ -217,13 +221,21 @@
         "summary": "Opened trail: one glass shape that grows, narrower, the trail's own pills, softer scrolling"
       }
     ],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "claude-sonnet-rail",
-      "date": "2026-10-02T08:00:45Z",
-      "status": "Accepted"
-    },
-    "verdicts": {}
+    "status": "In Echo",
+    "verdicts": {},
+    "verification": {
+      "checks": [
+        "Press the + and watch the pill widen: servers lie down in a row, the + glides to the x, the list fades in",
+        "Press Shift-Command-K: the search field has the focus; type a name, press Return to connect the first match",
+        "Use the arrow keys to move the highlight; press Escape to close",
+        "Press the x and watch the close: the list fades first and the glass settles without passing under the server circles",
+        "Click a server in the header row (selects and closes); try New Connection, Manage Connections and Quick Connect icons",
+        "File menu: Connect To still lists the connections"
+      ],
+      "done": [],
+      "shots": [],
+      "summary": "The + now widens the server pill into the connections list instead of a menu."
+    }
   },
   "ongoing.content-during-slide-r26": {
     "comments": [

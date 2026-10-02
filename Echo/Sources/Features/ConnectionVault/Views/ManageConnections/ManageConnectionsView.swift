@@ -67,8 +67,10 @@ struct ManageConnectionsView: View {
 
     private let initialConnectionID: UUID?
 
-    init(onClose: (() -> Void)? = nil, initialSection: ManageSection? = nil, initialProjectID: UUID? = nil, initialConnectionID: UUID? = nil) {
+    init(onClose: (() -> Void)? = nil, initialSection: ManageSection? = nil, initialProjectID: UUID? = nil, initialConnectionID: UUID? = nil, startsNewConnection: Bool = false) {
         self.onClose = onClose
+        // The opened server trail's New Connection (round 52) lands on an empty form.
+        if startsNewConnection { self._isCreatingConnection = State(initialValue: true) }
         self.initialConnectionID = initialConnectionID
         if let initialProjectID {
             self._selectedSection = State(initialValue: .projects)

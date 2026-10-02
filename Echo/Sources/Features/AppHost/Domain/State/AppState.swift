@@ -39,6 +39,10 @@ import SwiftUI
     /// What the palette lists: everything, or this window's tabs (the tab overview, round 35.1).
     var commandPaletteScope: CommandPaletteScope = .everything
 
+    /// The server rail's opened trail (round 52): the + widens the pill into the saved connections.
+    /// The rail animates the change itself, so the shortcut and the button both just set it.
+    var isConnectTrailOpen = false
+
     /// The tab overview is the palette showing this window's tabs (round 35.1, TO6).
     var isTabOverviewVisible: Bool { isCommandPaletteVisible && commandPaletteScope == .tabs }
 

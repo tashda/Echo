@@ -9,6 +9,10 @@ Branch: `claude/ecstatic-fermi-u1jxr6`, based on `dev`. See `current-state.md` f
 
 ---
 
+## Round 52 · The + button
+
+- 👁 #52: built (PR4, MP2, CT1, OP1, CX1, KB1, SM1): `ServerRail+ConnectTrail`, `ConnectTrail/`, File › Connect To and ⇧⌘K. Compiles; 7 `ConnectTrailListingTests` pass. Owner check pending in Echo (opening and closing motion, Return and Escape).
+
 ## Round 39 · Rail tools (Codex)
 
 - 👁 #39.1 / #39.4 / #39.5: built and run; 37 focused tests pass. Live history recording and opening verified, screenshot captured, no assertion/fatal runtime logs. Owner check pending in Echo Labs.

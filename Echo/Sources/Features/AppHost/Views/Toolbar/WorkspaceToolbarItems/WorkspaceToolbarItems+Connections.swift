@@ -2,7 +2,8 @@ import SwiftUI
 import EchoSense
 
 /// The connections menu: open sessions, saved connections by folder, Manage Connections and
-/// Quick Connect. Opened from the + at the bottom of the rail's server pill.
+/// Quick Connect. The menu bar's File › Connect To shows it; the rail's + opens the searchable
+/// trail instead (round 52).
 struct ConnectionsMenuContent: View {
     @Environment(ProjectStore.self) private var projectStore
     @Environment(ConnectionStore.self) private var connectionStore

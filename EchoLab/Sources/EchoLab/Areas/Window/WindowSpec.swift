@@ -96,12 +96,28 @@ enum WindowSpec {
             ], files: [rail]),
             SpecElement(number: "2.8", name: "New connection button", summary: "A + at the end of the server pill.", groups: [
                 .type(.row("Glyph", "plus, 13pt medium, secondary")),
-                .behaviour(.row("Click", "opens the connections menu: open sessions, saved connections by folder, Manage Connections, Quick Connect", token: "ConnectionsMenuContent"),
+                .behaviour(.row("Click", "opens the trail into the saved connections (2.10); ⇧⌘K does the same", token: "AppState.isConnectTrailOpen"),
+                           .row("File › Connect To", "the system menu with open sessions, saved connections by folder, Manage Connections and Quick Connect, for the menu bar", token: "ConnectionsMenuContent"),
                            .row("Never selected", "the disc never moves onto it"), .row("Tooltip", "Connect to a Server")),
             ], rounds: [railRound], files: [rail]),
             SpecElement(number: "2.9", name: "Tool pill (retired)", summary: "Removed in round 39; Bookmarks and History moved to the inspector column.", groups: [
                 .behaviour(.row("Removed", "Snippets and Echo clipboard history are gone; rail is servers and + only")),
             ], rounds: ["ongoing.rail-tools-r39", "ongoing.rail-clipboard-r39"], files: [rail], isRetired: true),
+            SpecElement(number: "2.10", name: "Opened trail", summary: "The server pill widened into the list of saved connections (round 52: PR4, MP2, CT1, OP1, CX1, KB1, SM1).", groups: [
+                .material(.row("Glass", "the same single glass shape as the closed pill; corners 24pt open, a capsule closed", token: "SpacingTokens.lg")),
+                .layout(.row("Width", "250pt (3.9 × 64): the pill overflows the rail column to the right, over the tree", token: "ServerRail.connectTrailWidth"),
+                        .row("List", "320pt high, scrolls; a soft edge top and bottom", token: "ServerRail.connectTrailListHeight"),
+                        .row("Header", "the connected servers in a row on the left, the rail's own items with the white selection disc, scrolling sideways under a soft edge; at the right New Connection, Manage Connections, Quick Connect and ×, 28pt icon buttons"),
+                        .row("Rows", "a 24pt mark with two letters, the name (13pt), host · database under it (11pt, tertiary); folders as small semibold headings, Saved for connections in none"),
+                        .row("List holds", "saved connections not already open; no Open section, no footer")),
+                .behaviour(.row("Open", "the + or ⇧⌘K; the search field has the focus"),
+                           .row("Search", "name or host · database, ignoring case and accents; the first match is highlighted", token: "ConnectTrailListing"),
+                           .row("Return", "connects the highlighted row and closes"), .row("↑ ↓", "move the highlight"),
+                           .row("Escape or ×", "closes"), .row("A server in the header", "selects it and closes"),
+                           .row("New Connection", "opens Manage Connections on an empty form", token: "ManageConnectionsWindowController.present(startingNewConnection:)")),
+                .motion(.row("Open", "house spring: the servers glide from the column into the row, the + to the ×, the list fades in", token: "echoMotion.standard"),
+                        .row("Close", "the list fades out first (0.12s), then the glass settles with no overshoot", token: "echoMotion.settle")),
+            ], rounds: ["ongoing.connect-menu-r52"], files: [rail]),
         ]),
         SpecPart(number: "3", name: "Tree column", summary: "The Explorer's cards, between the rail and the content.", elements: [
             SpecElement(number: "3.1", name: "Column", summary: "One card per server; see the Explorer tree area.", groups: [
