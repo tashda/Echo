@@ -10,23 +10,22 @@ enum HeaderOnScrollRound {
 
     static let spec = RoundSpec(
         controls: [
-            .of("behaviour", "Behaviour", LabHSBehaviour.self, default: .collapse,
-                question: "Scroll each card down and back up, and click the icons. How should the header and the icon menu behave as the list scrolls?",
-                recommend: .collapse,
-                why: "You asked for the menu to go first and then the header: that is this, with one change: the header does not go, it gets slim. The name is the one thing that tells you whose rows you are reading, and the banner shrinking to a slim bar with rounded corners is what removes the awful edge, since the rows go under a bar and not a cut. The menu is back with the first scroll up. HB3 is the one that does what you said literally, if you would rather the name leave too.",
+            .of("behaviour", "Behaviour", LabHSBehaviour.self, default: .pill,
+                question: "Scroll each card down and back up (slowly at first: the menu morphs over the first 60pt) and click the icons. How should the header and the icon menu behave?",
+                recommend: .pillName,
+                why: "You liked HB5's idea (the header goes, the menu stays) and asked for either the name on top or the menu as a glass pill. One capsule that carries the name on its left and the five icons on its right does both: the banner's colour clears into glass as it narrows, so it is the pill you remember, and the name, the one thing that says whose list you are reading, is never far. The trail also shows the server, so HB3 (icons only) is fine if you want the pill smaller; HB1 is the plainest.",
+                summary: \.summary),
+            .of("material", "The pill", LabHSMaterial.self, default: .tinted,
+                question: "Choose a pill behaviour (HB3 to HB5) and compare the materials.",
+                recommend: .tinted,
+                why: "Clear glass over a white list is nearly invisible, which is why the old glass menu looked lost; a 35% tint of the server's colour gives the pill an identity (red for production) with no banner. The solid pill is the banner shrunk, the loudest.",
                 summary: \.summary),
             .of("edge", "Bottom corners", LabHSEdge.self, default: .round20,
-                question: "Scroll with each corner radius. How round should the bottom of the pinned banner be?",
+                question: "For the bar (HB1 and HB2): how round should its bottom corners be?",
                 recommend: .round20,
-                why: "Concentric with the card's own corners at Corners 26 (20 is a step inside), so banner and card look like one family; 12 is for Corners 10."),
-            .of("under", "Under the banner", LabHSUnder.self, default: .shadow,
-                question: "Scroll slowly with each. What should the rows do as they pass under the banner?",
-                recommend: .shadow,
-                why: "A soft shadow says the banner is above the rows and costs nothing; the blur (UN2) is the more refined idea but blurs live text on every scroll frame, which the tree's own performance notes rule out for a list this long."),
-            .of("slim", "Slim height", LabHSSlim.self, default: .medium,
-                question: "Compare the slim bar's height (HB2, HB5).",
-                recommend: .medium,
-                why: "32pt holds a 15pt name with the eyebrow gone and is still a comfortable click target; 26 is tight, 40 is a banner again."),
+                why: "A step inside the card's own corners at Corners 26, so bar and card look like one family; 12 for Corners 10."),
+            .of("slim", "Bar height", LabHSSlim.self, default: .medium),
+            .of("under", "Under the pinned part", LabHSUnder.self, default: .shadow),
             .of("sample", "Server", LabSHSample.self, default: .production),
         ],
         exhibits: [
@@ -40,24 +39,28 @@ enum HeaderOnScrollRound {
                   designWidth: width, designHeight: 520) { values in
                 LabHSColumn { LabHSCard(look: LabHSLook(values), server: sample(values)) }
             },
-            .init(id: "two", title: "Two behaviours",
-                  summary: "HB2 and HB3 side by side with the chosen corners: scroll them the same distance.",
+            .init(id: "three", title: "Three behaviours",
+                  summary: "HB1 (the bar), HB3 (the pill) and HB4 (the pill with the name) with the chosen material: scroll them the same distance.",
                   designWidth: 700, designHeight: 520) { values in
-                HStack(spacing: SpacingTokens.sm) {
-                    LabHSColumn { LabHSCard(look: LabHSLook(behaviour: .collapse, edge: LabHSLook(values).edge, under: LabHSLook(values).under, slim: LabHSLook(values).slim), server: sample(values)) }
-                    LabHSColumn { LabHSCard(look: LabHSLook(behaviour: .follow, edge: LabHSLook(values).edge, under: LabHSLook(values).under, slim: LabHSLook(values).slim), server: sample(values)) }
+                let base = LabHSLook(values)
+                HStack(spacing: SpacingTokens.xs) {
+                    ForEach([LabHSBehaviour.bar, .pill, .pillName], id: \.self) { behaviour in
+                        LabHSColumn {
+                            LabHSCard(look: LabHSLook(behaviour: behaviour, material: base.material, edge: base.edge, under: base.under, slim: base.slim),
+                                      server: sample(values))
+                        }
+                    }
                 }
             },
         ],
         presets: [
-            .init(id: "recommended", name: "My recommendation", summary: "The menu scrolls away, the banner shrinks to a slim bar with 20pt corners and a soft shadow.",
-                  values: ["behaviour": LabHSBehaviour.collapse.rawValue, "edge": LabHSEdge.round20.rawValue, "under": LabHSUnder.shadow.rawValue,
-                           "slim": LabHSSlim.medium.rawValue],
+            .init(id: "recommended", name: "My recommendation", summary: "One tinted glass pill with the name and the five icons.",
+                  values: ["behaviour": LabHSBehaviour.pillName.rawValue, "material": LabHSMaterial.tinted.rawValue, "under": LabHSUnder.shadow.rawValue],
                   isRecommended: true),
-            .init(id: "literal", name: "As you said", summary: "The menu first, then the header leaves.",
-                  values: ["behaviour": LabHSBehaviour.follow.rawValue, "edge": LabHSEdge.round20.rawValue, "under": LabHSUnder.shadow.rawValue]),
-            .init(id: "rounded", name: "Only the corners", summary: "The whole banner pinned, rounded, a shadow.",
-                  values: ["behaviour": LabHSBehaviour.rounded.rawValue, "edge": LabHSEdge.round20.rawValue, "under": LabHSUnder.shadow.rawValue]),
+            .init(id: "bar", name: "The bar you liked", summary: "HB5 as it was: the menu pinned as a slim bar.",
+                  values: ["behaviour": LabHSBehaviour.bar.rawValue, "edge": LabHSEdge.round20.rawValue, "under": LabHSUnder.shadow.rawValue]),
+            .init(id: "chips", name: "Two objects", summary: "A name chip and the menu pill, clear glass.",
+                  values: ["behaviour": LabHSBehaviour.chips.rawValue, "material": LabHSMaterial.glass.rawValue, "under": LabHSUnder.shadow.rawValue]),
         ]
     )
 

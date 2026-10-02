@@ -1579,6 +1579,28 @@
     "status": "In Echo",
     "verdicts": {}
   },
+  "ongoing.header-on-scroll-r57": {
+    "comments": [],
+    "history": [
+      {
+        "date": "2026-10-02T11:15:47Z",
+        "text": "Revision 2: Your ideas: the menu stays (HB5), with the name, or morphs into a glass pill"
+      }
+    ],
+    "revisions": [
+      {
+        "changes": [
+          "Removed: the collapsing bar, follow, away and chip behaviours",
+          "New: the bar with the name arriving on its left, the menu morphing into a floating glass pill, one pill with the name, a name chip and a menu pill",
+          "New: the pill's material (clear glass, tinted glass, solid banner colour); the morph is continuous over the first 60pt of scroll"
+        ],
+        "date": "2026-10-02T11:15:47Z",
+        "number": 2,
+        "summary": "Your ideas: the menu stays (HB5), with the name, or morphs into a glass pill"
+      }
+    ],
+    "status": "Judging"
+  },
   "ongoing.mssql-always-encrypted-r29": {
     "comments": [
       {
