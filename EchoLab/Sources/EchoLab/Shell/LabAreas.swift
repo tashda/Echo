@@ -161,6 +161,7 @@ enum LabAreas {
         "ongoing.connect-card-r56": "explorer-tree",
         "ongoing.header-on-scroll-r57": "explorer-tree",
         "ongoing.header-sizes-r58": "explorer-tree",
+        "ongoing.card-handover-r59": "explorer-tree",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 

@@ -19,6 +19,10 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r59", label: "Round 59", title: "A card arriving under the pinned menu", date: "2 Oct 2026",
+             asked: "Scrolling the tree, the next card arrives under the previous card's pinned menu pill. Show how the hand-over should look: the pill pushed out, fading, overtaken by the next card, shrinking to a name chip, and the cards separate or overlapping with rounded corners and a shadow.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.card-handover-r59"]),
         Info(id: "r58", label: "Round 58", title: "Smaller card headers and what each setting does", date: "2 Oct 2026",
              asked: "The card headers feel too big even at Small with Banner with Title. Show variations that are smaller, and define exactly what each customization does (Line Above the Name = None must be only the name and tight) with the header's heights shown.",
              outcome: "Being judged.",
