@@ -1,7 +1,8 @@
 import SwiftUI
 import AppKit
 
-/// Round MC: the form's toolbar. Cancel (✕, sheet) or Discard (inline, after an edit) on the left;
+/// Round MC: the form's toolbar. Cancel (✕, sheet; or "Cancel", a new connection inline) or
+/// Discard (inline, after an edit) on the left;
 /// the title with the latest result under it; Test (stethoscope) and Save (✓) on the right, both
 /// dimmed until they can work, their tooltip naming what is missing. A failed test opens a popover
 /// with the server's own message and the log. Echo doesn't guess at a fix.
@@ -50,6 +51,12 @@ extension ConnectionEditorView {
             .keyboardShortcut(.cancelAction)
             .help("Cancel")
             .accessibilityLabel("Cancel")
+        } else if originalConnection == nil, let onRevert {
+            // A new connection inline in Manage Connections: Cancel leaves it, edited or not.
+            Button("Cancel", action: onRevert)
+                .buttonStyle(.glass)
+                .keyboardShortcut(.cancelAction)
+                .help("Cancel the new connection")
         } else if hasChanges, let onRevert {
             Button("Discard", action: onRevert)
                 .buttonStyle(.glass)
@@ -60,6 +67,8 @@ extension ConnectionEditorView {
     // MARK: Title
 
     private var toolbarTitle: String {
+        // WD1: the engine step's question is the title; the line under it stays empty.
+        if step == .chooseEngine { return "Which database?" }
         if isQuickConnect { return "Quick Connect" }
         if originalConnection == nil { return "New Connection" }
         let trimmed = connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -178,7 +187,7 @@ extension ConnectionEditorView {
     func confirmFromKeyboard() {
         if missingForSave == nil {
             confirm()
-        } else if !(presentation == .inline && !hasChanges) {
+        } else if !(presentation == .inline && originalConnection != nil && !hasChanges) {
             submitValidationOnly()
         }
     }

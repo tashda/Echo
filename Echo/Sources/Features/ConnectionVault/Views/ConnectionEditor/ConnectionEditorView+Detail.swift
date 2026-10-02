@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 
 /// The connection form (Design/05-components › Connections, round MC): a toolbar with Cancel or
 /// Discard, the title and the latest result, Test and Save; then, for a new connection, the
-/// engine step; then the form: icon and name, Server, Sign in, and Security & limits.
+/// engine step; then the form: icon and name, Server, Sign in, Security and Behaviour.
 extension ConnectionEditorView {
     var detailView: some View {
         VStack(spacing: SpacingTokens.none) {
@@ -29,7 +29,8 @@ extension ConnectionEditorView {
             if selectedDatabaseType != .sqlite {
                 authenticationSection
             }
-            optionsSection
+            securitySection
+            behaviourSection
             if isQuickConnect {
                 Section {
                     Toggle("Save to Connections", isOn: $saveToConnections.animation())
@@ -177,34 +178,6 @@ extension ConnectionEditorView {
         return version.localizedCaseInsensitiveContains(name) ? version : "\(name) \(version)"
     }
 
-    // MARK: - Security & limits
-
-    private var optionsSection: some View {
-        Section {
-            DisclosureGroup(isExpanded: $optionsExpanded) {
-                if selectedDatabaseType != .sqlite {
-                    securityRows
-                }
-                advancedRows
-            } label: {
-                LabeledContent("Security & limits") {
-                    Text(optionsSummary).foregroundStyle(ColorTokens.Text.secondary)
-                }
-            }
-        }
-    }
-
-    /// The disclosure's one-line summary of the current values.
-    private var optionsSummary: String {
-        let timeout = "\(Int(connectionTimeout)) s"
-        switch selectedDatabaseType {
-        case .microsoftSQL: return "\(mssqlEncryptionMode.shortName) · \(timeout)"
-        case .postgresql: return postgresSummary(timeout: timeout)
-        case .mysql: return "\(useTLS ? "TLS" : "No TLS") · \(timeout)"
-        case .sqlite: return timeout
-        }
-    }
-
     /// An inline message under a field, shown after Return on an incomplete form.
     @ViewBuilder
     func validationRow(for field: EditorField) -> some View {
@@ -225,7 +198,14 @@ extension DatabaseType {
 }
 
 extension MSSQLEncryptionMode {
-    var shortName: String { description.components(separatedBy: " - ").first ?? description }
+    /// The mode's name alone, for the segmented picker and the summary.
+    var shortName: String {
+        switch self {
+        case .optional: "Optional"
+        case .mandatory: "Mandatory"
+        case .strict: "Strict"
+        }
+    }
 }
 
 extension TLSMode {

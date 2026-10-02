@@ -6,6 +6,8 @@ import SwiftUI
 /// that sign in with it, and Delete.
 struct IdentityEditorPane: View {
     let identity: SavedIdentity?
+    /// The folder a new identity is filed in (the identity folder on show).
+    let folderID: UUID?
     let revision: Int
     let saveRequest: Int
     let usedBy: [SavedConnection]
@@ -18,6 +20,7 @@ struct IdentityEditorPane: View {
     var body: some View {
         IdentityEditorPaneContent(
             identity: identity,
+            folderID: folderID,
             saveRequest: saveRequest,
             usedBy: usedBy,
             onChangesChanged: onChangesChanged,
@@ -37,6 +40,7 @@ private struct IdentityEditorPaneContent: View {
     @Environment(EnvironmentState.self) private var environmentState
 
     let identity: SavedIdentity?
+    let folderID: UUID?
     let saveRequest: Int
     let usedBy: [SavedConnection]
     let onChangesChanged: (Bool) -> Void
@@ -51,6 +55,7 @@ private struct IdentityEditorPaneContent: View {
 
     init(
         identity: SavedIdentity?,
+        folderID: UUID?,
         saveRequest: Int,
         usedBy: [SavedConnection],
         onChangesChanged: @escaping (Bool) -> Void,
@@ -60,6 +65,7 @@ private struct IdentityEditorPaneContent: View {
         onDelete: @escaping (SavedIdentity) -> Void
     ) {
         self.identity = identity
+        self.folderID = folderID
         self.saveRequest = saveRequest
         self.usedBy = usedBy
         self.onChangesChanged = onChangesChanged
@@ -222,6 +228,7 @@ private struct IdentityEditorPaneContent: View {
             let saved = await draft.save(
                 over: identity,
                 projectID: projectID,
+                folderID: folderID,
                 environmentState: environmentState,
                 connectionStore: connectionStore
             )

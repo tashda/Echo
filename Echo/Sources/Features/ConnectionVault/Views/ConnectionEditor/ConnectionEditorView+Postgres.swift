@@ -146,47 +146,44 @@ extension ConnectionEditorView {
         }
     }
 
-    /// In Security and timeouts, only for Kerberos (KS1).
+    /// Under the ticket in Sign In, only for Kerberos (KS1): the service in the server's Kerberos
+    /// name (service/host); postgres unless the DBA set another.
     @ViewBuilder
     var kerberosServiceRow: some View {
         if selectedDatabaseType == .postgresql && authenticationMethod == .kerberos {
-            PropertyRow(title: "Kerberos Service", info: "The service in the server's Kerberos name (service/host). It is postgres unless your DBA set another.") {
+            InsetRow("Service") {
                 TextField("", text: $kerberosServiceName, prompt: Text("postgres"))
-                    .textFieldStyle(.plain)
-                    .multilineTextAlignment(.trailing)
             }
         }
     }
 
     // MARK: - Certificates
 
-    /// CA certificate (Verify modes), client certificate and key, and the key password when the
-    /// key needs one; a .p12/.pfx file fills both certificate rows.
+    /// In Security (SL1): the CA certificate (Verify modes), the client certificate and, once one
+    /// is chosen, its key and the key password when the key needs one; a .p12/.pfx file holds
+    /// both certificate and key.
     @ViewBuilder
     var postgresCertificateRows: some View {
         if tlsMode == .verifyCA || tlsMode == .verifyFull {
-            certificateFileRow("CA Certificate", info: "The certificate of the authority that signed the server's certificate (PEM).",
-                               path: $sslRootCertPath, extensions: ["pem", "crt", "cer"])
+            certificateFileRow("CA certificate", path: $sslRootCertPath, extensions: ["pem", "crt", "cer"])
         }
         if tlsMode != .disable {
-            certificateFileRow("Client Certificate", info: "Your certificate for signing in with a certificate: a PEM file with a separate key, or a .p12/.pfx file that holds both.",
-                               path: $sslCertPath, extensions: ["pem", "crt", "cer", "p12", "pfx"])
-            if !ClientCertificateFiles.isBundle(sslCertPath) {
-                certificateFileRow("Client Key", info: "The private key for the client certificate (PEM or DER).",
-                                   path: $sslKeyPath, extensions: ["key", "pem", "der"])
-            }
-            if keyNeedsPassword {
-                keyPasswordRow
+            certificateFileRow("Client certificate", path: $sslCertPath, extensions: ["pem", "crt", "cer", "p12", "pfx"])
+            if let certificate = sslCertPath, !certificate.isEmpty {
+                if !ClientCertificateFiles.isBundle(certificate) {
+                    certificateFileRow("Client key", path: $sslKeyPath, extensions: ["key", "pem", "der"])
+                }
+                if keyNeedsPassword {
+                    keyPasswordRow
+                }
             }
         }
     }
 
     private var keyPasswordRow: some View {
         Group {
-            PropertyRow(title: "Key Password", info: "The password that protects the key\(ClientCertificateFiles.isBundle(sslCertPath) ? " file" : ""). Echo keeps it in your Keychain, like the connection's password.") {
-                SecureField("", text: $keyPassword, prompt: Text(hasSavedKeyPassword && !keyPasswordDirty ? "••••••••" : "password"))
-                    .textFieldStyle(.plain)
-                    .multilineTextAlignment(.trailing)
+            InsetRow("Key password") {
+                SecureField("", text: $keyPassword, prompt: Text(hasSavedKeyPassword && !keyPasswordDirty ? "Saved in Keychain" : "password"))
                     .focused($focusedField, equals: .keyPassword)
                     .onChange(of: keyPassword) { _, newValue in
                         if !newValue.isEmpty { keyPasswordDirty = true }
@@ -199,43 +196,6 @@ extension ConnectionEditorView {
                     .listRowSeparator(.hidden)
             }
         }
-    }
-
-    private func certificateFileRow(_ title: String, info: String, path: Binding<String?>, extensions: [String]) -> some View {
-        PropertyRow(title: title, info: info) {
-            HStack(spacing: SpacingTokens.xs) {
-                if let value = path.wrappedValue, !value.isEmpty {
-                    Label(URL(fileURLWithPath: value).lastPathComponent, systemImage: "doc")
-                        .font(TypographyTokens.formValue)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .help(value)
-                    Button {
-                        path.wrappedValue = nil
-                    } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundStyle(ColorTokens.Text.tertiary)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Remove")
-                } else {
-                    Text("None").font(TypographyTokens.formValue).foregroundStyle(ColorTokens.Text.tertiary)
-                }
-                Button("Choose…") { chooseCertificateFile(into: path, extensions: extensions) }
-                    .controlSize(.small)
-            }
-        }
-    }
-
-    private func chooseCertificateFile(into path: Binding<String?>, extensions: [String]) {
-        #if os(macOS)
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = extensions.compactMap { UTType(filenameExtension: $0) } + [.item]
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        if panel.runModal() == .OK, let url = panel.url {
-            path.wrappedValue = url.path
-        }
-        #endif
     }
 
     /// Re-reads whether the key needs a password after a file changes.
@@ -273,20 +233,5 @@ extension ConnectionEditorView {
     /// The key password a test uses: the one typed, else the saved one.
     var keyPasswordForTest: String? {
         keyNeedsPassword && keyPasswordDirty ? keyPassword : nil
-    }
-
-    /// The disclosure summary's PostgreSQL part: "2 servers · Primary · TLS prefer · Kerberos · 30 s".
-    func postgresSummary(timeout: String) -> String {
-        var parts: [String] = []
-        let servers = additionalHosts.filter { !$0.host.trimmingCharacters(in: .whitespaces).isEmpty }.count
-        if servers > 0 {
-            parts.append("\(servers + 1) servers")
-            parts.append(targetSessionAttributes.shortName)
-        }
-        parts.append("TLS \(tlsMode.shortName.lowercased())")
-        if authenticationMethod == .kerberos { parts.append("Kerberos") }
-        if tlsMode != .disable, sslCertPath != nil { parts.append("client certificate") }
-        parts.append(timeout)
-        return parts.joined(separator: " · ")
     }
 }

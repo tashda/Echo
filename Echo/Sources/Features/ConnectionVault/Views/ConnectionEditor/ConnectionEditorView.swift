@@ -102,7 +102,9 @@ struct ConnectionEditorView: View {
     @State internal var isShowingAppearance = false
     @AppStorage("connectionEditor.lastEngine") internal var lastEngineRawValue = DatabaseType.postgresql.rawValue
     @FocusState internal var focusedField: EditorField?
-    @AppStorage("connectionEditor.optionsExpanded") internal var optionsExpanded = false
+    /// Round MC (SL1): whether Security and Behaviour are open, remembered separately.
+    @AppStorage("connectionEditor.securityExpanded") internal var securityExpanded = false
+    @AppStorage("connectionEditor.behaviourExpanded") internal var behaviourExpanded = false
 
     internal let originalConnection: SavedConnection?
     internal let isQuickConnect: Bool

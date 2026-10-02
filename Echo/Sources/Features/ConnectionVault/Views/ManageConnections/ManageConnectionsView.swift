@@ -22,12 +22,13 @@ struct ManageConnectionsView: View {
     @State internal var searchText = ""
     @State internal var connectionSelection = Set<SavedConnection.ID>()
     @State internal var identitySelection = Set<SavedIdentity.ID>()
-    @State internal var connectionSortOrder = [KeyPathComparator(\SavedConnection.connectionName, comparator: .localizedStandard)]
+    @State internal var connectionSortOrder = [KeyPathComparator(\ConnectionTableItem.name, comparator: .localizedStandard)]
     @State internal var identitySortOrder = [KeyPathComparator(\SavedIdentity.name, comparator: .localizedStandard)]
     @State internal var sidebarVisibility: NavigationSplitViewVisibility = .all
 
     // MARK: Editing
-    @State internal var isPresentingNewConnection = false
+    /// R2-B (NB1): a new connection is being made in the pane.
+    @State internal var isCreatingConnection = false
     @State internal var isCreatingIdentity = false
     /// Whether the editor in the right column has unsaved changes.
     @State internal var detailHasChanges = false
@@ -48,6 +49,10 @@ struct ManageConnectionsView: View {
     @State internal var folderNameRequest: FolderNameRequest?
     @State internal var folderNameDraft = ""
     @State internal var pendingFolderDeletion: SavedFolder?
+    /// Folder headings closed in the list and table (R2-G).
+    @State internal var collapsedGroupIDs = Set<UUID>()
+    /// The table's inspector was closed by hand; it opens again on the next selection (R2-A).
+    @State internal var isInspectorDismissed = false
 
     // MARK: Projects
     @State internal var isShowingProjectSettings = false
@@ -85,7 +90,7 @@ struct ManageConnectionsView: View {
         if initialProjectID != nil { _isShowingProjectSettings = State(initialValue: true) }
         if let initialConnectionID { _connectionSelection = State(initialValue: [initialConnectionID]) }
         // The server trail's New Connection (round 52) opens the sheet at once.
-        if startsNewConnection { _isPresentingNewConnection = State(initialValue: true) }
+        if startsNewConnection { _isCreatingConnection = State(initialValue: true) }
     }
 
     internal var activeScope: ManageScope { scope ?? .allConnections }
@@ -96,22 +101,11 @@ struct ManageConnectionsView: View {
     }
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $sidebarVisibility) {
-            sidebar
-                .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
-        } content: {
-            contentColumn
-                .navigationSplitViewColumnWidth(min: 300, ideal: viewMode == .table ? 560 : 380, max: viewMode == .table ? 900 : 460)
-        } detail: {
-            detailColumn
-                .navigationSplitViewColumnWidth(min: 400, ideal: 460)
-        }
+        splitView
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 920, minHeight: 560)
         .navigationTitle(scopeTitle)
         .navigationSubtitle(countText)
-        .searchable(text: $searchText, placement: .toolbar, prompt: activeScope.isConnections ? "Search connections" : "Search identities")
-        .toolbar { toolbarContent }
         .preferredColorScheme(appearanceStore.effectiveColorScheme)
         .onReceive(NotificationCenter.default.publisher(for: .toggleManageConnectionsSidebar)) { _ in
             withAnimation {
@@ -121,16 +115,71 @@ struct ManageConnectionsView: View {
         .onChange(of: projectStore.selectedProject?.id) { _, _ in resetForProjectChange() }
         .onChange(of: connectionStore.connections.map(\.id)) { _, ids in connectionSelection.formIntersection(Set(ids)) }
         .onChange(of: connectionStore.identities.map(\.id)) { _, ids in identitySelection.formIntersection(Set(ids)) }
+        .onChange(of: connectionSelection) { _, _ in isInspectorDismissed = false }
+        .onChange(of: identitySelection) { _, _ in isInspectorDismissed = false }
         .modifier(ManageConnectionsSheets(view: self))
         .modifier(ManageConnectionsAlerts(view: self))
         .modifier(ManageConnectionsFolderAlerts(view: self))
+    }
+
+    // MARK: Layout (R2-A, PA1)
+
+    /// List mode: three columns, the editor always beside the list. Table mode: the table takes
+    /// the whole width and the editor slides in as an inspector when one row is selected.
+    @ViewBuilder
+    private var splitView: some View {
+        if viewMode == .table {
+            NavigationSplitView(columnVisibility: $sidebarVisibility) {
+                sidebar
+                    .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
+            } detail: {
+                contentWithChrome
+                    .inspector(isPresented: inspectorBinding) {
+                        detailColumn
+                            .inspectorColumnWidth(min: 380, ideal: 440, max: 560)
+                    }
+            }
+        } else {
+            NavigationSplitView(columnVisibility: $sidebarVisibility) {
+                sidebar
+                    .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
+            } content: {
+                contentWithChrome
+                    .navigationSplitViewColumnWidth(min: 300, ideal: 380, max: 460)
+            } detail: {
+                detailColumn
+                    .navigationSplitViewColumnWidth(min: 400, ideal: 460)
+            }
+        }
+    }
+
+    /// R2-C (TB1): the list's own controls (view switch, add, search) sit over the list, so
+    /// nothing crosses the line between the list and the editor.
+    private var contentWithChrome: some View {
+        contentColumn
+            .searchable(text: $searchText, placement: .toolbar, prompt: activeScope.isConnections ? "Search connections" : "Search identities")
+            .toolbar { toolbarContent }
+    }
+
+    /// The table's inspector shows one selected row, or a new connection or identity.
+    private var inspectorBinding: Binding<Bool> {
+        Binding(
+            get: {
+                guard !isInspectorDismissed else { return false }
+                if activeScope.isConnections { return isCreatingConnection || connectionSelection.count == 1 }
+                return isCreatingIdentity || identitySelection.count == 1
+            },
+            set: { shown in
+                if !shown { isInspectorDismissed = true }
+            }
+        )
     }
 
     // MARK: Toolbar
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItem(placement: .automatic) {
             Picker("View", selection: Binding(get: { viewMode }, set: { viewMode = $0 })) {
                 Label("List", systemImage: "list.bullet").tag(ConnectionsViewMode.list)
                 Label("Table", systemImage: "tablecells").tag(ConnectionsViewMode.table)
@@ -139,7 +188,7 @@ struct ManageConnectionsView: View {
             .labelStyle(.iconOnly)
             .help("Show as a list or a table")
         }
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItem(placement: .automatic) {
             Menu {
                 Button {
                     navigate(to: .newConnection)
@@ -155,7 +204,7 @@ struct ManageConnectionsView: View {
                 .keyboardShortcut("n", modifiers: [.command, .option])
                 Divider()
                 Button {
-                    beginNewFolder(parentID: currentFolderID)
+                    beginNewFolder(kind: currentFolderKind, parentID: currentFolderID)
                 } label: {
                     Label("New Folder…", systemImage: "folder.badge.plus")
                 }
@@ -175,7 +224,7 @@ struct ManageConnectionsView: View {
             let count = scopedConnections.count
             return count == 1 ? "1 connection" : "\(count) connections"
         }
-        let count = projectIdentities.count
+        let count = scopedIdentities.count
         return count == 1 ? "1 identity" : "\(count) identities"
     }
 }
@@ -188,7 +237,6 @@ private struct ManageConnectionsSheets: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .sheet(isPresented: view.$isPresentingNewConnection) { view.newConnectionSheet }
             .sheet(isPresented: view.$isShowingProjectSettings) { view.projectSettingsSheet }
             .sheet(isPresented: view.$showExportSheet) { view.exportSheet }
             .sheet(isPresented: view.$showImportSheet) { view.importSheet }

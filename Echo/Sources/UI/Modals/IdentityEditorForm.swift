@@ -39,6 +39,7 @@ struct IdentityDraft: Equatable {
     func save(
         over existing: SavedIdentity?,
         projectID: UUID?,
+        folderID: UUID? = nil,
         environmentState: EnvironmentState,
         connectionStore: ConnectionStore
     ) async -> SavedIdentity {
@@ -61,6 +62,7 @@ struct IdentityDraft: Equatable {
                 domain: trimmedDomain.isEmpty ? nil : trimmedDomain,
                 keychainIdentifier: "echo.identity.\(UUID().uuidString)"
             )
+            identity.folderID = folderID
         }
 
         let trimmedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)

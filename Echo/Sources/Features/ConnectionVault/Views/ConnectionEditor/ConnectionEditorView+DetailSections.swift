@@ -83,6 +83,7 @@ extension ConnectionEditorView {
 
             if authenticationMethod == .kerberos {
                 kerberosTicketRow
+                kerberosServiceRow
             }
 
             if authenticationMethod.usesPassword {
@@ -136,66 +137,5 @@ extension ConnectionEditorView {
 
     private var selectedIdentityName: String {
         connectionStore.identities.first(where: { $0.id == identityID })?.name ?? "Choose"
-    }
-
-    /// The timeout rows, shown inside the Security & limits disclosure.
-    var advancedRows: some View {
-        Group {
-            PropertyRow(title: "Connection Timeout") {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField(
-                        "",
-                        value: $connectionTimeout,
-                        format: .number.grouping(.never),
-                        prompt: Text("30")
-                    )
-                    .textFieldStyle(.plain)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 60)
-                    Text("seconds")
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                }
-            }
-
-            PropertyRow(title: "Keep Query History", info: "Runs on this connection are stored in Query History. Existing history can be cleared in Settings › Cache.") {
-                Toggle("", isOn: $keepsQueryHistory)
-                    .labelsHidden().toggleStyle(.switch)
-            }
-
-            PropertyRow(
-                title: "Query Time Limit",
-                info: "Stops a statement that runs longer than this. Empty uses Settings › Databases › Query time limit; 0 means no limit."
-            ) {
-                HStack(spacing: SpacingTokens.xs) {
-                    TextField(
-                        "",
-                        value: $queryTimeLimit,
-                        format: .number.grouping(.never),
-                        prompt: Text("Default")
-                    )
-                    .textFieldStyle(.plain)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 60)
-                    Text("seconds")
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                }
-            }
-
-            PropertyRow(
-                title: "Confirm Unguarded Writes",
-                info: "Asks before an UPDATE or DELETE without a WHERE runs on this connection. Settings › Databases sets the default for every connection."
-            ) {
-                Picker("", selection: $confirmUnguardedWrites) {
-                    Text("Default").tag(Bool?.none)
-                    Text("Always").tag(Bool?.some(true))
-                    Text("Never").tag(Bool?.some(false))
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .fixedSize()
-            }
-        }
     }
 }

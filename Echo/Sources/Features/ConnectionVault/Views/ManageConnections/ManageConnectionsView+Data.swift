@@ -42,11 +42,13 @@ extension ManageConnectionsView {
         case .recentConnections:
             items = recentConnections
         case .folder(let folderID):
-            items = projectConnections
-                .filter { connectionStore.effectiveFolderID(of: $0) == folderID }
-                .sorted(using: connectionSortOrder)
+            // The folder and everything inside it; the list groups them by subfolder.
+            let inside = connectionStore.descendantFolderIDs(of: folderID).union([folderID])
+            items = sortedConnections(projectConnections.filter {
+                connectionStore.effectiveFolderID(of: $0).map(inside.contains) ?? false
+            })
         default:
-            items = projectConnections.sorted(using: connectionSortOrder)
+            items = sortedConnections(projectConnections)
         }
         if let query = normalizedQuery {
             items = items.filter { connectionMatches($0, query: query) }
@@ -54,8 +56,17 @@ extension ManageConnectionsView {
         return items
     }
 
+    /// Sorted the way the table's columns say.
+    func sortedConnections(_ connections: [SavedConnection]) -> [SavedConnection] {
+        connections.map { ConnectionTableItem.connection($0) }.sorted(using: connectionSortOrder).compactMap(\.connection)
+    }
+
     var scopedIdentities: [SavedIdentity] {
         var items = projectIdentities.sorted(using: identitySortOrder)
+        if case .identityFolder(let folderID) = activeScope {
+            let inside = connectionStore.descendantFolderIDs(of: folderID).union([folderID])
+            items = items.filter { connectionStore.effectiveFolderID(of: $0).map(inside.contains) ?? false }
+        }
         if let query = normalizedQuery {
             items = items.filter {
                 $0.name.lowercased().contains(query) || $0.username.lowercased().contains(query)
