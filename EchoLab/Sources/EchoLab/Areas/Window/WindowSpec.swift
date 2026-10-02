@@ -69,13 +69,17 @@ enum WindowSpec {
                         .row("Scrolls", "when the servers don't fit; bounces only when it must")),
                 .motion(.row("A server joins or leaves", "grows and shrinks, house spring, 0.45s")),
             ], rounds: [railRound], files: [rail]),
-            SpecElement(number: "2.3", name: "Server item", summary: "A two-letter monogram.", groups: [
+            SpecElement(number: "2.3", name: "Server item", summary: "A two-letter monogram, or the symbol or emoji the user chose for the server.", groups: [
                 .layout(.row("Size", "28 · 34 (default) · 40pt, a setting", token: "RailItemSize.points")),
                 .type(.row("Monogram", "37% of the size: 12.5pt at 34pt, rounded design", token: "LayoutTokens.Rail.monogramFontRatio"),
                       .row("Unselected", "semibold, secondary; primary while hovered"), .row("Selected", "bold, in the server's colour"),
                       .row("Server Header Color: Server's Color", "always in the server's colour, bold when selected (round 30.1, CO1); the colour is read live, so one set from the header's menu shows at once", token: "ServerRailItem.isAlwaysColored")),
                 .behaviour(.row("Letters", "numbers-only words: the last two digits; two words: their initials; a name ending in two digits: those digits; otherwise its first two letters", token: "ServerRailMonogram.make"),
-                           .row("Tooltip", "name · host, then Connecting…, Connection lost: reason, or N queries running", token: "ServerRailEntry.tooltip"),
+                           .row("Name bubble (round 51, NM1)", "hover shows a glass bubble to the right of the item at once, over the tree and taking no clicks: the name semibold, the product line secondary, and a third line for Connecting, Connection lost: reason, or N queries running. It replaces the system tooltip; VoiceOver reads the item's label and value. Closed trail only", token: "ServerRailNameBubble / ServerRail+Appearance"),
+                           .row("Own symbol or emoji (round 51, TI0, CU2)", "set on the connection (railSymbol or railEmoji); it replaces the letters in the same place and size: an emoji as text at 46% of the item, an SF Symbol at 40%, semibold, always in the server's colour", token: "ServerRailMark / LayoutTokens.Rail.glyphSymbolRatio, glyphEmojiRatio"),
+                           .row("Customize Appearance (round 51, WH2)", "the item's right-click menu opens a popover at the item with the colour swatches (the connection sheet's palette and colour picker), a grid of 12 symbols and 8 emoji, and Reset to Automatic; each pick is saved at once. The connection sheet shows the same view", token: "ServerAppearanceControls / ServerAppearancePopover"),
+                           .row("Where the look shows (WS0)", "the trail, the Manage Connections list's Name column and the connection sheet's preview; not the tabs or the card header"),
+                           .row("Not built (SH5)", "minimised cards staying in the trail as dashed rings while their card leaves the list contradicts the closed card being the header only (TREE-2.1, CC0) and the one-server-at-a-time default; held for the owner's decision"),
                            .row("Why a monogram", "colour dots and engine badges were rejected")),
             ], rounds: [railRound], files: [rail]),
             SpecElement(number: "2.4", name: "Selection disc", summary: "An opaque capsule behind the selected monogram.", groups: [
@@ -91,7 +95,7 @@ enum WindowSpec {
                 .motion(.row("Opacity and size", "ease in-out, 0.7s half cycle, down to 15% and a slightly smaller monogram", token: "echoMotion.pulseHalfPeriod / EchoMotion.pulseMinimumOpacity")),
                 .states(.row("Reduce Motion", "still, at 40%", token: "LayoutTokens.Rail.lostOpacity")),
             ], files: [rail]),
-            SpecElement(number: "2.7", name: "Connection lost", summary: "The monogram dims; the tooltip says why.", groups: [
+            SpecElement(number: "2.7", name: "Connection lost", summary: "The monogram dims; the name bubble says why.", groups: [
                 .states(.row("Opacity", "40%", token: "LayoutTokens.Rail.lostOpacity")),
             ], files: [rail]),
             SpecElement(number: "2.8", name: "New connection button", summary: "A + at the end of the server pill.", groups: [

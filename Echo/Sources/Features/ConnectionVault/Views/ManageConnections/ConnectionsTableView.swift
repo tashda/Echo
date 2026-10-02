@@ -24,8 +24,19 @@ struct ConnectionsTableView: View {
             .width(32)
 
             TableColumn("Name", value: \.connectionName) { connection in
-                Text(displayName(for: connection))
-                    .font(TypographyTokens.Table.name)
+                HStack(spacing: SpacingTokens.xs) {
+                    // Round 51 (WS0): the server's look, as in the trail.
+                    ServerRailMark(
+                        monogram: ServerRailMonogram.make(from: displayName(for: connection)),
+                        glyph: connection.railGlyph,
+                        color: connection.color,
+                        weight: .bold,
+                        size: SpacingTokens.lg
+                    )
+                    .accessibilityHidden(true)
+                    Text(displayName(for: connection))
+                        .font(TypographyTokens.Table.name)
+                }
             }
 
             TableColumn("Server", value: \.host) { connection in

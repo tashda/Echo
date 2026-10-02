@@ -9,6 +9,15 @@ Branch: `claude/ecstatic-fermi-u1jxr6`, based on `dev`. See `current-state.md` f
 
 ---
 
+## Round 51 · Telling servers apart in the trail
+
+| # | Task | Files | Check | Status |
+|---|---|---|---|---|
+| S1 | A server's own symbol or emoji (`railSymbol`, `railEmoji`, backward compatible and synced), shown in the trail, the Manage Connections list and the connection sheet (TI0, CU2, WS0). | `SavedConnection`, `ServerRailGlyph`, `SyncAdapter`, `ServerRailMark`, `ServerRailItem`, `ConnectionsTableView` | Old data decodes as automatic; `ServerRailGlyphTests` | ☑ built, 👁 pending |
+| S2 | The glass name bubble at once beside a hovered trail item (NM1). | `ServerRailNameBubble`, `ServerRail+Appearance`, `ServerRailEntry` | Hover a server: bubble, no clicks lost | ☑ built, 👁 pending |
+| S3 | Customize Appearance: the item's menu opens a popover; the sheet shows the same controls (WH2). | `ServerAppearanceControls`, `ServerAppearancePopover`, `ConnectionEditorView+Detail` | Pick a symbol and an emoji; both places agree | ☑ built, 👁 pending |
+| S4 | Minimised cards as dashed rings in the trail, their card leaving the list (SH5). | | | ⏸ contradicts CC0 (header-only closed card) and one-at-a-time; owner to decide |
+
 ## Round 52 · The + button
 
 - 👁 #52: built (PR4, MP2, CT1, OP1, CX1, KB1, SM1): `ServerRail+ConnectTrail`, `ConnectTrail/`, File › Connect To and ⇧⌘K. Compiles; 7 `ConnectTrailListingTests` pass. Owner check pending in Echo (opening and closing motion, Return and Escape).

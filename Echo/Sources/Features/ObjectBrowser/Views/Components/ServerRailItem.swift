@@ -5,6 +5,8 @@ import SwiftUI
 /// bold when selected (round 30.1, CO1). A connecting server breathes; a lost one is dimmed.
 struct ServerRailItem: View {
     let monogram: String
+    /// The symbol or emoji the user chose, drawn in place of the monogram (round 51, TI0).
+    var glyph: ServerRailGlyph?
     let color: Color
     let status: ServerRailStatus
     let isSelected: Bool
@@ -15,21 +17,21 @@ struct ServerRailItem: View {
     @State private var isHovering = false
 
     var body: some View {
-        Text(monogram)
-            .font(.system(
-                size: size * LayoutTokens.Rail.monogramFontRatio,
-                weight: isSelected ? .bold : .semibold,
-                design: .rounded
-            ))
-            .foregroundStyle(foreground)
-            .opacity(status == .failed ? LayoutTokens.Rail.lostOpacity : 1)
-            .modifier(ServerRailBreathing(isActive: status == .connecting))
-            .frame(width: size, height: size)
-            .contentShape(Circle())
-            .onHover { isHovering = $0 }
-            .animation(motion.hover, value: isHovering)
-            .animation(motion.press, value: isSelected)
-            .animation(motion.standard, value: status)
+        ServerRailMark(
+            monogram: monogram,
+            glyph: glyph,
+            color: color,
+            letterColor: foreground,
+            weight: isSelected ? .bold : .semibold,
+            size: size
+        )
+        .opacity(status == .failed ? LayoutTokens.Rail.lostOpacity : 1)
+        .modifier(ServerRailBreathing(isActive: status == .connecting))
+        .contentShape(Circle())
+        .onHover { isHovering = $0 }
+        .animation(motion.hover, value: isHovering)
+        .animation(motion.press, value: isSelected)
+        .animation(motion.standard, value: status)
     }
 
     private var foreground: Color {

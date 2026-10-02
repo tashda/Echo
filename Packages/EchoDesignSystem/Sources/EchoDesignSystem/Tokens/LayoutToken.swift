@@ -63,6 +63,15 @@ public enum LayoutTokens {
         public static let selectionInset: CGFloat = 3
         /// Monogram point size as a share of the item size (12.5pt at the default 34pt).
         public static let monogramFontRatio: CGFloat = 0.37
+        /// A chosen SF Symbol's point size as a share of the item size, in place of the monogram
+        /// (round 51, TI0; 13.6pt at the default 34pt).
+        public static let glyphSymbolRatio: CGFloat = 0.4
+        /// A chosen emoji's point size as a share of the item size (round 51, TI0).
+        public static let glyphEmojiRatio: CGFloat = 0.46
+        /// Gap between a rail item and the name bubble that opens beside it (round 51, NM1).
+        public static let nameBubbleGap: CGFloat = SpacingTokens.xs
+        /// Size a name bubble starts from as it opens.
+        public static let nameBubbleEntryScale: CGFloat = 0.92
         /// Point size of the tool symbols.
         public static let toolSymbolSize: CGFloat = 13
         /// Gap between tool buttons inside the tool pill.

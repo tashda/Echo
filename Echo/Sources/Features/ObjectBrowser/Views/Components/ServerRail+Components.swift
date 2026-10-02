@@ -121,6 +121,7 @@ extension ServerRail {
         } label: {
             ServerRailItem(
                 monogram: ServerRailMonogram.make(from: entry.displayName),
+                glyph: connectionStore.currentGlyph(of: entry.connection),
                 color: connectionStore.currentColor(of: entry.connection),
                 status: status,
                 isSelected: isSelected,
@@ -135,7 +136,10 @@ extension ServerRail {
         .buttonStyle(.plain)
         .matchedGeometryEffect(id: entry.connectionID, in: trail)
         .focusable(false)
-        .help(entry.tooltip(runningQueryCount: runningQueryCount))
+        // The name bubble (round 51, NM1) replaces the tooltip; VoiceOver reads the label and value.
+        .onHover(perform: trackHover(of: entry, isActive: !drawsOwnDisc))
+        .anchorPreference(key: ServerRailItemBoundsKey.self, value: .bounds) { [entry.connectionID: $0] }
+        .popover(isPresented: customizingBinding(for: entry), arrowEdge: .trailing) { appearancePopover(for: entry) }
         .lazyContextMenu { menu(for: entry) }
         .accessibilityLabel(entry.displayName)
         .accessibilityValue(accessibilityValue(for: entry, runningQueryCount: runningQueryCount))
@@ -170,9 +174,13 @@ extension ServerRail {
     func menu(for entry: ServerRailEntry) -> NSMenu {
         switch entry {
         case .session(let session):
-            return bridge.sessionMenu?(session) ?? NSMenu()
+            let menu = bridge.sessionMenu?(session) ?? NSMenu()
+            addAppearanceItem(to: menu, for: entry)
+            return menu
         case .pending(let pending):
-            return bridge.pendingMenu?(pending) ?? NSMenu()
+            let menu = bridge.pendingMenu?(pending) ?? NSMenu()
+            addAppearanceItem(to: menu, for: entry)
+            return menu
         }
     }
 

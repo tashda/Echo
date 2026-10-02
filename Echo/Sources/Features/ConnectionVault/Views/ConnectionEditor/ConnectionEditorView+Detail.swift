@@ -138,44 +138,17 @@ extension ConnectionEditorView {
                         credentialSource = .manual
                     }
                 }
-                PropertyRow(title: "Color") { colorSwatches }
+                ServerAppearanceControls(name: appearanceName, colorHex: $colorHex, glyph: $railGlyph)
             }
         } header: {
             if !isQuickConnect { Text("Saved As") }
         }
     }
 
-    private var colorSwatches: some View {
-        HStack(spacing: SpacingTokens.xs) {
-            ForEach(Self.colorPalette, id: \.self) { hex in
-                let swatch = Color(hex: hex) ?? .accentColor
-                colorSwatch(color: swatch, isSelected: colorHex.uppercased() == hex.uppercased())
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.15)) { colorHex = hex.uppercased() }
-                    }
-            }
-            ColorPicker("", selection: colorBinding, supportsOpacity: false)
-                .labelsHidden()
-        }
-    }
-
-    private func colorSwatch(color: Color, isSelected: Bool) -> some View {
-        Circle().fill(color).frame(width: SpacingTokens.md2, height: SpacingTokens.md2)
-            .overlay {
-                if isSelected {
-                    Circle()
-                        .strokeBorder(ColorTokens.accent, lineWidth: SpacingTokens.xxxs)
-                        .padding(-SpacingTokens.nano)
-                }
-            }
-            .contentShape(Circle())
-    }
-
-    internal var colorBinding: Binding<Color> {
-        Binding(
-            get: { Color(hex: colorHex) ?? .accentColor },
-            set: { color in colorHex = color.toHex() ?? colorHex }
-        )
+    /// The name the appearance preview takes its letters from: the name, else the server.
+    private var appearanceName: String {
+        let trimmed = connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? host : trimmed
     }
 
     /// An inline message under a field that stops the form from saving (never a disabled button).

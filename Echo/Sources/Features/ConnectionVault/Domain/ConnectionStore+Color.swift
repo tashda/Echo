@@ -6,4 +6,17 @@ extension ConnectionStore {
     func currentColor(of connection: SavedConnection) -> Color {
         connections.first { $0.id == connection.id }?.color ?? connection.color
     }
+
+    /// A server's symbol or emoji as saved now, read here for the same reason as the colour.
+    func currentGlyph(of connection: SavedConnection) -> ServerRailGlyph? {
+        (connections.first { $0.id == connection.id } ?? connection).railGlyph
+    }
+
+    /// Saves the colour and the symbol or emoji the user chose for a server (round 51, WH2).
+    func updateAppearance(of connectionID: UUID, colorHex: String, glyph: ServerRailGlyph?) async throws {
+        guard var connection = connections.first(where: { $0.id == connectionID }) else { return }
+        connection.colorHex = colorHex
+        connection.railGlyph = glyph
+        try await updateConnection(connection)
+    }
 }

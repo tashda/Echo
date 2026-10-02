@@ -153,6 +153,10 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
     var databaseType: DatabaseType
     var serverVersion: String?
     var colorHex: String
+    /// Round 51 (CU2): an SF Symbol or an emoji that replaces the letters in the server trail, the
+    /// connection list and the sheet. Nil for both means the letters (see `railGlyph`).
+    var railSymbol: String?
+    var railEmoji: String?
     var logo: Data?
     var cachedStructure: DatabaseStructure?
     var cachedStructureUpdatedAt: Date?
@@ -207,6 +211,8 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         case databaseType
         case serverVersion
         case colorHex
+        case railSymbol
+        case railEmoji
         case logo
         case cachedStructure
         case cachedStructureUpdatedAt
@@ -245,6 +251,8 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         databaseType: DatabaseType = .postgresql,
         serverVersion: String? = nil,
         colorHex: String = "",
+        railSymbol: String? = nil,
+        railEmoji: String? = nil,
         logo: Data? = nil,
         cachedStructure: DatabaseStructure? = nil,
         cachedStructureUpdatedAt: Date? = nil
@@ -280,6 +288,8 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         self.databaseType = databaseType
         self.serverVersion = serverVersion
         self.colorHex = colorHex
+        self.railSymbol = railSymbol
+        self.railEmoji = railEmoji
         self.logo = logo
         self.cachedStructure = cachedStructure
         self.cachedStructureUpdatedAt = cachedStructureUpdatedAt
@@ -322,6 +332,8 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         databaseType = try container.decodeIfPresent(DatabaseType.self, forKey: .databaseType) ?? .postgresql
         serverVersion = try container.decodeIfPresent(String.self, forKey: .serverVersion)
         colorHex = try container.decodeIfPresent(String.self, forKey: .colorHex) ?? ""
+        railSymbol = try? container.decodeIfPresent(String.self, forKey: .railSymbol)
+        railEmoji = try? container.decodeIfPresent(String.self, forKey: .railEmoji)
         logo = try container.decodeIfPresent(Data.self, forKey: .logo)
         cachedStructure = try container.decodeIfPresent(DatabaseStructure.self, forKey: .cachedStructure)
         cachedStructureUpdatedAt = try container.decodeIfPresent(Date.self, forKey: .cachedStructureUpdatedAt)
@@ -365,6 +377,8 @@ struct SavedConnection: Identifiable, Codable, Hashable, Sendable {
         try container.encode(databaseType, forKey: .databaseType)
         try container.encodeIfPresent(serverVersion, forKey: .serverVersion)
         try container.encode(colorHex, forKey: .colorHex)
+        try container.encodeIfPresent(railSymbol, forKey: .railSymbol)
+        try container.encodeIfPresent(railEmoji, forKey: .railEmoji)
         try container.encodeIfPresent(logo, forKey: .logo)
         try container.encodeIfPresent(cachedStructure, forKey: .cachedStructure)
         try container.encodeIfPresent(cachedStructureUpdatedAt, forKey: .cachedStructureUpdatedAt)

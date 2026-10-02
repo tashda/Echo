@@ -58,6 +58,8 @@ struct ConnectionEditorView: View {
     @State internal var confirmUnguardedWrites: Bool?
     @State internal var keepsQueryHistory = true
     @State internal var colorHex: String
+    /// The symbol or emoji chosen for the server (round 51, CU2).
+    @State internal var railGlyph: ServerRailGlyph?
     /// Round 23: several PostgreSQL servers (FH1), which to use (FT1), and load balancing from a
     /// pasted URL (FL1).
     @State internal var additionalHosts: [ConnectionHost]
@@ -153,6 +155,7 @@ struct ConnectionEditorView: View {
         _loadBalanceHosts = State(initialValue: model.loadBalanceHosts)
         _kerberosServiceName = State(initialValue: model.kerberosServiceName ?? "")
         _colorHex = State(initialValue: model.colorHex.isEmpty ? (ConnectionEditorView.colorPalette.first ?? "") : model.colorHex)
+        _railGlyph = State(initialValue: model.railGlyph)
     }
 
     internal var currentColor: Color {

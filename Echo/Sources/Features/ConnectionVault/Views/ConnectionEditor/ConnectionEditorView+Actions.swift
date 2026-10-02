@@ -73,6 +73,8 @@ extension ConnectionEditorView {
             databaseType: selectedDatabaseType,
             serverVersion: originalConnection?.serverVersion,
             colorHex: colorHex,
+            railSymbol: ServerRailGlyph.storedFields(of: railGlyph).symbol,
+            railEmoji: ServerRailGlyph.storedFields(of: railGlyph).emoji,
             logo: generatedLogo,
             cachedStructure: originalConnection?.cachedStructure,
             cachedStructureUpdatedAt: originalConnection?.cachedStructureUpdatedAt

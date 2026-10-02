@@ -26,6 +26,10 @@ struct ServerRail: View {
 
     /// Keeps the selection on a server the user just clicked while the tree scrolls to it.
     @State var clickedConnectionID: UUID?
+    /// The trail item the pointer is on, for the name bubble (round 51, NM1).
+    @State var hoveredServerID: UUID?
+    /// The trail item whose Customize Appearance popover is open (round 51, WH2).
+    @State var customizingServerID: UUID?
     /// Top and bottom edges of the selection disc, animated separately for the liquid stretch.
     @State var selectionTop: CGFloat = 0
     @State var selectionBottom: CGFloat = 0
@@ -46,6 +50,8 @@ struct ServerRail: View {
         // The opened trail is wider than the column: it overflows to the right over the tree.
         .frame(width: LayoutTokens.Rail.width(itemSize: itemSize), alignment: .leading)
         .frame(maxHeight: .infinity)
+        // Beside the hovered item, over the tree (round 51).
+        .overlayPreferenceValue(ServerRailItemBoundsKey.self) { nameBubble(for: $0, entries: entries) }
         .animation(motion.standard, value: entryIDs)
         // Opening springs; closing settles with no overshoot, so the shrinking glass never passes
         // under the server circles it returns to.

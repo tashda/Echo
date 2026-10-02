@@ -52,24 +52,31 @@ enum ServerRailEntry: Identifiable {
         }
     }
 
-    /// The rail's tooltip: name and host, then the connection's state or its running queries.
-    /// The rail itself shows only connecting and lost (Design/05-components.md › Server rail).
-    @MainActor func tooltip(runningQueryCount: Int) -> String {
-        let host = connection.host
-        var lines = [displayName == host || host.isEmpty ? displayName : "\(displayName) · \(host)"]
+    /// The product and release, as the server header says it (round 51, NM1).
+    @MainActor var productLine: String {
+        switch self {
+        case .session(let session):
+            return ServerProductLabel.label(
+                rawVersion: session.databaseStructure?.serverVersion ?? session.connection.serverVersion,
+                databaseType: session.connection.databaseType
+            )
+        case .pending(let pending):
+            return ServerProductLabel.label(rawVersion: pending.connection.serverVersion, databaseType: pending.connection.databaseType)
+        }
+    }
+
+    /// The line the name bubble adds under the product when something needs saying: the server is
+    /// connecting, the connection was lost, or queries are running. A healthy idle server has none.
+    @MainActor func statusLine(runningQueryCount: Int) -> String? {
         switch status {
         case .connecting:
-            lines.append("Connecting…")
+            return "Connecting"
         case .failed:
-            lines.append(failureReason.map { "Connection lost: \($0)" } ?? "Connection lost")
+            return failureReason.map { "Connection lost: \($0)" } ?? "Connection lost"
         case .ready:
-            if runningQueryCount == 1 {
-                lines.append("1 query running")
-            } else if runningQueryCount > 1 {
-                lines.append("\(runningQueryCount) queries running")
-            }
+            if runningQueryCount == 1 { return "1 query running" }
+            return runningQueryCount > 1 ? "\(runningQueryCount) queries running" : nil
         }
-        return lines.joined(separator: "\n")
     }
 
     @MainActor var status: ServerRailStatus {

@@ -42,6 +42,8 @@ struct SyncAdapter: Sendable {
         fields["confirmUnguardedWrites"] = try field(connection.confirmUnguardedWrites, hlc: hlc)
         fields["databaseType"] = try field(connection.databaseType, hlc: hlc)
         fields["colorHex"] = try field(connection.colorHex, hlc: hlc)
+        fields["railSymbol"] = try field(connection.railSymbol, hlc: hlc)
+        fields["railEmoji"] = try field(connection.railEmoji, hlc: hlc)
         fields["explorerDockSections"] = try field(connection.explorerDockSections, hlc: hlc)
 
         // Excluded from sync (Phase 2): keychainIdentifier, logo, cachedStructure,
@@ -93,6 +95,8 @@ struct SyncAdapter: Sendable {
         if let v: Bool? = try optionalValue(doc, "confirmUnguardedWrites") { conn.confirmUnguardedWrites = v }
         if let v: DatabaseType = try value(doc, "databaseType") { conn.databaseType = v }
         if let v: String = try value(doc, "colorHex") { conn.colorHex = v }
+        if let v: String? = try optionalValue(doc, "railSymbol") { conn.railSymbol = v }
+        if let v: String? = try optionalValue(doc, "railEmoji") { conn.railEmoji = v }
         if let v: [String]? = try optionalValue(doc, "explorerDockSections") { conn.explorerDockSections = v }
 
         return conn

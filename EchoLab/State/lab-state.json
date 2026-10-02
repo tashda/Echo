@@ -3834,6 +3834,10 @@
       {
         "date": "2026-10-02T08:00:45Z",
         "text": "Taken by claude-sonnet-rail"
+      },
+      {
+        "date": "2026-10-02T08:20:28Z",
+        "text": "Built into Echo: own symbol or emoji on the connection (trail, Manage Connections list, connection sheet), glass name bubble on hover, Customize Appearance popover with the same controls as the sheet. SH5 (dashed rings, cards leaving the list) not built: it contradicts the header-only closed card (CC0) and one-at-a-time; owner to decide."
       }
     ],
     "needsMore": [],
@@ -3851,13 +3855,20 @@
     },
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Accepted",
-    "takenBy": {
-      "agent": "claude-sonnet-rail",
-      "date": "2026-10-02T08:00:45Z",
-      "status": "Accepted"
-    },
-    "verdicts": {}
+    "status": "In Echo",
+    "verdicts": {},
+    "verification": {
+      "checks": [
+        "Hover a server in the trail: a glass bubble with its name and product opens at once beside it, and clicks on the tree still work.",
+        "Right-click a server in the trail, Customize Appearance: a popover opens at the item with colour swatches, symbols and emoji, and Reset to Automatic.",
+        "Pick a symbol, then an emoji: the letters in the trail item are replaced right away (symbol in the server colour).",
+        "Open Edit Connection and Manage Connections: the sheet shows the same controls with a preview, and the list's Name column shows the server's mark.",
+        "Collapse a card with its chevron: it stays a header-only card in the list (SH5 is not built, your decision needed)."
+      ],
+      "done": [],
+      "shots": [],
+      "summary": "Trail items can carry a symbol or emoji, show a glass name bubble at once, and be customised from the right-click menu or the connection sheet; minimised-card rings are held back."
+    }
   },
   "ongoing.settings-controls-r43": {
     "comments": [
@@ -4124,7 +4135,7 @@
       "pillDot": "PD1 \u00b7 No dot; the pill is its words",
       "tabDot": "SD2 \u00b7 No dot; the tooltip and the window's header say which server"
     },
-    "reviewedRevision": 1,
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
