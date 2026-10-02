@@ -12,15 +12,19 @@ struct InsetRow<Content: View>: View {
         self.content = content
     }
 
+    // Built on LabeledContent so the grouped form lays out one label column and centres the
+    // field on the row; the field fills the rest, left-aligned (round MC visual fixes).
     var body: some View {
-        HStack(spacing: SpacingTokens.sm) {
-            Text(title)
-                .foregroundStyle(ColorTokens.Text.primary)
-                .frame(width: InsetRowMetrics.labelWidth, alignment: .leading)
+        LabeledContent {
             content()
+                .labelsHidden()
                 .textFieldStyle(.plain)
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
+        } label: {
+            Text(title)
+                .foregroundStyle(ColorTokens.Text.primary)
+                .frame(width: InsetRowMetrics.labelWidth, alignment: .leading)
         }
         .frame(minHeight: InsetRowMetrics.minHeight)
         .contentShape(Rectangle())

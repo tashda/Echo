@@ -74,7 +74,9 @@ extension ConnectionEditorView {
 
                 VStack(alignment: .leading, spacing: SpacingTokens.nano) {
                     TextField("", text: $connectionName, prompt: Text(namePrompt))
+                        .labelsHidden()
                         .textFieldStyle(.plain)
+                        .multilineTextAlignment(.leading)
                         .font(TypographyTokens.title3.weight(.semibold))
                         .focused($focusedField, equals: .name)
                     Text("Shows as \(railLabel) in the server trail")
@@ -130,8 +132,9 @@ extension ConnectionEditorView {
                     HStack(spacing: SpacingTokens.xs) {
                         TextField("", text: $host, prompt: Text("Host, or paste a connection URL"))
                             .focused($focusedField, equals: .host)
-                        Divider()
-                            .frame(height: SpacingTokens.md1)
+                        Rectangle()
+                            .fill(ColorTokens.Separator.primary)
+                            .frame(width: 1, height: SpacingTokens.sm2)
                         TextField("", value: $port, format: .number.grouping(.never), prompt: Text(verbatim: "\(selectedDatabaseType.defaultPort)"))
                             .multilineTextAlignment(.trailing)
                             .frame(width: ConnectionEditorHeaderMetrics.portWidth)

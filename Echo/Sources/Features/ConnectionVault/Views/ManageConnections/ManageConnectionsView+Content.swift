@@ -118,6 +118,8 @@ extension ManageConnectionsView {
         let selected = connectionStore.connections.filter { ids.contains($0.id) }
         if let connection = selected.first, selected.count == 1 {
             Button { connectToConnection(connection) } label: { Label("Connect", systemImage: "bolt.horizontal") }
+            Button { navigate(to: .connections([connection.id])) } label: { Label("Edit", systemImage: "pencil") }
+            Divider()
             Button { duplicateConnection(connection) } label: { Label("Duplicate", systemImage: "plus.square.on.square") }
             Divider()
             Button(role: .destructive) { pendingDeletion = .connection(connection) } label: { Label("Delete…", systemImage: "trash") }

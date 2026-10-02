@@ -5,6 +5,7 @@ import SwiftUI
 final class ManageConnectionsWindowController: NSWindowController, NSWindowDelegate {
     static let shared = ManageConnectionsWindowController()
     private static let toolbarIdentifier = NSToolbar.Identifier("ManageConnectionsToolbar")
+    private static let frameAutosaveName = "ManageConnectionsWindow"
 
     private var hostingController: PocketSeparatorHidingHostingController<ManageConnectionsWindowRootView>?
     private var isWindowLoadedOnce = false
@@ -31,7 +32,11 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         applyTheme(to: window)
 
         if !isWindowLoadedOnce {
-            window.center()
+            // The frame you leave the window at comes back next time; the first time it is centred.
+            if !window.setFrameUsingName(Self.frameAutosaveName) {
+                window.center()
+            }
+            window.setFrameAutosaveName(Self.frameAutosaveName)
             isWindowLoadedOnce = true
         }
 
@@ -50,9 +55,12 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
             self?.closeWindow()
         })
         let hosting = PocketSeparatorHidingHostingController(rootView: rootView)
+        // Round MC: SwiftUI only sets the minimum size. By default it also sets the window to the
+        // view's ideal size, which opened the window at its narrowest.
+        hosting.sizingOptions = [.minSize]
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1200, height: 700),
+            contentRect: NSRect(x: 0, y: 0, width: 1200, height: 720),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -70,6 +78,8 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         toolbar.displayMode = .iconOnly
         window.toolbar = toolbar
         window.contentViewController = hosting
+        // contentViewController resizes the window to the controller's view; put the size back.
+        window.setContentSize(NSSize(width: 1200, height: 720))
         window.delegate = self
         applyTheme(to: window)
         bindThemeUpdates(for: window)

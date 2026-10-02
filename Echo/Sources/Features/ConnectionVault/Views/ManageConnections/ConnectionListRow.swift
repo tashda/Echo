@@ -30,8 +30,10 @@ struct ConnectionListRow: View {
                     if hasDuplicateName { DuplicateNameDot() }
                 }
                 HStack(spacing: SpacingTokens.xxs) {
-                    EngineLabel(connection: connection, showsVersion: false)
-                    Text("·").foregroundStyle(ColorTokens.Text.tertiary)
+                    // The engine as its symbol only, so the server address gets the room.
+                    Image(connection.databaseType.iconName)
+                        .help(connection.databaseType.displayName)
+                        .accessibilityLabel(connection.databaseType.displayName)
                     ServerAddressText(connection: connection)
                     if !connection.database.isEmpty && connection.databaseType != .sqlite {
                         Text("·").foregroundStyle(ColorTokens.Text.tertiary)

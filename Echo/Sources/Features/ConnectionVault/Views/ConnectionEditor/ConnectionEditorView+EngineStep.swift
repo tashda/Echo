@@ -55,7 +55,20 @@ extension ConnectionEditorView {
             .background(ColorTokens.Background.tertiary, in: RoundedRectangle(cornerRadius: EngineTileMetrics.cornerRadius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: EngineTileMetrics.cornerRadius, style: .continuous)
-                    .strokeBorder(isLast ? ColorTokens.accent : ColorTokens.Text.primary.opacity(0.08), lineWidth: isLast ? 2 : 0.5)
+                    .strokeBorder(ColorTokens.Text.primary.opacity(0.08), lineWidth: 0.5)
+            }
+            .overlay(alignment: .bottomTrailing) {
+                // The last-used engine answers Return; a keycap says so instead of a ring that
+                // reads as a selection.
+                if isLast {
+                    Image(systemName: "return")
+                        .font(TypographyTokens.caption2.weight(.semibold))
+                        .foregroundStyle(ColorTokens.Text.secondary)
+                        .padding(.horizontal, SpacingTokens.xxs)
+                        .padding(.vertical, SpacingTokens.xxxs)
+                        .overlay(RoundedRectangle(cornerRadius: SpacingTokens.xxs, style: .continuous).strokeBorder(ColorTokens.Text.tertiary, lineWidth: 0.5))
+                        .padding(SpacingTokens.xs)
+                }
             }
             .overlay(alignment: .topTrailing) {
                 if type.isBeta {
@@ -81,7 +94,7 @@ extension ConnectionEditorView {
 
     private func tileCaption(_ type: DatabaseType, isLast: Bool) -> String {
         if type == .sqlite { return "A file on this Mac" }
-        return isLast ? "Used last · Return" : " "
+        return isLast ? "Used last" : " "
     }
 
     func chooseEngine(_ type: DatabaseType) {
@@ -97,9 +110,9 @@ extension ConnectionEditorView {
         HStack(spacing: SpacingTokens.xs) {
             Image(systemName: "link")
                 .foregroundStyle(ColorTokens.Text.secondary)
-            TextField("", text: $connectionString, selection: $connectionStringSelection, prompt: Text("Or paste a connection string"))
+            TextField("", text: $connectionString, selection: $connectionStringSelection, prompt: Text("Or paste a connection string").font(TypographyTokens.standard))
                 .textFieldStyle(.plain)
-                .font(TypographyTokens.standard.monospaced())
+                .font(connectionString.isEmpty ? TypographyTokens.standard : TypographyTokens.standard.monospaced())
                 .onSubmit(readConnectionString)
                 .onKeyPress(.tab) { selectNextConnectionStringPart() ? .handled : .ignored }
                 .onChange(of: connectionString) { oldValue, newValue in

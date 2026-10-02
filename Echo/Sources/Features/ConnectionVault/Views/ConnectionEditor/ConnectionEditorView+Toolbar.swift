@@ -20,8 +20,11 @@ extension ConnectionEditorView {
             .frame(maxWidth: .infinity)
 
             HStack(spacing: SpacingTokens.xs) {
-                testButton
-                saveButton
+                // Nothing to test or save until the engine is chosen.
+                if step == .form {
+                    testButton
+                    saveButton
+                }
             }
             .frame(width: ConnectionEditorHeaderMetrics.sideWidth, alignment: .trailing)
         }

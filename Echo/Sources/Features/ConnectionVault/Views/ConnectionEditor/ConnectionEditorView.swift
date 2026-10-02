@@ -212,7 +212,12 @@ struct ConnectionEditorView: View {
 
     var body: some View {
         Group {
-            if presentation == .sheet {
+            if presentation == .sheet && step == .chooseEngine {
+                // The engine step is as tall as its content; no empty band above the title.
+                detailView
+                    .frame(width: ConnectionEditorMetrics.sheetWidth)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if presentation == .sheet {
                 detailView
                     .frame(width: ConnectionEditorMetrics.sheetWidth)
                     .frame(minHeight: 360, idealHeight: 560, maxHeight: 720)
