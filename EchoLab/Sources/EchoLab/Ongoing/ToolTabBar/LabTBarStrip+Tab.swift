@@ -59,7 +59,7 @@ extension LabTBarStrip {
         let centred = max(14, (width - naturalWidth(tab, isActive: isActive)) / 2)
         let inset: CGFloat = switch motionStyle {
         case .anchored: isActive ? SpacingTokens.sm : 14
-        case .frozen, .layer, .steady: 14
+        case .frozen, .layer, .steady, .stillIcons: 14
         default: isActive && hasPages ? SpacingTokens.sm : centred
         }
         // MO5 and MO7 put the words in place at once; MO6 animates nothing about them at all.
@@ -98,7 +98,11 @@ extension LabTBarStrip {
     /// The calmer tab: nothing re-flows; what does not fit is clipped, and the pages fade with the tab.
     private func calmContent(_ tab: LabTBarTab, isActive: Bool, hasPages: Bool, iconOnly: Bool) -> some View {
         HStack(spacing: SpacingTokens.xxs2) {
-            iconView(tab, isActive: isActive)
+            if motionStyle == .stillIcons {
+                if showsIcon(tab, isActive: isActive) { Color.clear.frame(width: SpacingTokens.sm2, height: 1) }
+            } else {
+                iconView(tab, isActive: isActive)
+            }
             Group {
                 Text(tab.title)
                     .font(isActive && hasPages ? TypographyTokens.detail.weight(.medium) : TypographyTokens.detail)
@@ -117,7 +121,7 @@ extension LabTBarStrip {
     }
 
     @ViewBuilder
-    private func iconView(_ tab: LabTBarTab, isActive: Bool) -> some View {
+    func iconView(_ tab: LabTBarTab, isActive: Bool) -> some View {
         if showsIcon(tab, isActive: isActive) {
             Image(systemName: symbol(tab))
                 .font(TypographyTokens.detail)

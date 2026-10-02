@@ -4158,6 +4158,10 @@
       {
         "date": "2026-10-02T08:28:19Z",
         "text": "Revision 4: MO8: MO4's motion with the icon not moving"
+      },
+      {
+        "date": "2026-10-02T08:40:12Z",
+        "text": "Revision 5: MO9: icons on a still layer, everything else as MO8"
       }
     ],
     "needsMore": [
@@ -4205,6 +4209,14 @@
         "date": "2026-10-02T08:28:19Z",
         "number": 4,
         "summary": "MO8: MO4's motion with the icon not moving"
+      },
+      {
+        "changes": [
+          "New option MO9: MO8 with the icons snapping to their final place"
+        ],
+        "date": "2026-10-02T08:40:12Z",
+        "number": 5,
+        "summary": "MO9: icons on a still layer, everything else as MO8"
       }
     ],
     "status": "Judging",

@@ -35,7 +35,7 @@ struct LabTBarStrip: View {
         let scale = motion.durationScale
         switch motionStyle {
         case .today: return motion.standard
-        case .calm, .glide, .anchored, .printed, .frozen, .layer, .steady: return .smooth(duration: 0.3 * scale)
+        case .calm, .glide, .anchored, .printed, .frozen, .layer, .steady, .stillIcons: return .smooth(duration: 0.3 * scale)
         case .staged: return .smooth(duration: 0.3 * scale).delay(0.12 * scale)
         }
     }
@@ -45,7 +45,7 @@ struct LabTBarStrip: View {
         let scale = motion.durationScale
         switch motionStyle {
         case .today: return motion.press
-        case .calm, .glide, .anchored, .printed, .frozen, .layer, .steady: return .easeOut(duration: 0.18 * scale)
+        case .calm, .glide, .anchored, .printed, .frozen, .layer, .steady, .stillIcons: return .easeOut(duration: 0.18 * scale)
         case .staged: return .easeOut(duration: 0.12 * scale)
         }
     }
@@ -84,6 +84,18 @@ struct LabTBarStrip: View {
                 ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
                     tabView(tab, width: widths[index])
                 }
+            }
+            if motionStyle == .stillIcons {
+                // MO9: the icons at their final positions, on a layer that does not animate.
+                HStack(spacing: SpacingTokens.none) {
+                    ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
+                        iconView(tab, isActive: tab.id == activeID)
+                            .padding(.leading, 14)
+                            .frame(width: widths[index], height: Self.tabHeight, alignment: .leading)
+                    }
+                }
+                .allowsHitTesting(false)
+                .transaction { $0.animation = nil }
             }
             if motionStyle == .layer {
                 // MO7: the labels at their final positions, on a layer that does not animate.
