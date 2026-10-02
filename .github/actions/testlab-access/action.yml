@@ -52,3 +52,14 @@ runs:
           sleep 10
         done
         docker --host ssh://testlab version --format 'testlab Docker {{.Server.Version}}'
+
+    # The lab tool no longer has a built-in testlab: tell it which host to use.
+    - shell: bash
+      run: |
+        {
+          echo "SERVERLAB_HOST=testlab"
+          echo "SERVERLAB_DOCKER_HOST=ssh://testlab"
+          echo "SERVERLAB_ADDRESS=192.168.1.153"
+          echo "SERVERLAB_MEMORY_MB=18432"
+          echo "SERVERLAB_DEDICATED=1"
+        } >> "$GITHUB_ENV"
