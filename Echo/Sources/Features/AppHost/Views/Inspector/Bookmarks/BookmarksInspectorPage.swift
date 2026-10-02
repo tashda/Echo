@@ -188,7 +188,11 @@ struct BookmarksInspectorPage: View {
     private func row(_ bookmark: Bookmark, showsSeparator: Bool) -> some View {
         let server = serverInfo(for: bookmark)
         let isSelected = selectedID == bookmark.id
-        return InspectorListRow(isSelected: isSelected, showsSeparator: showsSeparator) {
+        return InspectorListRow(isSelected: isSelected, showsSeparator: showsSeparator,
+                                quickOpen: server.isKnown && renamingBookmarkID != bookmark.id
+                                    ? (title: server.isConnected ? "Open in New Tab" : "Connect and Open",
+                                       action: { environmentState.openBookmark(bookmark) })
+                                    : nil) {
             glyph(for: bookmark)
         } title: {
             if renamingBookmarkID == bookmark.id {

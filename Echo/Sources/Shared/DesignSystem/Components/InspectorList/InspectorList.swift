@@ -189,11 +189,15 @@ struct InspectorListRow<Glyph: View, Title: View, Trailing: View, Detail: View, 
     let trailing: Trailing
     let detail: Detail
     let opened: Opened
+    /// The ↗ that shows on a hovered row in place of its trailing text: one click opens the row,
+    /// for when you know what you want (round IC).
+    var quickOpen: (title: String, action: () -> Void)?
 
     @State private var isHovering = false
 
     init(isSelected: Bool,
          showsSeparator: Bool,
+         quickOpen: (title: String, action: () -> Void)? = nil,
          @ViewBuilder glyph: () -> Glyph,
          @ViewBuilder title: () -> Title,
          @ViewBuilder trailing: () -> Trailing,
@@ -201,12 +205,15 @@ struct InspectorListRow<Glyph: View, Title: View, Trailing: View, Detail: View, 
          @ViewBuilder opened: () -> Opened) {
         self.isSelected = isSelected
         self.showsSeparator = showsSeparator
+        self.quickOpen = quickOpen
         self.glyph = glyph()
         self.title = title()
         self.trailing = trailing()
         self.detail = detail()
         self.opened = opened()
     }
+
+    private var showsQuickOpen: Bool { isHovering && !isSelected && quickOpen != nil }
 
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.none) {
@@ -220,10 +227,27 @@ struct InspectorListRow<Glyph: View, Title: View, Trailing: View, Detail: View, 
                             .lineLimit(1)
                             .truncationMode(.tail)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                        trailing
-                            .font(TypographyTokens.detail.monospacedDigit())
-                            .foregroundStyle(ColorTokens.Text.tertiary)
-                            .fixedSize()
+                        ZStack(alignment: .trailing) {
+                            trailing
+                                .font(TypographyTokens.detail.monospacedDigit())
+                                .foregroundStyle(ColorTokens.Text.tertiary)
+                                .fixedSize()
+                                .opacity(showsQuickOpen ? 0 : 1)
+                            if showsQuickOpen, let quickOpen {
+                                Button(action: quickOpen.action) {
+                                    Image(systemName: "arrow.up.right.square")
+                                        .font(TypographyTokens.standard)
+                                        .foregroundStyle(ColorTokens.Text.secondary)
+                                        .frame(width: LayoutTokens.InspectorList.quickOpenSize,
+                                               height: LayoutTokens.InspectorList.lineOneHeight)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .help(quickOpen.title)
+                                .accessibilityLabel(quickOpen.title)
+                                .transition(.opacity)
+                            }
+                        }
                     }
                     .frame(minHeight: LayoutTokens.InspectorList.lineOneHeight)
                     detail
@@ -513,5 +537,6 @@ extension LayoutTokens {
         static let dotSize: CGFloat = SpacingTokens.xxs3
         static let hollowDotWidth: CGFloat = 1.3
         static let sqlMaxLines = 8
+        static let quickOpenSize: CGFloat = SpacingTokens.md2
     }
 }

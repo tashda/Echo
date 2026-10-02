@@ -97,7 +97,10 @@ struct QueryHistoryPanelView: View {
         let item = run.latest
         let server = serverInfo(for: item)
         let isSelected = selectedID == run.id
-        return InspectorListRow(isSelected: isSelected, showsSeparator: showsSeparator) {
+        return InspectorListRow(isSelected: isSelected, showsSeparator: showsSeparator,
+                                quickOpen: server.isKnown
+                                    ? (title: server.isConnected ? "Open in New Tab" : "Connect and Open", action: { open(item) })
+                                    : nil) {
             outcomeGlyph(item)
         } title: {
             Text(InspectorListFormat.oneLine(item.query))
