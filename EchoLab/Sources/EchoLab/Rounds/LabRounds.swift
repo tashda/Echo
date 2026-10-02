@@ -19,6 +19,10 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r55", label: "Round 55", title: "Trail items: open, minimized and recent servers", date: "2 Oct 2026",
+             asked: "The dashed ring for a minimized server looks ugly. Show how a trail item should look when its server is connected and open or connected and minimized, and whether the trail should also show recently connected servers (dimmed, in the same pill or in a second pill) that connect when clicked and move into the active group.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.trail-item-states-r55"]),
         Info(id: "r54", label: "Round 54", title: "Minimizing a card into the trail", date: "2 Oct 2026",
              asked: "Show different animations for how a server card is moved into the server trail when it is minimized (and brought back), since a closed card now leaves the tree and its trail item takes a dashed ring.",
              outcome: "Being judged.",
