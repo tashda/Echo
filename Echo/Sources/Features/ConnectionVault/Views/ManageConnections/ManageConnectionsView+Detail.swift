@@ -14,7 +14,20 @@ extension ManageConnectionsView {
 
     @ViewBuilder
     private var connectionDetail: some View {
-        if connectionSelection.count == 1, let id = connectionSelection.first,
+        if isCreatingConnection {
+            // R2-B (NB1): a new connection is made here, engine first, like editing.
+            ConnectionEditorView(
+                connection: nil,
+                presentation: .inline,
+                confirmAction: .save,
+                saveRequest: saveRequest,
+                onChangesChanged: { detailHasChanges = $0 },
+                onSaveBlockerChanged: { detailSaveBlocker = $0 },
+                onRevert: cancelNewConnection,
+                onSave: handleNewConnectionSave
+            )
+            .id("new-connection-\(editorRevision)")
+        } else if connectionSelection.count == 1, let id = connectionSelection.first,
            let connection = connectionStore.connections.first(where: { $0.id == id }) {
             ManageConnectionEditorPane(
                 connection: connection,
@@ -50,6 +63,7 @@ extension ManageConnectionsView {
         if isCreatingIdentity {
             IdentityEditorPane(
                 identity: nil,
+                folderID: currentFolderID,
                 revision: editorRevision,
                 saveRequest: saveRequest,
                 usedBy: [],
@@ -63,6 +77,7 @@ extension ManageConnectionsView {
                   let identity = connectionStore.identities.first(where: { $0.id == id }) {
             IdentityEditorPane(
                 identity: identity,
+                folderID: nil,
                 revision: editorRevision,
                 saveRequest: saveRequest,
                 usedBy: connections(using: identity),
@@ -81,29 +96,5 @@ extension ManageConnectionsView {
                 Button("New Identity") { navigate(to: .newIdentity) }
             }
         }
-    }
-
-    // MARK: - New connection sheet
-
-    var newConnectionSheet: some View {
-        ConnectionEditorView(connection: nil, confirmAction: .save) { connection, password, _ in
-            isPresentingNewConnection = false
-            // A connection made while a folder is shown is filed in that folder.
-            var connection = connection
-            if connection.folderID == nil { connection.folderID = currentFolderID }
-            Task {
-                await environmentState.upsertConnection(connection, password: password)
-                await MainActor.run {
-                    if !activeScope.isConnections { scope = .allConnections }
-                    connectionSelection = [connection.id]
-                    detailHasChanges = false
-                }
-            }
-        }
-        .environment(projectStore)
-        .environment(connectionStore)
-        .environment(navigationStore)
-        .environment(environmentState)
-        .environment(appState)
     }
 }

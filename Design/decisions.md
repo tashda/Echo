@@ -19,6 +19,14 @@ The owner accepted RT2 / KB0 / KS2 / KH0 / KC0 in #39.1, HG0 / HR0 / HK1 / HA1 /
 
 Newest first. Each entry says what was decided, and where the rule now lives. When a rule changes, add an entry; never rewrite an old one.
 
+## 2026-10-02 · Round MC, round 2 accepted
+
+After building round MC. Owner's answers: **PA1** (list keeps the editor column; the table takes the full width with the editor as an inspector when one row is selected), **NB1** (New Connection in Manage Connections opens in the pane, with a draft row at the top of the list; the main window keeps the sheet), **TB1** (view switch, add and search sit over the list, never across the column line), **PJ2** (the project as an account row, large round picture, name, grey line; a click opens the project menu), **WD1** (Which database? as grouped rows on the window grey, ↩ keycap on the last-used engine, the paste field as a grouped row with the example in the footer), **SL1** (Security and Behaviour as two short sections, short choices, one footer line each, rare settings behind More, no ⓘ), **FS1 + FS2** (folders in the sidebar like mailboxes, and the list and table group a scope's rows under folder headings; a folder shows its own rows first, then each folder inside it), **IF2** (identities get folders too).
+
+- **Folders stay; only folder sign-in retires.** Round MC removed folders by mistake; they are back as organisation (name, icon, colour, nesting) for connections and identities.
+
+Rule: Design/05-components.md › Connections. Plan: Round MC, MC-7 and MC-8.
+
 ## 2026-10-02 · Round MC accepted: Manage Connections and New Connection rebuilt
 
 Design pages: *Connections, rebuilt* (https://claude.ai/artifact/E5QCLt83ghuFHr2xynTsNx) and *New Connection* (https://claude.ai/artifact/VUb7HgeGLffJQWTmetBWdu), parts 1–3. Owner's answers: MA1, MB1, MC1, MH1, MI1, ME1, MG1; sheet B with C's first step; editing the same as the sheet; "Password | Identity".

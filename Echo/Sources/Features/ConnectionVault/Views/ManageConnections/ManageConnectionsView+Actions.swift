@@ -18,13 +18,15 @@ extension ManageConnectionsView {
         case .connections(let ids): ids == connectionSelection
         case .identities(let ids): ids == identitySelection && !isCreatingIdentity
         case .scope(let newScope): newScope == activeScope
-        case .newConnection, .newIdentity: false
+        case .newConnection: isCreatingConnection
+        case .newIdentity: isCreatingIdentity
         }
     }
 
     func apply(_ target: PendingNavigation) {
         detailHasChanges = false
         detailSaveBlocker = nil
+        if target != .newConnection { isCreatingConnection = false }
         switch target {
         case .connections(let ids):
             connectionSelection = ids
@@ -35,9 +37,12 @@ extension ManageConnectionsView {
             isCreatingIdentity = false
             scope = newScope
         case .newConnection:
-            isPresentingNewConnection = true
+            if !activeScope.isConnections { scope = .allConnections }
+            connectionSelection = []
+            isCreatingConnection = true
+            editorRevision += 1
         case .newIdentity:
-            scope = .identities
+            if activeScope.isConnections { scope = .identities }
             identitySelection = []
             isCreatingIdentity = true
         }
@@ -46,6 +51,7 @@ extension ManageConnectionsView {
     /// "Save changes to “postgres18”?", or "Discard changes to …?" when they can't be saved yet.
     var leaveAlertTitle: String {
         let verb = detailSaveBlocker == nil ? "Save" : "Discard"
+        if isCreatingConnection { return "\(verb) the new connection?" }
         if activeScope.isConnections, let id = connectionSelection.first,
            let connection = connectionStore.connections.first(where: { $0.id == id }) {
             return "\(verb) changes to “\(displayName(for: connection))”?"
@@ -94,6 +100,28 @@ extension ManageConnectionsView {
                 closeManageConnections()
             }
         }
+    }
+
+    /// R2-B: the new connection made in the pane is saved, filed in the folder on show.
+    func handleNewConnectionSave(connection: SavedConnection, password: String?, action: ConnectionEditorView.SaveAction) {
+        var connection = connection
+        if connection.folderID == nil, case .folder(let folderID) = activeScope { connection.folderID = folderID }
+        let saved = connection
+        Task {
+            await environmentState.upsertConnection(saved, password: password)
+            await MainActor.run {
+                isCreatingConnection = false
+                if navigationAfterSave == nil { connectionSelection = [saved.id] }
+                finishSave()
+            }
+        }
+    }
+
+    func cancelNewConnection() {
+        isCreatingConnection = false
+        detailHasChanges = false
+        detailSaveBlocker = nil
+        editorRevision += 1
     }
 
     func handleIdentitySaved(_ identity: SavedIdentity) {
@@ -194,7 +222,9 @@ extension ManageConnectionsView {
         pendingNavigation = nil
         navigationAfterSave = nil
         isCreatingIdentity = false
+        isCreatingConnection = false
         detailHasChanges = false
+        collapsedGroupIDs.removeAll()
         connectionSelection.removeAll()
         identitySelection.removeAll()
     }
