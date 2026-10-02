@@ -58,15 +58,20 @@ runs:
         done
         docker --host ssh://testlab version --format 'testlab Docker {{.Server.Version}}'
 
-    # The lab tool no longer has a built-in testlab: tell it which host to use.
+    # The lab tool no longer has a built-in testlab: tell it which host to use. xcodebuild hands the
+    # test process only variables that start with TEST_RUNNER_, so each one is exported twice: plain
+    # for the steps that run the tool themselves (cleanup), prefixed for the tests that start it.
     - shell: bash
       env:
         TESTLAB_ADDRESS: ${{ inputs.address }}
       run: |
         {
-          echo "SERVERLAB_HOST=testlab"
-          echo "SERVERLAB_DOCKER_HOST=ssh://testlab"
-          echo "SERVERLAB_ADDRESS=$TESTLAB_ADDRESS"
-          echo "SERVERLAB_MEMORY_MB=18432"
-          echo "SERVERLAB_DEDICATED=1"
+          for pair in "SERVERLAB_HOST=testlab" \
+                      "SERVERLAB_DOCKER_HOST=ssh://testlab" \
+                      "SERVERLAB_ADDRESS=$TESTLAB_ADDRESS" \
+                      "SERVERLAB_MEMORY_MB=18432" \
+                      "SERVERLAB_DEDICATED=1"; do
+            echo "$pair"
+            echo "TEST_RUNNER_$pair"
+          done
         } >> "$GITHUB_ENV"
