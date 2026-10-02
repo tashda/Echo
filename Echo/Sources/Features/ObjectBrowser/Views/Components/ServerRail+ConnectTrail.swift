@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The connect drawer (round 56, PR3, CD1, CB0, OT0, XB0): the connect circle opens a glass panel
-/// beside the trail, the height of the rail, over the tree. A search field with New Connection,
+/// The connect drawer (round 56, PR3, CD1, CB0, OT0, XB0): the connect circle grows a glass panel
+/// beside the trail, over the tree, then receives it back on close. A search field with New Connection,
 /// Manage Connections, Quick Connect and × beside it, then the saved connections by folder. The
 /// pills stay as they are and stay usable while it is open (this replaces round 52's widening pill).
 extension ServerRail {
@@ -15,8 +15,8 @@ extension ServerRail {
         LayoutTokens.Rail.width(itemSize: itemSize) + Self.connectDrawerGap + Self.connectDrawerWidth
     }
 
-    /// The drawer's glass, over the tree. It slides in from the rail with its opacity; closing is
-    /// set by the rail's animation (no overshoot).
+    /// The drawer's glass, over the tree. It grows from the rack button on the house spring and
+    /// shrinks back into it with the settling close animation.
     var connectDrawer: some View {
         ConnectTrailList(
             entries: connectTrailEntries,
@@ -39,11 +39,21 @@ extension ServerRail {
         .frame(width: Self.connectDrawerWidth)
         .glassEffect(.regular, in: .rect(cornerRadius: SpacingTokens.lg, style: .continuous))
         .offset(x: LayoutTokens.Rail.width(itemSize: itemSize) + Self.connectDrawerGap)
-        // Its own width from under the trail, with a fade; closing is the same in reverse. The
-        // distance is explicit, so it never depends on the container the transition is in.
+        // The transition's source is the visible rack circle, not an arbitrary drawer edge. This
+        // keeps opening and closing as the same gesture even when the rail above it changes height.
         .transition(.modifier(
-            active: ConnectDrawerSlide(distance: Self.connectDrawerWidth, isHidden: true),
-            identity: ConnectDrawerSlide(distance: Self.connectDrawerWidth, isHidden: false)
+            active: ConnectDrawerMorph(
+                progress: 0,
+                source: connectButtonFrame.midpoint,
+                destination: CGPoint(x: LayoutTokens.Rail.width(itemSize: itemSize) + Self.connectDrawerGap, y: 0),
+                sourceSize: itemSize
+            ),
+            identity: ConnectDrawerMorph(
+                progress: 1,
+                source: connectButtonFrame.midpoint,
+                destination: CGPoint(x: LayoutTokens.Rail.width(itemSize: itemSize) + Self.connectDrawerGap, y: 0),
+                sourceSize: itemSize
+            )
         ))
     }
 
@@ -89,15 +99,42 @@ extension ServerRail {
     }
 }
 
-/// The connect drawer's entry and exit: it travels its own width, from under the trail, fading in;
-/// removing it plays the same in reverse.
-struct ConnectDrawerSlide: ViewModifier {
-    let distance: CGFloat
-    let isHidden: Bool
+/// Maps the drawer's rectangle to the rack button, then interpolates it back to the drawer. As a
+/// `GeometryEffect`, this affects rendering only: the rail and tree never relayout during motion.
+struct ConnectDrawerMorph: GeometryEffect {
+    var progress: CGFloat
+    let source: CGPoint
+    let destination: CGPoint
+    let sourceSize: CGFloat
 
-    func body(content: Content) -> some View {
-        content
-            .offset(x: isHidden ? -distance : 0)
-            .opacity(isHidden ? 0 : 1)
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
     }
+
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        let widthScale = min(sourceSize / max(size.width, 1), 1)
+        let heightScale = min(sourceSize / max(size.height, 1), 1)
+        let scaleX = widthScale + (1 - widthScale) * progress
+        let scaleY = heightScale + (1 - heightScale) * progress
+        let collapsedOrigin = CGPoint(
+            x: source.x - size.width * widthScale / 2,
+            y: source.y - size.height * heightScale / 2
+        )
+        let origin = CGPoint(
+            x: collapsedOrigin.x + (destination.x - collapsedOrigin.x) * progress,
+            y: collapsedOrigin.y + (destination.y - collapsedOrigin.y) * progress
+        )
+        let transform = CGAffineTransform(
+            a: scaleX, b: 0,
+            c: 0, d: scaleY,
+            tx: origin.x - destination.x,
+            ty: origin.y - destination.y
+        )
+        return ProjectionTransform(transform)
+    }
+}
+
+private extension CGRect {
+    var midpoint: CGPoint { CGPoint(x: midX, y: midY) }
 }

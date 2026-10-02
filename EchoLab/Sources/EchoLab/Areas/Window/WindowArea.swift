@@ -11,7 +11,7 @@ enum WindowArea {
         summary: "A canvas holding the server rail, the tree, and opaque cards. Glass is only for controls.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "013ffc82", date: "2026-10-02",
+                level: .code, commit: "17102703", date: "2026-10-02",
                 note: "Read from WorkspaceShell, ServerRail, ServerRailEntry, ServerRailMonogram, WorkspaceWelcomeView, ConnectionDashboardView and the workspace, rail and welcome tokens. The specimen is the Echo Labs server rail (tool pill removed in round 39) with a stand-in tree and two cards. Checked b5eebdb9 and fb789c41: only footer-blur tokens changed; no window measurements changed. 2026-10-01: checked the commits since ef1c3bba (round 32.2's dark canvas, card edges and shadows; round 30.1's always-coloured monogram; round 34's Refresh); the LayoutToken changes in that range are the editor's and results'. 2026-10-02: checked 4db9915a (the results' soft side edges: nothing here); round 52 built (the opened connection trail); the specimen still shows the closed trail only. 2026-10-02: round 51 built (name bubble, own symbol or emoji, Customize Appearance); the specimen does not show them yet. 2026-10-02: round 55 built (no ring, a hairline between open and minimized servers, the recents pill, the server rack circle in place of the +, Settings › Appearance › Server Trail): read from ServerRail, ServerRail+Components, ServerRail+Recents, ServerRail+Layout, ServerRailLayout and the Rail tokens. 2026-10-02: owner feedback on round 55 built (name bubble and context menu on recents, a bright connect glyph, the trail closes on an outside click, smoother glide: one glass container, no item transitions, no scroll view while the pill fits): read from ServerRail, ServerRail+Components, ServerRail+Recents, ServerRail+RecentsMenu, ServerRail+Appearance, ConnectTrailOutsideClick. 2026-10-02: round 56 built (the connect card is a drawer beside the trail; the circle turns to an ×; the pills stay usable): read from ServerRail, ServerRail+ConnectTrail, ServerRail+Recents, ConnectTrailList, ConnectTrailOutsideClick."),
             stageHeight: 520,
             behaviours: [
@@ -37,8 +37,8 @@ enum WindowArea {
             motions: [
                 .init(name: "Rail selection", curve: "liquid stretch: the leading edge races, the trailing edge follows", duration: "0.28s and 0.55s", note: "echoMotion.liquidLead and liquidTrail"),
                 .init(name: "Server pill grows and shrinks", curve: "house spring", duration: "0.45s", note: "a server scales in from 40%"),
-                .init(name: "Open the connect drawer", curve: "house spring", duration: "0.45s", note: "echoMotion.standard; the drawer moves in from its leading edge with opacity, the rack turns to an × (symbol replace)"),
-                .init(name: "Close the connect drawer", curve: "smooth, no overshoot", duration: "0.45s", note: "echoMotion.settle; the same move and fade, back"),
+                .init(name: "Open the connect drawer", curve: "house spring", duration: "0.45s", note: "echoMotion.standard; the drawer grows from the server-rack circle to its placed rectangle, and the rack turns to an × (symbol replace)"),
+                .init(name: "Close the connect drawer", curve: "smooth, no overshoot", duration: "0.45s", note: "echoMotion.settle; the same rectangle shrinks back into the server-rack circle"),
                 .init(name: "Hide the tree", curve: "smooth, no overshoot", duration: "0.45s", note: "echoMotion.settle; the tree slides left behind the rail"),
                 .init(name: "Show the tree", curve: "house spring", duration: "0.45s"),
                 .init(name: "Connecting monogram", curve: "ease in-out, opacity and a small dip in size", duration: "0.7s half cycle", note: "echoMotion.pulseHalfPeriod; minimum opacity 15%"),
@@ -85,7 +85,7 @@ enum WindowArea {
                       why: "The dashed ring (round 51) looked ugly. Minimized servers sit below a short hairline, each item unchanged; recents are dimmed because they are disconnected (round 55).",
                       rounds: ["ongoing.trail-item-states-r55"]),
                 .init(text: "The server rack button opens a drawer beside the trail, not a menu and not the pill widening",
-                      why: "Round 52 widened the pill into the list; round 56 replaced it: the pills stay visible and usable beside a drawer the height of the rail, the circle turns to the close button, and a click outside, Escape or the × closes it.",
+                      why: "Round 52 widened the pill into the list; round 56 replaced it: the pills stay visible and usable beside a drawer that grows from the circle and returns to it, the circle turns to the close button, and a click outside, Escape or the × closes it.",
                       rounds: ["ongoing.connect-menu-r52", "ongoing.connect-card-r56"]),
                 .init(text: "The selection disc is inset 3pt",
                       why: "So a single server never looks like a pill inside a pill.",

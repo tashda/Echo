@@ -219,6 +219,18 @@
       {
         "date": "2026-10-02T10:40:21Z",
         "text": "Built into Echo: the connect circle opens a glass drawer beside the trail (search field with New Connection, Manage Connections, Quick Connect and close beside it, then the saved connections); the rack turns to an x while it is open; the pills stay usable; round 52's widening pill and row of servers removed"
+      },
+      {
+        "date": "2026-10-02T14:06:04Z",
+        "text": "Taken by Codex"
+      },
+      {
+        "date": "2026-10-02T14:07:43Z",
+        "text": "Owner feedback: keep PR3's drawer placement, but make it grow from the server-rack button on open and shrink smoothly back into it on close."
+      },
+      {
+        "date": "2026-10-02T14:10:56Z",
+        "text": "Built into Echo: PR3's drawer now grows from the server-rack button on open and shrinks back into that same button on close."
       }
     ],
     "needsMore": [],
@@ -237,14 +249,12 @@
     "verdicts": {},
     "verification": {
       "checks": [
-        "Press the server rack circle: the drawer slides in over the tree and the rack turns to an x",
-        "Type to search, press Return: the first match connects",
-        "Click outside, press Escape, the x in the drawer or the circle: each closes it",
-        "While it is open, click a server pill or a recent: the pills still work and the drawer stays"
+        "Open Server list: it should expand out of the server-rack circle on the house spring, while the circle turns into \u00d7.",
+        "Close with the circle, \u00d7, Escape or an outside click: the drawer should settle smoothly back into the same circle without a sideways slide."
       ],
       "done": [],
       "shots": [],
-      "summary": "The connect card is now a drawer beside the trail, and the circle becomes its close button"
+      "summary": "The drawer now shares one button-origin morph in both directions."
     }
   },
   "ongoing.connect-menu-r52": {

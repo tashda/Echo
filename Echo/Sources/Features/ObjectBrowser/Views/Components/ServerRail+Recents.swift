@@ -78,7 +78,25 @@ extension ServerRail {
         .focusable(false)
         .padding(LayoutTokens.Rail.pillPadding)
         .glassEffect(.regular, in: .circle)
+        .background {
+            GeometryReader { proxy in
+                Color.clear.preference(
+                    key: ConnectButtonFrameKey.self,
+                    value: proxy.frame(in: .named("server-rail"))
+                )
+            }
+        }
         .help(appState.isConnectTrailOpen ? "Close" : "Connect to a Server")
         .accessibilityLabel(appState.isConnectTrailOpen ? "Close" : "Connect to a Server")
+    }
+}
+
+/// The source frame for the drawer's open and close morph. It is a value preference so a resize
+/// (or a different number of rail pills) moves the origin before the next transition begins.
+struct ConnectButtonFrameKey: PreferenceKey {
+    static let defaultValue = CGRect.zero
+
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+        value = nextValue()
     }
 }

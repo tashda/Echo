@@ -44,6 +44,8 @@ struct ServerRail: View {
 
     /// The rail's height, so the connected pill knows when it has to scroll.
     @State var railHeight: CGFloat = .infinity
+    /// The rack button's frame, used to make the connect drawer grow from and return to it.
+    @State var connectButtonFrame: CGRect = .zero
 
     var body: some View {
         let allEntries = self.entries
@@ -76,6 +78,7 @@ struct ServerRail: View {
         // The drawer overflows the column to the right, over the tree.
         .frame(width: LayoutTokens.Rail.width(itemSize: itemSize), alignment: .leading)
         .frame(maxHeight: .infinity)
+        .coordinateSpace(name: "server-rail")
         // Outside the drawer and the column, a click dismisses it (the pills and the circle are inside).
         .background(alignment: .topLeading) {
             if isOpen {
@@ -100,6 +103,7 @@ struct ServerRail: View {
         .onChange(of: itemSize) { _, _ in
             placeSelection(on: highlightedID, in: layout, animated: false)
         }
+        .onPreferenceChange(ConnectButtonFrameKey.self) { connectButtonFrame = $0 }
     }
 
 }
