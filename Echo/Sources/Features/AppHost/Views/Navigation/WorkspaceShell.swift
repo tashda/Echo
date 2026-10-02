@@ -74,10 +74,8 @@ struct WorkspaceShell: View {
             WindowDragPause.pauseWorkspace(for: motion.settleDuration + 0.15)
         }
         // The Save card (round IC, H1), for ⌘S on a tab without a home, Save As…, Save to
-        // Bookmarks…, Save to File… and Add to Bookmarks.
-        .sheet(item: Binding(get: { appState.saveCardRequest }, set: { appState.saveCardRequest = $0 })) { request in
-            SaveQueryCard(request: request)
-        }
+        // Bookmarks…, Save to File… and Add to Bookmarks: a floating card from the tab.
+        .saveCardOverlay(gutter: gutter)
     }
 
     private var clampedTreeWidth: CGFloat {

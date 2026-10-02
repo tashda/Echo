@@ -72,12 +72,13 @@ extension EnvironmentState {
             connectionID: tab.connection.id,
             databaseName: tab.activeDatabaseName ?? tab.connection.database,
             suggestedName: tab.bookmarkContext?.displayName ?? tab.title,
-            destination: destination ?? lastSaveDestination
+            destination: destination ?? lastSaveDestination,
+            anchorTabID: tab.id
         )
     }
 
     /// Add to Bookmarks from History or a selection: the Save card on Bookmarks.
-    func requestBookmark(sql: String, connectionID: UUID?, database: String?, suggestedName: String?) {
+    func requestBookmark(sql: String, connectionID: UUID?, database: String?, suggestedName: String?, anchorTabID: UUID? = nil) {
         guard let connectionID else { return }
         let firstLine = sql.split(whereSeparator: \.isNewline).first.map(String.init)?
             .trimmingCharacters(in: .whitespaces) ?? ""
@@ -87,7 +88,8 @@ extension EnvironmentState {
             connectionID: connectionID,
             databaseName: database,
             suggestedName: suggestedName ?? firstLine,
-            destination: .bookmarks
+            destination: .bookmarks,
+            anchorTabID: anchorTabID
         )
     }
 

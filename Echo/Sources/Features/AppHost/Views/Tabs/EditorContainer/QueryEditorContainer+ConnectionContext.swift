@@ -116,7 +116,7 @@ extension QueryEditorContainer {
     /// The editor's Add to Bookmarks on a selection: the Save card on Bookmarks (round IC).
     func handleBookmarkRequest(_ sql: String) {
         environmentState.requestBookmark(sql: sql, connectionID: tab.connection.id,
-                                         database: connectionDatabaseName, suggestedName: nil)
+                                         database: connectionDatabaseName, suggestedName: nil, anchorTabID: tab.id)
     }
 
     var connectionServerVersion: String? {

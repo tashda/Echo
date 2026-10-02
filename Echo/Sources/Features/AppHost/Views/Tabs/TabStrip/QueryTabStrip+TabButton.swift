@@ -55,6 +55,8 @@ extension QueryTabStrip {
             isIconOnly: isIconOnly
         )
         .frame(width: targetWidth > 0 ? targetWidth : nil)
+        // The Save card hangs from the tab it saves (round IC).
+        .tabBoundsAnchor(tab.id)
         .id(tab.id)
         .transaction { transaction in
             if isBeingDragged {

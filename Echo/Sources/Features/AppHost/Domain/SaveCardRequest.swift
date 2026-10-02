@@ -27,4 +27,6 @@ struct SaveCardRequest: Identifiable {
     var destination: SaveDestination
     /// A selection or a history run can't become a file's home, but can still be written out.
     var allowsFile = true
+    /// The tab the card hangs from; without one (History) it sits by the inspector.
+    var anchorTabID: UUID?
 }
