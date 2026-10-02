@@ -196,7 +196,8 @@ extension EnvironmentState {
         for connection in connectionStore.connections {
             await objectBrowserCacheStore.migrateLegacyCacheIfNeeded(
                 from: connection,
-                limitBytes: limitBytes
+                limitBytes: limitBytes,
+                fingerprint: connection.cacheFingerprint(identity: connectionStore.identities.first { $0.id == connection.identityID })
             )
         }
     }

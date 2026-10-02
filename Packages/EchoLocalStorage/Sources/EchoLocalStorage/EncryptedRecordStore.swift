@@ -97,6 +97,12 @@ public actor EncryptedRecordStore {
         try secureFiles()
     }
 
+    public func writeBatch(_ records: [LocalRecord]) throws {
+        let db = try database()
+        try db.transaction { for record in records { try put(record, database: db) } }
+        try secureFiles()
+    }
+
     /// A collection snapshot updates only changed payloads; unrelated collections are untouched.
     public func replace(collection: String, with records: [LocalRecord]) throws {
         guard records.allSatisfy({ $0.collection == collection }), Set(records.map(\.id)).count == records.count else {

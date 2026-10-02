@@ -12,7 +12,7 @@ use `[skip ci]` to honor that request.
   key creation, transactions, permissions and migration primitives.
 - [x] 2. Saved configuration: migrate connections, identities, folders, projects
   and settings; remove inline metadata from normal connection persistence.
-- [ ] 3. Metadata: per-database cache records, selective hydration, background
+- [x] 3. Metadata: per-database cache records, selective hydration, background
   refresh, resolved credential fingerprints, per-connection writes and indexed
   eviction. Preserve search and autocomplete coverage.
 - [ ] 4. Other sensitive persistence: encrypted histories, diagrams and streaming
@@ -55,3 +55,10 @@ The owner clarified there are no users: only a small importer for this Mac, no
 old-version compatibility. Inline metadata is moved to a temporary encrypted
 legacy-metadata collection for checkpoint 3. Startup stops on unavailable storage
 instead of creating defaults over failed reads. Export remains password-protected.
+
+Checkpoint 3: small encrypted server catalogs plus per-database payloads; first
+connection hydration selects the configured database, other cached databases warm
+before low-priority server refresh. Cached and live are distinct; successful empty
+single-database fetches replace old objects. Resolved identity/endpoints/certificate
+identity scope cache reuse. Writes debounce per connection; SQLite accounts for
+usage without decoding other caches. As-built Explorer behavior updated.

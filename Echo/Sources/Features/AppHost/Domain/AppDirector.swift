@@ -288,6 +288,7 @@ final class AppDirector {
             Task { @MainActor in
                 guard let self else { return }
                 let sessions = self.environmentState.sessionGroup.activeSessions
+                await self.objectBrowserCacheStore.setProtectedConnections(Set(sessions.map { $0.connection.id }))
                 if sessions.isEmpty {
 #if !os(macOS)
                     self.presentConnectionsIfNeeded()

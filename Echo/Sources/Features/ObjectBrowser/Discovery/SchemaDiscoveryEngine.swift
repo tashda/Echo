@@ -52,6 +52,8 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
                 return
             }
 
+            await self.hydrateCachedDatabases(for: session)
+
             // Background schema prefetch: load schemas for all databases that are still
             // listOnly (no cached schema yet) so future expands are instant.
             // Runs serially to avoid overwhelming the server.
@@ -70,7 +72,8 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
 
         let pending = structure.databases.filter { db in
             guard db.isOnline && db.isAccessible else { return false }
-            return session.metadataFreshness(forDatabase: db.name) == .listOnly
+            let freshness = session.metadataFreshness(forDatabase: db.name)
+            return freshness == .listOnly || freshness == .cached
         }
 
         guard !pending.isEmpty else { return }
@@ -81,7 +84,7 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
             guard !Task.isCancelled else { break }
 
             let freshness = session.metadataFreshness(forDatabase: database.name)
-            guard freshness == .listOnly, !session.isRefreshingMetadata(forDatabase: database.name) else {
+            guard (freshness == .listOnly || freshness == .cached), !session.isRefreshingMetadata(forDatabase: database.name) else {
                 continue
             }
 
@@ -142,7 +145,7 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
                 selectedDatabase: selectedDatabase,
                 reuseSession: connectionSession.session,
                 databaseFilter: nil as String?,
-                cachedStructure: connectionSession.connection.cachedStructure,
+                cachedStructure: connectionSession.databaseStructure,
                 progressHandler: { progress in
                     connectionSession.structureLoadingState = .loading(progress: progress.fraction)
                     if let message = progress.message {
@@ -259,7 +262,7 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
             // Final merge of fetcher results
             for db in structure.databases {
                 let mergeStart = CFAbsoluteTimeGetCurrent()
-                mergeSingleDatabase(db, into: session)
+                mergeSingleDatabase(db, into: session, authoritative: true)
                 let hasSchemas = db.schemas.contains(where: { !$0.objects.isEmpty })
                 session.markMetadataRefreshCompleted(forDatabase: db.name, hasSchemas: hasSchemas)
                 print("[PERF] \(databaseName): final merge took \(String(format: "%.3f", CFAbsoluteTimeGetCurrent() - mergeStart))s")
@@ -272,10 +275,10 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
         }
     }
 
-    private func mergeSingleDatabase(_ database: DatabaseInfo, into session: ConnectionSession) {
+    private func mergeSingleDatabase(_ database: DatabaseInfo, into session: ConnectionSession, authoritative: Bool = false) {
         var databases = session.databaseStructure?.databases ?? []
         if let index = databases.firstIndex(where: { $0.name == database.name }) {
-            let merged = Self.mergeDatabaseInfo(partial: database, existing: databases[index])
+            let merged = authoritative ? database : Self.mergeDatabaseInfo(partial: database, existing: databases[index])
             if databases[index] == merged { return }
             databases[index] = merged
         } else {
@@ -326,31 +329,55 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
         return true
     }
 
-    private var persistTask: Task<Void, Never>?
+    private var persistTasks: [UUID: Task<Void, Never>] = [:]
+    private var persistGenerations: [UUID: UUID] = [:]
 
     private func schedulePersist(_ structure: DatabaseStructure, for session: ConnectionSession) {
-        persistTask?.cancel()
+        let id = session.connection.id
+        persistTasks[id]?.cancel()
+        let generation = UUID()
+        persistGenerations[id] = generation
         let connection = session.connection
+        let fingerprint = session.cacheFingerprint ?? connection.objectBrowserCacheFingerprint
         let limitBytes = cacheLimitProvider?() ?? 512 * 1_024 * 1_024
-        persistTask = Task {
-            guard !Task.isCancelled else { return }
-            try? await self.objectBrowserCacheStore.stashStructure(
-                structure,
-                for: connection,
-                limitBytes: limitBytes
-            )
-            var conn = session.connection
-            conn.cachedStructure = structure
-            conn.cachedStructureUpdatedAt = Date()
-            if let version = structure.serverVersion { conn.serverVersion = version }
-            await updateConnectionInStore(conn)
+        persistTasks[id] = Task(name: "Persist database metadata") {
+            do {
+                try await Task.sleep(for: .milliseconds(300))
+                try Task.checkCancellation()
+                try await objectBrowserCacheStore.stashStructure(structure, for: connection,
+                    limitBytes: limitBytes, fingerprint: fingerprint,
+                    completedDatabases: Set(structure.databases.filter {
+                        session.metadataFreshness(forDatabase: $0.name) == .live
+                    }.map(\.name)))
+                guard persistGenerations[id] == generation else { return }
+                // Patch only the version; background cache work never replaces editable connection settings.
+                if let index = connectionStore.connections.firstIndex(where: { $0.id == id }),
+                   let version = structure.serverVersion,
+                   connectionStore.connections[index].serverVersion != version {
+                    connectionStore.connections[index].serverVersion = version
+                    await onPersistConnections?()
+                }
+                persistTasks[id] = nil
+            } catch is CancellationError {
+            } catch {
+                ConnectionDebug.log("Metadata persistence failed: \(error.localizedDescription)")
+            }
         }
     }
 
-    private func updateConnectionInStore(_ connection: SavedConnection) async {
-        if let index = connectionStore.connections.firstIndex(where: { $0.id == connection.id }) {
-            connectionStore.connections[index] = connection
-            await onPersistConnections?()
+    private func hydrateCachedDatabases(for session: ConnectionSession) async {
+        guard let fingerprint = session.cacheFingerprint else { return }
+        let names = session.databaseStructure?.databases.map(\.name) ?? []
+        for name in names {
+            guard !Task.isCancelled, session.connectionState.isConnected else { return }
+            guard session.metadataFreshness(forDatabase: name) == .listOnly else { continue }
+            do {
+                if let cached = try await objectBrowserCacheStore.database(name, for: session.connection, fingerprint: fingerprint),
+                   session.metadataFreshness(forDatabase: name) == .listOnly {
+                    mergeSingleDatabase(cached, into: session)
+                    session.metadataFreshnessByDatabase[session.schemaLoadKey(name)] = .cached
+                }
+            } catch { ConnectionDebug.log("Cached database unavailable: \(error.localizedDescription)") }
         }
     }
 

@@ -16,6 +16,7 @@ enum StructureLoadingState: Equatable {
 @Observable @MainActor
 final class ConnectionSession: Identifiable {
     let id: UUID
+    @ObservationIgnored var cacheFingerprint: String?
     @ObservationIgnored let connection: SavedConnection
     @ObservationIgnored let session: DatabaseSession
     @ObservationIgnored let spoolManager: ResultSpooler

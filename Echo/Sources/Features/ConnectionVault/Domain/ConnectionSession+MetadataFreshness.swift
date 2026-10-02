@@ -23,12 +23,10 @@ extension ConnectionSession {
             metadataFreshnessByDatabase.removeAll()
             return
         }
-        // Mark cached databases with schemas AND column data as .live so the first expand is instant.
-        // Databases whose objects lack column data (e.g. saved when a server was unreachable or had
-        // a schema-load failure) are treated as .listOnly so the background prefetch reloads them.
+        // Cached detail is immediately usable, but still awaits server verification.
         metadataFreshnessByDatabase = Self.makeMetadataFreshnessMap(
             from: structure,
-            loadedState: .live,
+            loadedState: .cached,
             preserveExisting: false,
             existing: [:],
             requireColumns: true
@@ -57,7 +55,8 @@ extension ConnectionSession {
     }
 
     func markMetadataRefreshCompleted(forDatabase databaseName: String, hasSchemas: Bool) {
-        metadataFreshnessByDatabase[schemaLoadKey(databaseName)] = hasSchemas ? .live : .listOnly
+        // A successful empty database is complete too; absence is not a failed fetch.
+        metadataFreshnessByDatabase[schemaLoadKey(databaseName)] = .live
     }
 
     func markMetadataRefreshFailed(forDatabase databaseName: String) {

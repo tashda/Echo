@@ -257,7 +257,10 @@ final class EnvironmentState {
                     session: session,
                     spoolManager: resultSpoolManager
                 )
-                if let cachedEntry = await objectBrowserCacheStore.entry(for: connection) {
+                let identity = connectionStore.identities.first { $0.id == connection.identityID }
+                connectionSession.cacheFingerprint = connection.cacheFingerprint(identity: identity)
+                if let cachedEntry = await objectBrowserCacheStore.entry(for: connection,
+                    fingerprint: connectionSession.cacheFingerprint, databaseName: connection.database) {
                     connectionSession.databaseStructure = cachedEntry.structure
                     connectionSession.hydrateMetadataFreshnessFromCacheStructure()
                     connectionSession.structureLoadingState = .loading(progress: 0)
