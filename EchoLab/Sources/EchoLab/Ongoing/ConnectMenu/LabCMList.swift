@@ -12,8 +12,8 @@ struct LabCMList: View {
     private var matches: [LabCMConnection] {
         query.isEmpty ? all : all.filter { $0.name.localizedCaseInsensitiveContains(query) || $0.detail.localizedCaseInsensitiveContains(query) }
     }
-    private var open: [LabCMConnection] { matches.filter(\.isOpen) }
-    private var saved: [LabCMConnection] { matches.filter { !$0.isOpen } }
+    private var open: [LabCMConnection] { look.hidesOpen ? [] : matches.filter(\.isOpen) }
+    private var saved: [LabCMConnection] { look.hidesOpen ? matches.filter { !$0.isOpen } : matches.filter { !$0.isOpen } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: SpacingTokens.none) {
@@ -24,7 +24,7 @@ struct LabCMList: View {
                     .padding(.vertical, SpacingTokens.xxs)
             }
             .scrollIndicators(.hidden)
-            footer
+            if !look.hidesOpen { footer }
         }
     }
 
@@ -188,7 +188,8 @@ struct LabCMList: View {
             .padding(.horizontal, SpacingTokens.xs)
             .frame(height: SpacingTokens.lg + SpacingTokens.xxs)
             .background(ColorTokens.Text.primary.opacity(0.06), in: Capsule())
-            if look.footer == .split {
+            if look.hidesOpen, look.opened == .search { LabCMActionIcons(onClose: nil, look: look) }
+            if !look.hidesOpen, look.footer == .split {
                 Button { onConnect() } label: {
                     Label("New", systemImage: "plus").font(TypographyTokens.detail.weight(.medium))
                         .padding(.horizontal, SpacingTokens.xs).frame(height: SpacingTokens.lg + SpacingTokens.xxs)
@@ -312,5 +313,83 @@ private struct LabCMTile: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
+    }
+}
+
+
+extension LabCMLook {
+    /// The opened trail with its actions in a header: the list drops its Open section and its footer.
+    var hidesOpen: Bool { presentation == .rail && opened.hidesOpenSection }
+}
+
+/// New Connection, Manage Connections and Quick Connect as icons, and optionally the close button.
+struct LabCMActionIcons: View {
+    let onClose: (() -> Void)?
+    let look: LabCMLook
+    var onlyClose = false
+
+    var body: some View {
+        HStack(spacing: SpacingTokens.xxxs) {
+            if !onlyClose {
+                icon("plus", "New Connection")
+                icon("gearshape", "Manage Connections")
+                icon("bolt.fill", "Quick Connect")
+            }
+            if let onClose, look.close != .none {
+                Button(action: onClose) {
+                    Image(systemName: "xmark").font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(look.close == .filled ? ColorTokens.Text.primary : ColorTokens.Text.secondary)
+                        .frame(width: SpacingTokens.lg + SpacingTokens.xxs, height: SpacingTokens.lg + SpacingTokens.xxs)
+                        .background(look.close == .filled ? ColorTokens.Text.primary.opacity(0.1) : Color.clear, in: Circle())
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help("Close")
+            }
+        }
+    }
+
+    private func icon(_ symbol: String, _ help: String) -> some View {
+        Button {} label: {
+            Image(systemName: symbol).font(.system(size: 12.5, weight: .medium)).foregroundStyle(ColorTokens.Text.secondary)
+                .frame(width: SpacingTokens.lg + SpacingTokens.xxs, height: SpacingTokens.lg + SpacingTokens.xxs)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+    }
+}
+
+/// The opened trail's top: the connected servers lying in a row, and the actions (OP1 to OP3).
+struct LabCMOpenedHeader: View {
+    let look: LabCMLook
+    let onClose: () -> Void
+    private let maxVisible = 6
+
+    var body: some View {
+        let servers = LabCMConnection.openServers(look.openServers.count)
+        VStack(spacing: SpacingTokens.xxs) {
+            HStack(spacing: SpacingTokens.xxs) {
+                ForEach(servers.prefix(maxVisible)) { server in
+                    Button(action: onClose) { LabCMMark(connection: server, size: SpacingTokens.lg + SpacingTokens.xxs) }
+                        .buttonStyle(.plain)
+                        .help(server.name)
+                }
+                if servers.count > maxVisible {
+                    Text("+\(servers.count - maxVisible)").font(TypographyTokens.detail.weight(.semibold)).foregroundStyle(ColorTokens.Text.secondary)
+                        .padding(.horizontal, SpacingTokens.xxs1)
+                }
+                Spacer(minLength: SpacingTokens.xxs)
+                switch look.opened {
+                case .header: LabCMActionIcons(onClose: onClose, look: look)
+                default: LabCMActionIcons(onClose: onClose, look: look, onlyClose: true)
+                }
+            }
+            if look.opened == .stacked {
+                HStack { Spacer(minLength: SpacingTokens.none); LabCMActionIcons(onClose: nil, look: look) }
+            }
+        }
+        .padding(.horizontal, SpacingTokens.xxs1)
+        .padding(.top, SpacingTokens.xxs)
     }
 }

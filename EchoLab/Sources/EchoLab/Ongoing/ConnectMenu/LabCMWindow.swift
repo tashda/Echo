@@ -41,20 +41,38 @@ struct LabCMWindow: View {
 
     private var rail: some View {
         GlassEffectContainer(spacing: SpacingTokens.xs) {
-            VStack(spacing: LayoutTokens.Rail.itemSpacing) {
-                ForEach(servers, id: \.self) { code in
-                    LabTIMark(server: code == "TP" ? .named("dev") : .named("test"), style: .monogram, isSelected: code == "TM")
+            Group {
+                if isRailOpen, look.opened != .classic {
+                    // Revision 2: the servers lie down into a row, the actions are icons.
+                    VStack(spacing: SpacingTokens.xxs) {
+                        LabCMOpenedHeader(look: look, onClose: { toggle() })
+                        LabCMList(look: look, onConnect: { toggle() })
+                            .frame(width: panelWidth - railPad * 2, height: SpacingTokens.xxxl * 5.4)
+                    }
+                    .padding(railPad)
+                    .transition(.opacity)
+                } else {
+                    closedColumn
                 }
-                if isRailOpen {
-                    LabCMList(look: look, onConnect: { toggle() })
-                        .frame(width: panelWidth - railPad * 2, height: SpacingTokens.xxxl * 5.4)
-                        .transition(.opacity)
-                }
-                plus
             }
-            .padding(railPad)
-            .glassEffect(.regular, in: .rect(cornerRadius: railWidth / 2, style: .continuous))
+            .glassEffect(.regular, in: .rect(cornerRadius: isRailOpen && look.opened != .classic ? SpacingTokens.lg : railWidth / 2, style: .continuous))
         }
+    }
+
+    /// The trail as it is: a column of servers and the +; revision 1 widened it to a list below the servers.
+    private var closedColumn: some View {
+        VStack(spacing: LayoutTokens.Rail.itemSpacing) {
+            ForEach(servers, id: \.self) { code in
+                LabTIMark(server: code == "TP" ? .named("dev") : .named("test"), style: .monogram, isSelected: code == "TM")
+            }
+            if isRailOpen {
+                LabCMList(look: look, onConnect: { toggle() })
+                    .frame(width: panelWidth - railPad * 2, height: SpacingTokens.xxxl * 5.4)
+                    .transition(.opacity)
+            }
+            plus
+        }
+        .padding(railPad)
     }
 
     @ViewBuilder

@@ -90,21 +90,77 @@ enum LabCMCount: String, CaseIterable {
     }
 }
 
+/// Revision 2: what the opened trail (PR4) looks like inside. The owner picked PR4 and asked for the
+/// open servers in a row on top, the three actions as icons at the top right, and a better way to close.
+enum LabCMOpened: String, CaseIterable {
+    case classic = "OP0 · As in revision 1: servers stay in a column, the list and a footer bar below"
+    case header = "OP1 · A header row: servers left, New, Manage, Quick Connect and close right, icons only"
+    case search = "OP2 · A header row of servers and close; the three actions sit inside the search field"
+    case stacked = "OP3 · Servers in a row, with the three actions on a second row of their own beside the search"
+
+    var summary: String {
+        switch self {
+        case .classic: "The column of servers stays, the list has an Open section, the actions are a footer and the + turns to a chevron at the foot."
+        case .header: "The servers lie down into a row at the top of the widened pill; the three actions are 28pt icon buttons at the right, the close button is the fourth. The list holds saved connections only."
+        case .search: "The header carries only servers and the close button; New, Manage and Quick Connect are three small icons at the end of the search field, where you are already looking."
+        case .stacked: "Two lines of chrome: the servers and the close button, then the search field with the three icons under it; the most room for either, the most height."
+        }
+    }
+
+    var hidesOpenSection: Bool { self != .classic }
+}
+
+/// Revision 2: how the opened trail is closed.
+enum LabCMClose: String, CaseIterable {
+    case plain = "CX1 · An × beside the three actions"
+    case filled = "CX2 · An × in its own tinted circle, apart from the three"
+    case none = "CX3 · No button: Escape, or a click outside the trail"
+
+    var summary: String {
+        switch self {
+        case .plain: "The fourth icon of the row, the same size and weight."
+        case .filled: "The same row, but the × is a filled circle: the one thing in the row that is not an action."
+        case .none: "Nothing to press; the trail closes on Escape, on a click outside, and when you connect."
+        }
+    }
+}
+
+/// How many servers are connected (a playground knob for the header row).
+enum LabCMOpenCount: String, CaseIterable {
+    case two = "Two"
+    case five = "Five"
+    case eight = "Eight"
+
+    var count: Int {
+        switch self {
+        case .two: 2
+        case .five: 5
+        case .eight: 8
+        }
+    }
+}
+
 struct LabCMLook {
     var presentation: LabCMPresentation
     var morph: LabCMMorph
     var content: LabCMContent
     var footer: LabCMFooter
     var count: LabCMCount
+    var opened = LabCMOpened.classic
+    var close = LabCMClose.plain
+    var openServers = LabCMOpenCount.two
 
     static let today = LabCMLook(presentation: .menu, morph: .none, content: .menu, footer: .rows, count: .some)
 
     @MainActor init(_ values: RoundValues) {
-        presentation = LabCMPresentation(rawValue: values["presentation"]) ?? .panel
+        presentation = LabCMPresentation(rawValue: values["presentation"]) ?? .rail
         morph = LabCMMorph(rawValue: values["morph"]) ?? .chevronBack
         content = LabCMContent(rawValue: values["content"]) ?? .search
         footer = LabCMFooter(rawValue: values["footer"]) ?? .bar
         count = LabCMCount(rawValue: values["count"]) ?? .some
+        opened = LabCMOpened(rawValue: values["opened"]) ?? .header
+        close = LabCMClose(rawValue: values["close"]) ?? .plain
+        openServers = LabCMOpenCount(rawValue: values["openServers"]) ?? .two
     }
 
     init(presentation: LabCMPresentation, morph: LabCMMorph, content: LabCMContent, footer: LabCMFooter, count: LabCMCount) {
@@ -130,6 +186,15 @@ struct LabCMConnection: Identifiable {
     var isOpen = false
     var isRecent = false
     var id: String { name + (folder ?? "") }
+
+    /// Open servers for the header row: the two real ones, then more.
+    static func openServers(_ count: Int) -> [LabCMConnection] {
+        let all = samples(40).filter(\.isOpen)
+        let more = samples(40).filter { !$0.isOpen }.prefix(max(0, count - all.count)).map { connection -> LabCMConnection in
+            var copy = connection; copy.isOpen = true; return copy
+        }
+        return Array((all + more).prefix(count))
+    }
 
     /// Two letters, as the rail derives them.
     var monogram: String {

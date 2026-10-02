@@ -1,4 +1,22 @@
 {
+  "fast.demo-fast-round": {
+    "comments": [],
+    "generalNote": "",
+    "history": [
+      {
+        "date": "2026-10-02T07:35:41Z",
+        "text": "Accepted"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {},
+    "reviewedRevision": 1,
+    "revisions": [],
+    "status": "Accepted",
+    "verdicts": {}
+  },
   "ongoing.agent-job-step-sheet-r33": {
     "comments": [
       {
@@ -114,6 +132,53 @@
     "reviewedRevision": 1,
     "revisions": [],
     "status": "Decided",
+    "verdicts": {}
+  },
+  "ongoing.connect-menu-r52": {
+    "comments": [
+      {
+        "date": "2026-10-02T07:41:39Z",
+        "id": "33E5C4AD-7925-48ED-B1DF-8355C04BAD8B",
+        "text": "Review of The + button: connecting to a server\n1. Where it opens: picked PR4 \u00b7 The trail itself opens: the pill widens into the list\n2. The +: picked MP2 \u00b7 The + becomes a chevron pointing back at the trail\n3. The list: picked CT1 \u00b7 Search first; open connections, then folders as headings\n4. Actions: picked FT1 \u00b7 A footer bar of three labelled buttons\n5. Keyboard: picked KB1 \u00b7 A shortcut opens it with the search field focused; Return connects, Escape closes\n6. The menu bar: picked SM1 \u00b7 Yes: File \u203a Connect To keeps the menu for the menu bar\nOverall: I love the PR4 that is exactly what should be. But with that maybe the already opened servers should be horizontal on the top and we don't need \"OPen servers\" on the list and maybe the three buttons at the bottom could also go to the top (servers left side, buttons right side) and just make them 3 servers with icons, no text. And the chevron in the bottom when opened is not looking good so think of another button to close it (maybe an x alongside the 3 other buttons). Give it another spin"
+      }
+    ],
+    "generalNote": "I love the PR4 that is exactly what should be. But with that maybe the already opened servers should be horizontal on the top and we don't need \"OPen servers\" on the list and maybe the three buttons at the bottom could also go to the top (servers left side, buttons right side) and just make them 3 servers with icons, no text. And the chevron in the bottom when opened is not looking good so think of another button to close it (maybe an x alongside the 3 other buttons). Give it another spin",
+    "history": [
+      {
+        "date": "2026-10-02T07:41:39Z",
+        "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-02T07:43:37Z",
+        "text": "Revision 2: Opened trail: servers in a row on top, the three actions as icons, a close button"
+      }
+    ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "content": "CT1 \u00b7 Search first; open connections, then folders as headings",
+      "footer": "FT1 \u00b7 A footer bar of three labelled buttons",
+      "menuStays": "file",
+      "morph": "MP2 \u00b7 The + becomes a chevron pointing back at the trail",
+      "presentation": "PR4 \u00b7 The trail itself opens: the pill widens into the list",
+      "shortcut": "open"
+    },
+    "reviewedRevision": 1,
+    "revisions": [
+      {
+        "changes": [
+          "New: Opened trail OP1 to OP3 (servers lie down into a header row; actions are icons at the right or in the search)",
+          "New: Closing CX1 to CX3 (an \u00d7 beside the actions, an \u00d7 in a circle, or Escape only)",
+          "New: Connected servers knob (two, five, eight)",
+          "PR4 is now the default and the recommendation; the Open section and footer bar go with OP1 to OP3"
+        ],
+        "date": "2026-10-02T07:43:37Z",
+        "number": 2,
+        "summary": "Opened trail: servers in a row on top, the three actions as icons, a close button"
+      }
+    ],
+    "status": "Judging",
     "verdicts": {}
   },
   "ongoing.content-during-slide-r26": {

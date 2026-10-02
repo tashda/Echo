@@ -12,9 +12,9 @@ enum ConnectMenuRound {
 
     static let spec = RoundSpec(
         controls: [
-            .of("presentation", "Where it opens", LabCMPresentation.self, default: .panel,
+            .of("presentation", "Where it opens", LabCMPresentation.self, default: .rail,
                 question: "Press the + in the Proposal with each presentation, at Five and at Forty connections. Where should the list of connections open?",
-                recommend: .panel,
+                recommend: .rail,
                 why: "You said the menu feels off under the glass and wanted it to the right: the panel does that and stays level with the +, so the thing you pressed and what it opened are one gesture. The drawer and the palette are better for forty connections but are further from the + and cover more of the tree; the widened trail (PR4) is the most elegant and the one I would try next if the panel feels detached.",
                 summary: \.summary),
             .of("morph", "The +", LabCMMorph.self, default: .chevronBack,
@@ -33,6 +33,17 @@ enum ConnectMenuRound {
                 why: "A footer bar stays in view while the list scrolls, which a menu's last rows do not once there are forty connections. Today's rows (FT0) are the right choice only with the menu; FT2 makes New primary, which is a bet that you connect to new servers more often than I think you do.",
                 summary: \.summary),
             .of("count", "Connections", LabCMCount.self, default: .some),
+            .of("opened", "Opened trail", LabCMOpened.self, default: .header,
+                question: "Open the trail (PR4) with each layout. How should the opened trail be arranged?",
+                recommend: .header,
+                why: "You asked for exactly this: the servers you are connected to are a row you can switch between, so the list holds only what you could connect to. Icons only keeps the row to one line; each has a tooltip, and they are the same three actions as the footer's. OP2 puts them where you are typing, which is better if you use them rarely; OP3 spends a line.",
+                summary: \.summary, addedIn: 2),
+            .of("close", "Closing", LabCMClose.self, default: .plain,
+                question: "With the Opened trail on OP1 to OP3, close it with each. How should the opened trail be closed?",
+                recommend: .plain,
+                why: "The bottom chevron is gone with the + (the list now opens from the trail's own pill); an × beside the three actions is the one place the pointer already is. Escape and a click outside close it in every option, so CX3 only decides whether there is a button too.",
+                summary: \.summary, addedIn: 2),
+            .of("openServers", "Connected servers", LabCMOpenCount.self, default: .two, addedIn: 2),
         ],
         exhibits: [
             .init(id: "today", title: "Echo today",
@@ -70,9 +81,10 @@ enum ConnectMenuRound {
                   why: "The menu bar needs a menu for accessibility and for people who navigate by keyboard; it costs nothing to keep and is not what the owner is judging here."),
         ],
         presets: [
-            .init(id: "recommended", name: "My recommendation", summary: "A glass panel beside the +, which turns to ‹, a searchable list and a footer bar.",
-                  values: ["presentation": LabCMPresentation.panel.rawValue, "morph": LabCMMorph.chevronBack.rawValue,
-                           "content": LabCMContent.search.rawValue, "footer": LabCMFooter.bar.rawValue],
+            .init(id: "recommended", name: "My recommendation", summary: "Your picks: the trail opens, servers in a row on top with the three actions and an ×, a searchable list of saved connections.",
+                  values: ["presentation": LabCMPresentation.rail.rawValue, "morph": LabCMMorph.chevronBack.rawValue,
+                           "content": LabCMContent.search.rawValue, "footer": LabCMFooter.bar.rawValue,
+                           "opened": LabCMOpened.header.rawValue, "close": LabCMClose.plain.rawValue],
                   isRecommended: true),
             .init(id: "trail", name: "The trail opens", summary: "The pill widens into the list; the + is a chevron.",
                   values: ["presentation": LabCMPresentation.rail.rawValue, "morph": LabCMMorph.chevronBack.rawValue,
