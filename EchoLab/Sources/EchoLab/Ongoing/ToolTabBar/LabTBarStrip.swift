@@ -35,7 +35,7 @@ struct LabTBarStrip: View {
         let scale = motion.durationScale
         switch motionStyle {
         case .today: return motion.standard
-        case .calm, .glide, .anchored, .printed: return .smooth(duration: 0.3 * scale)
+        case .calm, .glide, .anchored, .printed, .frozen, .layer: return .smooth(duration: 0.3 * scale)
         case .staged: return .smooth(duration: 0.3 * scale).delay(0.12 * scale)
         }
     }
@@ -45,7 +45,7 @@ struct LabTBarStrip: View {
         let scale = motion.durationScale
         switch motionStyle {
         case .today: return motion.press
-        case .calm, .glide, .anchored, .printed: return .easeOut(duration: 0.18 * scale)
+        case .calm, .glide, .anchored, .printed, .frozen, .layer: return .easeOut(duration: 0.18 * scale)
         case .staged: return .easeOut(duration: 0.12 * scale)
         }
     }
@@ -84,6 +84,16 @@ struct LabTBarStrip: View {
                 ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
                     tabView(tab, width: widths[index])
                 }
+            }
+            if motionStyle == .layer {
+                // MO7: the labels at their final positions, on a layer that does not animate.
+                HStack(spacing: SpacingTokens.none) {
+                    ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
+                        labelCell(tab, width: widths[index])
+                    }
+                }
+                .allowsHitTesting(false)
+                .transaction { $0.animation = nil }
             }
         }
         .padding(SpacingTokens.xxxs)

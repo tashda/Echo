@@ -38,21 +38,37 @@ extension LabTBarStrip {
                     .padding(.horizontal, SpacingTokens.sm)
                     .frame(width: width, height: Self.tabHeight)
                     .background { if isActive { plate } }
+            } else if motionStyle == .layer {
+                Color.clear.frame(width: width, height: Self.tabHeight)
+                    .background { if !usesSlidingPlate { plate.opacity(isActive ? 1 : 0) } }
             } else {
-                let centred = max(14, (width - naturalWidth(tab, isActive: isActive)) / 2)
-                let lead = isActive && hasPages || motionStyle == .anchored ? SpacingTokens.sm : centred
-                calmContent(tab, isActive: isActive, hasPages: hasPages, iconOnly: iconOnly)
-                    .fixedSize()
-                    .padding(.leading, motionStyle == .anchored && !isActive ? max(14, min(lead, 14)) : lead)
-                    // MO5: the words go to their final place at once; only the plate and edges move.
-                    .transaction { if motionStyle == .printed { $0.animation = nil } }
-                    .frame(width: width, height: Self.tabHeight, alignment: .leading)
+                labelCell(tab, width: width)
                     .clipShape(Capsule())
                     .background { if !usesSlidingPlate { plate.opacity(isActive ? 1 : 0) } }
             }
         }
         .contentShape(Capsule())
         .onTapGesture { select(tab.id) }
+    }
+
+    /// A tab's icon, title and pages at the width the tab will have, placed as the motion asks.
+    func labelCell(_ tab: LabTBarTab, width: CGFloat) -> some View {
+        let isActive = tab.id == activeID
+        let hasPages = !tab.pages.isEmpty && fit != .row
+        let iconOnly = planner.isIconOnly(width, isActive: isActive)
+        let centred = max(14, (width - naturalWidth(tab, isActive: isActive)) / 2)
+        let inset: CGFloat = switch motionStyle {
+        case .anchored: isActive ? SpacingTokens.sm : 14
+        case .frozen, .layer: 14
+        default: isActive && hasPages ? SpacingTokens.sm : centred
+        }
+        // MO5 and MO7 put the words in place at once; MO6 animates nothing about them at all.
+        let snaps = motionStyle == .printed || motionStyle == .frozen
+        return calmContent(tab, isActive: isActive, hasPages: hasPages, iconOnly: iconOnly)
+            .fixedSize()
+            .padding(.leading, motionStyle == .layer ? (isActive && hasPages ? SpacingTokens.sm : centred) : inset)
+            .transaction { if snaps { $0.animation = nil } }
+            .frame(width: width, height: Self.tabHeight, alignment: .leading)
     }
 
     private var plate: some View {
@@ -91,7 +107,7 @@ extension LabTBarStrip {
                 dotView(tab)
             }
             .opacity(iconOnly ? 0 : 1)
-            .animation(pagesCurve, value: iconOnly)
+            .animation(motionStyle == .frozen ? nil : pagesCurve, value: iconOnly)
             if hasPages {
                 pagesView(tab, isActive: isActive)
                     .opacity(isActive ? 1 : 0)

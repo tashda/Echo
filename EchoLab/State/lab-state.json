@@ -4116,6 +4116,10 @@
       {
         "date": "2026-10-02T08:08:38Z",
         "text": "Revision 2: Advanced Objects split into four tools; two motions that keep the icon and title still"
+      },
+      {
+        "date": "2026-10-02T08:20:59Z",
+        "text": "Revision 3: Two more ways to keep the icon and title still when tabs switch"
       }
     ],
     "needsMore": [
@@ -4146,6 +4150,15 @@
         "date": "2026-10-02T08:08:38Z",
         "number": 2,
         "summary": "Advanced Objects split into four tools; two motions that keep the icon and title still"
+      },
+      {
+        "changes": [
+          "New option MO6: icon and title frozen (nothing about them animates)",
+          "New option MO7: icons and titles on a still layer; tabs and plate glide beneath"
+        ],
+        "date": "2026-10-02T08:20:59Z",
+        "number": 3,
+        "summary": "Two more ways to keep the icon and title still when tabs switch"
       }
     ],
     "status": "Judging",
