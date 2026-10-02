@@ -147,6 +147,10 @@
       {
         "date": "2026-10-02T09:22:02Z",
         "text": "Feedback sent"
+      },
+      {
+        "date": "2026-10-02T09:26:04Z",
+        "text": "Revision 2: One animation, made properly: the card's banner becomes the trail circle on a real spring"
       }
     ],
     "needsMore": [],
@@ -154,8 +158,19 @@
     "pickNotes": {},
     "picks": {},
     "reviewedRevision": 1,
-    "revisions": [],
-    "status": "New feedback",
+    "revisions": [
+      {
+        "changes": [
+          "Removed: the eight journeys",
+          "New: the banner narrows into a disc of the server's colour while it flies, lands with a very small bounce, then hands over to the item (letters and dashed ring)",
+          "New: tuning for the fold, the path, the bounce, the duration and the landing; eight stills to check the shapes; slow motion"
+        ],
+        "date": "2026-10-02T09:26:04Z",
+        "number": 2,
+        "summary": "One animation, made properly: the card's banner becomes the trail circle on a real spring"
+      }
+    ],
+    "status": "Judging",
     "verdicts": {}
   },
   "ongoing.connect-menu-r52": {

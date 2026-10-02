@@ -6,6 +6,10 @@ struct LabHCCard: View {
     let server: LabSHServer
     let look: LabHCLook
     var rowLimit: Int?
+    /// False when something else (round 54's window) owns the collapsing.
+    var interactive = true
+    /// Reports the banner's frame, for a card that flies into the trail.
+    var reportsBanner = false
     @State private var isOpen = true
     @State private var isHovering = false
     @State private var section = LabHRSection.databases
@@ -24,6 +28,13 @@ struct LabHCCard: View {
             }
             .padding(.bottom, isOpen ? SpacingTokens.xxs2 + (look.edge == .rounded ? SpacingTokens.xxs : 0) : SpacingTokens.none)
             .background { LabHCBanner(look: look, tint: tint).allowsHitTesting(false) }
+            .background {
+                if reportsBanner {
+                    GeometryReader { proxy in
+                        Color.clear.preference(key: LabMVFrames.self, value: ["banner-\(server.id)": proxy.frame(in: .named("mv"))])
+                    }
+                }
+            }
             .overlay(alignment: .bottom) {
                 if look.chevron == .handle {
                     LabHCHandle(isOpen: isOpen, isHovering: isHovering, motion: look.motion, color: textColor)
@@ -82,7 +93,7 @@ struct LabHCCard: View {
         .padding(.top, look.density.vertical)
         .padding(.bottom, look.density == .compact ? SpacingTokens.xxs : (look.density == .roomy ? SpacingTokens.xs : SpacingTokens.xxs2))
         .contentShape(Rectangle())
-        .onTapGesture { toggle(look) }
+        .onTapGesture { if interactive { toggle(look) } }
     }
 
     private func eyebrowText(_ look: LabHCLook) -> String? {
