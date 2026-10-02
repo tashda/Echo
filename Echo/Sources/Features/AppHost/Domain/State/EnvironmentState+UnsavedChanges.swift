@@ -1,9 +1,10 @@
 import AppKit
 import UniformTypeIdentifiers
 
-/// Asking before a query tab's unsaved changes are lost (owner, 2026-10-01): a standard alert with
-/// Save (to a bookmark: the tab's own, or a new one), Save As (a .sql file), Don't Save and Cancel.
-/// Closing several tabs at once asks once: Review Each, Close Without Saving, Cancel.
+/// Asking before a query tab's unsaved changes are lost (owner, 2026-10-01; round IC): a standard
+/// alert. A tab with a home (a bookmark or a .sql file) offers Save, Don't Save and Cancel; a tab
+/// without one offers Save to Bookmarks (named after the tab, in No Folder), Save to File…, Don't
+/// Save and Cancel. Closing several tabs at once asks once: Review Each, Close Without Saving, Cancel.
 extension EnvironmentState {
     enum UnsavedChoice: Equatable { case save, saveAs, dontSave, cancel }
     enum SeveralUnsavedChoice: Equatable { case reviewEach, closeWithoutSaving, cancel }
@@ -47,8 +48,9 @@ extension EnvironmentState {
     /// Asks about one tab; true when it may close (saved, or Don't Save).
     func confirmUnsavedChanges(in tab: WorkspaceTab) async -> Bool {
         if let editor = tab.structureEditor { return await confirmPendingStructureChanges(in: tab, editor: editor) }
-        switch await UnsavedChangesAlert.ask(tab: tab.title, bookmark: tab.bookmarkContext?.displayName) {
-        case .save: return await saveToBookmark(tab)
+        let hasHome = tab.bookmarkContext != nil || tab.fileURL != nil
+        switch await UnsavedChangesAlert.ask(tab: tab.title, bookmark: tab.bookmarkContext?.displayName, hasHome: hasHome) {
+        case .save: return hasHome ? await saveToHome(tab) : await saveToBookmark(tab)
         case .saveAs: return await saveAsFile(tab)
         case .dontSave: return true
         case .cancel: return false
@@ -110,13 +112,21 @@ extension EnvironmentState {
             return false
         }
         let sql = query.sql
-        if let context = tab.bookmarkContext {
-            bookmarkRepository.updateBookmark(context.bookmarkID, in: &project) { $0.query = sql }
+        if let context = tab.bookmarkContext,
+           let holder = projectStore.projects.first(where: { $0.bookmarks.contains { $0.id == context.bookmarkID } }) {
+            project = holder
+            bookmarkRepository.updateBookmark(context.bookmarkID, in: &project) {
+                $0.query = sql
+                $0.updatedAt = Date()
+            }
         } else {
+            // A new bookmark at the top of No Folder (round IC).
             let bookmark = Bookmark(connectionID: connection.id, databaseName: tab.activeDatabaseName ?? connection.database,
-                                    title: tab.title, query: sql, source: .tab)
+                                    title: tab.title, query: sql, source: .tab,
+                                    sortIndex: bookmarkRepository.topSortIndex(inFolder: nil, of: project))
             bookmarkRepository.addBookmark(bookmark, to: &project)
             tab.bookmarkContext = WorkspaceTab.BookmarkTabContext(bookmark: bookmark)
+            tab.fileURL = nil
         }
         await projectStore.saveProject(project)
         query.markSaved()
@@ -145,6 +155,9 @@ extension EnvironmentState {
             return false
         }
         tab.title = url.deletingPathExtension().lastPathComponent
+        // The file becomes the tab's home, so the next Save writes it (round IC).
+        tab.fileURL = url
+        tab.bookmarkContext = nil
         query.markSaved()
         return true
     }
@@ -153,13 +166,19 @@ extension EnvironmentState {
 /// The alerts' words.
 @MainActor
 enum UnsavedChangesAlert {
-    static func ask(tab: String, bookmark: String?) async -> EnvironmentState.UnsavedChoice {
-        let choices: [(WindowAlert.Button, EnvironmentState.UnsavedChoice)] = [
-            (.init(title: "Save"), .save),
-            (.init(title: "Save As"), .saveAs),
-            (.init(title: "Don't Save", isDestructive: true), .dontSave),
-            (.init(title: "Cancel"), .cancel),
-        ]
+    static func ask(tab: String, bookmark: String?, hasHome: Bool) async -> EnvironmentState.UnsavedChoice {
+        let choices: [(WindowAlert.Button, EnvironmentState.UnsavedChoice)] = hasHome
+            ? [
+                (.init(title: "Save"), .save),
+                (.init(title: "Don't Save", isDestructive: true), .dontSave),
+                (.init(title: "Cancel"), .cancel),
+            ]
+            : [
+                (.init(title: "Save to Bookmarks"), .save),
+                (.init(title: "Save to File…"), .saveAs),
+                (.init(title: "Don't Save", isDestructive: true), .dontSave),
+                (.init(title: "Cancel"), .cancel),
+            ]
         let index = await WindowAlert.present(title: texts(tab: tab, bookmark: bookmark).title,
                                               message: texts(tab: tab, bookmark: bookmark).message,
                                               buttons: choices.map(\.0))

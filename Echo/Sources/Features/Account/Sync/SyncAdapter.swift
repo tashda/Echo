@@ -201,6 +201,7 @@ struct SyncAdapter: Sendable {
         fields["isDefault"] = try field(project.isDefault, hlc: hlc)
         fields["createdAt"] = try field(project.createdAt, hlc: hlc)
         fields["updatedAt"] = try field(project.updatedAt, hlc: hlc)
+        fields["bookmarkFolders"] = try field(project.bookmarkFolders, hlc: hlc)
 
         // settings and bookmarks are synced as separate collections
         // projectGlobalSettings will be synced as a settings document
@@ -225,6 +226,7 @@ struct SyncAdapter: Sendable {
         if let v: Bool = try value(doc, "isDefault") { project.isDefault = v }
         if let v: Date = try value(doc, "createdAt") { project.createdAt = v }
         if let v: Date = try value(doc, "updatedAt") { project.updatedAt = v }
+        if let v: [String] = try value(doc, "bookmarkFolders") { project.bookmarkFolders = v }
 
         return project
     }
@@ -241,6 +243,9 @@ struct SyncAdapter: Sendable {
         fields["source"] = try field(bookmark.source, hlc: hlc)
         fields["createdAt"] = try field(bookmark.createdAt, hlc: hlc)
         fields["updatedAt"] = try field(bookmark.updatedAt, hlc: hlc)
+        fields["folder"] = try field(bookmark.folder, hlc: hlc)
+        fields["note"] = try field(bookmark.note, hlc: hlc)
+        fields["sortIndex"] = try field(bookmark.sortIndex, hlc: hlc)
 
         return SyncDocument(
             id: bookmark.id,
@@ -267,6 +272,9 @@ struct SyncAdapter: Sendable {
         if let v: Bookmark.Source = try value(doc, "source") { bookmark.source = v }
         if let v: Date = try value(doc, "createdAt") { bookmark.createdAt = v }
         if let v: Date? = try optionalValue(doc, "updatedAt") { bookmark.updatedAt = v }
+        if let v: String? = try optionalValue(doc, "folder") { bookmark.folder = v }
+        if let v: String? = try optionalValue(doc, "note") { bookmark.note = v }
+        if let v: Double? = try optionalValue(doc, "sortIndex") { bookmark.sortIndex = v }
 
         return bookmark
     }

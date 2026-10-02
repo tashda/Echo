@@ -6,6 +6,17 @@ struct TabActivePlate: View {
     let width: CGFloat
     let offset: CGFloat
 
+    var body: some View {
+        TabRaisedPlate()
+            .frame(width: max(width, 0), height: WorkspaceChromeMetrics.tabHeight)
+            .offset(x: offset)
+            .allowsHitTesting(false)
+    }
+}
+
+/// The white raised plate itself: the active tab's gradient, hairline and shadow. The inspector's
+/// page strip uses the same plate for its shown page (round IC, B1).
+struct TabRaisedPlate: View {
     @Environment(\.colorScheme) private var colorScheme
 
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 15, style: .continuous) }
@@ -20,8 +31,6 @@ struct TabActivePlate: View {
             .overlay(shape.stroke(isDark ? ColorTokens.TabStrip.Border.activeDark : ColorTokens.TabStrip.Border.activeLight,
                                   lineWidth: tabHairlineWidth()))
             .shadow(color: isDark ? ColorTokens.TabStrip.Shadow.dark : ColorTokens.TabStrip.Shadow.light, radius: 2.5, y: 1.2)
-            .frame(width: max(width, 0), height: WorkspaceChromeMetrics.tabHeight)
-            .offset(x: offset)
             .allowsHitTesting(false)
     }
 }

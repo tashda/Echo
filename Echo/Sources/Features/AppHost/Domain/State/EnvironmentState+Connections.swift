@@ -218,13 +218,15 @@ extension EnvironmentState {
     }
 
     func removeBookmark(_ bookmark: Bookmark) async {
-        guard var project = projectStore.projects.first(where: { $0.id == (bookmark.connectionID) }) else { return }
+        // The project that holds it (this compared project IDs with the connection's ID, so it
+        // never found one).
+        guard var project = projectStore.projects.first(where: { $0.bookmarks.contains { $0.id == bookmark.id } }) else { return }
         bookmarkRepository.removeBookmark(bookmark.id, from: &project)
         await projectStore.saveProject(project)
     }
 
     func renameBookmark(_ bookmark: Bookmark, to title: String?) async {
-        guard var project = projectStore.projects.first(where: { $0.id == (bookmark.connectionID) }) else { return }
+        guard var project = projectStore.projects.first(where: { $0.bookmarks.contains { $0.id == bookmark.id } }) else { return }
         bookmarkRepository.updateBookmark(bookmark.id, in: &project) { b in b.title = title }
         await projectStore.saveProject(project)
     }

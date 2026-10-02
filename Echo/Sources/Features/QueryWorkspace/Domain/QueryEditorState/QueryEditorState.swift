@@ -5,9 +5,21 @@ import Observation
 import OSLog
 
 @Observable @MainActor final class QueryEditorState {
-    var sql: String
+    var sql: String {
+        didSet { refreshEdited() }
+    }
     /// The SQL as it was opened or last saved, to tell whether the tab has unsaved changes.
-    @ObservationIgnored var savedSQL: String
+    @ObservationIgnored var savedSQL: String {
+        didSet { refreshEdited() }
+    }
+    /// `hasUnsavedChanges`, observed: it changes only when it flips, so the tab strip's unsaved
+    /// dot (round IC) doesn't redraw the strip on every keystroke.
+    private(set) var isEdited = false
+
+    private func refreshEdited() {
+        let edited = hasUnsavedChanges
+        if edited != isEdited { isEdited = edited }
+    }
     var results: QueryResultSet?
     var errorMessage: String?
     var isExecuting: Bool = false
@@ -50,6 +62,8 @@ import OSLog
     var validationRequestGeneration: Int = 0
     /// Set to move the editor's caret to a line, as "Show in Editor" on a query error does.
     var editorLineRequest: EditorLineRequest?
+    /// Set to insert text at the caret (round IC, Insert from the inspector's lists).
+    var editorInsertRequest: EditorInsertRequest?
     /// Set by the rows pill's popover for the results card to export or copy (round 41.5, PR0).
     var resultsActionRequest: ResultsActionRequest?
     /// This tab's last runs, oldest first, for the time pill's popover (round 41.5, PT0).

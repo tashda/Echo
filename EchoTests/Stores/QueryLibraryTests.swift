@@ -76,19 +76,18 @@ struct QueryLibraryTests {
         let app = state()
         app.isWorkspaceTreeVisible = false
         app.showInfoSidebar = true
-        app.showWorkspaceLibrary(.history)
+        app.showInspectorPage(.history)
         #expect(app.isInspectorColumnVisible)
         #expect(!app.showInfoSidebar)
         #expect(!app.isWorkspaceTreeVisible)
         app.showNotificationHistory()
-        #expect(app.workspaceLibrary == nil)
-        app.showWorkspaceLibrary(.bookmarks)
+        #expect(app.inspectorPage == .notifications)
+        app.showInspectorPage(.bookmarks)
         #expect(!app.isNotificationHistoryVisible)
         app.toggleInspector()
-        #expect(app.workspaceLibrary == nil)
-        #expect(app.showInfoSidebar)
-        app.toggleInspector()
         #expect(!app.isInspectorColumnVisible)
+        app.toggleInspector()
+        #expect(app.inspectorPage == .bookmarks)
     }
 
     @Test func retiredClipboardCannotCaptureOrImport() {

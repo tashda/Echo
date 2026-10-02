@@ -113,6 +113,13 @@ struct QueryEditorContainer: View {
 
     func handleCellInspect(_ content: CellValueInspectorContent) {
         environmentState.dataInspectorContent = .cellValue(content)
+        // A double-clicked cell asks for its value (round IC): an open column goes to Details; a
+        // closed one opens on Details when auto-open is on.
+        if appState.isInspectorVisible {
+            appState.showInspectorPage(.details)
+        } else if appState.noteDetailsChanged(autoOpen: autoOpenInspector) {
+            inspectorAutoOpened = true
+        }
     }
 
     @ViewBuilder

@@ -10,8 +10,7 @@ extension QueryEditorContainer {
                 latestForeignKeySelection = nil
                 let content = makeJsonInspectorContent(for: selection)
                 environmentState.dataInspectorContent = .json(content)
-                if autoOpenInspector, !appState.showInfoSidebar {
-                    appState.showInfoSidebar = true
+                if appState.noteDetailsChanged(autoOpen: autoOpenInspector) {
                     inspectorAutoOpened = true
                 }
             } else {
@@ -28,10 +27,9 @@ extension QueryEditorContainer {
             latestForeignKeySelection = nil
             let content = makeJsonInspectorContent(for: selection)
             environmentState.dataInspectorContent = .json(content)
-            if !appState.showInfoSidebar {
-                appState.showInfoSidebar = true
-                inspectorAutoOpened = true
-            }
+            // Activating a JSON cell asks for it, so it always lands on Details.
+            if !appState.isInspectorVisible { inspectorAutoOpened = true }
+            appState.showInspectorPage(.details)
         }
     }
 

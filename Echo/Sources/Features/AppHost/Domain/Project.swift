@@ -18,6 +18,8 @@ struct Project: Identifiable, Codable, Hashable {
     // Project-specific settings
     var settings: ProjectSettings
     var bookmarks: [Bookmark]
+    /// Round IC: the bookmark folders, in the order you gave them. No Folder isn't one of them.
+    var bookmarkFolders: [String]
 
     /// Per-project copy of all application settings. `nil` means the project
     /// has not been migrated yet — on first load the global defaults are copied in.
@@ -35,6 +37,7 @@ struct Project: Identifiable, Codable, Hashable {
         isSyncEnabled: Bool = false,
         settings: ProjectSettings = ProjectSettings(),
         bookmarks: [Bookmark] = [],
+        bookmarkFolders: [String] = [],
         projectGlobalSettings: GlobalSettings? = nil
     ) {
         self.id = id
@@ -47,6 +50,7 @@ struct Project: Identifiable, Codable, Hashable {
         self.isSyncEnabled = isSyncEnabled
         self.settings = settings
         self.bookmarks = bookmarks
+        self.bookmarkFolders = bookmarkFolders
         self.projectGlobalSettings = projectGlobalSettings
     }
 
@@ -62,6 +66,7 @@ struct Project: Identifiable, Codable, Hashable {
         isSyncEnabled = try container.decodeIfPresent(Bool.self, forKey: .isSyncEnabled) ?? false
         settings = try container.decodeIfPresent(ProjectSettings.self, forKey: .settings) ?? ProjectSettings()
         bookmarks = try container.decodeIfPresent([Bookmark].self, forKey: .bookmarks) ?? []
+        bookmarkFolders = try container.decodeIfPresent([String].self, forKey: .bookmarkFolders) ?? []
         projectGlobalSettings = try container.decodeIfPresent(GlobalSettings.self, forKey: .projectGlobalSettings)
     }
 

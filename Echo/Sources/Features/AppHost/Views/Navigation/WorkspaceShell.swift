@@ -73,6 +73,9 @@ struct WorkspaceShell: View {
         .onChange(of: appState.isInspectorColumnVisible) { _, _ in
             WindowDragPause.pauseWorkspace(for: motion.settleDuration + 0.15)
         }
+        // The Save card (round IC, H1), for ⌘S on a tab without a home, Save As…, Save to
+        // Bookmarks…, Save to File… and Add to Bookmarks: a floating card from the tab.
+        .saveCardOverlay(gutter: gutter)
     }
 
     private var clampedTreeWidth: CGFloat {

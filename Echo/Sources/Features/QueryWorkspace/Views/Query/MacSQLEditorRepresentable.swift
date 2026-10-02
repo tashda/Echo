@@ -29,6 +29,7 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
     var onSchemaLoadNeeded: ((String) -> Void)?
     var validationRequestGeneration: Int = 0
     var editorLineRequest: EditorLineRequest?
+    var editorInsertRequest: EditorInsertRequest?
     /// False while its tab is kept mounted but not shown (`KeptAliveTabsView`).
     var isActiveTab = true
 
@@ -118,6 +119,24 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
             }
         }
 
+        if let request = editorInsertRequest, request != context.coordinator.lastInsertRequest {
+            context.coordinator.lastInsertRequest = request
+            Task { @MainActor [weak textView] in
+                guard let textView else { return }
+                // Through shouldChangeText/didChangeText, so it is one undoable edit and the
+                // binding hears about it like typing.
+                let range = textView.selectedRange()
+                if textView.shouldChangeText(in: range, replacementString: request.text) {
+                    textView.replaceCharacters(in: range, with: request.text)
+                    textView.didChangeText()
+                    let caret = NSRange(location: range.location + (request.text as NSString).length, length: 0)
+                    textView.setSelectedRange(caret)
+                    textView.scrollRangeToVisible(caret)
+                }
+                textView.window?.makeFirstResponder(textView)
+            }
+        }
+
         if textView.string != text {
             context.coordinator.isUpdatingFromBinding = true
             let currentSelection = textView.selectedRange()
@@ -160,6 +179,7 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
         var isUpdatingFromBinding = false
         var lastValidationGeneration = 0
         var lastLineRequest: EditorLineRequest?
+        var lastInsertRequest: EditorInsertRequest?
 
         init(parent: MacSQLEditorRepresentable) {
             self.parent = parent

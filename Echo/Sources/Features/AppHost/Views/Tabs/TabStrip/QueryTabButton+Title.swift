@@ -22,9 +22,11 @@ extension QueryTabButton {
                 .help(tabTooltip)
         } else {
             HStack(spacing: SpacingTokens.xxs2) {
-                // The icon's room; the icon is on the strip's layer above.
+                // The icon's room; the icon is on the strip's layer above. A tab with no home
+                // shows its ☆ here while the pointer is on it (round IC).
                 Color.clear.frame(width: SpacingTokens.sm2, height: SpacingTokens.sm2)
-                    .accessibilityHidden(true)
+                    .overlay { if showsSaveStar { saveStar } }
+                    .accessibilityHidden(!showsSaveStar)
 
                 titleText
 
@@ -68,6 +70,7 @@ extension QueryTabButton {
         // Which server: the dot is gone (round 49, SD2), so the tooltip says it.
         var parts = [displayedTitle, tab.connection.connectionName]
         if let database = tab.tabSubtitle ?? tab.activeDatabaseName, !database.isEmpty { parts.append(database) }
+        if let home = tab.homeTooltip { parts.append(home) }
         if let runningSince {
             parts.append("Running since \(runningSince.formatted(date: .omitted, time: .standard))")
         }

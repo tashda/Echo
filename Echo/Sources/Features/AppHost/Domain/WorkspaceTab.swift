@@ -106,7 +106,10 @@ final class WorkspaceTab: Identifiable {
     /// The buttons the tab's content puts in the window toolbar (round 37.5).
     var toolbarSection: TabToolbarSection?
     /// The bookmark the tab came from, or was last saved to; Save writes back to it.
-    @ObservationIgnored var bookmarkContext: BookmarkTabContext?
+    /// Observed: the tab strip marks the tab's home (round IC).
+    var bookmarkContext: BookmarkTabContext?
+    /// The .sql file this tab was saved to or opened from (round IC): with it, Save writes the file.
+    var fileURL: URL?
 
     @ObservationIgnored let resultsGridState = QueryResultsGridState()
     let panelState: BottomPanelState

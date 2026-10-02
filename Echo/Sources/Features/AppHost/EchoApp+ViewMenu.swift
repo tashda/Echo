@@ -41,17 +41,27 @@ struct ViewMenuCommands: Commands {
                 appState.toggleInspector()
             } label: {
                 Label(
-                    appState.showInfoSidebar && !appState.isNotificationHistoryVisible ? "Hide Inspector" : "Show Inspector",
+                    appState.isInspectorColumnVisible ? "Hide Inspector" : "Show Inspector",
                     systemImage: "sidebar.trailing"
                 )
             }
             .keyboardShortcut("i", modifiers: [.command, .option])
             .disabled(!navigationStore.isWorkspaceWindowKey)
 
-            Button("Bookmarks", systemImage: "bookmark") { appState.showWorkspaceLibrary(.bookmarks) }
-                .disabled(!navigationStore.isWorkspaceWindowKey)
-            Button("Query History", systemImage: "clock") { appState.showWorkspaceLibrary(.history) }
-                .disabled(!navigationStore.isWorkspaceWindowKey)
+            // The inspector's four pages (round IC): ⌥⌘1–4 show a page, or close the column when it
+            // shows.
+            Menu("Inspector Page") {
+                ForEach(InspectorPage.allCases) { page in
+                    Toggle(isOn: Binding(
+                        get: { appState.isInspectorColumnVisible && appState.inspectorPage == page },
+                        set: { _ in appState.toggleInspectorPage(page) }
+                    )) {
+                        Label(page.title, systemImage: page.systemImage)
+                    }
+                    .keyboardShortcut(KeyEquivalent(page.shortcutDigit), modifiers: [.command, .option])
+                }
+            }
+            .disabled(!navigationStore.isWorkspaceWindowKey)
 
             Button {
                 tabStore.activeTab?.panelState.isOpen.toggle()

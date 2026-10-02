@@ -8,6 +8,7 @@ extension WorkspaceTabContainerView {
                                   databaseName: tab.activeDatabaseName ?? connection.database,
                                   resultCount: resultCount, duration: state.lastExecutionTime,
                                   outcome: outcome, connectionName: connection.connectionName.isEmpty ? connection.host : connection.connectionName,
+                                  errorMessage: outcome == "Failed" ? state.errorMessage : nil,
                                   keepsHistory: connection.keepsQueryHistory)
     }
 }
