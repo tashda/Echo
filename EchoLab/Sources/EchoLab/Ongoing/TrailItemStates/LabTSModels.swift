@@ -1,70 +1,82 @@
 import SwiftUI
 
-/// Round 55. Every server in the trail is connected; its card is open in the tree or minimized
-/// (round 51's SH5). The dashed ring that marked a minimized server is out. These are other ways
-/// to tell open from minimized, and whether the trail should also hold recent servers.
-enum LabTSMark: String, CaseIterable {
-    case ring = "ST0 · A dashed ring on a minimized server (the one you dislike)"
-    case none = "ST1 · Nothing: the letters are the same either way"
-    case dot = "ST2 · A dot beside an open server's item, as the Dock marks a running app"
-    case bar = "ST3 · A short bar on the pill's edge beside an open server"
-    case dim = "ST4 · A minimized server is dimmed to 55%"
-    case disc = "ST5 · An open server rests on a soft disc of its colour"
-    case badge = "ST6 · A small corner dot in the server's colour for an open server"
-    case weight = "ST7 · Bold letters when open, regular when minimized"
-    case line = "ST8 · A thin solid ring round an open server"
-    case grey = "ST9 · A minimized server's letters turn grey; an open server's are in its colour"
-    case chip = "ST10 · An open server sits on its own small glass chip"
-    case under = "ST11 · A short line under an open server's letters"
+/// Round 55, revision 2. The owner's rules: connected servers keep today's look and the white
+/// selection disc; nothing is dimmed or greyed that is connected, and nothing is added to it. So a
+/// minimized server has no mark: it drops below a hairline in the connected pill. Recent servers
+/// (disconnected, so dimmed) are a pill of their own. Connecting to a server that is in neither gets
+/// its own button, and not a +.
+enum LabTSDivider: String, CaseIterable {
+    case line = "DV0 · A short hairline"
+    case full = "DV1 · A hairline across the pill"
+    case gap = "DV2 · Space only, no line"
 
     var summary: String {
         switch self {
-        case .ring: "A 1.5pt dashed ring in the server colour on the minimized item."
-        case .none: "The selection disc is the only marker. Open and minimized look the same."
-        case .dot: "A 4pt dot in the pill's leading padding, level with the item. Familiar, and needs no change to the item itself."
-        case .bar: "A 3pt by 14pt bar on the pill's leading edge; also moves with the selection disc."
-        case .dim: "Minimized items are at 55%; open ones at full strength. The oldest way of saying inactive."
-        case .disc: "A disc of the server's colour at 14% behind an open item; the white selection disc sits on top when it is the selected one."
-        case .badge: "A 7pt dot in the item's top trailing corner, with a hairline of the pill's colour round it."
-        case .weight: "Bold letters when open, regular at 85% when minimized. Costs no space, but is subtle."
-        case .line: "A 1pt solid ring at 55% on an open item: the dashed ring's opposite, on the open one."
-        case .grey: "The colour is the signal: open servers are coloured, minimized ones are grey and lose their colour until opened."
-        case .chip: "A 30pt chip of glass behind an open item, over the pill's own glass."
-        case .under: "A 2pt by 12pt line in the server's colour under the letters of an open item."
+        case .line: "A 1pt line 60% of an item wide, centred: the quietest line that still reads as a boundary."
+        case .full: "A 1pt line across the pill's inner width."
+        case .gap: "Eight points of space between the groups and nothing drawn."
         }
     }
 }
 
-/// What the trail holds besides the connected servers.
-enum LabTSRecents: String, CaseIterable {
-    case none = "RT0 · Nothing: only connected servers (as it is)"
-    case samePill = "RT1 · The last connected servers, dimmed, under a divider in the same pill"
-    case twoPills = "RT2 · A second pill for recent servers, under the first"
-    case button = "RT3 · A clock button at the pill's foot opens a list of recent servers"
+/// The glyph of the connect button.
+enum LabTSConnectIcon: String, CaseIterable {
+    case plus = "CI0 · + (Echo today)"
+    case rack = "CI1 · A server rack"
+    case bolt = "CI2 · A bolt (Quick Connect)"
+    case link = "CI3 · A link"
+    case search = "CI4 · A magnifying glass: find a connection"
+    case plug = "CI5 · A power plug"
+    case network = "CI6 · A network"
+    case cable = "CI7 · A cable connector"
+
+    var symbol: String {
+        switch self {
+        case .plus: "plus"
+        case .rack: "server.rack"
+        case .bolt: "bolt.fill"
+        case .link: "link"
+        case .search: "magnifyingglass"
+        case .plug: "powerplug"
+        case .network: "network"
+        case .cable: "cable.connector"
+        }
+    }
 
     var summary: String {
         switch self {
-        case .none: "Every item in the trail is a connected server. Reconnecting is the + (round 52's list)."
-        case .samePill: "Connected servers on top; a hairline; the last servers you disconnected from, dimmed. Click one: it connects and glides up into the connected group."
-        case .twoPills: "Two glass pills: connected servers, and below them the recent ones, each its own object. Click a recent: it connects and moves up into the first pill."
-        case .button: "The trail stays pure; a clock button (like the + ) opens a popover of recent servers. Nothing is dimmed in the trail."
+        case .plus: "Says add something new, which is not what connecting to a saved server is."
+        case .rack: "What a server looks like: says server, not the action."
+        case .bolt: "Fast: matches Quick Connect, one of the three actions behind it."
+        case .link: "Connect, in the sense of a link; also reads as a URL."
+        case .search: "The list behind it is searchable and starts with a search field; says find, not connect."
+        case .plug: "Connecting in the most literal way."
+        case .network: "A graph of nodes: connections between things."
+        case .cable: "The connector itself, at the size of a toolbar glyph."
         }
     }
 }
 
-/// How a recent server looks in the trail.
+/// What the connect button sits on.
+enum LabTSConnectForm: String, CaseIterable {
+    case circle = "FM0 · Its own glass circle under the recents"
+    case inPill = "FM1 · The last item of the bottom pill"
+    case bare = "FM2 · The glyph alone under the pills, no glass"
+
+    var summary: String {
+        switch self {
+        case .circle: "A third glass object: connected, recent, and a button to reach any other server."
+        case .inPill: "As the + is today, at the foot of the last pill."
+        case .bare: "No container: the glyph in the secondary colour, like a toolbar button on the canvas."
+        }
+    }
+}
+
+/// How a recent (disconnected) server is drawn.
 enum LabTSRecentLook: String, CaseIterable {
-    case dim = "RL0 · Dimmed to 38%"
-    case grey = "RL1 · Grey letters"
-    case clock = "RL2 · Dimmed, with a small clock in the corner"
-
-    var summary: String {
-        switch self {
-        case .dim: "The letters in the server's colour at 38%: still recognisable by colour."
-        case .grey: "The letters in secondary grey, no colour: clearly not part of the connected group."
-        case .clock: "Dimmed, with a 9pt clock: says why it is faded."
-        }
-    }
+    case dim38 = "RL0 · Its colour at 38%"
+    case dim50 = "RL1 · Its colour at 50%"
+    case grey = "RL2 · Grey letters"
 }
 
 enum LabTSCount: String, CaseIterable {
@@ -82,32 +94,26 @@ enum LabTSCount: String, CaseIterable {
 }
 
 struct LabTSLook {
-    var mark = LabTSMark.disc
-    var recents = LabTSRecents.samePill
-    var recentLook = LabTSRecentLook.dim
+    var divider = LabTSDivider.line
+    var icon = LabTSConnectIcon.rack
+    var form = LabTSConnectForm.circle
+    var recent = LabTSRecentLook.dim38
     var count = LabTSCount.five
+    /// Today's trail: one pill, a dashed ring on a minimized server, a + inside it, no recents.
+    var isToday = false
 
-    static let today = LabTSLook(mark: .ring, recents: .none, recentLook: .dim, count: .five)
+    static let today = LabTSLook(isToday: true)
 
     @MainActor init(_ values: RoundValues) {
-        mark = LabTSMark(rawValue: values["mark"]) ?? .disc
-        recents = LabTSRecents(rawValue: values["recents"]) ?? .samePill
-        recentLook = LabTSRecentLook(rawValue: values["recentLook"]) ?? .dim
+        divider = LabTSDivider(rawValue: values["divider"]) ?? .line
+        icon = LabTSConnectIcon(rawValue: values["icon"]) ?? .rack
+        form = LabTSConnectForm(rawValue: values["form"]) ?? .circle
+        recent = LabTSRecentLook(rawValue: values["recent"]) ?? .dim38
         count = LabTSCount(rawValue: values["count"]) ?? .five
     }
 
-    init(mark: LabTSMark, recents: LabTSRecents, recentLook: LabTSRecentLook, count: LabTSCount) {
-        self.mark = mark; self.recents = recents; self.recentLook = recentLook; self.count = count
+    init(isToday: Bool) {
+        self.isToday = isToday
+        if isToday { icon = .plus; form = .inPill }
     }
-
-    func with(mark: LabTSMark) -> LabTSLook {
-        var copy = self
-        copy.mark = mark
-        return copy
-    }
-}
-
-/// Where a server is in its life in the trail.
-enum LabTSState {
-    case open, minimized, recent, connecting
 }
