@@ -19,6 +19,22 @@ enum LabRounds {
 
     static let all: [Info] = [
         // ROUND-INFO (Scripts/new-round.py adds new rounds below this line, newest first)
+        Info(id: "r52", label: "Round 52", title: "The + button: connecting to a server", date: "2 Oct 2026",
+             asked: "The + in the server trail opens a context menu below it: too little, a poor way to show saved connections, and a menu under a liquid-glass pill feels off. Explore opening to the right of the +, the + animating into a chevron, and better ways to list saved connections.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.connect-menu-r52"]),
+        Info(id: "r51", label: "Round 51", title: "Server trail: telling servers apart, and a shelf for minimized cards", date: "2 Oct 2026",
+             asked: "Minimized server cards are opened from the server trail, but the trail's two-letter monograms are too generic to spot a server in under a second. Offer levels of customization for the trail's items, and maybe a place where minimized cards can be retrieved (while keeping that distinct from the trail).",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.server-trail-identity-r51"]),
+        Info(id: "r50", label: "Round 50", title: "Server card: a header that looks designed", date: "2 Oct 2026",
+             asked: "Every server card header from round 30 is about 90% there but still looks AI-made rather than professionally designed: the font, the colours, the placement of items. Explore many more directions to narrow down where the card should go.",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.server-header-polish-r50"]),
+        Info(id: "r49", label: "Round 49", title: "Tool tabs: every page, calmer switching, icons", date: "2 Oct 2026",
+             asked: "Show every page of a tool in its tab (no More menu), make switching tabs smooth, redo the tab icons, and remove the server dot from tabs and the results pill",
+             outcome: "Being judged.",
+             pageIDs: ["ongoing.tool-tab-bar-r49"]),
         Info(id: "r48", label: "Round 48", title: "Opening, connecting and closing the last tab", date: "1 Oct 2026",
              asked: "Animate the welcome page (the mark alone, echoing in like echodb.dev), the jump from the welcome to a connected server's page, and closing the last tab, which today lands on the welcome instead of the server's page.",
              outcome: "Being judged.",

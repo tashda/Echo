@@ -151,6 +151,10 @@ enum LabAreas {
         "ongoing.server-card-unfold-r46": "explorer-tree",
         "ongoing.results-gutter-r47": "footer-results",
         "ongoing.opening-and-closing-r48": "window",
+        "ongoing.tool-tab-bar-r49": "tabs",
+        "ongoing.server-header-polish-r50": "explorer-tree",
+        "ongoing.server-trail-identity-r51": "explorer-tree",
+        "ongoing.connect-menu-r52": "explorer-tree",
         // ROUND-AREAS (Scripts/new-round.py adds new rounds above this line)
     ]
 

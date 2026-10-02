@@ -3,7 +3,7 @@
 /// the real app, the page is frozen into `Decided/` and removed from this list.
 @MainActor enum OngoingPages {
     // `Scripts/new-round.py` adds new rounds at the two ROUNDS markers; do not remove them.
-    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity , tabOverviewDirection , toolTabPages , toolTabPagesWhere , toolTabFamilies , toolTabHeader , toolTabControls , toolTabThemes , toolTabToolbar , treeToolRows , railTools , railBookmarks , railSnippets , railHistory , railClipboard , railClickHiddenTree , resultsHeaderLines , resultsSelectionSummary , resultsErrorPage , resultsMessages , resultsPillPopovers , contextMenuAnatomy , contextMenuServer , contextMenuDatabase , contextMenuTable , contextMenuColumn , contextMenuFolder , settingsPreview , settingsPictures , settingsControls , settingsTemplate , settingsScenarios , footerBlur , toolTabMainAction , serverCardUnfold , resultsGutter , openingAndClosing /* ROUNDS-LIST */] + PortedPages.ongoing
+    static let all: [LabPage] = [serverCard, notificationHistory , notificationToast , sectionDockSwitching , sectionDockCapsule , sectionDockSections , runButtonLook , runButtonRunning , pgTransactionState , pgOpenTransactionGuard , pgConnectionLost , pgCancel , pgScriptResults , pgErrorLocation , pgValueDisplay , pgTimeouts , mssqlValues , mssqlErrors , mssqlSessions , mssqlEncryption , pgKerberosSignin , pgClientKeyPassword , pgFailoverHosts , runIntoRunning , mssqlImport , contentDuringSlide , resultsScrollers , editorText , editorGutter , editorCaretLine , editorStatement , editorMarks , editorErrors , editorRunNote , editorZoom , editorFindTyping , editorEmpty , editorSettings , mssqlAlwaysEncrypted , editorFindBar , editorSearchReplace , editorGutterLane , editorDesignLanguage , serverHeaderLook , serverHeaderCollapse , emptyFolders , zoomPillFooter , panelFillsLight , panelFillsDark , agentJobsTab , agentJobStepSheet , refreshAndActivity , tabOverviewDirection , toolTabPages , toolTabPagesWhere , toolTabFamilies , toolTabHeader , toolTabControls , toolTabThemes , toolTabToolbar , treeToolRows , railTools , railBookmarks , railSnippets , railHistory , railClipboard , railClickHiddenTree , resultsHeaderLines , resultsSelectionSummary , resultsErrorPage , resultsMessages , resultsPillPopovers , contextMenuAnatomy , contextMenuServer , contextMenuDatabase , contextMenuTable , contextMenuColumn , contextMenuFolder , settingsPreview , settingsPictures , settingsControls , settingsTemplate , settingsScenarios , footerBlur , toolTabMainAction , serverCardUnfold , resultsGutter , openingAndClosing , toolTabBar , serverHeaderPolish , serverTrailIdentity , connectMenu /* ROUNDS-LIST */] + PortedPages.ongoing
 
     /// Round 16: the owner's bugs and feedback on the section dock (TC1) as built in Echo.
     static let serverCard = LabPage.round(
@@ -620,6 +620,34 @@
         status: .judging,
         summary: "Three moments at the edges of a session, drawn as one staged story. The welcome loses the name and the mark echoes in as on echodb.dev; connecting stops shoving the welcome aside and lets the server page arrive; closing the last tab returns to the connected server's page instead of the welcome (today the tab delegate clears the active session). Touches WIN-welcome and server page elements.",
         spec: OpeningAndClosingRound.spec)
+
+    /// Round 49: Tool tabs: every page, calmer switching, icons.
+    static let toolTabBar = LabPage.round(
+        id: "ongoing.tool-tab-bar-r49", group: "Tabs", title: "Tool tabs: every page, calmer switching, icons · round 49", symbol: "rectangle.3.group",
+        status: .judging,
+        summary: "Show every page of a tool in its tab (no More menu), make switching tabs smooth, redo the tab icons, and remove the server dot from tabs and the results pill",
+        spec: ToolTabBarRound.spec)
+
+    /// Round 50: Server card: a header that looks designed.
+    static let serverHeaderPolish = LabPage.round(
+        id: "ongoing.server-header-polish-r50", group: "Explorer tree", title: "Server card: a header that looks designed · round 50", symbol: "rectangle.topthird.inset.filled",
+        status: .judging,
+        summary: "Every server card header from round 30 is about 90% there but still looks AI-made rather than professionally designed: the font, the colours, the placement of items. Explore many more directions to narrow down where the card should go.",
+        spec: ServerHeaderPolishRound.spec)
+
+    /// Round 51: Server trail: telling servers apart, and a shelf for minimized cards.
+    static let serverTrailIdentity = LabPage.round(
+        id: "ongoing.server-trail-identity-r51", group: "Explorer tree", title: "Server trail: telling servers apart, and a shelf for minimized cards · round 51", symbol: "circle.grid.2x2",
+        status: .judging,
+        summary: "Minimized server cards are opened from the server trail, but the trail's two-letter monograms are too generic to spot a server in under a second. Offer levels of customization for the trail's items, and maybe a place where minimized cards can be retrieved (while keeping that distinct from the trail).",
+        spec: ServerTrailIdentityRound.spec)
+
+    /// Round 52: The + button: connecting to a server.
+    static let connectMenu = LabPage.round(
+        id: "ongoing.connect-menu-r52", group: "Explorer tree", title: "The + button: connecting to a server · round 52", symbol: "plus.circle",
+        status: .judging,
+        summary: "The + in the server trail opens a context menu below it: too little, a poor way to show saved connections, and a menu under a liquid-glass pill feels off. Explore opening to the right of the +, the + animating into a chevron, and better ways to list saved connections.",
+        spec: ConnectMenuRound.spec)
 
     // ROUNDS-DEFINITIONS
 }
