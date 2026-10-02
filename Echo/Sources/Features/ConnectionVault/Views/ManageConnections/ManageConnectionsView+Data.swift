@@ -1,9 +1,7 @@
 import SwiftUI
 
 extension ManageConnectionsView {
-    var selectedProjectID: UUID? {
-        projectStore.selectedProject?.id
-    }
+    var selectedProjectID: UUID? { projectStore.selectedProject?.id }
 
     var projectConnections: [SavedConnection] {
         connectionStore.connections.filter { $0.projectID == selectedProjectID }
@@ -13,30 +11,23 @@ extension ManageConnectionsView {
         connectionStore.identities.filter { $0.projectID == selectedProjectID }
     }
 
-    var connectionFolders: [SavedFolder] {
-        connectionStore.folders.filter { $0.kind == .connections && $0.projectID == selectedProjectID }
+    /// When each connection was last used, from the recent-connection history.
+    var lastUsedByConnection: [UUID: Date] {
+        var result: [UUID: Date] = [:]
+        for record in environmentState.recentConnections {
+            if let existing = result[record.id], existing >= record.lastUsedAt { continue }
+            result[record.id] = record.lastUsedAt
+        }
+        return result
     }
 
-    var identityFolders: [SavedFolder] {
-        connectionStore.folders.filter { $0.kind == .identities && $0.projectID == selectedProjectID }
-    }
-
-    var connectionFolderNodes: [FolderNode] {
-        buildFolderNodes(
-            from: connectionFolders.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending },
-            itemMap: Dictionary(grouping: projectConnections, by: { $0.folderID })
-        )
-    }
-
-    var identityFolderNodes: [FolderNode] {
-        buildFolderNodes(
-            from: identityFolders.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending },
-            itemMap: Dictionary(grouping: projectIdentities, by: { $0.folderID })
-        )
-    }
-
-    var identityLookup: [UUID: SavedIdentity] {
-        Dictionary(uniqueKeysWithValues: projectIdentities.map { ($0.id, $0) })
+    /// Connections used in the last 30 days, newest first.
+    var recentConnections: [SavedConnection] {
+        let lastUsed = lastUsedByConnection
+        let cutoff = Date().addingTimeInterval(-30 * 24 * 60 * 60)
+        return projectConnections
+            .filter { (lastUsed[$0.id] ?? .distantPast) >= cutoff }
+            .sorted { (lastUsed[$0.id] ?? .distantPast) > (lastUsed[$1.id] ?? .distantPast) }
     }
 
     var normalizedQuery: String? {
@@ -44,142 +35,105 @@ extension ManageConnectionsView {
         return trimmed.isEmpty ? nil : trimmed.lowercased()
     }
 
-    var filteredConnectionsForTable: [SavedConnection] {
-        var items = projectConnections
-
-        if let folderID = activeFolderID(for: .connections) {
-            let scope = folderScope(for: folderID, in: .connections)
-            items = items.filter { connection in
-                guard let id = connection.folderID else { return false }
-                return scope.contains(id)
-            }
+    /// The connections of the current scope, searched and sorted.
+    var scopedConnections: [SavedConnection] {
+        var items: [SavedConnection]
+        switch activeScope {
+        case .recentConnections:
+            items = recentConnections
+        default:
+            items = projectConnections.sorted(using: connectionSortOrder)
         }
-
         if let query = normalizedQuery {
             items = items.filter { connectionMatches($0, query: query) }
         }
-
-        return items.sorted(using: connectionSortOrder)
+        return items
     }
 
-    var filteredIdentitiesForTable: [SavedIdentity] {
-        var items = projectIdentities
-
-        if let folderID = activeFolderID(for: .identities) {
-            let scope = folderScope(for: folderID, in: .identities)
-            items = items.filter { identity in
-                guard let id = identity.folderID else { return false }
-                return scope.contains(id)
+    var scopedIdentities: [SavedIdentity] {
+        var items = projectIdentities.sorted(using: identitySortOrder)
+        if let query = normalizedQuery {
+            items = items.filter {
+                $0.name.lowercased().contains(query) || $0.username.lowercased().contains(query)
             }
         }
-
-        if let query = normalizedQuery {
-            items = items.filter { identityMatches($0, query: query) }
-        }
-
-        return items.sorted(using: identitySortOrder)
-    }
-
-    var searchFilteredConnections: [SavedConnection] {
-        guard let query = normalizedQuery else { return [] }
-        return projectConnections
-            .filter { connectionMatches($0, query: query) }
-            .sorted(using: connectionSortOrder)
-    }
-
-    var searchFilteredIdentities: [SavedIdentity] {
-        guard let query = normalizedQuery else { return [] }
-        return projectIdentities
-            .filter { identityMatches($0, query: query) }
-            .sorted(using: identitySortOrder)
+        return items
     }
 
     func connectionMatches(_ connection: SavedConnection, query: String) -> Bool {
-        if connection.connectionName.lowercased().contains(query) { return true }
-        if connection.host.lowercased().contains(query) { return true }
-        if connection.database.lowercased().contains(query) { return true }
-        if connection.username.lowercased().contains(query) { return true }
-        if let identityID = connection.identityID,
-           let identity = identityLookup[identityID],
-           identity.name.lowercased().contains(query) {
-            return true
+        let fields = [
+            connection.connectionName, connection.host, connection.database, connection.username,
+            connection.databaseType.shortDisplayName, signInSummary(for: connection).text
+        ]
+        return fields.contains { $0.lowercased().contains(query) }
+    }
+
+    /// Names used by more than one connection in the project, lowercased (ME1: marked, not blocked).
+    var duplicateConnectionNames: Set<String> {
+        var counts: [String: Int] = [:]
+        for connection in projectConnections {
+            counts[displayName(for: connection).lowercased(), default: 0] += 1
         }
-        return false
+        return Set(counts.filter { $0.value > 1 }.keys)
     }
 
-    func identityMatches(_ identity: SavedIdentity, query: String) -> Bool {
-        if identity.name.lowercased().contains(query) { return true }
-        if identity.username.lowercased().contains(query) { return true }
-        return false
+    func displayName(for connection: SavedConnection) -> String {
+        let trimmed = connection.connectionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? connection.host : trimmed
     }
 
-    func folderLookup(for section: ManageSection) -> [UUID: SavedFolder] {
-        let folders: [SavedFolder]
-        switch section {
-        case .connections: folders = connectionFolders
-        case .identities: folders = identityFolders
-        case .projects: folders = []
+    /// Who signs in, in words (round MC: never "—" when Echo knows).
+    func signInSummary(for connection: SavedConnection) -> SignInSummary {
+        SignInSummary(connection: connection, identities: connectionStore.identities)
+    }
+
+    /// How many connections sign in with an identity.
+    func usageCount(of identity: SavedIdentity) -> Int {
+        connectionStore.connections.filter { $0.credentialSource == .identity && $0.identityID == identity.id }.count
+    }
+
+    func connections(using identity: SavedIdentity) -> [SavedConnection] {
+        connectionStore.connections.filter { $0.credentialSource == .identity && $0.identityID == identity.id }
+    }
+}
+
+/// What the list and the table say about a connection's sign-in.
+struct SignInSummary: Equatable {
+    let text: String
+    let systemImage: String?
+    let isWarning: Bool
+
+    init(connection: SavedConnection, identities: [SavedIdentity]) {
+        if connection.databaseType == .sqlite {
+            self.init(text: "", systemImage: nil, isWarning: false)
+            return
         }
-        return Dictionary(uniqueKeysWithValues: folders.map { ($0.id, $0) })
-    }
-
-    func buildFolderNodes<Item: Hashable>(
-        from folders: [SavedFolder],
-        itemMap: [UUID?: [Item]]
-    ) -> [FolderNode] {
-        let grouped = Dictionary(grouping: folders, by: { $0.parentFolderID })
-
-        func makeNodes(parent: UUID?) -> [FolderNode] {
-            guard let folderList = grouped[parent] else { return [] }
-
-            return folderList.map { folder in
-                let children = makeNodes(parent: folder.id)
-                return FolderNode(
-                    folder: folder,
-                    childNodes: children.isEmpty ? nil : children,
-                    items: itemMap[folder.id] ?? []
-                )
+        switch connection.credentialSource {
+        case .identity:
+            if let identity = identities.first(where: { $0.id == connection.identityID }) {
+                self.init(text: identity.name, systemImage: "person.crop.circle", isWarning: false)
+            } else {
+                self.init(text: "Missing identity", systemImage: "person.crop.circle.badge.exclamationmark", isWarning: true)
+            }
+        case .manual:
+            let user = connection.username.trimmingCharacters(in: .whitespacesAndNewlines)
+            switch connection.authenticationMethod {
+            case .kerberos:
+                self.init(text: "Kerberos ticket", systemImage: "ticket", isWarning: false)
+            case .accessToken:
+                self.init(text: "Entra token", systemImage: "key", isWarning: false)
+            case .windowsIntegrated:
+                let domain = connection.domain.trimmingCharacters(in: .whitespacesAndNewlines)
+                self.init(text: domain.isEmpty ? user : "\(domain)\\\(user)", systemImage: nil, isWarning: user.isEmpty)
+            case .sqlPassword:
+                self.init(text: user.isEmpty ? "No user name" : user, systemImage: nil, isWarning: user.isEmpty)
             }
         }
-
-        return makeNodes(parent: nil)
     }
 
-    func activeFolderID(for section: ManageSection) -> UUID? {
-        guard let selection = sidebarSelection else { return nil }
-        switch selection {
-        case .section:
-            return nil
-        case .folder(let folderID, let targetSection):
-            return targetSection == section ? folderID : nil
-        case .project:
-            return nil
-        }
-    }
-
-    func folderScope(for folderID: UUID, in section: ManageSection) -> Set<UUID> {
-        var scope: Set<UUID> = [folderID]
-        let folders: [SavedFolder]
-        switch section {
-        case .connections: folders = connectionFolders
-        case .identities: folders = identityFolders
-        case .projects: folders = []
-        }
-        var stack: [UUID] = [folderID]
-
-        while let current = stack.popLast() {
-            let children = folders.filter { $0.parentFolderID == current }
-            for child in children {
-                if scope.insert(child.id).inserted {
-                    stack.append(child.id)
-                }
-            }
-        }
-
-        return scope
-    }
-
-    func folder(withID id: UUID) -> SavedFolder? {
-        connectionStore.folders.first(where: { $0.id == id })
+    init(text: String, systemImage: String?, isWarning: Bool) {
+        self.text = text
+        self.systemImage = systemImage
+        self.isWarning = isWarning
     }
 }

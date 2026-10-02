@@ -4,7 +4,7 @@ import Foundation
 final class IdentityRepository: IdentityRepositoryProtocol, @unchecked Sendable {
     private let keychain = KeychainVault()
     
-    // We need access to these to resolve inheritance
+    // Identities are looked up in the connection store.
     private let connectionStore: ConnectionStore
     
     init(connectionStore: ConnectionStore) {
@@ -23,11 +23,6 @@ final class IdentityRepository: IdentityRepositoryProtocol, @unchecked Sendable 
         return try? keychain.getPassword(account: identifier)
     }
     
-    func password(for folder: SavedFolder) -> String? {
-        guard let identifier = folder.manualKeychainIdentifier else { return nil }
-        return try? keychain.getPassword(account: identifier)
-    }
-    
     func setPassword(_ password: String, for connection: inout SavedConnection) throws {
         let identifier = connection.keychainIdentifier ?? "echo.\(connection.id.uuidString)"
         try keychain.setPassword(password, account: identifier)
@@ -40,12 +35,6 @@ final class IdentityRepository: IdentityRepositoryProtocol, @unchecked Sendable 
         identity.keychainIdentifier = identifier
     }
     
-    func setPassword(_ password: String, for folder: inout SavedFolder) throws {
-        let identifier = folder.manualKeychainIdentifier ?? "echo.folder.manual.\(folder.id.uuidString)"
-        try keychain.setPassword(password, account: identifier)
-        folder.manualKeychainIdentifier = identifier
-    }
-    
     func deletePassword(for connection: SavedConnection) {
         ConnectionKeyPasswordStore.setPassword(nil, for: connection.id)
         if let identifier = connection.keychainIdentifier {
@@ -55,12 +44,6 @@ final class IdentityRepository: IdentityRepositoryProtocol, @unchecked Sendable 
     
     func deletePassword(for identity: SavedIdentity) {
         if let identifier = identity.keychainIdentifier {
-            try? keychain.deletePassword(account: identifier)
-        }
-    }
-    
-    func deletePassword(for folder: SavedFolder) {
-        if let identifier = folder.manualKeychainIdentifier {
             try? keychain.deletePassword(account: identifier)
         }
     }
@@ -104,12 +87,6 @@ final class IdentityRepository: IdentityRepositoryProtocol, @unchecked Sendable 
                 password: password,
                 domain: identityDomain
             )
-        case .inherit:
-            guard let folderID = connection.folderID,
-                  let resolved = resolveInheritedDetails(folderID: folderID) else { return nil }
-            
-            username = resolved.username
-            password = overridePassword ?? resolved.password
         }
 
         let trimmedDomain = connection.domain.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -121,53 +98,5 @@ final class IdentityRepository: IdentityRepositoryProtocol, @unchecked Sendable 
             password: password,
             domain: domain
         )
-    }
-    
-    func resolveInheritedIdentity(folderID: UUID) -> SavedIdentity? {
-        resolveInheritedIdentity(folderID: folderID, visited: [])
-    }
-    
-    private func resolveInheritedIdentity(folderID: UUID, visited: Set<UUID>) -> SavedIdentity? {
-        guard !visited.contains(folderID),
-              let folder = connectionStore.folders.first(where: { $0.id == folderID }) else {
-            return nil
-        }
-        
-        switch folder.credentialMode {
-        case .none, .manual:
-            return nil
-        case .identity:
-            return connectionStore.identities.first(where: { $0.id == folder.identityID })
-        case .inherit:
-            guard let parentID = folder.parentFolderID else { return nil }
-            var updatedVisited = visited
-            updatedVisited.insert(folderID)
-            return resolveInheritedIdentity(folderID: parentID, visited: updatedVisited)
-        }
-    }
-    
-    private func resolveInheritedDetails(folderID: UUID, visited: Set<UUID> = []) -> (username: String, password: String?)? {
-        guard !visited.contains(folderID),
-              let folder = connectionStore.folders.first(where: { $0.id == folderID }) else {
-            return nil
-        }
-        
-        switch folder.credentialMode {
-        case .none:
-            return nil
-        case .manual:
-            guard let username = folder.manualUsername?.trimmingCharacters(in: .whitespacesAndNewlines), !username.isEmpty else {
-                return nil
-            }
-            return (username, self.password(for: folder))
-        case .identity:
-            guard let identity = connectionStore.identities.first(where: { $0.id == folder.identityID }) else { return nil }
-            return (identity.username, self.password(for: identity))
-        case .inherit:
-            guard let parentID = folder.parentFolderID else { return nil }
-            var updatedVisited = visited
-            updatedVisited.insert(folderID)
-            return resolveInheritedDetails(folderID: parentID, visited: updatedVisited)
-        }
     }
 }

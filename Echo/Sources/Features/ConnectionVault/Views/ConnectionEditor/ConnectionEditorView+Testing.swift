@@ -40,7 +40,6 @@ extension ConnectionEditorView {
             credentialSource: sanitizedCredentialSource,
             identityID: selectedDatabaseType == .sqlite ? nil : identityID,
             keychainIdentifier: originalConnection?.keychainIdentifier,
-            folderID: folderID,
             useTLS: selectedDatabaseType == .sqlite ? false : useTLS,
             trustServerCertificate: selectedDatabaseType == .microsoftSQL ? trustServerCertificate : false,
             tlsMode: selectedDatabaseType == .postgresql ? tlsMode : .prefer,
@@ -83,8 +82,6 @@ extension ConnectionEditorView {
                 appendLog("Authenticating as \(trimmedUsername)...", kind: .info)
             } else if sanitizedCredentialSource == .identity {
                 appendLog("Using identity credentials...", kind: .info)
-            } else if sanitizedCredentialSource == .inherit {
-                appendLog("Using inherited credentials...", kind: .info)
             }
             if sanitizedAuthenticationMethod == .kerberos {
                 appendLog("Signing in with your Kerberos ticket...", kind: .info)

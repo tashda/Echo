@@ -11,7 +11,6 @@ struct SavedIdentity: Identifiable, Codable, Hashable, Sendable {
     var keychainIdentifier: String?
     var createdAt: Date = Date()
     var updatedAt: Date?
-    var folderID: UUID?
 
     init(
         id: UUID = UUID(),
@@ -23,8 +22,7 @@ struct SavedIdentity: Identifiable, Codable, Hashable, Sendable {
         domain: String? = nil,
         keychainIdentifier: String? = nil,
         createdAt: Date = Date(),
-        updatedAt: Date? = nil,
-        folderID: UUID? = nil
+        updatedAt: Date? = nil
     ) {
         self.id = id
         self.projectID = projectID
@@ -36,7 +34,6 @@ struct SavedIdentity: Identifiable, Codable, Hashable, Sendable {
         self.keychainIdentifier = keychainIdentifier
         self.createdAt = createdAt
         self.updatedAt = updatedAt
-        self.folderID = folderID
     }
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -50,7 +47,6 @@ struct SavedIdentity: Identifiable, Codable, Hashable, Sendable {
         keychainIdentifier = try container.decodeIfPresent(String.self, forKey: .keychainIdentifier)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
-        folderID = try container.decodeIfPresent(UUID.self, forKey: .folderID)
     }
 }
 

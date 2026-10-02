@@ -58,7 +58,6 @@ final class ProjectTests: XCTestCase {
             project: project,
             connections: connections,
             identities: [],
-            folders: [],
             globalSettings: GlobalSettings(),
             bookmarks: project.bookmarks,
             version: "1.0"

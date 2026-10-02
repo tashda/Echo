@@ -34,7 +34,6 @@ struct WorkspaceToolbarPreviewData {
         let projectStore = ProjectStore(repository: ProjectRepository(diskStore: ProjectDiskStore()))
         let connectionStore = ConnectionStore(repository: ConnectionRepository(
             connectionStore: ConnectionDiskStore(),
-            folderStore: FolderDiskStore(),
             identityStore: IdentityDiskStore()
         ))
         let navigationStore = NavigationStore()

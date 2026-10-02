@@ -7,17 +7,15 @@ import UniformTypeIdentifiers
 // MARK: - Authentication Section
 
 extension ConnectionEditorView {
+    /// Round MC: sign in with the connection's own login (Password) or an identity. Kerberos,
+    /// Windows and Entra tokens are under Method when the engine offers more than one.
     var authenticationSection: some View {
         Section("Sign In") {
-            PropertyRow(title: "Method") {
-                Picker("", selection: $credentialSource) {
-                    ForEach(availableCredentialSources, id: \.self) { source in
-                        Text(source.displayName).tag(source)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
+            Picker("Sign in with", selection: $credentialSource) {
+                Text("Password").tag(CredentialSource.manual)
+                Text("Identity").tag(CredentialSource.identity)
             }
+            .pickerStyle(.segmented)
             .onChange(of: credentialSource) { _, newSource in
                 switch newSource {
                 case .manual:
@@ -29,11 +27,8 @@ extension ConnectionEditorView {
                     password = ""
                     passwordDirty = false
                     if identityID == nil || !connectionStore.identities.contains(where: { $0.id == identityID }) {
-                        identityID = connectionStore.identities.first?.id
+                        identityID = usableIdentities.first?.id
                     }
-                case .inherit:
-                    password = ""
-                    passwordDirty = false
                 }
             }
 
@@ -42,9 +37,8 @@ extension ConnectionEditorView {
                 manualCredentialFields
                 validationRow(for: .password)
             case .identity:
-                identityPickerFields
-            case .inherit:
-                inheritedIdentityInfo
+                identityMenuRow
+                validationRow(for: .username)
             }
         }
     }
@@ -52,7 +46,7 @@ extension ConnectionEditorView {
     @ViewBuilder
     var manualCredentialFields: some View {
         if availableAuthenticationMethods.count > 1 {
-            PropertyRow(title: "Mechanism") {
+            LabeledContent("Method") {
                 Picker("", selection: $authenticationMethod) {
                     ForEach(availableAuthenticationMethods, id: \.self) { method in
                         Text(method.displayName(for: selectedDatabaseType)).tag(method)
@@ -60,41 +54,29 @@ extension ConnectionEditorView {
                 }
                 .labelsHidden()
                 .pickerStyle(.menu)
+                .fixedSize()
             }
         }
 
         if authenticationMethod.requiresDomain {
-            PropertyRow(title: "Domain") {
+            InsetRow("Domain") {
                 TextField("", text: $domain, prompt: Text("DOMAIN"))
-                    .textFieldStyle(.plain)
-                    .multilineTextAlignment(.trailing)
                     .focused($focusedField, equals: .domain)
             }
             validationRow(for: .domain)
         }
 
         if authenticationMethod.usesAccessToken {
-            PropertyRow(title: "Access Token") {
-                SecureField(
-                    "",
-                    text: $password,
-                    prompt: Text(hasSavedPassword && !passwordDirty
-                        ? "••••••••"
-                        : "JWT access token")
-                )
-                .textFieldStyle(.plain)
-                .multilineTextAlignment(.trailing)
-                .onChange(of: password) { _, newValue in
-                    if !newValue.isEmpty {
-                        passwordDirty = true
+            InsetRow("Access Token") {
+                SecureField("", text: $password, prompt: Text(hasSavedPassword && !passwordDirty ? "Saved in Keychain" : "JWT access token"))
+                    .focused($focusedField, equals: .password)
+                    .onChange(of: password) { _, newValue in
+                        if !newValue.isEmpty { passwordDirty = true }
                     }
-                }
             }
         } else {
-            PropertyRow(title: "Username") {
-                TextField("", text: $username, prompt: Text("username"))
-                    .textFieldStyle(.plain)
-                    .multilineTextAlignment(.trailing)
+            InsetRow("User name") {
+                TextField("", text: $username, prompt: Text("user name"))
                     .focused($focusedField, equals: .username)
             }
             validationRow(for: .username)
@@ -104,67 +86,59 @@ extension ConnectionEditorView {
             }
 
             if authenticationMethod.usesPassword {
-                PropertyRow(title: "Password") {
-                    SecureField(
-                        "",
-                        text: $password,
-                        prompt: Text(hasSavedPassword && !passwordDirty
-                            ? "••••••••"
-                            : (authenticationMethod == .windowsIntegrated ? "Windows password" : "password"))
-                    )
-                    .textFieldStyle(.plain)
-                    .multilineTextAlignment(.trailing)
-                    .focused($focusedField, equals: .password)
-                    .onChange(of: password) { _, newValue in
-                        if !newValue.isEmpty {
-                            passwordDirty = true
+                InsetRow("Password") {
+                    SecureField("", text: $password, prompt: Text(passwordPrompt))
+                        .focused($focusedField, equals: .password)
+                        .onChange(of: password) { _, newValue in
+                            if !newValue.isEmpty { passwordDirty = true }
                         }
-                    }
                 }
             }
         }
     }
 
-    @ViewBuilder
-    var identityPickerFields: some View {
-        if sortedIdentities.isEmpty {
-            PropertyRow(title: "Identity") {
-                VStack(alignment: .trailing, spacing: SpacingTokens.xs) {
-                    Text("No identities available.")
-                        .font(TypographyTokens.formDescription)
-                        .foregroundStyle(ColorTokens.Text.secondary)
-                    
-                    Button("Create Identity") {
-                        identityEditorState = .create(parent: nil, token: UUID())
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+    private var passwordPrompt: String {
+        if hasSavedPassword && !passwordDirty { return "Saved in Keychain" }
+        return authenticationMethod == .windowsIntegrated ? "Windows password" : "password"
+    }
+
+    /// Identities whose kind this engine can sign in with.
+    var usableIdentities: [SavedIdentity] {
+        let methods = selectedDatabaseType.supportedAuthenticationMethods
+        return sortedIdentities.filter { methods.contains($0.authenticationMethod) }
+    }
+
+    /// The identity menu: New Identity… first, then the identities (round MC, no explanation line).
+    private var identityMenuRow: some View {
+        LabeledContent("Identity") {
+            Menu {
+                Button {
+                    identityEditorState = .create(token: UUID())
+                } label: {
+                    Label("New Identity…", systemImage: "plus")
                 }
-            }
-        } else {
-            PropertyRow(title: "Identity") {
-                HStack(spacing: SpacingTokens.xs) {
-                    Picker("", selection: $identityID) {
-                        ForEach(sortedIdentities, id: \.id) { identity in
-                            Text(identity.name).tag(identity.id as UUID?)
-                        }
+                if !usableIdentities.isEmpty {
+                    Divider()
+                    ForEach(usableIdentities) { identity in
+                        Toggle(identity.name, isOn: Binding(
+                            get: { identityID == identity.id },
+                            set: { if $0 { identityID = identity.id } }
+                        ))
                     }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    
-                    Button {
-                        identityEditorState = .create(parent: nil, token: UUID())
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
                 }
+            } label: {
+                Label(selectedIdentityName, systemImage: "person.crop.circle")
             }
+            .menuStyle(.button)
+            .fixedSize()
         }
     }
 
-    /// The timeout rows, shown inside the Security and timeouts disclosure.
+    private var selectedIdentityName: String {
+        connectionStore.identities.first(where: { $0.id == identityID })?.name ?? "Choose"
+    }
+
+    /// The timeout rows, shown inside the Security & limits disclosure.
     var advancedRows: some View {
         Group {
             PropertyRow(title: "Connection Timeout") {
@@ -184,8 +158,8 @@ extension ConnectionEditorView {
                 }
             }
 
-            PropertyRow(title: "Don't keep query history", info: "New runs on this connection will not be stored in Query History. Existing history can be cleared in Settings › Cache.") {
-                Toggle("", isOn: Binding(get: { !keepsQueryHistory }, set: { keepsQueryHistory = !$0 }))
+            PropertyRow(title: "Keep Query History", info: "Runs on this connection are stored in Query History. Existing history can be cleared in Settings › Cache.") {
+                Toggle("", isOn: $keepsQueryHistory)
                     .labelsHidden().toggleStyle(.switch)
             }
 
@@ -221,27 +195,6 @@ extension ConnectionEditorView {
                 .labelsHidden()
                 .pickerStyle(.menu)
                 .fixedSize()
-            }
-        }
-    }
-
-    @ViewBuilder
-    var inheritedIdentityInfo: some View {
-        if let identity = inheritedIdentity {
-            PropertyRow(title: "Inherited") {
-                Text(identity.name)
-                    .font(TypographyTokens.formValue)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-            }
-            Text("Inherited from folder.")
-                .font(TypographyTokens.formDescription)
-                .foregroundStyle(ColorTokens.Text.tertiary)
-                .listRowSeparator(.hidden)
-        } else {
-            PropertyRow(title: "Inherited") {
-                Text("None")
-                    .font(TypographyTokens.formValue)
-                    .foregroundStyle(ColorTokens.Status.error)
             }
         }
     }

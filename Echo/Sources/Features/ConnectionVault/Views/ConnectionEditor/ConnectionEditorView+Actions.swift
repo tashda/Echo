@@ -50,7 +50,6 @@ extension ConnectionEditorView {
             credentialSource: sanitizedCredentialSource,
             identityID: sanitizedIdentityID,
             keychainIdentifier: originalConnection?.keychainIdentifier,
-            folderID: folderID,
             useTLS: sanitizedUseTLS,
             trustServerCertificate: selectedDatabaseType == .microsoftSQL ? trustServerCertificate : false,
             tlsMode: selectedDatabaseType == .postgresql ? tlsMode : .prefer,

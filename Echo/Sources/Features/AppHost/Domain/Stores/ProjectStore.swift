@@ -173,23 +173,16 @@ final class ProjectStore {
             selectedProject = projects[targetIdx]
         }
 
-        // 2. Handle Connections, Identities, and Folders
+        // 2. Handle Connections and Identities
         if !merge {
             // Clear target resources first
             connectionStore.connections.removeAll { $0.projectID == targetProjectID }
             connectionStore.identities.removeAll { $0.projectID == targetProjectID }
-            connectionStore.folders.removeAll { $0.projectID == targetProjectID }
         }
 
         let sourceConnections = connectionStore.connections.filter { connectionIDs.contains($0.id) }
         let sourceIdentities = connectionStore.identities.filter { identityIDs.contains($0.id) }
         
-        // Find folders that are parents of selected connections/identities
-        let selectedFolderIDs = Set(sourceConnections.compactMap(\.folderID) + sourceIdentities.compactMap(\.folderID))
-        let sourceFolders = connectionStore.folders.filter { selectedFolderIDs.contains($0.id) || $0.projectID == sourceProject.id && selectedFolderIDs.contains($0.parentFolderID ?? UUID()) }
-        // Note: For a truly robust implementation we'd need to recursive-walk the folders.
-        // For now, let's just grab the folders explicitly referenced.
-
         for var conn in sourceConnections {
             conn.id = UUID()
             conn.projectID = targetProjectID
@@ -202,21 +195,10 @@ final class ProjectStore {
             connectionStore.identities.append(identity)
         }
 
-        // We only copy folders if they don't exist yet or we just copy them as new instances
-        // To avoid duplicates if merging, we could check names, but project items are isolated by ID.
-        for var folder in sourceFolders {
-            folder.id = UUID()
-            folder.projectID = targetProjectID
-            connectionStore.folders.append(folder)
-        }
-
         try await saveProjects(projects)
         try await repository.saveGlobalSettings(globalSettings)
         try await connectionStore.saveConnections()
         try await connectionStore.saveIdentities()
-        try await connectionStore.saveFolders()
-        // Round MC: copied folders and inherited sign-ins are retired at once.
-        try await connectionStore.retireFolders()
     }
 
     /// Reset a project's settings to factory defaults.
@@ -237,7 +219,6 @@ final class ProjectStore {
         _ project: Project,
         connections: [SavedConnection],
         identities: [SavedIdentity],
-        folders: [SavedFolder],
         globalSettings: GlobalSettings?,
         clipboardHistory: [ClipboardHistoryStore.Entry]?,
         autocompleteHistory: SQLAutoCompletionHistoryStore.Snapshot?,
@@ -248,7 +229,6 @@ final class ProjectStore {
             project,
             connections: connections,
             identities: identities,
-            folders: folders,
             globalSettings: globalSettings,
             clipboardHistory: clipboardHistory,
             autocompleteHistory: autocompleteHistory,

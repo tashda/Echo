@@ -68,7 +68,6 @@ final class EnvironmentState {
     var activeDatabaseMailEditorValue: DatabaseMailEditorWindowValue?
     var dataInspectorContent: DataInspectorContent?
     @ObservationIgnored private var lastPushedInspectorTitle: String?
-    private(set) var expandedConnectionFolderIDs: Set<UUID> = []
 
     func toggleDataInspector(content: DataInspectorContent, title: String, appState: AppState) {
         if appState.showInfoSidebar && lastPushedInspectorTitle == title {
@@ -106,7 +105,6 @@ final class EnvironmentState {
     @ObservationIgnored let dedicatedConnectionGate = AsyncSemaphore(limit: 3)
     @ObservationIgnored private var diagramRefreshTask: Task<Void, Never>?
     @ObservationIgnored internal var observedSessionIDs: Set<UUID> = []
-    @ObservationIgnored private static let expandedConnectionFoldersKey = "expandedConnectionFoldersByProject"
 
     // MARK: - Initialization
     init(
@@ -202,7 +200,6 @@ final class EnvironmentState {
             projectStore.selectedProject
         } onChange: { [weak self] in
             Task { @MainActor in
-                self?.loadExpandedConnectionFolders(for: self?.projectStore.selectedProject?.id)
                 self?.setupBindings()
             }
         }
@@ -213,7 +210,6 @@ final class EnvironmentState {
         await ensureDefaultProjectExists()
         await migrateToProjects()
         loadRecentConnections()
-        loadExpandedConnectionFolders(for: projectStore.selectedProject?.id)
     }
 
     // MARK: - Internal Connection Helpers
@@ -375,13 +371,6 @@ final class EnvironmentState {
 
     private func migrateToProjects() async {
         // Migration logic
-    }
-
-    internal func loadExpandedConnectionFolders(for projectID: UUID?) {
-        let storage = UserDefaults.standard.dictionary(forKey: Self.expandedConnectionFoldersKey) as? [String: [String]] ?? [:]
-        let key = projectID?.uuidString ?? "global"
-        let ids = storage[key]?.compactMap(UUID.init) ?? []
-        expandedConnectionFolderIDs = Set(ids)
     }
 }
 

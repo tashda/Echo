@@ -1,209 +1,199 @@
 import SwiftUI
 
 extension ManageConnectionsView {
-    func handlePrimaryAdd(for section: ManageSection) {
-        switch section {
-        case .connections:
-            createNewConnection()
-        case .identities:
-            createNewIdentity()
-        case .projects:
-            isPresentingNewProjectSheet = true
+    // MARK: - Moving with unsaved changes (MC1)
+
+    /// Goes where asked, unless the editor has unsaved changes: then asks Save, Don't Save or Cancel.
+    func navigate(to target: PendingNavigation) {
+        if isCurrent(target) { return }
+        if detailHasChanges {
+            pendingNavigation = target
+        } else {
+            apply(target)
         }
     }
 
-    func handleSectionChange(_ section: ManageSection) {
-        if section == .connections {
-            connectionStore.selectedIdentityID = nil
-        }
-
-        // If we are already selecting a project and we switch to the projects section,
-        // we keep the project selection instead of resetting to the section header.
-        if section == .projects, case .project = sidebarSelection {
-            if selectedSection != .projects {
-                selectedSection = .projects
-            }
-            return
-        }
-
-        let target: SidebarSelection = .section(section)
-        if sidebarSelection != target {
-            sidebarSelection = target
+    private func isCurrent(_ target: PendingNavigation) -> Bool {
+        switch target {
+        case .connections(let ids): ids == connectionSelection
+        case .identities(let ids): ids == identitySelection && !isCreatingIdentity
+        case .scope(let newScope): newScope == activeScope
+        case .newConnection, .newIdentity: false
         }
     }
 
-    func handleSidebarSelectionChange(_ selection: SidebarSelection?) {
-        guard let selection else { return }
-
-        if sidebarSelection != selection {
-            sidebarSelection = selection
+    func apply(_ target: PendingNavigation) {
+        detailHasChanges = false
+        switch target {
+        case .connections(let ids):
+            connectionSelection = ids
+        case .identities(let ids):
+            isCreatingIdentity = false
+            identitySelection = ids
+        case .scope(let newScope):
+            isCreatingIdentity = false
+            scope = newScope
+        case .newConnection:
+            isPresentingNewConnection = true
+        case .newIdentity:
+            scope = .identities
+            identitySelection = []
+            isCreatingIdentity = true
         }
+    }
 
-        if selectedSection != selection.section {
-            selectedSection = selection.section
+    /// "Save changes to “postgres18”?"
+    var leaveAlertTitle: String {
+        if activeScope.isConnections, let id = connectionSelection.first,
+           let connection = connectionStore.connections.first(where: { $0.id == id }) {
+            return "Save changes to “\(displayName(for: connection))”?"
         }
+        if !activeScope.isConnections, let id = identitySelection.first,
+           let identity = connectionStore.identities.first(where: { $0.id == id }) {
+            return "Save changes to “\(identity.name)”?"
+        }
+        return "Save your changes?"
+    }
 
-        switch selection {
-        case .section:
-            if connectionStore.selectedFolderID != nil {
-                connectionStore.selectedFolderID = nil
+    func saveThenContinue() {
+        navigationAfterSave = pendingNavigation
+        pendingNavigation = nil
+        saveRequest += 1
+    }
+
+    func discardThenContinue() {
+        guard let target = pendingNavigation else { return }
+        pendingNavigation = nil
+        editorRevision += 1
+        apply(target)
+    }
+
+    /// After a save: rebuild the editor from the saved values, then go where the alert was going.
+    private func finishSave() {
+        detailHasChanges = false
+        editorRevision += 1
+        if let target = navigationAfterSave {
+            navigationAfterSave = nil
+            apply(target)
+        }
+    }
+
+    // MARK: - Saving
+
+    func handleConnectionEditorSave(connection: SavedConnection, password: String?, action: ConnectionEditorView.SaveAction) {
+        Task {
+            await environmentState.upsertConnection(connection, password: password)
+            await MainActor.run {
+                if navigationAfterSave == nil { connectionSelection = [connection.id] }
+                finishSave()
             }
-        case .folder(let folderID, _):
-            if connectionStore.selectedFolderID != folderID {
-                connectionStore.selectedFolderID = folderID
-            }
-        case .project:
-            if connectionStore.selectedFolderID != nil {
-                connectionStore.selectedFolderID = nil
+            if action == .saveAndConnect {
+                environmentState.connect(to: connection)
+                closeManageConnections()
             }
         }
     }
 
-    func syncSidebarSelection(withFolderID folderID: UUID?) {
-        guard let folderID,
-              let folder = folder(withID: folderID) else {
-            // If we're currently selecting a project, don't reset to the section level
-            // just because the folder selection was cleared.
-            if case .project = sidebarSelection {
-                return
+    func handleIdentitySaved(_ identity: SavedIdentity) {
+        isCreatingIdentity = false
+        if navigationAfterSave == nil { identitySelection = [identity.id] }
+        finishSave()
+    }
+
+    // MARK: - Connections
+
+    func connectToConnection(_ connection: SavedConnection) {
+        environmentState.connect(to: connection)
+        closeManageConnections()
+    }
+
+    func closeManageConnections() {
+        if let onClose {
+            onClose()
+        } else {
+            dismiss()
+        }
+    }
+
+    func duplicateConnection(_ connection: SavedConnection) {
+        pendingDuplicateConnection = connection
+    }
+
+    func performDuplicate(_ connection: SavedConnection, copyBookmarks: Bool) {
+        Task {
+            pendingDuplicateConnection = nil
+            var duplicated = connection
+            duplicated.id = UUID()
+            duplicated.connectionName = "\(displayName(for: connection)) copy"
+
+            try? await connectionStore.updateConnection(duplicated)
+            await MainActor.run { apply(.connections([duplicated.id])) }
+
+            if copyBookmarks, let projectID = connection.projectID,
+               var project = projectStore.projects.first(where: { $0.id == projectID }) {
+                let existingBookmarks = environmentState.bookmarkRepository.bookmarks(for: connection.id, in: project)
+                for var bookmark in existingBookmarks {
+                    bookmark.id = UUID()
+                    bookmark.connectionID = duplicated.id
+                    environmentState.bookmarkRepository.addBookmark(bookmark, to: &project)
+                }
+                await projectStore.saveProject(project)
             }
+        }
+    }
 
-            let section = selectedSection ?? .connections
-            let target: SidebarSelection = .section(section)
-            if sidebarSelection != target {
-                sidebarSelection = target
+    func deleteConnections(_ connections: [SavedConnection]) {
+        Task {
+            for connection in connections {
+                await environmentState.deleteConnection(connection)
             }
-            return
-        }
-
-        let section = folder.kind.manageSection
-        if selectedSection != section {
-            selectedSection = section
-        }
-
-        let target: SidebarSelection = .folder(folder.id, section)
-        if sidebarSelection != target {
-            sidebarSelection = target
+            await MainActor.run {
+                connectionSelection.removeAll()
+                detailHasChanges = false
+            }
         }
     }
 
-    func pruneConnectionSelection(allowedIDs: Set<UUID>) {
-        let invalid = connectionSelection.filter { !allowedIDs.contains($0) }
-        if !invalid.isEmpty {
-            connectionSelection.subtract(invalid)
+    // MARK: - Deleting
+
+    /// Says what depends on what is deleted.
+    func deletionMessage(for target: DeletionTarget) -> String {
+        switch target {
+        case .connection:
+            return "Its saved password and settings are removed. This can't be undone."
+        case .identity(let identity):
+            let users = connections(using: identity)
+            switch users.count {
+            case 0: return "No connection signs in with it. This can't be undone."
+            case 1: return "\(displayName(for: users[0])) signs in with it and will ask for a password until you choose another sign-in."
+            default: return "\(users.count) connections sign in with it. They will ask for a password until you choose another sign-in."
+            }
         }
     }
 
-    func pruneIdentitySelection(allowedIDs: Set<UUID>) {
-        let invalid = identitySelection.filter { !allowedIDs.contains($0) }
-        if !invalid.isEmpty {
-            identitySelection.subtract(invalid)
+    func performDeletion(for target: DeletionTarget) {
+        switch target {
+        case .connection(let connection):
+            Task { await environmentState.deleteConnection(connection) }
+            connectionSelection.remove(connection.id)
+        case .identity(let identity):
+            Task { try? await connectionStore.deleteIdentity(identity) }
+            identitySelection.remove(identity.id)
         }
+        detailHasChanges = false
+        pendingDeletion = nil
     }
+
+    // MARK: - Projects
 
     func resetForProjectChange() {
         searchText = ""
         pendingDeletion = nil
-        connectionEditorPresentation = nil
-        identityEditorState = nil
+        pendingNavigation = nil
+        navigationAfterSave = nil
+        isCreatingIdentity = false
+        detailHasChanges = false
         connectionSelection.removeAll()
         identitySelection.removeAll()
-
-        // Preserve current selection if it's a project and it still exists.
-        if case .project(let projectID) = sidebarSelection {
-            if !projectStore.projects.contains(where: { $0.id == projectID }) {
-                selectedSection = .connections
-                sidebarSelection = .section(.connections)
-            }
-            // else: KEEP IT. This fixes the highlight disappearing when switching projects.
-        } else {
-            // If it was something else (folder or section), we reset to connections
-            // since the new project won't have the same folders.
-            selectedSection = .connections
-            sidebarSelection = .section(.connections)
-        }
-
-        pruneNavigationStacks()
-        ensureSectionSelection()
     }
-
-    func pruneNavigationStacks() {
-        guard let projectID = selectedProjectID else {
-            connectionStore.selectedFolderID = nil
-            connectionStore.selectedIdentityID = nil
-            connectionStore.selectedConnectionID = nil
-            return
-        }
-
-        if let folderID = connectionStore.selectedFolderID,
-           !connectionStore.folders.contains(where: { $0.id == folderID && $0.projectID == projectID }) {
-            connectionStore.selectedFolderID = nil
-        }
-
-        if let identityID = connectionStore.selectedIdentityID,
-           !connectionStore.identities.contains(where: { $0.id == identityID && $0.projectID == projectID }) {
-            connectionStore.selectedIdentityID = nil
-        }
-
-        if let connectionID = connectionStore.selectedConnectionID,
-           !connectionStore.connections.contains(where: { $0.id == connectionID && $0.projectID == projectID }) {
-            connectionStore.selectedConnectionID = nil
-        }
-
-        syncSidebarSelection(withFolderID: connectionStore.selectedFolderID)
-    }
-
-    func ensureSectionSelection() {
-        if selectedSection == nil {
-            if let identityID = connectionStore.selectedIdentityID,
-               connectionStore.identities.contains(where: { $0.id == identityID }) {
-                selectedSection = .identities
-            } else {
-                selectedSection = .connections
-            }
-        }
-
-        if sidebarSelection == nil {
-            if let folderID = connectionStore.selectedFolderID {
-                syncSidebarSelection(withFolderID: folderID)
-            } else if let section = selectedSection {
-                sidebarSelection = .section(section)
-            } else {
-                sidebarSelection = .section(.connections)
-            }
-        }
-
-        if connectionSelection.isEmpty,
-           let id = connectionStore.selectedConnectionID,
-           filteredConnectionsForTable.contains(where: { $0.id == id }) {
-            connectionSelection = [id]
-        }
-
-        if identitySelection.isEmpty,
-           let id = connectionStore.selectedIdentityID,
-           filteredIdentitiesForTable.contains(where: { $0.id == id }) {
-            identitySelection = [id]
-        }
-    }
-
-    func importSettingsFromProject(_ source: Project, into targetID: UUID) {
-        isImportingSettings = true
-        lastImportedFrom = nil
-        Task {
-            try? await projectStore.importProjectResources(
-                from: source,
-                into: targetID,
-                connectionStore: connectionStore,
-                merge: true,
-                includeSettings: true,
-                connectionIDs: Set(connectionStore.connections.filter { $0.projectID == source.id }.map(\.id)),
-                identityIDs: Set(connectionStore.identities.filter { $0.projectID == source.id }.map(\.id))
-            )
-            await MainActor.run {
-                isImportingSettings = false
-                lastImportedFrom = (name: source.name, date: Date())
-            }
-        }
-    }
-
 }

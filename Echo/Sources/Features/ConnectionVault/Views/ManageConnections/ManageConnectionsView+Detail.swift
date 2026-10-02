@@ -1,137 +1,103 @@
-@preconcurrency import SwiftUI
-import AppKit
+import SwiftUI
 
+/// Round MC: the right column edits whatever is selected, in place (CN5): one connection, one
+/// identity, a new identity, or a summary when several connections are selected.
 extension ManageConnectionsView {
-    var detailContent: some View {
-        detailBody
-            .accentColor(appearanceStore.accentColor)
-            .navigationTitle(navigationTitleText)
-            .navigationSubtitle(navigationSubtitleText)
-            .navigationHistoryToolbar($sidebarSelection, history: navHistory)
-            .searchable(text: $searchText, placement: .toolbar, prompt: "Search")
-            .toolbar {
-                if activeSection == .projects {
-                    ToolbarItemGroup(placement: .primaryAction) {
-                        projectToolbarActions
-                    }
-                } else {
-                    ToolbarItem(placement: .primaryAction) {
-                        addToolbarMenu
-                    }
-                }
-            }
-    }
-
-    var navigationTitleText: String {
-        if case .folder(let folderID, _) = sidebarSelection,
-           let folder = folder(withID: folderID) {
-            return folder.displayName
+    @ViewBuilder
+    var detailColumn: some View {
+        if activeScope.isConnections {
+            connectionDetail
+        } else {
+            identityDetail
         }
-        if case .project(let projectID) = sidebarSelection,
-           let project = projectStore.projects.first(where: { $0.id == projectID }) {
-            return project.name
-        }
-        return activeSection.title
-    }
-
-    var navigationSubtitleText: String {
-        if case .folder(let folderID, _) = sidebarSelection,
-           let folder = folder(withID: folderID) {
-            if let desc = folder.folderDescription, !desc.isEmpty {
-                return desc
-            }
-            return activeSection.title
-        }
-        if case .project = sidebarSelection {
-            return "Project Details"
-        }
-        return ""
     }
 
     @ViewBuilder
-    var addToolbarMenu: some View {
-        Menu {
-            Button {
-                handlePrimaryAdd(for: .connections)
-            } label: {
-                Label("New Connection", systemImage: "externaldrive.badge.plus")
+    private var connectionDetail: some View {
+        if connectionSelection.count == 1, let id = connectionSelection.first,
+           let connection = connectionStore.connections.first(where: { $0.id == id }) {
+            ManageConnectionEditorPane(
+                connection: connection,
+                revision: editorRevision,
+                saveRequest: saveRequest,
+                onChangesChanged: { detailHasChanges = $0 },
+                onSave: handleConnectionEditorSave
+            )
+        } else if connectionSelection.count > 1 {
+            let selected = connectionStore.connections.filter { connectionSelection.contains($0.id) }
+            ContentUnavailableView {
+                Label("\(selected.count) Connections", systemImage: "square.stack")
+            } description: {
+                Text(selected.map { displayName(for: $0) }.joined(separator: ", "))
+                    .lineLimit(3)
+            } actions: {
+                Button("Delete \(selected.count) Connections…", role: .destructive) { deleteConnections(selected) }
             }
-            Button {
-                createNewIdentity()
-            } label: {
-                Label("New Identity", systemImage: "person.crop.circle.badge.plus")
+        } else {
+            ContentUnavailableView {
+                Label("Select a Connection", systemImage: "externaldrive")
+            } description: {
+                Text("Select one to edit it here, or double-click it to connect.")
+            } actions: {
+                Button("New Connection…") { navigate(to: .newConnection) }
             }
-        } label: {
-            Label("Add", systemImage: "plus")
         }
-        .menuIndicator(.hidden)
-        .help("Add a connection or an identity")
     }
 
     @ViewBuilder
-    private var projectToolbarActions: some View {
-        Button {
-            if case .project(let id) = sidebarSelection {
-                exportProjectID = id
-            } else {
-                exportProjectID = projectStore.selectedProject?.id
+    private var identityDetail: some View {
+        if isCreatingIdentity {
+            IdentityEditorPane(
+                identity: nil,
+                revision: editorRevision,
+                saveRequest: saveRequest,
+                usedBy: [],
+                onChangesChanged: { detailHasChanges = $0 },
+                onSaved: handleIdentitySaved,
+                onCancel: { isCreatingIdentity = false; detailHasChanges = false },
+                onDelete: { _ in }
+            )
+        } else if identitySelection.count == 1, let id = identitySelection.first,
+                  let identity = connectionStore.identities.first(where: { $0.id == id }) {
+            IdentityEditorPane(
+                identity: identity,
+                revision: editorRevision,
+                saveRequest: saveRequest,
+                usedBy: connections(using: identity),
+                onChangesChanged: { detailHasChanges = $0 },
+                onSaved: handleIdentitySaved,
+                onCancel: nil,
+                onDelete: { pendingDeletion = .identity($0) }
+            )
+        } else {
+            ContentUnavailableView {
+                Label("Select an Identity", systemImage: "person.crop.circle")
+            } description: {
+                Text("An identity is a login that several connections share.")
+            } actions: {
+                Button("New Identity") { navigate(to: .newIdentity) }
             }
-            showExportSheet = true
-        } label: {
-            Label("Export Project", systemImage: "square.and.arrow.up")
-        }
-        .help("Export Project")
-
-        Button {
-            isPresentingNewProjectSheet = true
-        } label: {
-            Label("New Project", systemImage: "plus")
-        }
-        .help("New Project")
-
-        projectMoreMenu
-    }
-
-    @ViewBuilder
-    private var projectMoreMenu: some View {
-        if let project = displayedProject {
-            Menu {
-                Button {
-                    importSettingsSourceProject = nil
-                    showImportSettingsPopup = true
-                } label: {
-                    Label("Import from Project", systemImage: "arrow.triangle.2.circlepath.circle")
-                }
-
-                Divider()
-
-                Button(role: .destructive) {
-                    showResetSettingsConfirmation = true
-                } label: {
-                    Label("Reset Project", systemImage: "arrow.counterclockwise")
-                }
-
-                if !project.isDefault {
-                    Button(role: .destructive) {
-                        projectToDelete = project
-                        showDeleteConfirmation = true
-                    } label: {
-                        Label("Delete Project", systemImage: "trash")
-                    }
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-            }
-            .menuIndicator(.hidden)
-            .help("More Actions")
         }
     }
 
-    private func prepareGranularImport(from source: Project) {
-        importSettingsSourceProject = source
-        importSelectedConnectionIDs = Set(connectionStore.connections.filter { $0.projectID == source.id }.map(\.id))
-        importSelectedIdentityIDs = Set(connectionStore.identities.filter { $0.projectID == source.id }.map(\.id))
-        importIncludeSettings = true
-        showImportSettingsPopup = true
+    // MARK: - New connection sheet
+
+    var newConnectionSheet: some View {
+        ConnectionEditorView(connection: nil, confirmAction: .save) { connection, password, _ in
+            isPresentingNewConnection = false
+            Task {
+                await environmentState.upsertConnection(connection, password: password)
+                await MainActor.run {
+                    if scope != .allConnections { scope = .allConnections }
+                    connectionSelection = [connection.id]
+                    detailHasChanges = false
+                }
+            }
+        }
+        .environment(projectStore)
+        .environment(connectionStore)
+        .environment(navigationStore)
+        .environment(environmentState)
+        .environment(appState)
     }
 }

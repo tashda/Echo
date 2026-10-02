@@ -22,39 +22,11 @@ struct NavigationStateTests {
         let state = NavigationState()
         let project = TestFixtures.project()
         let connection = TestFixtures.savedConnection()
-        let folder = TestFixtures.savedFolder()
 
         state.selectedConnection = connection
-        state.selectedFolder = folder
         state.selectedDatabase = "testdb"
 
         state.selectProject(project)
-
-        #expect(state.selectedConnection == nil)
-        #expect(state.selectedFolder == nil)
-        #expect(state.selectedDatabase == nil)
-    }
-
-    // MARK: - selectFolder
-
-    @Test func selectFolderSetsSelectedFolder() {
-        let state = NavigationState()
-        let folder = TestFixtures.savedFolder(name: "Staging")
-
-        state.selectFolder(folder)
-
-        #expect(state.selectedFolder?.id == folder.id)
-        #expect(state.selectedFolder?.name == "Staging")
-    }
-
-    @Test func selectFolderClearsConnectionAndDatabase() {
-        let state = NavigationState()
-        let connection = TestFixtures.savedConnection()
-        state.selectedConnection = connection
-        state.selectedDatabase = "mydb"
-
-        let folder = TestFixtures.savedFolder()
-        state.selectFolder(folder)
 
         #expect(state.selectedConnection == nil)
         #expect(state.selectedDatabase == nil)
@@ -72,16 +44,13 @@ struct NavigationStateTests {
         #expect(state.selectedConnection?.connectionName == "Production")
     }
 
-    @Test func selectConnectionClearsFolderAndDatabase() {
+    @Test func selectConnectionClearsDatabase() {
         let state = NavigationState()
-        let folder = TestFixtures.savedFolder()
-        state.selectedFolder = folder
         state.selectedDatabase = "olddb"
 
         let connection = TestFixtures.savedConnection()
         state.selectConnection(connection)
 
-        #expect(state.selectedFolder == nil)
         #expect(state.selectedDatabase == nil)
     }
 
@@ -129,16 +98,6 @@ struct NavigationStateTests {
         #expect(state.selectedConnection == nil)
     }
 
-    @Test func navigateBackPopsFolder() {
-        let state = NavigationState()
-        let folder = TestFixtures.savedFolder()
-        state.selectedFolder = folder
-
-        state.navigateBack()
-
-        #expect(state.selectedFolder == nil)
-    }
-
     @Test func navigateBackPopsInOrder() {
         let state = NavigationState()
         let connection = TestFixtures.savedConnection()
@@ -160,7 +119,6 @@ struct NavigationStateTests {
         state.navigateBack()
 
         #expect(state.selectedProject == nil)
-        #expect(state.selectedFolder == nil)
         #expect(state.selectedConnection == nil)
         #expect(state.selectedDatabase == nil)
     }
@@ -171,17 +129,14 @@ struct NavigationStateTests {
         let state = NavigationState()
         let project = TestFixtures.project()
         let connection = TestFixtures.savedConnection()
-        let folder = TestFixtures.savedFolder()
 
         state.selectedProject = project
-        state.selectedFolder = folder
         state.selectedConnection = connection
         state.selectedDatabase = "testdb"
 
         state.reset()
 
         #expect(state.selectedProject?.id == project.id) // project not cleared by reset
-        #expect(state.selectedFolder == nil)
         #expect(state.selectedConnection == nil)
         #expect(state.selectedDatabase == nil)
     }
@@ -216,37 +171,6 @@ struct NavigationStateTests {
 
         let crumbs = state.breadcrumbs
         #expect(crumbs.count == 2)
-    }
-
-    @Test func breadcrumbsWithProjectAndFolder() {
-        let state = NavigationState()
-        let project = TestFixtures.project()
-        let folder = TestFixtures.savedFolder(name: "Staging")
-        state.selectedProject = project
-        state.selectedFolder = folder
-
-        let crumbs = state.breadcrumbs
-        #expect(crumbs.count == 2)
-        if case .folder(let f) = crumbs[1] {
-            #expect(f.name == "Staging")
-        } else {
-            Issue.record("Expected folder breadcrumb")
-        }
-    }
-
-    @Test func breadcrumbsFolderTakesPriorityOverConnectionInSameSlot() {
-        let state = NavigationState()
-        let folder = TestFixtures.savedFolder()
-        let connection = TestFixtures.savedConnection()
-        state.selectedFolder = folder
-        state.selectedConnection = connection
-
-        // When both folder and connection set, folder wins in breadcrumbs
-        let crumbs = state.breadcrumbs
-        let hasFolder = crumbs.contains { if case .folder = $0 { return true } else { return false } }
-        let hasConnection = crumbs.contains { if case .connection = $0 { return true } else { return false } }
-        #expect(hasFolder)
-        #expect(!hasConnection)
     }
 
     @Test func breadcrumbsWithConnectionAndDatabase() {
@@ -293,12 +217,6 @@ struct NavigationStateTests {
         #expect(level.id == "project-\(project.id)")
     }
 
-    @Test func navigationLevelFolderId() {
-        let folder = TestFixtures.savedFolder()
-        let level = NavigationLevel.folder(folder)
-        #expect(level.id == "folder-\(folder.id)")
-    }
-
     @Test func navigationLevelConnectionId() {
         let connection = TestFixtures.savedConnection()
         let level = NavigationLevel.connection(connection)
@@ -314,12 +232,6 @@ struct NavigationStateTests {
         let project = TestFixtures.project(name: "My Project")
         let level = NavigationLevel.project(project)
         #expect(level.displayName == "My Project")
-    }
-
-    @Test func navigationLevelDisplayNameFolder() {
-        let folder = TestFixtures.savedFolder(name: "Staging Servers")
-        let level = NavigationLevel.folder(folder)
-        #expect(level.displayName == "Staging Servers")
     }
 
     @Test func navigationLevelDisplayNameConnectionWithName() {
@@ -343,12 +255,6 @@ struct NavigationStateTests {
         let project = TestFixtures.project()
         let level = NavigationLevel.project(project)
         #expect(level.icon == "folder.badge.gearshape")
-    }
-
-    @Test func navigationLevelIconFolder() {
-        let folder = TestFixtures.savedFolder()
-        let level = NavigationLevel.folder(folder)
-        #expect(level.icon == "folder.fill")
     }
 
     @Test func navigationLevelIconConnectionPostgres() {

@@ -34,7 +34,7 @@ struct ConnectMenuCommands: Commands {
             }
 
             if hasConnections {
-                connectionMenuItems(parentID: nil, projectID: projectID)
+                connectionMenuItems(projectID: projectID)
             } else if !hasActiveSessions {
                 Label("No Connections Available", systemImage: "cable.connector.slash")
                     .foregroundStyle(ColorTokens.Text.secondary)
@@ -209,18 +209,11 @@ struct ConnectMenuCommands: Commands {
         DatabaseTypeIcon(databaseType: connection.databaseType, presentation: .menu)
     }
 
-    private func connectionMenuItems(parentID: UUID?, projectID: UUID?) -> AnyView {
-        let folders = foldersWithContent(parentID: parentID, projectID: projectID)
-        let connections = connections(parentID: parentID, projectID: projectID)
+    private func connectionMenuItems(projectID: UUID?) -> AnyView {
+        let connections = connections(projectID: projectID)
 
         return AnyView(
             Group {
-                ForEach(folders, id: \.id) { folder in
-                    Menu(folder.name) {
-                        connectionMenuItems(parentID: folder.id, projectID: projectID)
-                    }
-                }
-
                 ForEach(connections, id: \.id) { connection in
                     Button {
                         connect(to: connection)
@@ -236,29 +229,10 @@ struct ConnectMenuCommands: Commands {
         )
     }
 
-    private func folders(parentID: UUID?, projectID: UUID?) -> [SavedFolder] {
-        guard let projectID else { return [] }
-        return connectionStore.folders
-            .filter { $0.kind == .connections && $0.projectID == projectID && $0.parentFolderID == parentID }
-            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-    }
-
-    private func foldersWithContent(parentID: UUID?, projectID: UUID?) -> [SavedFolder] {
-        folders(parentID: parentID, projectID: projectID)
-            .filter { folderHasContent($0.id, projectID: projectID) }
-    }
-
-    private func folderHasContent(_ folderID: UUID, projectID: UUID?) -> Bool {
-        !connections(parentID: folderID, projectID: projectID).isEmpty ||
-            folders(parentID: folderID, projectID: projectID).contains {
-                folderHasContent($0.id, projectID: projectID)
-            }
-    }
-
-    private func connections(parentID: UUID?, projectID: UUID?) -> [SavedConnection] {
+    private func connections(projectID: UUID?) -> [SavedConnection] {
         guard let projectID else { return [] }
         return connectionStore.connections
-            .filter { $0.projectID == projectID && $0.folderID == parentID }
+            .filter { $0.projectID == projectID }
             .sorted { displayName(for: $0).localizedCaseInsensitiveCompare(displayName(for: $1)) == .orderedAscending }
     }
 
@@ -271,7 +245,6 @@ struct ConnectMenuCommands: Commands {
         Task {
             await MainActor.run {
                 connectionStore.selectedConnectionID = connection.id
-                connectionStore.selectedFolderID = connection.folderID
                 navigationStore.navigationState.selectConnection(connection)
             }
             environmentState.connect(to: connection)

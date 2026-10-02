@@ -35,8 +35,6 @@ extension ConnectionEditorView {
             }
         case .identity:
             if identityID == nil { issues[.username] = "Choose an identity." }
-        case .inherit:
-            if folderID == nil || inheritedIdentity == nil { issues[.username] = "The folder has no identity to inherit." }
         }
         if authenticationMethod == .windowsIntegrated {
             if domain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { issues[.domain] = "Enter the Windows domain." }
@@ -65,10 +63,15 @@ extension ConnectionEditorView {
         handleSave(action: action)
     }
 
-    /// A pasted connection URL or string fills the form (CR3).
-    internal func applyPastedConnectionString(_ text: String) {
-        guard let parsed = ConnectionStringParser.parse(text) else { return }
-        if parsed.databaseType != selectedDatabaseType { selectedDatabaseType = parsed.databaseType }
+    /// A pasted connection URL or string fills the form (CR3). Round MC: once the engine is chosen
+    /// it stays, so a string for another engine is ignored here; only the engine step may change it.
+    @discardableResult
+    internal func applyPastedConnectionString(_ text: String, allowsEngineChange: Bool = false) -> Bool {
+        guard let parsed = ConnectionStringParser.parse(text) else { return false }
+        if parsed.databaseType != selectedDatabaseType {
+            guard allowsEngineChange else { return false }
+            selectedDatabaseType = parsed.databaseType
+        }
         host = parsed.host
         port = parsed.port ?? parsed.databaseType.defaultPort
         if let value = parsed.database { database = value }
@@ -80,6 +83,7 @@ extension ConnectionEditorView {
             loadBalanceHosts = parsed.loadBalanceHosts
             if let service = parsed.kerberosServiceName { kerberosServiceName = service }
         }
+        return true
     }
 
     internal func handleDatabaseTypeChange(from oldType: DatabaseType, to newType: DatabaseType) {

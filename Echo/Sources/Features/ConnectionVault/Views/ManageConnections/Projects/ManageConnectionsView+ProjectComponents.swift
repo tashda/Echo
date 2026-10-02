@@ -1,36 +1,5 @@
 import SwiftUI
 
-// MARK: - Folder Tree Node Row
-
-struct ProjectFolderNodeRow: View {
-    let node: FolderNode
-    let icon: String
-    let level: Int
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: SpacingTokens.xxs) {
-            Label(node.folder.displayName, systemImage: node.folder.icon)
-                .font(TypographyTokens.detail.weight(.semibold))
-                .foregroundStyle(ColorTokens.Text.primary)
-                .padding(.leading, CGFloat(level) * SpacingTokens.md)
-
-            if let children = node.childNodes {
-                ForEach(children) { child in
-                    ProjectFolderNodeRow(node: child, icon: icon, level: level + 1)
-                }
-            }
-
-            ForEach(node.items, id: \.self) { item in
-                let name = (item as? SavedConnection)?.connectionName ?? (item as? SavedIdentity)?.name ?? "Unknown"
-                Label(name, systemImage: icon)
-                    .font(TypographyTokens.detail)
-                    .foregroundStyle(ColorTokens.Text.secondary)
-                    .padding(.leading, CGFloat(level + 1) * SpacingTokens.md)
-            }
-        }
-    }
-}
-
 // MARK: - Icon Picker Sheet
 
 struct ProjectIconPickerSheet: View {

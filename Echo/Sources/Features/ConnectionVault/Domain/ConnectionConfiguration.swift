@@ -14,7 +14,6 @@ struct ConnectionConfiguration: Codable, Hashable {
     var keychainIdentifier: String?
     var credentialSource: CredentialSource = .manual
     var identityID: UUID?
-    var folderID: UUID?
 
     // Security settings
     var useTLS: Bool = true
@@ -57,7 +56,6 @@ struct ConnectionConfiguration: Codable, Hashable {
         keychainIdentifier: String? = nil,
         credentialSource: CredentialSource = .manual,
         identityID: UUID? = nil,
-        folderID: UUID? = nil,
         useTLS: Bool = true,
         trustServerCertificate: Bool = false,
         tlsMode: TLSMode = .prefer,
@@ -90,7 +88,6 @@ struct ConnectionConfiguration: Codable, Hashable {
         self.keychainIdentifier = keychainIdentifier
         self.credentialSource = credentialSource
         self.identityID = identityID
-        self.folderID = folderID
         self.useTLS = useTLS
         self.trustServerCertificate = trustServerCertificate
         self.tlsMode = tlsMode
@@ -128,7 +125,6 @@ struct ConnectionConfiguration: Codable, Hashable {
             credentialSource: credentialSource,
             identityID: identityID,
             keychainIdentifier: keychainIdentifier,
-            folderID: folderID,
             useTLS: useTLS,
             trustServerCertificate: trustServerCertificate,
             tlsMode: tlsMode,
@@ -158,7 +154,6 @@ struct ConnectionConfiguration: Codable, Hashable {
             keychainIdentifier: savedConnection.keychainIdentifier,
             credentialSource: savedConnection.credentialSource,
             identityID: savedConnection.identityID,
-            folderID: savedConnection.folderID,
             useTLS: savedConnection.useTLS,
             trustServerCertificate: savedConnection.trustServerCertificate,
             tlsMode: savedConnection.tlsMode,
@@ -294,8 +289,6 @@ extension ConnectionConfiguration {
         switch credentialSource {
         case .manual:
             credentialsValid = !trimmedUsername.isEmpty
-        case .inherit:
-            credentialsValid = true
         case .identity:
             credentialsValid = identityID != nil
         }

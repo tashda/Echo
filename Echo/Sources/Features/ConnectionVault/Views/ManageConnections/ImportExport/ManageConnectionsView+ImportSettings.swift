@@ -28,7 +28,6 @@ extension ManageConnectionsView {
 
                 List {
                     let targetID: UUID? = {
-                        if case .project(let id) = sidebarSelection { return id }
                         return projectStore.selectedProject?.id
                     }()
 
@@ -103,7 +102,6 @@ extension ManageConnectionsView {
             Divider()
 
             let targetID: UUID? = {
-                if case .project(let id) = sidebarSelection { return id }
                 return projectStore.selectedProject?.id
             }()
 

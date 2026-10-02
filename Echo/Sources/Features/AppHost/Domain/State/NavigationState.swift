@@ -6,7 +6,6 @@ import SwiftUI
 @Observable
 final class NavigationState {
     var selectedProject: Project?
-    var selectedFolder: SavedFolder?
     var selectedConnection: SavedConnection?
     var selectedDatabase: String?
 
@@ -18,9 +17,7 @@ final class NavigationState {
             levels.append(.project(project))
         }
 
-        if let folder = selectedFolder {
-            levels.append(.folder(folder))
-        } else if let connection = selectedConnection {
+        if let connection = selectedConnection {
             levels.append(.connection(connection))
         }
 
@@ -32,7 +29,6 @@ final class NavigationState {
     }
 
     func reset() {
-        selectedFolder = nil
         selectedConnection = nil
         selectedDatabase = nil
     }
@@ -42,15 +38,8 @@ final class NavigationState {
         reset()
     }
 
-    func selectFolder(_ folder: SavedFolder) {
-        selectedFolder = folder
-        selectedConnection = nil
-        selectedDatabase = nil
-    }
-
     func selectConnection(_ connection: SavedConnection) {
         selectedConnection = connection
-        selectedFolder = nil
         selectedDatabase = nil
     }
 
@@ -63,8 +52,6 @@ final class NavigationState {
             selectedDatabase = nil
         } else if selectedConnection != nil {
             selectedConnection = nil
-        } else if selectedFolder != nil {
-            selectedFolder = nil
         }
     }
 }
@@ -73,7 +60,6 @@ final class NavigationState {
 
 enum NavigationLevel: Identifiable, Hashable {
     case project(Project)
-    case folder(SavedFolder)
     case connection(SavedConnection)
     case database(String)
 
@@ -81,8 +67,6 @@ enum NavigationLevel: Identifiable, Hashable {
         switch self {
         case .project(let project):
             return "project-\(project.id)"
-        case .folder(let folder):
-            return "folder-\(folder.id)"
         case .connection(let connection):
             return "connection-\(connection.id)"
         case .database(let name):
@@ -94,8 +78,6 @@ enum NavigationLevel: Identifiable, Hashable {
         switch self {
         case .project(let project):
             return project.name
-        case .folder(let folder):
-            return folder.name
         case .connection(let connection):
             return connection.connectionName.isEmpty ? connection.host : connection.connectionName
         case .database(let name):
@@ -107,8 +89,6 @@ enum NavigationLevel: Identifiable, Hashable {
         switch self {
         case .project:
             return "folder.badge.gearshape"
-        case .folder:
-            return "folder.fill"
         case .connection(let connection):
             return connection.databaseType.iconName
         case .database:
@@ -120,8 +100,6 @@ enum NavigationLevel: Identifiable, Hashable {
         switch self {
         case .project:
             return nil
-        case .folder(let folder):
-            return folder.color
         case .connection(let connection):
             return connection.color
         case .database:

@@ -20,12 +20,12 @@ enum DeletionTarget: Identifiable {
 }
 
 enum IdentityEditorState: Identifiable {
-    case create(parent: SavedFolder?, token: UUID)
+    case create(token: UUID)
     case edit(identity: SavedIdentity)
 
     var id: UUID {
         switch self {
-        case .create(_, let token): return token
+        case .create(let token): return token
         case .edit(let identity): return identity.id
         }
     }

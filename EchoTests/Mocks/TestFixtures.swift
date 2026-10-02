@@ -17,7 +17,6 @@ enum TestFixtures {
         credentialSource: CredentialSource = .manual,
         identityID: UUID? = nil,
         keychainIdentifier: String? = nil,
-        folderID: UUID? = nil,
         useTLS: Bool = false,
         trustServerCertificate: Bool = false,
         databaseType: DatabaseType = .postgresql,
@@ -38,7 +37,6 @@ enum TestFixtures {
             credentialSource: credentialSource,
             identityID: identityID,
             keychainIdentifier: keychainIdentifier,
-            folderID: folderID,
             useTLS: useTLS,
             trustServerCertificate: trustServerCertificate,
             databaseType: databaseType,
@@ -226,16 +224,6 @@ enum TestFixtures {
             username: username,
             keychainIdentifier: keychainIdentifier
         )
-    }
-
-    // MARK: - SavedFolder
-
-    static func savedFolder(
-        name: String = "Test Folder",
-        projectID: UUID? = nil,
-        colorHex: String = "007AFF"
-    ) -> SavedFolder {
-        SavedFolder(name: name, projectID: projectID, colorHex: colorHex)
     }
 
     // MARK: - ClipboardHistoryEntry

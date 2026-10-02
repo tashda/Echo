@@ -108,11 +108,10 @@ extension ServerRail {
 
     // MARK: Saved connections
 
-    /// The project's saved connections that are not already open, by folder.
+    /// The project's saved connections that are not already open (round MC: no folders).
     var connectTrailEntries: [ConnectTrailEntry] {
         let projectID = projectStore.selectedProject?.id
         let openIDs = Set(environmentState.sessionGroup.activeSessions.map { $0.connection.id })
-        let folders = connectionStore.folders.filter { $0.projectID == projectID && $0.kind == .connections }
 
         return connectionStore.connections
             .filter { $0.projectID == projectID && !openIDs.contains($0.id) }
@@ -122,19 +121,9 @@ extension ServerRail {
                     name: connection.connectionName.isEmpty ? connection.host : connection.connectionName,
                     host: connection.host,
                     database: connection.database,
-                    folder: folderPath(of: connection.folderID, in: folders)
+                    folder: nil
                 )
             }
-    }
-
-    private func folderPath(of folderID: UUID?, in folders: [SavedFolder]) -> String? {
-        var names: [String] = []
-        var current = folderID
-        while let id = current, names.count < 16, let folder = folders.first(where: { $0.id == id }) {
-            names.insert(folder.displayName, at: 0)
-            current = folder.parentFolderID
-        }
-        return names.isEmpty ? nil : names.joined(separator: " / ")
     }
 
     private func connectTrailColor(for id: UUID) -> Color {

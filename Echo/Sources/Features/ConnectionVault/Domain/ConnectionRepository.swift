@@ -3,16 +3,13 @@ import Foundation
 /// Implementation of the `ConnectionRepositoryProtocol` using disk-based storage.
 final class ConnectionRepository: ConnectionRepositoryProtocol {
     private let connectionStore: ConnectionDiskStore
-    private let folderStore: FolderDiskStore
     private let identityStore: IdentityDiskStore
     
     init(
         connectionStore: ConnectionDiskStore = ConnectionDiskStore(),
-        folderStore: FolderDiskStore = FolderDiskStore(),
         identityStore: IdentityDiskStore = IdentityDiskStore()
     ) {
         self.connectionStore = connectionStore
-        self.folderStore = folderStore
         self.identityStore = identityStore
     }
     
@@ -22,14 +19,6 @@ final class ConnectionRepository: ConnectionRepositoryProtocol {
     
     func saveConnections(_ connections: [SavedConnection]) async throws {
         try await connectionStore.save(connections)
-    }
-    
-    func loadFolders() async throws -> [SavedFolder] {
-        try await folderStore.load()
-    }
-    
-    func saveFolders(_ folders: [SavedFolder]) async throws {
-        try await folderStore.save(folders)
     }
     
     func loadIdentities() async throws -> [SavedIdentity] {

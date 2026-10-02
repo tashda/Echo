@@ -65,18 +65,6 @@ final class ConnectionConfigurationTests: XCTestCase {
         XCTAssertTrue(config.validationErrors.contains { $0.contains("Username") })
     }
 
-    func testValidationAllowsEmptyUsernameForInheritCredentials() {
-        let config = ConnectionConfiguration(
-            connectionName: "Test",
-            host: "localhost",
-            port: 5432,
-            database: "mydb",
-            username: "",
-            credentialSource: .inherit
-        )
-        XCTAssertTrue(config.isValid)
-    }
-
     func testValidationCatchesIdentityModeWithNoIdentityID() {
         let config = ConnectionConfiguration(
             connectionName: "Test",
@@ -374,19 +362,6 @@ struct ConnectionConfigurationValidationTests {
         #expect(errors.contains { $0.contains("Port") })
     }
 
-    @Test func inheritCredentialSourceAllowsEmptyUsername() {
-        let config = ConnectionConfiguration(
-            connectionName: "Test",
-            host: "localhost",
-            port: 5432,
-            database: "mydb",
-            username: "",
-            credentialSource: .inherit
-        )
-        #expect(config.isValid)
-        #expect(!config.validationErrors.contains { $0.contains("Username") })
-    }
-
     @Test func identityCredentialSourceRequiresIdentityID() {
         let noID = ConnectionConfiguration(
             connectionName: "Test",
@@ -455,7 +430,6 @@ struct ConnectionConfigurationRoundTripTests {
     @Test func asSavedConnectionPreservesAllFields() {
         let id = UUID()
         let identityID = UUID()
-        let folderID = UUID()
         let config = ConnectionConfiguration(
             connectionName: "Full Config",
             host: "db.example.com",
@@ -467,7 +441,6 @@ struct ConnectionConfigurationRoundTripTests {
             keychainIdentifier: "kc-123",
             credentialSource: .manual,
             identityID: identityID,
-            folderID: folderID,
             useTLS: true,
             trustServerCertificate: true,
             tlsMode: .verifyFull,
@@ -490,7 +463,6 @@ struct ConnectionConfigurationRoundTripTests {
         #expect(saved.credentialSource == .manual)
         #expect(saved.identityID == identityID)
         #expect(saved.keychainIdentifier == "kc-123")
-        #expect(saved.folderID == folderID)
         #expect(saved.useTLS == true)
         #expect(saved.trustServerCertificate == true)
         #expect(saved.tlsMode == .verifyFull)
@@ -504,7 +476,6 @@ struct ConnectionConfigurationRoundTripTests {
     @Test func fromSavedConnectionPreservesAllFields() {
         let id = UUID()
         let identityID = UUID()
-        let folderID = UUID()
         var saved = SavedConnection(
             id: id,
             connectionName: "Round Trip",
@@ -517,7 +488,6 @@ struct ConnectionConfigurationRoundTripTests {
             credentialSource: .identity,
             identityID: identityID,
             keychainIdentifier: "kc-abc",
-            folderID: folderID,
             useTLS: true,
             trustServerCertificate: true,
             tlsMode: .require,
@@ -540,7 +510,6 @@ struct ConnectionConfigurationRoundTripTests {
         #expect(config.credentialSource == .identity)
         #expect(config.identityID == identityID)
         #expect(config.keychainIdentifier == "kc-abc")
-        #expect(config.folderID == folderID)
         #expect(config.useTLS == true)
         #expect(config.trustServerCertificate == true)
         #expect(config.tlsMode == .require)
@@ -714,7 +683,6 @@ struct ConnectionConfigurationDefaultsTests {
         #expect(config.keychainIdentifier == nil)
         #expect(config.credentialSource == .manual)
         #expect(config.identityID == nil)
-        #expect(config.folderID == nil)
     }
 
     @Test func hashableConformance() {
@@ -755,5 +723,13 @@ struct MSSQLRound22ConnectionSettingsTests {
         #expect(MSSQLEncryptionMode.optional.description.contains("don't check the certificate"))
         #expect(MSSQLEncryptionMode.mandatory.description.contains("check the certificate"))
         #expect(MSSQLEncryptionMode.strict.description.contains("TLS first"))
+    }
+}
+
+@Suite("CredentialSource - round MC")
+struct CredentialSourceDecodingTests {
+    @Test func retiredInheritValueReadsAsOwnLogin() throws {
+        let decoded = try JSONDecoder().decode([CredentialSource].self, from: Data(#"["inherit","identity","manual"]"#.utf8))
+        #expect(decoded == [.manual, .identity, .manual])
     }
 }

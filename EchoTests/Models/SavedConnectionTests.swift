@@ -67,14 +67,6 @@ final class SavedConnectionTests: XCTestCase {
 
     // MARK: - Computed Properties
 
-    func testUsesInheritedCredentials() {
-        var connection = TestFixtures.savedConnection(credentialSource: .inherit)
-        XCTAssertTrue(connection.usesInheritedCredentials)
-
-        connection = TestFixtures.savedConnection(credentialSource: .manual)
-        XCTAssertFalse(connection.usesInheritedCredentials)
-    }
-
     func testUsesIdentity() {
         let identityID = UUID()
         var connection = TestFixtures.savedConnection(credentialSource: .identity, identityID: identityID)

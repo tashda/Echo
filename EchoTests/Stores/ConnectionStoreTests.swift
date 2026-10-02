@@ -15,41 +15,16 @@ final class ConnectionStoreTests: XCTestCase {
 
     func testLoadPopulatesFromRepository() async throws {
         let conn = TestFixtures.savedConnection(connectionName: "Prod")
-        let folder = TestFixtures.savedFolder(name: "DevOps")
         let identity = TestFixtures.savedIdentity(name: "Admin")
 
         mockRepo.connections = [conn]
-        mockRepo.folders = [folder]
         mockRepo.identities = [identity]
 
         try await store.load()
 
         XCTAssertEqual(store.connections.count, 1)
         XCTAssertEqual(store.connections[0].connectionName, "Prod")
-        // Round MC: a connection folder is retired on load.
-        XCTAssertEqual(store.folders.count, 0)
         XCTAssertEqual(store.identities.count, 1)
-    }
-
-    func testLoadRetiresAnInheritedSignIn() async throws {
-        let identity = TestFixtures.savedIdentity(name: "loomis", username: "loomis")
-        var folder = TestFixtures.savedFolder(name: "corporate")
-        folder.credentialMode = .identity
-        folder.identityID = identity.id
-        let conn = TestFixtures.savedConnection(credentialSource: .inherit, folderID: folder.id)
-
-        mockRepo.connections = [conn]
-        mockRepo.folders = [folder]
-        mockRepo.identities = [identity]
-
-        try await store.load()
-
-        XCTAssertEqual(store.connections[0].credentialSource, .identity)
-        XCTAssertEqual(store.connections[0].identityID, identity.id)
-        XCTAssertNil(store.connections[0].folderID)
-        XCTAssertTrue(store.folders.isEmpty)
-        XCTAssertTrue(mockRepo.folders.isEmpty, "The retirement is saved")
-        XCTAssertNil(store.selectedFolderID)
     }
 
     // MARK: - Connection CRUD
@@ -88,25 +63,6 @@ final class ConnectionStoreTests: XCTestCase {
 
         try await store.deleteConnection(conn)
         XCTAssertEqual(store.connections.count, 0)
-    }
-
-    // MARK: - Folder CRUD
-
-    func testUpdateFolderInsertsIfNew() async throws {
-        let folder = TestFixtures.savedFolder(name: "New Folder")
-        try await store.updateFolder(folder)
-
-        XCTAssertEqual(store.folders.count, 1)
-        XCTAssertEqual(store.folders[0].name, "New Folder")
-    }
-
-    func testDeleteFolder() async throws {
-        let folder = TestFixtures.savedFolder(name: "To Delete")
-        try await store.updateFolder(folder)
-        XCTAssertEqual(store.folders.count, 1)
-
-        try await store.deleteFolder(folder)
-        XCTAssertEqual(store.folders.count, 0)
     }
 
     // MARK: - Identity CRUD

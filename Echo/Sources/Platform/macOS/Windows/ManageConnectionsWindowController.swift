@@ -23,7 +23,6 @@ final class ManageConnectionsWindowController: NSWindowController, NSWindowDeleg
         }
 
         guard let window else { return }
-        AppDirector.shared.connectionStore.selectedFolderID = nil
 
         hostingController?.rootView = ManageConnectionsWindowRootView(onClose: { [weak self] in
             self?.closeWindow()

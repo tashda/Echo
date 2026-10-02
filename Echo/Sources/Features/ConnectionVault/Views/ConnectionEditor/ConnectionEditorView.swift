@@ -13,6 +13,13 @@ struct ConnectionEditorView: View {
         case inline
     }
 
+    /// Round MC: a new connection starts by choosing its engine; the form follows. A saved
+    /// connection opens on the form, and its engine never changes.
+    enum Step {
+        case chooseEngine
+        case form
+    }
+
     enum EditorField: Hashable {
         case host, port, username, domain, password, name, keyPassword
         /// An extra PostgreSQL server row (round 23, FH1), by position.
@@ -28,6 +35,7 @@ struct ConnectionEditorView: View {
     @Environment(NavigationStore.self) internal var navigationStore
 
     @Environment(EnvironmentState.self) internal var environmentState
+    @Environment(\.echoMotion) internal var motion
 
     @State internal var selectedDatabaseType: DatabaseType
     @State internal var connectionName: String
@@ -40,7 +48,6 @@ struct ConnectionEditorView: View {
     @State internal var authenticationMethod: DatabaseAuthenticationMethod
     @State internal var credentialSource: CredentialSource
     @State internal var identityID: UUID?
-    @State internal var folderID: UUID?
     @State internal var useTLS: Bool
     @State internal var trustServerCertificate: Bool
     @State internal var tlsMode: TLSMode
@@ -84,6 +91,16 @@ struct ConnectionEditorView: View {
     @State internal var saveToConnections: Bool
     @State internal var showsValidation = false
     @State internal var isShowingTestLog = false
+    /// Round MC: the engine step, the pasted or built connection string, and its selection.
+    @State internal var step: Step
+    @State internal var connectionString = ""
+    @State internal var connectionStringSelection: TextSelection?
+    @State internal var connectionStringIssue: String?
+    /// The example's parts Tab still has to visit (user, host, port, database).
+    @State internal var connectionStringParts: [String] = []
+    @State internal var hoveredEngine: DatabaseType?
+    @State internal var isShowingAppearance = false
+    @AppStorage("connectionEditor.lastEngine") internal var lastEngineRawValue = DatabaseType.postgresql.rawValue
     @FocusState internal var focusedField: EditorField?
     @AppStorage("connectionEditor.optionsExpanded") internal var optionsExpanded = false
 
@@ -91,16 +108,31 @@ struct ConnectionEditorView: View {
     internal let isQuickConnect: Bool
     internal let presentation: Presentation
     internal let onRevert: (() -> Void)?
+    /// What the ✓ button does in a sheet: save and connect from the main window, save only from
+    /// Manage Connections. An inline editor always saves.
+    internal let confirmAction: SaveAction
+    /// Told when the form gains or loses unsaved changes (Manage Connections asks before leaving).
+    internal let onChangesChanged: ((Bool) -> Void)?
+    /// Changing this asks the editor to save (Manage Connections' "Save" in its leave alert).
+    internal let saveRequest: Int
     let onSave: (SavedConnection, String?, SaveAction) -> Void
+    /// The values the form started from, to tell whether anything changed.
+    internal let initialSnapshot: ConnectionEditorSnapshot
 
     init(connection: SavedConnection?, isQuickConnect: Bool = false, presentation: Presentation = .sheet,
+         confirmAction: SaveAction = .saveAndConnect, saveRequest: Int = 0,
+         onChangesChanged: ((Bool) -> Void)? = nil,
          onRevert: (() -> Void)? = nil, onSave: @escaping (SavedConnection, String?, SaveAction) -> Void) {
         self.originalConnection = connection
         self.isQuickConnect = isQuickConnect
         self.presentation = presentation
+        self.confirmAction = confirmAction
+        self.saveRequest = saveRequest
+        self.onChangesChanged = onChangesChanged
         self.onRevert = onRevert
         self.onSave = onSave
         _saveToConnections = State(initialValue: !isQuickConnect)
+        _step = State(initialValue: connection == nil ? .chooseEngine : .form)
 
         let model = connection ?? SavedConnection(
             id: UUID(),
@@ -114,7 +146,6 @@ struct ConnectionEditorView: View {
             credentialSource: .manual,
             identityID: nil,
             keychainIdentifier: nil,
-            folderID: nil,
             useTLS: true,
             databaseType: .postgresql,
             serverVersion: nil,
@@ -134,7 +165,6 @@ struct ConnectionEditorView: View {
         _authenticationMethod = State(initialValue: model.authenticationMethod)
         _credentialSource = State(initialValue: model.credentialSource)
         _identityID = State(initialValue: model.identityID)
-        _folderID = State(initialValue: nil) // Round MC: connections are no longer in folders.
         _useTLS = State(initialValue: model.useTLS)
         _trustServerCertificate = State(initialValue: model.trustServerCertificate)
         _tlsMode = State(initialValue: model.tlsMode)
@@ -155,6 +185,7 @@ struct ConnectionEditorView: View {
         _kerberosServiceName = State(initialValue: model.kerberosServiceName ?? "")
         _colorHex = State(initialValue: model.colorHex.isEmpty ? ServerColorPalette.defaultColor.lightHex : model.colorHex)
         _railGlyph = State(initialValue: model.railGlyph)
+        initialSnapshot = ConnectionEditorSnapshot(model: model)
     }
 
     internal var currentColor: Color {
@@ -169,26 +200,17 @@ struct ConnectionEditorView: View {
         selectedDatabaseType.supportedAuthenticationMethods
     }
 
-    internal var availableCredentialSources: [CredentialSource] {
-        // Round MC: an identity or the connection's own login; folders no longer give a sign-in.
-        var sources: [CredentialSource] = [.manual]
-        if authenticationMethod.supportsExternalCredentials {
-            sources.append(.identity)
-        }
-        return sources
-    }
-
-    internal var inheritedIdentity: SavedIdentity? {
-        guard let folderID = folderID else { return nil }
-        return environmentState.identityRepository.resolveInheritedIdentity(folderID: folderID)
+    /// The engine a new connection starts from: the one chosen last.
+    internal var lastEngine: DatabaseType {
+        DatabaseType(rawValue: lastEngineRawValue) ?? .postgresql
     }
 
     var body: some View {
         Group {
             if presentation == .sheet {
                 detailView
-                    .frame(width: 520)
-                    .frame(minHeight: 360, idealHeight: 520, maxHeight: 720)
+                    .frame(width: ConnectionEditorMetrics.sheetWidth)
+                    .frame(minHeight: 360, idealHeight: 560, maxHeight: 720)
             } else {
                 detailView
             }
@@ -203,9 +225,18 @@ struct ConnectionEditorView: View {
             if authenticationMethod == .kerberos { refreshKerberosTicket() }
         }
         .onDisappear { cancelActiveTest() }
+        .onChange(of: hasChanges) { _, changed in onChangesChanged?(changed) }
+        .onChange(of: saveRequest) { _, _ in submit(.save) }
+        // A result is only true for what was tested: any edit clears it and stops a running test.
+        .onChange(of: currentSnapshot) { _, _ in
+            if isTestingConnection { cancelActiveTest() }
+            testResult = nil
+            isShowingTestLog = false
+        }
         .sheet(item: $identityEditorState) { state in
             IdentityEditorSheet(state: state, onSave: { newIdentity in
                 identityID = newIdentity.id
+                credentialSource = .identity
             })
             .environment(environmentState)
         }
@@ -220,5 +251,9 @@ struct ConnectionEditorView: View {
             if newMethod == .kerberos { kerberosMethodChosen() }
         }
     }
+}
 
+enum ConnectionEditorMetrics {
+    /// Round MC: the compact sheet (B).
+    static let sheetWidth: CGFloat = 460
 }

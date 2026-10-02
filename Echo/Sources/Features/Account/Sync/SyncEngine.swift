@@ -246,15 +246,8 @@ final class SyncEngine {
                 }
 
             case .folders:
-                if doc.isDeleted {
-                    if let existing = connectionStore.folders.first(where: { $0.id == doc.id }) {
-                        try await connectionStore.deleteFolder(existing)
-                    }
-                } else {
-                    let existing = connectionStore.folders.first { $0.id == doc.id }
-                    let folder = try adapter.applyToFolder(doc, existing: existing)
-                    try await connectionStore.updateFolder(folder)
-                }
+                // Round MC: Echo no longer has folders; older folder documents are ignored.
+                break
 
             case .identities:
                 if doc.isDeleted {
@@ -301,9 +294,6 @@ final class SyncEngine {
                 }
             }
         }
-
-        // Round MC: folders and inherited sign-ins from an older Echo are retired as they arrive.
-        try await connectionStore.retireFolders()
     }
 
     // MARK: - Push
@@ -348,10 +338,7 @@ final class SyncEngine {
                             pushedItems.insert(item)
                         }
                     case .folders:
-                        if let folder = connectionStore.folders.first(where: { $0.id == item.id }) {
-                            documents.append(try adapter.toSyncDocument(folder, hlc: hlc))
-                            pushedItems.insert(item)
-                        }
+                        pushedItems.insert(item) // Round MC: nothing to push.
                     case .identities:
                         if let identity = connectionStore.identities.first(where: { $0.id == item.id }) {
                             var doc = try adapter.toSyncDocument(identity, hlc: hlc)
@@ -485,7 +472,7 @@ final class SyncEngine {
         return SyncDataSummary(
             localConnections: connectionStore.connections.filter { $0.projectID == project.id }.count,
             localIdentities: connectionStore.identities.filter { $0.projectID == project.id }.count,
-            localFolders: connectionStore.folders.filter { $0.projectID == project.id }.count,
+            localFolders: 0,
             localBookmarks: project.bookmarks.count,
             cloudDocuments: cloudCount
         )
@@ -547,12 +534,6 @@ final class SyncEngine {
             documents.append(doc)
         }
 
-        // Folders belonging to this project
-        let projectFolders = connectionStore.folders.filter { $0.projectID == project.id }
-        for folder in projectFolders {
-            documents.append(try adapter.toSyncDocument(folder, hlc: hlc))
-        }
-
         // Identities belonging to this project
         let projectIdentities = connectionStore.identities.filter { $0.projectID == project.id }
         for identity in projectIdentities {
@@ -594,12 +575,6 @@ final class SyncEngine {
         let projectConnections = connectionStore.connections.filter { $0.projectID == project.id }
         for conn in projectConnections {
             try await connectionStore.deleteConnection(conn)
-        }
-
-        // Delete folders
-        let projectFolders = connectionStore.folders.filter { $0.projectID == project.id }
-        for folder in projectFolders {
-            try await connectionStore.deleteFolder(folder)
         }
 
         // Delete identities

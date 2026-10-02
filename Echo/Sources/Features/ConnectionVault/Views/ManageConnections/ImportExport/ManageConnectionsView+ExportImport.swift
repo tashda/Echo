@@ -141,7 +141,6 @@ extension ManageConnectionsView {
                     project,
                     connections: connectionStore.connections.filter { $0.projectID == project.id },
                     identities: connectionStore.identities.filter { $0.projectID == project.id },
-                    folders: connectionStore.folders.filter { $0.projectID == project.id },
                     globalSettings: includeGlobalSettings ? projectStore.globalSettings : nil,
                     clipboardHistory: nil,
                     autocompleteHistory: nil,

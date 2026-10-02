@@ -53,7 +53,6 @@ extension EnvironmentState {
         navigationStore.selectProject(project)
 
         // 5. Reload project-scoped data
-        loadExpandedConnectionFolders(for: project.id)
         loadRecentConnections()
     }
 }
