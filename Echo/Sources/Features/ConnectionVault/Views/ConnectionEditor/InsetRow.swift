@@ -5,10 +5,13 @@ import SwiftUI
 /// focuses the field (Design/05-components › Connections, inset rows).
 struct InsetRow<Content: View>: View {
     let title: String
+    /// The label column's width; nil lets a longer label take what it needs.
+    let labelWidth: CGFloat?
     @ViewBuilder var content: () -> Content
 
-    init(_ title: String, @ViewBuilder content: @escaping () -> Content) {
+    init(_ title: String, labelWidth: CGFloat? = InsetRowMetrics.labelWidth, @ViewBuilder content: @escaping () -> Content) {
         self.title = title
+        self.labelWidth = labelWidth
         self.content = content
     }
 
@@ -24,7 +27,9 @@ struct InsetRow<Content: View>: View {
         } label: {
             Text(title)
                 .foregroundStyle(ColorTokens.Text.primary)
-                .frame(width: InsetRowMetrics.labelWidth, alignment: .leading)
+                .lineLimit(1)
+                .fixedSize(horizontal: labelWidth == nil, vertical: false)
+                .frame(width: labelWidth, alignment: .leading)
         }
         .frame(minHeight: InsetRowMetrics.minHeight)
         .contentShape(Rectangle())
