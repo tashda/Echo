@@ -6,14 +6,10 @@ struct WorkspaceInspectorPicker: View {
 
     var body: some View {
         Picker("Inspector content", selection: Binding(
-            get: { appState.workspaceLibrary?.rawValue ?? "Details" },
-            set: { value in
-                if let section = WorkspaceLibrarySection(rawValue: value) { appState.showWorkspaceLibrary(section) }
-                else { appState.showInfoSidebar = true }
-            }
+            get: { appState.inspectorPage },
+            set: { appState.showInspectorPage($0) }
         )) {
-            Text("Details").tag("Details")
-            ForEach(WorkspaceLibrarySection.allCases, id: \.self) { Text($0.rawValue).tag($0.rawValue) }
+            ForEach([InspectorPage.details, .bookmarks, .history]) { Text($0.title).tag($0) }
         }.pickerStyle(.segmented).labelsHidden()
     }
 }

@@ -13,8 +13,8 @@ struct InspectorToolbarButton: View {
     var body: some View {
         Menu {
             Button("Details", systemImage: "sidebar.right") { appState.showInfoSidebar = true }
-            Button("Bookmarks", systemImage: "bookmark") { appState.showWorkspaceLibrary(.bookmarks) }
-            Button("Query History", systemImage: "clock") { appState.showWorkspaceLibrary(.history) }
+            Button("Bookmarks", systemImage: "bookmark") { appState.showInspectorPage(.bookmarks) }
+            Button("Query History", systemImage: "clock") { appState.showInspectorPage(.history) }
         } label: {
             Label("Inspector", systemImage: "sidebar.right")
                 .symbolVariant(showsDetails ? .fill : .none)

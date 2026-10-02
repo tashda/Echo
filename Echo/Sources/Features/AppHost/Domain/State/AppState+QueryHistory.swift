@@ -60,15 +60,3 @@ extension AppState {
 
 }
 
-enum WorkspaceLibrarySection: String, CaseIterable {
-    case bookmarks = "Bookmarks"
-    case history = "History"
-}
-
-extension AppState {
-    func showWorkspaceLibrary(_ section: WorkspaceLibrarySection) {
-        showInfoSidebar = false
-        isNotificationHistoryVisible = false
-        workspaceLibrary = section
-    }
-}

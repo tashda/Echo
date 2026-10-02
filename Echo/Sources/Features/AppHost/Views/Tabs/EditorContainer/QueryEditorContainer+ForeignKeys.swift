@@ -20,10 +20,10 @@ extension QueryEditorContainer {
             }
             guard showForeignKeysInInspector else { return }
             if let selection {
-                if autoOpenInspector {
-                    performForeignKeyActivation(for: selection, forceOpen: true)
-                } else if appState.showInfoSidebar {
-                    performForeignKeyActivation(for: selection, forceOpen: false)
+                // Selecting is passive (round IC, F1): it opens a closed column only with
+                // auto-open on, and never takes another page away.
+                if autoOpenInspector || appState.isInspectorVisible {
+                    performForeignKeyActivation(for: selection)
                 }
             } else {
                 foreignKeyFetchTask?.cancel()
@@ -51,12 +51,12 @@ extension QueryEditorContainer {
 
         case .activate(let selection):
             guard showForeignKeysInInspector else { return }
-            performForeignKeyActivation(for: selection, forceOpen: true)
+            performForeignKeyActivation(for: selection, deliberate: true)
         }
     }
 
-    private func performForeignKeyActivation(for selection: QueryResultsTableView.ForeignKeySelection, forceOpen: Bool = false) {
-        fkLog.debug("[FK Inspector] performForeignKeyActivation: column=\(selection.columnName), value=\(selection.value), ref=\(selection.reference.referencedTable).\(selection.reference.referencedColumn), forceOpen=\(forceOpen)")
+    private func performForeignKeyActivation(for selection: QueryResultsTableView.ForeignKeySelection, deliberate: Bool = false) {
+        fkLog.debug("[FK Inspector] performForeignKeyActivation: column=\(selection.columnName), value=\(selection.value), ref=\(selection.reference.referencedTable).\(selection.reference.referencedColumn), deliberate=\(deliberate)")
 
         foreignKeyFetchTask?.cancel()
 
@@ -78,9 +78,10 @@ extension QueryEditorContainer {
                     environmentState.dataInspectorContent = .databaseObject(errorContent)
                 }
 
-                let shouldOpen = forceOpen || autoOpenInspector
-                if shouldOpen, !appState.showInfoSidebar {
-                    appState.showInfoSidebar = true
+                if deliberate {
+                    if !appState.isInspectorVisible { inspectorAutoOpened = true }
+                    appState.showInspectorPage(.details)
+                } else if appState.noteDetailsChanged(autoOpen: autoOpenInspector) {
                     inspectorAutoOpened = true
                 }
             }

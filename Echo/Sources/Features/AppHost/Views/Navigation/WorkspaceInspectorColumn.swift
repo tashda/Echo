@@ -18,7 +18,7 @@ struct WorkspaceInspectorColumn: View {
         let showsHistory = appState.isNotificationHistoryVisible
         let width = Self.displayedWidth(
             chosen: chosenWidth,
-            isJson: !showsHistory && appState.workspaceLibrary == nil && environmentState.dataInspectorContent?.isJson == true
+            isJson: appState.inspectorPage == .details && environmentState.dataInspectorContent?.isJson == true
         )
 
         HStack(spacing: SpacingTokens.none) {
@@ -40,10 +40,10 @@ struct WorkspaceInspectorColumn: View {
                     VStack(spacing: SpacingTokens.xs) {
                         WorkspaceInspectorPicker()
                         Group {
-                            switch appState.workspaceLibrary {
+                            switch appState.inspectorPage {
                             case .bookmarks: BookmarksSidebarView().workspaceCard()
                             case .history: QueryHistoryPanelView(connectionID: nil).workspaceCard()
-                            case nil: InfoSidebarView()
+                            case .details, .notifications: InfoSidebarView()
                             }
                         }.transition(.opacity)
                     }
@@ -61,7 +61,7 @@ struct WorkspaceInspectorColumn: View {
         .frame(width: isVisible ? width + gutter * 2 : 0, alignment: .leading)
         .allowsHitTesting(isVisible)
         .accessibilityHidden(!isVisible)
-        .animation(motion.standard, value: appState.workspaceLibrary)
+        .animation(motion.standard, value: appState.inspectorPage)
         .animation(motion.standard, value: showsHistory)
         .animation(motion.standard, value: width)
     }

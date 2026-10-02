@@ -134,11 +134,12 @@ struct JobQueueView: View {
         )
 
         // Auto-open inspector if the setting is enabled (only in tab context)
-        if isInTab && projectStore.globalSettings.autoOpenInspectorOnSelection && !appState.showInfoSidebar {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                appState.showInfoSidebar = true
+        // Passive (round IC, F1): opens a closed column, never takes another page away.
+        if isInTab {
+            let opened = withAnimation(.easeInOut(duration: 0.2)) {
+                appState.noteDetailsChanged(autoOpen: projectStore.globalSettings.autoOpenInspectorOnSelection)
             }
-            inspectorAutoOpened = true
+            if opened { inspectorAutoOpened = true }
         }
     }
 

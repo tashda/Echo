@@ -48,9 +48,9 @@ struct ViewMenuCommands: Commands {
             .keyboardShortcut("i", modifiers: [.command, .option])
             .disabled(!navigationStore.isWorkspaceWindowKey)
 
-            Button("Bookmarks", systemImage: "bookmark") { appState.showWorkspaceLibrary(.bookmarks) }
+            Button("Bookmarks", systemImage: "bookmark") { appState.showInspectorPage(.bookmarks) }
                 .disabled(!navigationStore.isWorkspaceWindowKey)
-            Button("Query History", systemImage: "clock") { appState.showWorkspaceLibrary(.history) }
+            Button("Query History", systemImage: "clock") { appState.showInspectorPage(.history) }
                 .disabled(!navigationStore.isWorkspaceWindowKey)
 
             Button {
