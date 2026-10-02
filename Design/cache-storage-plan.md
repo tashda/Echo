@@ -19,7 +19,7 @@ use `[skip ci]` to honor that request.
   result chunks; safe legacy migration and key-unavailable behavior.
 - [x] 5. Cloud sync: account-scoped durable outbox, version-aware acknowledgements,
   atomic local edits and sync tracking, remote apply/checkpoint transactions.
-- [ ] 6. Verification: migration, crypto, cache, sync and spool tests; XcodeBuildMCP
+- [x] 6. Verification: migration, crypto, cache, sync and spool tests; XcodeBuildMCP
   build/run/log verification and performance checks. Commit final repairs.
 
 ## Boundaries
@@ -92,3 +92,9 @@ process-specific temporary database/key and result directory, with a passing
 isolation regression. Completion history was restored from an authenticated
 snapshot after the full run reset it. The restored three contexts re-encode to
 the original 3,723-byte archive. Temporary recovery code/files have been removed.
+
+Verification completed: final 91-check rerun passed, XcodeBuildMCP build and a
+fresh normal launch succeeded, and no local-storage errors appeared in the
+launch log. Native accessibility confirmed the loaded workspace, recents and
+notifications without an error dialog. Owner configuration/cache import is
+complete. See `Design/cache-storage-verification.md` for counts and limitations.
