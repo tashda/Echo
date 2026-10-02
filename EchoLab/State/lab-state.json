@@ -4836,13 +4836,43 @@
     "verdicts": {}
   },
   "ongoing.trail-item-states-r55": {
-    "comments": [],
+    "comments": [
+      {
+        "date": "2026-10-02T09:59:53Z",
+        "id": "95EC90D9-4598-4892-AED3-11E129691405",
+        "text": "Review of Trail items: open, minimized and recent servers\n1. The hairline: picked DV0 \u00b7 A short hairline\n2. The connect button: picked FM0 \u00b7 Its own glass circle under the recents\n3. The glyph: picked CI1 \u00b7 A server rack\n4. Recent servers setting: picked SE0 \u00b7 On, with a setting to turn it off and set how many\n5. Disconnecting: picked DC0 \u00b7 To the top of the recents pill, dimmed"
+      }
+    ],
+    "generalNote": "",
     "history": [
       {
         "date": "2026-10-02T09:56:59Z",
         "text": "Revision 2: Your rules: no marks. Minimized servers drop below a hairline, recents get their own pill, connecting gets its own button without a +"
+      },
+      {
+        "date": "2026-10-02T09:59:53Z",
+        "text": "Accepted with picks"
+      },
+      {
+        "date": "2026-10-02T10:00:56Z",
+        "text": "Taken by claude-sonnet-rail"
+      },
+      {
+        "date": "2026-10-02T10:08:58Z",
+        "text": "Built into Echo: the dashed ring is gone; open servers sit above minimized ones under a short hairline; a recents pill (saved servers not connected, 3/5/8, dimmed to 38%) connects on click and takes a disconnected server at its top; a server rack circle replaces the +; Settings > Appearance > Server Trail; card leaves the tree with opacity and a 97% scale. Round 54's flight set aside."
       }
     ],
+    "needsMore": [],
+    "optionNotes": {},
+    "pickNotes": {},
+    "picks": {
+      "disconnect": "recents",
+      "divider": "DV0 \u00b7 A short hairline",
+      "form": "FM0 \u00b7 Its own glass circle under the recents",
+      "icon": "CI1 \u00b7 A server rack",
+      "setting": "on"
+    },
+    "reviewedRevision": 2,
     "revisions": [
       {
         "changes": [
@@ -4856,7 +4886,20 @@
         "summary": "Your rules: no marks. Minimized servers drop below a hairline, recents get their own pill, connecting gets its own button without a +"
       }
     ],
-    "status": "Judging"
+    "status": "In Echo",
+    "verdicts": {},
+    "verification": {
+      "checks": [
+        "Minimize a card: its item glides under the hairline, looking unchanged; click it: the card returns and the item glides back up",
+        "Recents pill: click a dimmed server; it breathes, then glides up into the connected pill",
+        "Right-click a connected server, Disconnect: it drops to the top of the recents, dimmed",
+        "The server rack button opens the trail (also with the recents pill present); the glyph glides to the close button",
+        "Settings > Appearance > Server Trail: turn recents off, set 3, 5 or 8"
+      ],
+      "done": [],
+      "shots": [],
+      "summary": "No ring: minimized servers sit below a short hairline, recent servers get their own pill, and a server rack circle replaces the +."
+    }
   },
   "ongoing.tree-tool-rows-r38": {
     "comments": [

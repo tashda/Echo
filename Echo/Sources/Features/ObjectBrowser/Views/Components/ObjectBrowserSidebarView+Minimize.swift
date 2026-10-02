@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Minimized cards (round 51, SH5): a card closed with its header's chevron leaves the tree and
-/// its server stays in the trail as a dashed ring. Clicking the ring, or anything that reveals
+/// its server stays in the trail, below the open ones under a short hairline (round 55). Clicking it, or anything that reveals
 /// the server (a tab, a new connection, a focus request), restores the card and selects it.
 extension ObjectBrowserSidebarView {
     /// The minimized set changed: tell the rail, and load what the restored cards had open.

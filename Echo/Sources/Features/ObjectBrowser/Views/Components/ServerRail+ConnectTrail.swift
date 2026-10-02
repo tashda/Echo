@@ -74,7 +74,7 @@ extension ServerRail {
                     font: TypographyTokens.detail.weight(.semibold),
                     action: closeConnectTrail
                 )
-                // The + glides here as the trail opens, and back as it closes.
+                // The connect circle's glyph glides here as the trail opens, and back as it closes.
                 .matchedGeometryEffect(id: "toggle", in: trail)
             }
         }
@@ -86,20 +86,6 @@ extension ServerRail {
             .fill(ColorTokens.Workspace.railSelection)
             .shadow(ShadowTokens.railSelection)
             .padding(LayoutTokens.Rail.selectionInset)
-    }
-
-    /// The + at the foot of the closed trail. It opens the trail and glides to the ×.
-    var connectButton: some View {
-        Button {
-            appState.isConnectTrailOpen = true
-        } label: {
-            ServerRailToolLabel(symbol: "plus", isSelected: false, width: itemSize, height: itemSize)
-        }
-        .buttonStyle(.plain)
-        .matchedGeometryEffect(id: "toggle", in: trail)
-        .focusable(false)
-        .help("Connect to a Server")
-        .accessibilityLabel("Connect to a Server")
     }
 
     func closeConnectTrail() {

@@ -77,6 +77,10 @@ extension EnvironmentState {
             windowsPrincipalPickerCallbacks.removeValue(forKey: key.requestID)
             windowsPrincipalPickerViewModels.removeValue(forKey: key)
         }
+        // Round 55, DC0: a disconnected server drops to the top of the trail's recents.
+        if let session = sessionGroup.activeSessions.first(where: { $0.id == id }) {
+            recordRecentConnection(for: session.connection, databaseName: session.sidebarFocusedDatabase)
+        }
         sessionGroup.removeSession(withID: id)
         notificationEngine?.post(category: .connectionDisconnected, message: "Disconnected from \(displayName)")
     }

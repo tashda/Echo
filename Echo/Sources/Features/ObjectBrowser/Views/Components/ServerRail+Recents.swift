@@ -1,0 +1,69 @@
+import SwiftUI
+
+/// The recents pill and the connect circle (round 55): saved servers that are not connected,
+/// dimmed in a glass capsule of their own, and the button that opens the trail.
+extension ServerRail {
+    func recentsPill(ids: [UUID]) -> some View {
+        VStack(spacing: LayoutTokens.Rail.itemSpacing) {
+            ForEach(ids, id: \.self) { id in
+                if let connection = connectionStore.connections.first(where: { $0.id == id }) {
+                    recentItem(connection)
+                }
+            }
+        }
+        .padding(LayoutTokens.Rail.pillPadding)
+        .glassEffect(.regular, in: .capsule)
+    }
+
+    /// A disconnected server, at 38% of its colour. A click connects it: it breathes while it
+    /// connects, then glides up into the connected pill.
+    private func recentItem(_ connection: SavedConnection) -> some View {
+        let isConnecting = connectingRecentIDs.contains(connection.id)
+        let name = connection.connectionName.isEmpty ? connection.host : connection.connectionName
+
+        return Button {
+            connectRecent(connection)
+        } label: {
+            ServerRailItem(
+                monogram: ServerRailMonogram.make(from: name),
+                glyph: connectionStore.currentGlyph(of: connection),
+                color: connectionStore.currentColor(of: connection),
+                status: isConnecting ? .connecting : .ready,
+                isSelected: false,
+                size: itemSize,
+                isAlwaysColored: projectStore.globalSettings.serverHeaderColorSource == .server
+            )
+            .opacity(LayoutTokens.Rail.recentOpacity)
+        }
+        .buttonStyle(.plain)
+        .matchedGeometryEffect(id: connection.id, in: trail)
+        .focusable(false)
+        .help("\(name): click to connect")
+        .accessibilityLabel(name)
+        .accessibilityValue(isConnecting ? "Connecting" : "Disconnected")
+        .accessibilityHint("Connects to this server")
+    }
+
+    private func connectRecent(_ connection: SavedConnection) {
+        guard !connectingRecentIDs.contains(connection.id) else { return }
+        connectingRecentIDs.insert(connection.id)
+        environmentState.connectToNewSession(to: connection)
+    }
+
+    /// Connect to a Server (round 55, FM0, CI1): its own glass circle under the pills. It opens the
+    /// trail, and its glyph glides to the ×.
+    var connectCircle: some View {
+        Button {
+            appState.isConnectTrailOpen = true
+        } label: {
+            ServerRailToolLabel(symbol: LayoutTokens.Rail.connectSymbol, isSelected: false, width: itemSize, height: itemSize)
+        }
+        .buttonStyle(.plain)
+        .matchedGeometryEffect(id: "toggle", in: trail)
+        .focusable(false)
+        .padding(LayoutTokens.Rail.pillPadding)
+        .glassEffect(.regular, in: .circle)
+        .help("Connect to a Server")
+        .accessibilityLabel("Connect to a Server")
+    }
+}

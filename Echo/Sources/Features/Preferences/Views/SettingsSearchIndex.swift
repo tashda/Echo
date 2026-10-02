@@ -62,6 +62,8 @@ enum SettingsSearchIndex {
         .init(title: "Spacing Between Panes", section: .appearance, group: "Workspace"),
         .init(title: "Card Corners", section: .appearance, group: "Workspace"),
         .init(title: "Server Rail Size", section: .appearance, group: "Workspace"),
+        .init(title: "Show Recent Servers", section: .appearance, group: "Server Trail"),
+        .init(title: "Number of Recent Servers", section: .appearance, group: "Server Trail"),
         .init(title: "Accent Color", section: .appearance, group: "Theme"),
         .init(title: "Include offline databases", section: .search, group: "Scope"),
         .init(title: "Minimum query length", section: .search, group: "Query"),

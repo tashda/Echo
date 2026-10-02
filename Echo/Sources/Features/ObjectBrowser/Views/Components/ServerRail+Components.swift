@@ -29,9 +29,9 @@ extension ServerRail {
         return entries.first?.connectionID
     }
 
-    /// One glass shape. Closed it is the pill that hugs its servers and the +; open (round 52) the
+    /// One glass shape. Closed it is the pill that hugs the connected servers; open (round 52) the
     /// same shape widens into the connection list, the servers lying in a row at its top.
-    func serverPill(entries: [ServerRailEntry], highlightedID: UUID?) -> some View {
+    func serverPill(entries: [ServerRailEntry], layout: ServerRailLayout, highlightedID: UUID?) -> some View {
         let isOpen = appState.isConnectTrailOpen
         let closedRadius = LayoutTokens.Rail.width(itemSize: itemSize) / 2
 
@@ -40,7 +40,7 @@ extension ServerRail {
                 if isOpen {
                     openTrail(entries: entries, highlightedID: highlightedID)
                 } else {
-                    closedPill(entries: entries, highlightedID: highlightedID)
+                    closedPill(entries: entries, layout: layout, highlightedID: highlightedID)
                 }
             }
             .frame(width: isOpen ? Self.connectTrailWidth : nil, alignment: .topLeading)
@@ -48,32 +48,40 @@ extension ServerRail {
         }
     }
 
-    func closedPill(entries: [ServerRailEntry], highlightedID: UUID?) -> some View {
+    func closedPill(entries: [ServerRailEntry], layout: ServerRailLayout, highlightedID: UUID?) -> some View {
         let spacing = LayoutTokens.Rail.itemSpacing
         let padding = LayoutTokens.Rail.pillPadding
-        // Servers plus the + button. Every item has the same size, so the pill's natural height
-        // is exact without measuring.
-        let count = CGFloat(entries.count + 1)
-        let contentHeight = count * itemSize + max(0, count - 1) * spacing + padding * 2
+        // Every item has the same size, so the pill's natural height is exact without measuring.
+        let contentHeight = layout.connectedHeight(itemSize: itemSize, spacing: spacing) + padding * 2
         let runningCounts = tabStore.runningQueryCountsByConnection
+        let openEntries = Array(entries.prefix(layout.openIDs.count))
+        let minimizedEntries = Array(entries.dropFirst(layout.openIDs.count))
+
+        func items(_ group: [ServerRailEntry]) -> some View {
+            // Keyed by connection rather than entry, so a server keeps its place and its state
+            // as it goes from connecting to connected, and glides between the groups.
+            ForEach(group, id: \.connectionID) { entry in
+                item(
+                    for: entry,
+                    isSelected: entry.connectionID == highlightedID,
+                    runningQueryCount: runningCounts[entry.connectionID] ?? 0
+                )
+                .transition(.scale(scale: 0.4).combined(with: .opacity))
+            }
+        }
 
         return ScrollViewReader { proxy in
             ScrollView(.vertical) {
                 ZStack(alignment: .top) {
                     selectionDisc(isVisible: highlightedID != nil)
 
-                    // Keyed by connection rather than entry, so a server keeps its place and its
-                    // state as it goes from connecting to connected.
                     VStack(spacing: spacing) {
-                        ForEach(entries, id: \.connectionID) { entry in
-                            item(
-                                for: entry,
-                                isSelected: entry.connectionID == highlightedID,
-                                runningQueryCount: runningCounts[entry.connectionID] ?? 0
-                            )
-                            .transition(.scale(scale: 0.4).combined(with: .opacity))
+                        items(openEntries)
+                        if layout.showsHairline {
+                            ServerRailHairline(itemSize: itemSize)
+                                .transition(.opacity)
                         }
-                        connectButton
+                        items(minimizedEntries)
                     }
                 }
                 .padding(padding)
@@ -127,8 +135,7 @@ extension ServerRail {
                 isSelected: isSelected,
                 size: itemSize,
                 // Round 30.1, CO1: with the header in the server's colour, the monogram always is.
-                isAlwaysColored: projectStore.globalSettings.serverHeaderColorSource == .server,
-                isMinimized: bridge.minimizedConnectionIDs.contains(entry.connectionID)
+                isAlwaysColored: projectStore.globalSettings.serverHeaderColorSource == .server
             )
             .background {
                 if drawsOwnDisc && isSelected { ownSelectionDisc }
@@ -149,6 +156,7 @@ extension ServerRail {
 
     func accessibilityValue(for entry: ServerRailEntry, runningQueryCount: Int) -> String {
         let status = entry.status
+        // Nothing marks a minimized server in the rail; VoiceOver still says so.
         let minimized = bridge.minimizedConnectionIDs.contains(entry.connectionID) ? ", minimized" : ""
         guard status == .ready, runningQueryCount > 0 else { return status.accessibilityDescription + minimized }
         return (runningQueryCount == 1 ? "1 query running" : "\(runningQueryCount) queries running") + minimized

@@ -179,6 +179,9 @@ struct GlobalSettings: Codable, Hashable {
     var workspaceGutter: WorkspaceGutter = .standard
     var workspaceCornerRadius: WorkspaceCornerRadius = .standard
     var railItemSize: RailItemSize = .medium
+    /// Round 55, SE0: recent servers in their own pill under the connected ones, and how many.
+    var showsRecentServers: Bool = true
+    var recentServerCount: RecentServerCount = .five
     var sidebarMonochromeVariant: SidebarMonochromeVariant = .accentOnOpen
     /// The section dock's icons, apart from the tree's (round 16): mono by default.
     var sidebarDockIconStyle: SidebarDockIconStyle = .mono
@@ -288,6 +291,8 @@ struct GlobalSettings: Codable, Hashable {
         case workspaceGutter
         case workspaceCornerRadius
         case railItemSize
+        case showsRecentServers
+        case recentServerCount
         case sidebarMonochromeVariant
         case sidebarDockIconStyle
         case serverHeaderStyle
@@ -407,6 +412,8 @@ struct GlobalSettings: Codable, Hashable {
         workspaceGutter = (try? container.decodeIfPresent(WorkspaceGutter.self, forKey: .workspaceGutter)) ?? .standard
         workspaceCornerRadius = (try? container.decodeIfPresent(WorkspaceCornerRadius.self, forKey: .workspaceCornerRadius)) ?? .standard
         railItemSize = (try? container.decodeIfPresent(RailItemSize.self, forKey: .railItemSize)) ?? .medium
+        showsRecentServers = (try? container.decodeIfPresent(Bool.self, forKey: .showsRecentServers)) ?? true
+        recentServerCount = (try? container.decodeIfPresent(RecentServerCount.self, forKey: .recentServerCount)) ?? .five
         sidebarMonochromeVariant = (try? container.decodeIfPresent(SidebarMonochromeVariant.self, forKey: .sidebarMonochromeVariant)) ?? .accentOnOpen
         sidebarDockIconStyle = (try? container.decodeIfPresent(SidebarDockIconStyle.self, forKey: .sidebarDockIconStyle)) ?? .mono
         serverHeaderLook = (try? container.decodeIfPresent(ServerHeaderLook.self, forKey: .serverHeaderLook)) ?? ServerHeaderLook()
@@ -514,6 +521,8 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(workspaceGutter, forKey: .workspaceGutter)
         try container.encode(workspaceCornerRadius, forKey: .workspaceCornerRadius)
         try container.encode(railItemSize, forKey: .railItemSize)
+        try container.encode(showsRecentServers, forKey: .showsRecentServers)
+        try container.encode(recentServerCount, forKey: .recentServerCount)
         try container.encode(sidebarMonochromeVariant, forKey: .sidebarMonochromeVariant)
         try container.encode(sidebarDockIconStyle, forKey: .sidebarDockIconStyle)
         try container.encode(serverHeaderStyle, forKey: .serverHeaderStyle)

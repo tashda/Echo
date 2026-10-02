@@ -63,12 +63,13 @@ enum WindowSpec {
                         .row("Smallest gap between pills", "12pt", token: "LayoutTokens.Rail.minimumPillGap")),
                 .behaviour(.row("Click a server", "the tree jumps to it; the rail marks the server whose rows are at the top while you scroll")),
             ], rounds: [railRound], files: [rail, tokens]),
-            SpecElement(number: "2.2", name: "Server pill", summary: "A glass capsule holding the servers and the + that ends it.", groups: [
+            SpecElement(number: "2.2", name: "Server pill", summary: "A glass capsule holding the connected servers: open ones above minimized ones, split by a short hairline (round 55).", groups: [
                 .material(.row("Glass", "Liquid Glass, regular, capsule")),
                 .layout(.row("Padding", "4pt", token: "LayoutTokens.Rail.pillPadding"), .row("Item spacing", "4pt", token: "LayoutTokens.Rail.itemSpacing"),
-                        .row("Scrolls", "when the servers don't fit; bounces only when it must")),
+                        .row("Scrolls", "when the servers don't fit; bounces only when it must"),
+                        .row("Hairline (round 55, DV0)", "between open servers (card in the tree) and minimized ones: 1pt high, 60% of an item's width, centred, primary text at 14%, 4pt above and below; shown only when both groups have a server; order inside a group is the connection order", token: "LayoutTokens.Rail.hairlineHeight, hairlineWidthRatio, hairlineOpacity / ServerRailLayout")),
                 .motion(.row("A server joins or leaves", "grows and shrinks, house spring, 0.45s")),
-            ], rounds: [railRound], files: [rail]),
+            ], rounds: [railRound, "ongoing.trail-item-states-r55"], files: [rail]),
             SpecElement(number: "2.3", name: "Server item", summary: "A two-letter monogram, or the symbol or emoji the user chose for the server.", groups: [
                 .layout(.row("Size", "28 · 34 (default) · 40pt, a setting", token: "RailItemSize.points")),
                 .type(.row("Monogram", "37% of the size: 12.5pt at 34pt, rounded design", token: "LayoutTokens.Rail.monogramFontRatio"),
@@ -79,7 +80,7 @@ enum WindowSpec {
                            .row("Own symbol or emoji (round 51, TI0, CU2)", "set on the connection (railSymbol or railEmoji); it replaces the letters in the same place and size: an emoji as text at 46% of the item, an SF Symbol at 40%, semibold, always in the server's colour", token: "ServerRailMark / LayoutTokens.Rail.glyphSymbolRatio, glyphEmojiRatio"),
                            .row("Customize Appearance (round 51, WH2)", "the item's right-click menu opens a popover at the item with the colour swatches (the connection sheet's palette and colour picker), a grid of 12 symbols and 8 emoji, and Reset to Automatic; each pick is saved at once. The connection sheet shows the same view", token: "ServerAppearanceControls / ServerAppearancePopover"),
                            .row("Where the look shows (WS0)", "the trail, the Manage Connections list's Name column and the connection sheet's preview; not the tabs or the card header"),
-                           .row("Minimized card (round 51, SH5)", "a server whose card is minimized (closed with its header chevron, so it is not in the tree) is drawn with a dashed ring: 1.5pt, dash 3 3, the server's colour, 3pt inside the item, the mark at 70%; VoiceOver adds minimized. Clicking it restores the card and selects it (TREE-2.5)", token: "ServerRailItem.isMinimized / LayoutTokens.Rail.minimizedRingWidth, minimizedRingDash, minimizedOpacity / ServerRailBridge.minimizedConnectionIDs"),
+                           .row("Minimized card (round 51, SH5, round 55)", "a server whose card is minimized (closed with its header chevron, so it is not in the tree) looks exactly like any connected server and sits below the hairline; nothing marks it (the dashed ring is gone); VoiceOver adds minimized. Clicking it restores the card, selects it and moves it back above the line (TREE-2.5)", token: "ServerRailLayout / ServerRailBridge.minimizedConnectionIDs"),
                            .row("Why a monogram", "colour dots and engine badges were rejected")),
             ], rounds: [railRound], files: [rail]),
             SpecElement(number: "2.4", name: "Selection disc", summary: "An opaque capsule behind the selected monogram.", groups: [
@@ -98,14 +99,15 @@ enum WindowSpec {
             SpecElement(number: "2.7", name: "Connection lost", summary: "The monogram dims; the name bubble says why.", groups: [
                 .states(.row("Opacity", "40%", token: "LayoutTokens.Rail.lostOpacity")),
             ], files: [rail]),
-            SpecElement(number: "2.8", name: "New connection button", summary: "A + at the end of the server pill.", groups: [
-                .type(.row("Glyph", "plus, 13pt medium, secondary")),
+            SpecElement(number: "2.8", name: "Connect to a Server button", summary: "A glass circle under the recents pill, or under the connected pill when there are no recents (round 55: FM0, CI1). It replaced the +.", groups: [
+                .material(.row("Glass", "Liquid Glass, regular, circle; padded as the pills", token: "LayoutTokens.Rail.pillPadding")),
+                .type(.row("Glyph", "server.rack, 13pt, secondary", token: "LayoutTokens.Rail.connectSymbol, toolSymbolSize")),
                 .behaviour(.row("Click", "opens the trail into the saved connections (2.10); ⇧⌘K does the same", token: "AppState.isConnectTrailOpen"),
                            .row("File › Connect To", "the system menu with open sessions, saved connections by folder, Manage Connections and Quick Connect, for the menu bar", token: "ConnectionsMenuContent"),
                            .row("Never selected", "the disc never moves onto it"), .row("Tooltip", "Connect to a Server")),
             ], rounds: [railRound], files: [rail]),
             SpecElement(number: "2.9", name: "Tool pill (retired)", summary: "Removed in round 39; Bookmarks and History moved to the inspector column.", groups: [
-                .behaviour(.row("Removed", "Snippets and Echo clipboard history are gone; rail is servers and + only")),
+                .behaviour(.row("Removed", "Snippets and Echo clipboard history are gone; rail is servers and the connect button only")),
             ], rounds: ["ongoing.rail-tools-r39", "ongoing.rail-clipboard-r39"], files: [rail], isRetired: true),
             SpecElement(number: "2.10", name: "Opened trail", summary: "The server pill widened into the list of saved connections (round 52: PR4, MP2, CT1, OP1, CX1, KB1, SM1).", groups: [
                 .material(.row("Glass", "the same single glass shape as the closed pill; corners 24pt open, a capsule closed", token: "SpacingTokens.lg")),
@@ -114,14 +116,27 @@ enum WindowSpec {
                         .row("Header", "the connected servers in a row on the left, the rail's own items with the white selection disc, scrolling sideways under a soft edge; at the right New Connection, Manage Connections, Quick Connect and ×, 28pt icon buttons"),
                         .row("Rows", "a 24pt mark with two letters, the name (13pt), host · database under it (11pt, tertiary); folders as small semibold headings, Saved for connections in none"),
                         .row("List holds", "saved connections not already open; no Open section, no footer")),
-                .behaviour(.row("Open", "the + or ⇧⌘K; the search field has the focus"),
+                .behaviour(.row("Open", "the server rack button or ⇧⌘K; the search field has the focus"),
                            .row("Search", "name or host · database, ignoring case and accents; the first match is highlighted", token: "ConnectTrailListing"),
                            .row("Return", "connects the highlighted row and closes"), .row("↑ ↓", "move the highlight"),
                            .row("Escape or ×", "closes"), .row("A server in the header", "selects it and closes"),
                            .row("New Connection", "opens Manage Connections on an empty form", token: "ManageConnectionsWindowController.present(startingNewConnection:)")),
-                .motion(.row("Open", "house spring: the servers glide from the column into the row, the + to the ×, the list fades in", token: "echoMotion.standard"),
+                .motion(.row("Open", "house spring: the recents pill and the circle fade out, the servers glide from the column into the row, the rack to the ×, the list fades in", token: "echoMotion.standard"),
                         .row("Close", "the list fades out first (0.12s), then the glass settles with no overshoot", token: "echoMotion.settle")),
             ], rounds: ["ongoing.connect-menu-r52"], files: [rail]),
+            SpecElement(number: "2.11", name: "Recents pill", summary: "Recent servers in a glass capsule of their own, 8pt below the connected pill (round 55: SE0, DC0).", groups: [
+                .material(.row("Glass", "Liquid Glass, regular, capsule, the pills' padding and item spacing")),
+                .layout(.row("Holds", "saved connections of the project that are not connected and not connecting, most recently used first, at most 3, 5 (default) or 8", token: "ServerRailLayout / GlobalSettings.recentServerCount"),
+                        .row("Source", "the persisted connection history: a connection is moved to its top when it connects and when it is disconnected", token: "EnvironmentState.recentConnections / HistoryRepository"),
+                        .row("Absent", "when there are no recents, or Show Recent Servers is off")),
+                .states(.row("Item", "the server's own mark, dimmed: its colour at 38%, the letters as the rail draws them", token: "LayoutTokens.Rail.recentOpacity"),
+                        .row("Connecting", "the item breathes (the connecting breathing) while it connects; it stays here until connected")),
+                .behaviour(.row("Click", "connects the server; once connected it glides up into the connected pill, open group, card in the tree"),
+                           .row("Failure", "the server joins the connected pill as a lost server"),
+                           .row("Disconnect", "the server drops to the top of the recents, dimmed"),
+                           .row("Setting", "Settings › Appearance › Server Trail: Show Recent Servers and Number of Recent Servers (3, 5, 8; disabled while off)", token: "GlobalSettings.showsRecentServers, recentServerCount")),
+                .motion(.row("Move", "items glide between the groups and the pills with one matched-geometry namespace on the house spring", token: "echoMotion.standard")),
+            ], rounds: ["ongoing.trail-item-states-r55"], files: [rail, "Echo/Sources/Features/ObjectBrowser/Views/Components/ServerRail+Recents.swift", "Echo/Sources/Features/ObjectBrowser/Views/Components/ServerRailLayout.swift"]),
         ]),
         SpecPart(number: "3", name: "Tree column", summary: "The Explorer's cards, between the rail and the content.", elements: [
             SpecElement(number: "3.1", name: "Column", summary: "One card per server; see the Explorer tree area.", groups: [

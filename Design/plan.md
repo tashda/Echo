@@ -25,11 +25,23 @@ Branch: `claude/ecstatic-fermi-u1jxr6`, based on `dev`. See `current-state.md` f
 | S1 | A server's own symbol or emoji (`railSymbol`, `railEmoji`, backward compatible and synced), shown in the trail, the Manage Connections list and the connection sheet (TI0, CU2, WS0). | `SavedConnection`, `ServerRailGlyph`, `SyncAdapter`, `ServerRailMark`, `ServerRailItem`, `ConnectionsTableView` | Old data decodes as automatic; `ServerRailGlyphTests` | ☑ built, 👁 pending |
 | S2 | The glass name bubble at once beside a hovered trail item (NM1). | `ServerRailNameBubble`, `ServerRail+Appearance`, `ServerRailEntry` | Hover a server: bubble, no clicks lost | ☑ built, 👁 pending |
 | S3 | Customize Appearance: the item's menu opens a popover; the sheet shows the same controls (WH2). | `ServerAppearanceControls`, `ServerAppearancePopover`, `ConnectionEditorView+Detail` | Pick a symbol and an emoji; both places agree | ☑ built, 👁 pending |
-| S4 | Minimised cards as dashed rings in the trail, their card leaving the list (SH5). | | | ✅ built 2026-10-02 after the owner's decision (Full SH5); replaces CC0 and removes Expand one connection at a time |
+| S4 | Minimised cards leave the list (SH5); their trail item took a dashed ring, which round 55 removed. | | | ✅ built 2026-10-02 after the owner's decision (Full SH5); replaces CC0 and removes Expand one connection at a time |
 
 ## Round 52 · The + button
 
 - 👁 #52: built (PR4, MP2, CT1, OP1, CX1, KB1, SM1): `ServerRail+ConnectTrail`, `ConnectTrail/`, File › Connect To and ⇧⌘K. Compiles; 7 `ConnectTrailListingTests` pass. Owner check pending in Echo (opening and closing motion, Return and Escape).
+
+## Round 55 · Trail items: open, minimized and recent servers
+
+| # | Task | Files | Check | Status |
+|---|---|---|---|---|
+| T1 | Remove the dashed ring; a minimized server's item is a plain connected one (round 51 SH5 overridden). | `ServerRailItem`, `LayoutToken` | Minimize a card: the item looks as before | ☑ built, 👁 pending |
+| T2 | Open servers above minimized ones, split by a short hairline (DV0). | `ServerRailLayout`, `ServerRailHairline`, `ServerRail+Components` | Minimize a card: the item glides under the line; click it: it glides back up | ☑ built, 👁 pending |
+| T3 | Recents pill: saved servers not connected, 38%, click to connect, Disconnect drops one to the top (SE0, DC0). | `ServerRail+Recents`, `ServerRail+Layout`, `EnvironmentState+Connections` | Connect one: it breathes, then glides up | ☑ built, 👁 pending |
+| T4 | Connect to a Server circle with `server.rack` replaces the + (FM0, CI1). | `ServerRail+Recents`, `ServerRail+ConnectTrail` | The circle opens the trail; the glyph glides to the × | ☑ built, 👁 pending |
+| T5 | Settings › Appearance › Server Trail: Show Recent Servers, Number of Recent Servers. | `GlobalSettings+ServerTrail`, `AppearanceSettingsView`, `SettingsSearchIndex` | Turn it off: the pill goes; 3, 5, 8 | ☑ built, 👁 pending |
+
+Round 54's flight into the trail is set aside by the owner in favour of this round's simple animations.
 
 ## Round 39 · Rail tools (Codex)
 

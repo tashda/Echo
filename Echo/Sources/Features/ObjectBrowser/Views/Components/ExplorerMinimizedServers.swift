@@ -1,11 +1,11 @@
 import Foundation
 
 /// Which servers' cards are minimized (round 51, SH5). A minimized card leaves the tree entirely
-/// and its item in the trail is drawn as a dashed ring; opening it from the trail restores it.
+/// and its item moves below the hairline in the trail's connected pill (round 55); opening it from the trail restores it.
 ///
 /// The state is the one a card's header chevron already writes: a server whose node is not in the
 /// expanded set. A server not yet set up (`initializedConnectionIDs`) is never minimized, so a
-/// card that has just connected does not flash as a ring before it opens.
+/// card that has just connected does not drop below the hairline before it opens.
 nonisolated struct ExplorerMinimizedServers: Equatable, Sendable {
     let connectionIDs: Set<UUID>
 

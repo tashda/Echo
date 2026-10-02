@@ -13,8 +13,8 @@ final class ServerRailBridge {
     /// in the Explorer's own state so that scrolling redraws only the small views that show it.
     var topVisibleContext = ObjectBrowserTopVisibleContext(isScrolledPastServerHeader: false)
 
-    /// Servers whose cards are minimized: they are not in the tree, and the rail draws each as a
-    /// dashed ring (round 51, SH5).
+    /// Servers whose cards are minimized: they are not in the tree, and the rail lists them below
+    /// the open ones, under a short hairline (round 55).
     var minimizedConnectionIDs: Set<UUID> = []
 
     /// Context menus are built by the Explorer, which owns the sheets and state they act on.
