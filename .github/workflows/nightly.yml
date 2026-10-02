@@ -30,7 +30,6 @@ jobs:
       id: lab
       uses: ./.github/actions/lab-tests-setup
       with:
-        lab-deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
         tailscale-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
         tailscale-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
         testlab-ssh-key: ${{ secrets.TESTLAB_SSH_KEY }}

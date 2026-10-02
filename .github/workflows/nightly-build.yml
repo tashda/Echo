@@ -93,11 +93,6 @@ jobs:
         security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-    - name: Access to echo-server-lab
-      uses: ./.github/actions/lab-repo-access
-      with:
-        deploy-key: ${{ secrets.LAB_DEPLOY_KEY }}
-
     - name: Create Secrets.xcconfig
       env:
         SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
