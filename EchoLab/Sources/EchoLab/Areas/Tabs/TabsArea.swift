@@ -15,7 +15,7 @@ enum TabsArea {
         summary: "Safari-style tabs on one line: a grey plate with a white plate that glides to the active tab, a glass + at the end, and a tool's every page inside its own tab (a row under the strip only when they cannot fit).",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "round49-build", date: "2026-10-02",
+                level: .code, commit: "8e2be784", date: "2026-10-02",
                 note: "Read from QueryTabStrip (+Plate, +Unfold), QueryTabButton (+Title, +CloseButton, +Appearance), TabActivePlate, TabIconLayer, TabPageChips, TabPageLayout and the tab tokens. The specimen is drawn with the same tokens and metrics; its icons stand still, as in Echo, but it does not draw the glide of a drag."),
             stageHeight: 150,
             behaviours: [
