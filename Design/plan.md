@@ -9,6 +9,20 @@ Branch: `claude/ecstatic-fermi-u1jxr6`, based on `dev`. See `current-state.md` f
 
 ---
 
+## Round MC · Manage Connections and New Connection
+
+Rules: `05-components` › Connections. Design pages linked in `decisions.md` (2026-10-02, round MC). Branch: `manage-connections-mc`. Reuse round 51/53's `ServerRailGlyph`, `ServerColorPalette` and `ServerAppearanceControls`; don't add a second appearance model.
+
+| # | Task | Files | Check | Status |
+|---|---|---|---|---|
+| MC-0 | **Folders retire.** One-time migration (inherited sign-in → the folder's identity; a folder's own login → an identity named after it; folders deleted; same for imported files). Remove `CredentialSource.inherit`, folder sign-in paths, the folder tree, Folder column, Move to Folder, New Folder, `FolderEditorSheet`. Identity folders become list groups. | `SavedConnection`, `SidebarModels` (`FolderCredentialMode`), `IdentityRepository`, `FolderDiskStore`, `ConnectionStore`, `ProjectDiskStore`, `SyncAdapter`, `FolderEditorSheet*`, `ManageConnections/Projects/+FolderActions`, `+DragDrop` | Every saved connection signs in as before; no folder anywhere; migration tests | ☐ |
+| MC-1 | **Window frame.** Three-column `NavigationSplitView` replaces the `HSplitView`; project switcher heads the sidebar; Project Settings sheet; no back/forward; toolbar title, count, List/Table, +, search. | `ManageConnectionsView+Layout`, `+Sidebar`, `+Detail`, `Projects/*`, `ManageConnectionsWindowController` | 920 × 560 shows every control unclipped | ☐ |
+| MC-2 | **List and table.** Two-line `ConnectionListRow` (default); `ConnectionsTableView` with the column spec, `TableColumnCustomization`, no stripes, natural sort; `SignInSummary` used everywhere; Recently Used from `HistoryRepository`; duplicate-name dot. | `ConnectionsTableView`, new `ConnectionListRow`, new `SignInSummary`, `+Data` | Every row says who signs in | ☐ |
+| MC-3 | **New Connection sheet.** Step 1 "Which database?" with engine tiles and the example-string paste field (`TextField(text:selection:)`, Tab between parts); step 2 the form: icon chip + name, Engine row, inset server/port/database rows, Password \| Identity with New Identity… first, Security & limits. | `ConnectionEditor/*`, new `EngineChoiceView`, new `ConnectionStringExample`, `InsetRow`, `ServerAppearanceControls` | A PostgreSQL connection needs no scrolling at 460 wide; the engine can't change after step 1 | ☐ |
+| MC-4 | **Toolbar Test and Save.** Dimmed until usable with tooltips; Return focuses the first missing field; stethoscope Test with spinner, ✓ / ✕; subtitle result; failure popover with the server message, log and Copy Log; notification only when not frontmost. | `ConnectionEditorView+TestToolbar`, `+Testing`, `ConnectionTestResult` | Each state reachable; no guessed fixes | ☐ |
+| MC-5 | **Editing in the pane.** Same form inline; engine in the subtitle and a locked row; Discard after an edit; Save dimmed until changed; Save / Don't Save / Cancel when leaving a changed row. | `ManageConnectionEditorPane`, `ManageConnectionsView+Details` | Edit, switch rows, choose each answer | ☐ |
+| MC-6 | **Identities in place.** Identity editor in the pane (no sheet) with Used by; delete names the connections that depend on it; kinds filtered by engine. | `IdentityEditorSheet` → `IdentityEditorPane`, `IdentitiesTableView` | No sheet opens for identities | ☐ |
+
 ## Round 53 · The title banner header
 
 | # | Task | Files | Check | Status |
