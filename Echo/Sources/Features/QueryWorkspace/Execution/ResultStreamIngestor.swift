@@ -30,7 +30,11 @@ actor ResultStreamIngestor {
         appendTask?.cancel()
     }
 
-    func enqueue(update: QueryStreamUpdate, isPreview: Bool) async {
+    /// Adds an update to the spool. Nothing here suspends before the update joins the append
+    /// chain, so updates keep their order and `finalize` sees every one of them; the spool file is
+    /// made inside the chain, once. (Two updates used to await `ensureHandle()` together and each made
+    /// a spool; the tab watched the one that was never finished and stopped at its preview rows.)
+    func enqueue(update: QueryStreamUpdate, isPreview: Bool) {
         guard !isFinished, !isCancelled else { return }
         guard !update.appendedRows.isEmpty || !update.encodedRows.isEmpty || !update.rawRows.isEmpty else { return }
 
@@ -44,8 +48,6 @@ actor ResultStreamIngestor {
                 }
                 return nil
             }()
-
-            let handle = try await ensureHandle()
 
             if isPreview, !update.appendedRows.isEmpty {
                 let startIndex = resolvedRange?.lowerBound ?? totalRowCount
@@ -91,12 +93,13 @@ actor ResultStreamIngestor {
             let columns = update.columns
             let metrics = update.metrics
 
-            appendTask = Task.detached(priority: .utility) {
+            appendTask = Task.detached(priority: .utility) { [self] in
                 if let previousTask {
                     await previousTask.value
                 }
 
                 do {
+                    let handle = try await ensureHandle()
                     try await handle.append(
                         columns: columns,
                         rows: rowsForAppend,
@@ -108,8 +111,6 @@ actor ResultStreamIngestor {
                     Logger.spool.error("append failed: \(error)")
                 }
             }
-        } catch {
-            Logger.spool.error("enqueue failed: \(error)")
         }
     }
 
@@ -129,9 +130,9 @@ actor ResultStreamIngestor {
         guard !isFinished else { return }
 
         let finalCount = result.totalRowCount ?? result.rows.count
+        await waitForPendingAppends()
 
         if let handle = spoolHandle {
-            await waitForPendingAppends()
             do {
                 if totalRowCount == 0, !result.rows.isEmpty {
                     try await handle.append(
@@ -198,6 +199,7 @@ actor ResultStreamIngestor {
         spoolHandle
     }
 
+    /// Only called from the append chain, one call at a time.
     private func ensureHandle() async throws -> ResultSpoolHandle {
         if let handle = spoolHandle {
             return handle
@@ -217,10 +219,12 @@ actor ResultStreamIngestor {
         }
     }
 
+    /// Waits until the append chain is empty, including updates that join it while waiting
+    /// (the chain stays linked, so a late update still runs after the ones before it).
     private func waitForPendingAppends() async {
-        if let task = appendTask {
-            appendTask = nil
+        while let task = appendTask {
             await task.value
+            if appendTask == task { appendTask = nil }
         }
     }
 }
