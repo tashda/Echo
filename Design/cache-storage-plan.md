@@ -8,7 +8,7 @@ use `[skip ci]` to honor that request.
 
 ## Checkpoints
 
-- [ ] 1. Local storage package: SQLite records, authenticated encryption, Keychain
+- [x] 1. Local storage package: SQLite records, authenticated encryption, Keychain
   key creation, transactions, permissions and migration primitives.
 - [ ] 2. Saved configuration: migrate connections, identities, folders, projects
   and settings; remove inline metadata from normal connection persistence.
@@ -44,3 +44,8 @@ Echo Labs Connections has pre-existing UI drift; do not rewrite unrelated rounds
 
 Update this file in each checkpoint with implementation details and remaining
 work so a resumed session can continue without repeating the investigation.
+
+Checkpoint 1: added EchoLocalStorage as a local Swift package and Xcode dependency.
+Actor-owned SQLite, encrypted/AAD-bound records, selective group reads, indexed
+cache eviction, atomic collection snapshots, and safe installation-key acquisition.
+No builds/tests yet, as requested. App consumers are wired in checkpoint 2.
