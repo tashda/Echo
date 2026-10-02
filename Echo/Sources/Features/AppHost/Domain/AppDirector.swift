@@ -224,6 +224,7 @@ final class AppDirector {
         do {
             try await projectStore.load()
             try await connectionStore.load()
+            try await CompletionHistoryPersistence.shared.load()
         } catch {
             isInitializing = false
             environmentState.lastError = DatabaseError.connectionFailed(error.localizedDescription)

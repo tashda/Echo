@@ -43,7 +43,7 @@ public struct LocalEncryption: Sendable {
     }
 
     public func open(_ envelope: Data, context: String) throws -> Data {
-        guard envelope.count > Self.header.count + 28,
+        guard envelope.count >= Self.header.count + 28,
               envelope.prefix(4) == Self.header.prefix(4) else { throw LocalStorageError.invalidEnvelope }
         guard envelope[4] == 1 else { throw LocalStorageError.unsupportedVersion }
         let sealed = try AES.GCM.SealedBox(combined: envelope.dropFirst(Self.header.count))

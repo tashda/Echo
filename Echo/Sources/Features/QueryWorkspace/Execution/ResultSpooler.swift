@@ -1,4 +1,5 @@
 import Foundation
+import EchoLocalStorage
 
 actor ResultSpooler {
     static func defaultRootDirectory() -> URL {
@@ -11,11 +12,13 @@ actor ResultSpooler {
         return base.appendingPathComponent("Echo", isDirectory: true).appendingPathComponent("ResultCache", isDirectory: true)
     }
 
+    private let storage: EncryptedRecordStore
     private var configuration: ResultSpoolConfiguration
     private var handles: [UUID: ResultSpoolHandle] = [:]
     private var maintenanceTask: Task<Void, Never>?
 
-    init(configuration: ResultSpoolConfiguration) {
+    init(configuration: ResultSpoolConfiguration, storage: EncryptedRecordStore = .shared) {
+        self.storage = storage
         self.configuration = configuration
         Self.ensureDirectoryExists(configuration.rootDirectory)
         self.maintenanceTask = nil
@@ -35,10 +38,11 @@ actor ResultSpooler {
         scheduleMaintenance()
     }
 
-    func makeSpoolHandle() throws -> ResultSpoolHandle {
+    func makeSpoolHandle() async throws -> ResultSpoolHandle {
+        let encryption = try await storage.encryptionContext()
         let id = UUID()
         let directory = configuration.rootDirectory.appendingPathComponent(id.uuidString)
-        let handle = try ResultSpoolHandle(id: id, directory: directory, configuration: configuration)
+        let handle = try ResultSpoolHandle(id: id, directory: directory, configuration: configuration, encryption: encryption, storage: storage)
         handles[id] = handle
         enforceSizeLimitAsync()
         return handle
@@ -57,6 +61,7 @@ actor ResultSpooler {
         await closeHandle(for: id)
         let directory = configuration.rootDirectory.appendingPathComponent(id.uuidString)
         try? FileManager.default.removeItem(at: directory)
+        await removeArchives(id)
     }
 
     func clearAll() async {
@@ -68,6 +73,7 @@ actor ResultSpooler {
             let fm = FileManager.default
             let contents = try fm.contentsOfDirectory(at: configuration.rootDirectory, includingPropertiesForKeys: nil, options: [])
             for url in contents {
+                if let id = UUID(uuidString: url.lastPathComponent) { await removeArchives(id) }
                 try? fm.removeItem(at: url)
             }
         } catch {
@@ -89,7 +95,7 @@ actor ResultSpooler {
 
     private func scheduleMaintenance() {
         maintenanceTask?.cancel()
-        self.maintenanceTask = Task.detached { [weak self] in
+        self.maintenanceTask = Task(name: "Maintain result cache") { [weak self] in
             guard let self else { return }
             await self.performMaintenance()
         }
@@ -147,6 +153,7 @@ actor ResultSpooler {
         var bytesToFree = total - maxBytes
 
         for item in sorted {
+            if let id = UUID(uuidString: item.url.lastPathComponent), handles[id] != nil { continue }
             await removeSpoolDirectory(item.url)
             if item.size >= bytesToFree {
                 break
@@ -159,14 +166,20 @@ actor ResultSpooler {
     private func removeSpoolDirectory(_ url: URL) async {
         let id = UUID(uuidString: url.lastPathComponent)
         if let id {
-            await closeHandle(for: id)
+            guard handles[id] == nil else { return }
+            await removeArchives(id)
         }
         try? FileManager.default.removeItem(at: url)
     }
 
+    private func removeArchives(_ id: UUID) async {
+        try? await storage.remove(collection: "result-metadata", id: id.uuidString)
+        try? await storage.remove(collection: "result-stats", id: id.uuidString)
+    }
+
     private static func ensureDirectoryExists(_ url: URL) {
         do {
-            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         } catch {
             print("ResultSpooler: Failed to create cache directory \(error)")
         }

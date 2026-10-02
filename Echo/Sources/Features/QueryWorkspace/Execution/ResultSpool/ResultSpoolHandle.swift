@@ -1,4 +1,5 @@
 import Foundation
+import EchoLocalStorage
 import SQLServerKit
 import NIOCore
 import OSLog
@@ -9,6 +10,9 @@ actor ResultSpoolHandle {
     let directory: URL
     var metadata: ResultSpoolMetadata
     let configuration: ResultSpoolConfiguration
+    let encryption: LocalEncryption
+    let storage: EncryptedRecordStore
+    var archiveTask: Task<Void, Never>?
 
     var headerWritten = false
     var writeHandle: FileHandle?
@@ -59,7 +63,10 @@ actor ResultSpoolHandle {
         }
     }
 
-    init(id: UUID, directory: URL, configuration: ResultSpoolConfiguration) throws {
+    init(id: UUID, directory: URL, configuration: ResultSpoolConfiguration,
+         encryption: LocalEncryption, storage: EncryptedRecordStore) throws {
+        self.encryption = encryption
+        self.storage = storage
         self.id = id
         self.directory = directory
         self.configuration = configuration
@@ -75,9 +82,9 @@ actor ResultSpoolHandle {
             latestMetrics: nil,
             rowEncoding: nil
         )
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         let rowsURL = directory.appendingPathComponent("rows.bin")
-        FileManager.default.createFile(atPath: rowsURL.path, contents: nil)
+        FileManager.default.createFile(atPath: rowsURL.path, contents: nil, attributes: [.posixPermissions: 0o600])
         self.writeHandle = try FileHandle(forWritingTo: rowsURL)
         self.writeHandle?.seekToEndOfFile()
         self.fileOffset = 0
@@ -91,7 +98,8 @@ actor ResultSpoolHandle {
         statContinuations.values.forEach { $0.finish() }
     }
 
-    func close() {
+    func close() async {
+        await archiveTask?.value
         transientDispatchTask?.cancel()
         transientDispatchTask = nil
         try? writeHandle?.close()

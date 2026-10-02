@@ -41,34 +41,31 @@ actor AuthTokenStore {
 
     // MARK: - User (Disk)
 
-    func saveUser(_ user: AuthUser) throws {
+    func saveUser(_ user: AuthUser) async throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted]
         encoder.dateEncodingStrategy = .iso8601
         let data = try encoder.encode(user)
-        try data.write(to: userFileURL, options: [.atomic])
+        try await LocalArchive.shared.save(data, collection: "auth-profile")
     }
 
-    func loadUser() throws -> AuthUser? {
-        let fm = FileManager.default
-        guard fm.fileExists(atPath: userFileURL.path) else { return nil }
-        let data = try Data(contentsOf: userFileURL)
+    func loadUser() async throws -> AuthUser? {
+        guard let data = try await LocalArchive.shared.load(collection: "auth-profile", legacyURL: userFileURL) else { return nil }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(AuthUser.self, from: data)
     }
 
-    func deleteUser() throws {
-        let fm = FileManager.default
-        if fm.fileExists(atPath: userFileURL.path) {
-            try fm.removeItem(at: userFileURL)
+    func deleteUser() async throws {
+        try await LocalArchive.shared.remove(collection: "auth-profile")
+        if FileManager.default.fileExists(atPath: userFileURL.path) {
+            try FileManager.default.removeItem(at: userFileURL)
         }
     }
 
-    /// Remove all stored auth data (tokens + user).
-    func clearAll() throws {
+    func clearAll() async throws {
         try deleteTokens()
-        try deleteUser()
+        try await deleteUser()
     }
 
     // MARK: - Keychain Helpers

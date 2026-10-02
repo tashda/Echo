@@ -134,9 +134,8 @@ extension ResultSpoolHandle {
             remaining -= fetched.count
         }
 
-        if data.isEmpty {
-            return []
-        }
+        guard remaining == 0 else { throw ResultSpoolError.fileClosed }
+        data = try encryption.open(data, context: "result:\(id):chunk:\(chunk.offset)")
 
         var rows: [[String?]] = []
         rows.reserveCapacity(clampedCount)

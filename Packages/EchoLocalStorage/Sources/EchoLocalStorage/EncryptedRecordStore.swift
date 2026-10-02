@@ -130,9 +130,12 @@ public actor EncryptedRecordStore {
         try db.execute(sql, values)
     }
 
-    public func usage(collection: String) throws -> UInt64 {
+    public func usage(collection: String, group: String? = nil) throws -> UInt64 {
         var total: UInt64 = 0
-        try database().query("SELECT COALESCE(SUM(length(payload)),0) FROM records WHERE collection=?", [.text(collection)]) {
+        var values: [SQLiteConnection.Value] = [.text(collection)]
+        if let group { values.append(.text(group)) }
+        let filter = group == nil ? "" : " AND group_id=?"
+        try database().query("SELECT COALESCE(SUM(length(payload)),0) FROM records WHERE collection=?\(filter)", values) {
             total = UInt64(max(0, sqlite3_column_int64($0, 0)))
         }
         return total

@@ -1,4 +1,5 @@
 import Foundation
+import EchoLocalStorage
 
 /// A synchronous spool writer for high-throughput streaming.
 ///
@@ -18,6 +19,7 @@ final class SynchronousSpoolWriter: @unchecked Sendable {
 
     let id: UUID
     let directory: URL
+    private let encryption: LocalEncryption
     private let writeHandle: FileHandle
     private(set) var fileOffset: UInt64 = 0
     private(set) var totalBytesWritten: UInt64 = 0
@@ -28,12 +30,13 @@ final class SynchronousSpoolWriter: @unchecked Sendable {
 
     private static let newlineByte: UInt8 = 0x0A
 
-    init(id: UUID = UUID(), rootDirectory: URL) throws {
+    init(id: UUID = UUID(), rootDirectory: URL, encryption: LocalEncryption) throws {
+        self.encryption = encryption
         self.id = id
         self.directory = rootDirectory.appendingPathComponent(id.uuidString)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         let rowsURL = directory.appendingPathComponent("rows.bin")
-        FileManager.default.createFile(atPath: rowsURL.path, contents: nil)
+        FileManager.default.createFile(atPath: rowsURL.path, contents: nil, attributes: [.posixPermissions: 0o600])
         self.writeHandle = try FileHandle(forWritingTo: rowsURL)
     }
 
@@ -43,15 +46,15 @@ final class SynchronousSpoolWriter: @unchecked Sendable {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         let headerData = try encoder.encode(payload)
-        writeHandle.write(headerData)
-        writeHandle.write(Data([Self.newlineByte]))
-        headerLength = UInt64(headerData.count + 1)
+        let encrypted = try encryption.seal(headerData, context: "result:\(id):header")
+        try writeHandle.write(contentsOf: encrypted)
+        headerLength = UInt64(encrypted.count)
         fileOffset += headerLength
         totalBytesWritten += headerLength
         headerWritten = true
     }
 
-    func appendEncodedRows(_ rows: [ResultBinaryRow], startRow: Int) {
+    func appendEncodedRows(_ rows: [ResultBinaryRow], startRow: Int) throws {
         guard !rows.isEmpty else { return }
 
         let chunkStartOffset = fileOffset
@@ -75,8 +78,9 @@ final class SynchronousSpoolWriter: @unchecked Sendable {
             rowLengths.append(UInt32(clamping: rowData.count))
         }
 
-        writeHandle.write(buffer)
-        let bytesWritten = UInt64(buffer.count)
+        let encrypted = try encryption.seal(buffer, context: "result:\(id):chunk:\(chunkStartOffset)")
+        try writeHandle.write(contentsOf: encrypted)
+        let bytesWritten = UInt64(encrypted.count)
         fileOffset += bytesWritten
         totalBytesWritten += bytesWritten
 

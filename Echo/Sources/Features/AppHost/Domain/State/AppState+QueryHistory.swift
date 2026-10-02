@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 extension AppState {
     /// History stores SQL and run metadata; result-cache expiry remains independent (round 39).
@@ -29,6 +30,7 @@ extension AppState {
     /// Delete from History (round IC): removes these runs and saves.
     func removeFromQueryHistory(_ ids: Set<UUID>) {
         guard !ids.isEmpty else { return }
+        removedHistoryIDs.formUnion(ids)
         queryHistory.removeAll { ids.contains($0.id) }
         pruneQueryHistory()
     }
@@ -36,7 +38,8 @@ extension AppState {
     func clearQueryHistory() {
         historySaveTask?.cancel()
         queryHistory.removeAll()
-        historyDefaults.set(Data("[]".utf8), forKey: "queryHistory")
+        historyWasCleared = true
+        saveQueryHistory()
     }
 
     func pruneQueryHistory(now: Date = Date()) {
@@ -48,24 +51,47 @@ extension AppState {
     }
 
     func loadQueryHistory() {
-        if let data = historyDefaults.data(forKey: "queryHistory"),
-           let history = try? JSONDecoder().decode([QueryHistoryItem].self, from: data) {
-            queryHistory = history.sorted { $0.timestamp > $1.timestamp }
+        guard historyDefaults === UserDefaults.standard else {
+            if let data = historyDefaults.data(forKey: "queryHistory"),
+               let history = try? JSONDecoder().decode([QueryHistoryItem].self, from: data) {
+                queryHistory = history.sorted { $0.timestamp > $1.timestamp }
+            }
+            pruneQueryHistory()
+            return
         }
-        pruneQueryHistory()
+        historyLoadTask = Task(name: "Load encrypted query history") {
+            do {
+                let data = try await LocalArchive.shared.load(collection: "query-history",
+                    legacyData: historyDefaults.data(forKey: "queryHistory"))
+                if let data, !historyWasCleared {
+                    let stored = try JSONDecoder().decode([QueryHistoryItem].self, from: data)
+                    let currentIDs = Set(queryHistory.map(\.id))
+                    queryHistory += stored.filter { !currentIDs.contains($0.id) && !removedHistoryIDs.contains($0.id) }
+                    queryHistory.sort { $0.timestamp > $1.timestamp }
+                }
+                historyDefaults.removeObject(forKey: "queryHistory")
+                pruneQueryHistory()
+            } catch {
+                historyStorageAvailable = false
+                Logger(subsystem: "dev.echodb.echo", category: "local-storage").error("Query history is unavailable: \(error.localizedDescription)")
+            }
+        }
     }
 
     private func saveQueryHistory() {
         historySaveTask?.cancel()
-        let history = queryHistory
         historySaveTask = Task(name: "Save query history") {
             try? await Task.sleep(for: .milliseconds(300))
-            guard !Task.isCancelled else { return }
-            let data = await QueryHistoryEncoding.encode(history)
+            await historyLoadTask?.value
+            guard !Task.isCancelled, historyStorageAvailable else { return }
+            let data = await QueryHistoryEncoding.encode(queryHistory)
             guard !Task.isCancelled, let data else { return }
-            historyDefaults.set(data, forKey: "queryHistory")
+            if historyDefaults === UserDefaults.standard {
+                do { try await LocalArchive.shared.save(data, collection: "query-history") }
+                catch {
+                    Logger(subsystem: "dev.echodb.echo", category: "local-storage").error("Couldn't save query history: \(error.localizedDescription)")
+                }
+            } else { historyDefaults.set(data, forKey: "queryHistory") }
         }
     }
-
 }
-

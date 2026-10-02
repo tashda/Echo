@@ -29,19 +29,8 @@ extension ResultSpoolHandle {
 
     func persistStats(lastBatch: Int, metrics: QueryStreamMetrics?, isFinished: Bool) {
         let stats = currentStats(lastBatch: lastBatch, metrics: metrics, isFinished: isFinished)
-        let statsURL = directory.appendingPathComponent("stats.json")
-        Task.detached(priority: .utility) { [weak self, stats] in
-            guard let self else { return }
-            do {
-                let data = try await MainActor.run { () -> Data in
-                    let encoder = self.makeJSONEncoder()
-                    return try encoder.encode(stats)
-                }
-                try data.write(to: statsURL, options: .atomic)
-            } catch {
-                Logger.spool.error("Failed to persist stats: \(error)")
-            }
-        }
+        do { persistArchive(try makeJSONEncoder().encode(stats), collection: "result-stats") }
+        catch { Logger.spool.error("Failed to encode result statistics: \(error.localizedDescription)") }
         statContinuations.values.forEach { $0.yield(stats) }
         lastTransientEmission = DispatchTime.now().uptimeNanoseconds
     }

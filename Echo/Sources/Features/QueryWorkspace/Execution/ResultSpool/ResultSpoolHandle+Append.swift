@@ -1,4 +1,5 @@
 import Foundation
+import EchoLocalStorage
 import OSLog
 
 extension ResultSpoolHandle {
@@ -56,8 +57,9 @@ extension ResultSpoolHandle {
             emitTransientStatsIfAppropriate()
         }
 
-        writeHandle.write(buffer)
-        let bytesWritten = UInt64(buffer.count)
+        let encrypted = try encryption.seal(buffer, context: "result:\(id):chunk:\(chunkStartOffset)")
+        try writeHandle.write(contentsOf: encrypted)
+        let bytesWritten = UInt64(encrypted.count)
         fileOffset &+= bytesWritten
 
         let chunkRecord = ChunkRecord(
@@ -110,9 +112,9 @@ extension ResultSpoolHandle {
         let payload = HeaderPayload(columns: columns, createdAt: metadata.createdAt, rowEncoding: "binary_v1")
         let encoder = makeJSONEncoder()
         let headerData = try encoder.encode(payload)
-        handle.write(headerData)
-        handle.write(Data([Self.newlineByte]))
-        headerLength = UInt64(headerData.count + 1)
+        let encrypted = try encryption.seal(headerData, context: "result:\(id):header")
+        try handle.write(contentsOf: encrypted)
+        headerLength = UInt64(encrypted.count)
         fileOffset += headerLength
         metadata.cumulativeBytes += headerLength
         totalBytesWritten += headerLength
@@ -122,19 +124,18 @@ extension ResultSpoolHandle {
     }
 
     func persistMetadata() {
-        let snapshot = metadata
-        let metaURL = directory.appendingPathComponent("meta.json")
-        Task.detached(priority: .utility) { [weak self, snapshot] in
-            guard let self else { return }
+        do { persistArchive(try makeJSONEncoder().encode(metadata), collection: "result-metadata") }
+        catch { Logger.spool.error("Failed to encode result metadata: \(error.localizedDescription)") }
+    }
+
+    func persistArchive(_ data: Data, collection: String) {
+        let previous = archiveTask
+        archiveTask = Task(name: "Persist encrypted result archive") {
+            await previous?.value
             do {
-                let data = try await MainActor.run { () -> Data in
-                    let encoder = self.makeJSONEncoder()
-                    return try encoder.encode(snapshot)
-                }
-                try data.write(to: metaURL, options: .atomic)
-            } catch {
-                Logger.spool.error("Failed to persist metadata: \(error)")
-            }
+                try await storage.write(LocalRecord(collection: collection, id: id.uuidString,
+                    group: id.uuidString, payload: data, isCache: true))
+            } catch { Logger.spool.error("Failed to save result archive: \(error.localizedDescription)") }
         }
     }
 

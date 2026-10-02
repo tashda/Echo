@@ -15,6 +15,11 @@ final class NotificationHistory {
     static let capacity = 500
 
     @ObservationIgnored private let fileURL: URL?
+    @ObservationIgnored private var loadTask: Task<Void, Never>?
+    @ObservationIgnored private var saveTask: Task<Void, Never>?
+    @ObservationIgnored private var wasCleared = false
+    @ObservationIgnored private var wasMarkedRead = false
+    @ObservationIgnored private var storageAvailable = true
 
     /// - Parameter fileURL: where the history is saved; nil keeps it in memory (tests, previews).
     init(fileURL: URL? = NotificationHistory.defaultFileURL) {
@@ -31,12 +36,14 @@ final class NotificationHistory {
 
     /// Called when the history opens: the badge clears, and what was new is remembered.
     func markAllRead() {
+        wasMarkedRead = true
         newRecordIDs = Set(records.prefix(unreadCount).map(\.id))
         unreadCount = 0
         save()
     }
 
     func clear() {
+        wasCleared = true
         records.removeAll()
         newRecordIDs = []
         unreadCount = 0
@@ -87,20 +94,39 @@ final class NotificationHistory {
     }
 
     private func load() {
-        guard let fileURL, let data = try? Data(contentsOf: fileURL),
-              let archive = try? JSONDecoder().decode(Archive.self, from: data) else { return }
-        records = archive.records
-        unreadCount = archive.unreadCount
+        guard let fileURL else { return }
+        loadTask = Task(name: "Load encrypted notifications") {
+            do {
+                let collection = fileURL == Self.defaultFileURL ? "notifications" : "test-notifications-" + fileURL.path
+                guard let data = try await LocalArchive.shared.load(collection: collection, legacyURL: fileURL) else { return }
+                let archive = try JSONDecoder().decode(Archive.self, from: data)
+                if !wasCleared {
+                    let ids = Set(records.map(\.id))
+                    records += archive.records.filter { !ids.contains($0.id) }
+                    records = Array(records.prefix(Self.capacity))
+                    if !wasMarkedRead { unreadCount = min(records.count, unreadCount + archive.unreadCount) }
+                }
+            } catch {
+                storageAvailable = false
+                Logger(subsystem: "dev.echodb.echo", category: "local-storage").error("Notification history is unavailable: \(error.localizedDescription)")
+            }
+        }
     }
 
     private func save() {
         guard let fileURL else { return }
-        let archive = Archive(records: records, unreadCount: unreadCount)
-        do {
-            try JSONEncoder().encode(archive).write(to: fileURL, options: .atomic)
-        } catch {
-            Logger(subsystem: "dev.echodb.echo", category: "notifications")
-                .error("Couldn't save notification history: \(error.localizedDescription)")
+        let previous = saveTask
+        saveTask = Task(name: "Save encrypted notifications") {
+            await loadTask?.value
+            await previous?.value
+            guard storageAvailable else { return }
+            do {
+                let data = try JSONEncoder().encode(Archive(records: records, unreadCount: unreadCount))
+                let collection = fileURL == Self.defaultFileURL ? "notifications" : "test-notifications-" + fileURL.path
+                try await LocalArchive.shared.save(data, collection: collection)
+            } catch {
+                Logger(subsystem: "dev.echodb.echo", category: "local-storage").error("Couldn't save notification history: \(error.localizedDescription)")
+            }
         }
     }
 }

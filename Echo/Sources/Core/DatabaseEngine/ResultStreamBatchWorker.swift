@@ -234,7 +234,8 @@ final class ResultStreamBatchWorker: @unchecked Sendable {
                 try? writer.writeHeader(columns: columns)
                 spoolHeaderWritten = true
             }
-            writer.appendEncodedRows(encodedBatch, startRow: batchStartIndex)
+            do { try writer.appendEncodedRows(encodedBatch, startRow: batchStartIndex) }
+            catch { spoolWriter = nil }
 
             // Send lightweight count-only update (empty row arrays)
             let update = QueryStreamUpdate(

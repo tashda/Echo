@@ -79,6 +79,10 @@ import SwiftUI
 
     @ObservationIgnored private var errorDismissTask: Task<Void, Never>?
 
+    @ObservationIgnored var historyLoadTask: Task<Void, Never>?
+    @ObservationIgnored var historyWasCleared = false
+    @ObservationIgnored var removedHistoryIDs: Set<UUID> = []
+    @ObservationIgnored var historyStorageAvailable = true
     @ObservationIgnored var historySaveTask: Task<Void, Never>?
     @ObservationIgnored let historyDefaults: UserDefaults
 

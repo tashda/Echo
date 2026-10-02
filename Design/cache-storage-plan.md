@@ -15,7 +15,7 @@ use `[skip ci]` to honor that request.
 - [x] 3. Metadata: per-database cache records, selective hydration, background
   refresh, resolved credential fingerprints, per-connection writes and indexed
   eviction. Preserve search and autocomplete coverage.
-- [ ] 4. Other sensitive persistence: encrypted histories, diagrams and streaming
+- [x] 4. Other sensitive persistence: encrypted histories, diagrams and streaming
   result chunks; safe legacy migration and key-unavailable behavior.
 - [ ] 5. Cloud sync: account-scoped durable outbox, version-aware acknowledgements,
   atomic local edits and sync tracking, remote apply/checkpoint transactions.
@@ -62,3 +62,10 @@ before low-priority server refresh. Cached and live are distinct; successful emp
 single-database fetches replace old objects. Resolved identity/endpoints/certificate
 identity scope cache reuse. Writes debounce per connection; SQLite accounts for
 usage without decoding other caches. As-built Explorer behavior updated.
+
+Checkpoint 4: local query/notification/completion histories and auth profile use
+encrypted SQLite archives; diagrams use indexed opaque record IDs with a small
+legacy importer. Result rows retain binary streaming, with authenticated encryption
+per chunk; metadata/stats use SQLite. Open result handles are protected from
+automatic eviction. Completion persistence belongs to the host through a typed
+EchoSense API; its package checkpoint was committed/pushed on dev. No testing yet.
