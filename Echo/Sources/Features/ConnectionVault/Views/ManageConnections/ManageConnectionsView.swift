@@ -17,15 +17,12 @@ struct ManageConnectionsView: View {
     @State internal var selectedSection: ManageSection? = .connections
     @State internal var sidebarSelection: SidebarSelection? = .section(.connections)
     @State internal var searchText = ""
-    @State internal var folderEditorState: FolderEditorState?
     @State internal var identityEditorState: IdentityEditorState?
     @State internal var pendingDeletion: DeletionTarget?
     @State internal var connectionEditorPresentation: ConnectionEditorPresentation?
     /// Manage Connections is where connections are edited (CN5): + shows an empty form here.
     @State internal var isCreatingConnection = false
     @State internal var pendingDuplicateConnection: SavedConnection?
-    @State internal var pendingConnectionMove: SavedConnection?
-    @State internal var pendingIdentityMove: SavedIdentity?
     @State internal var connectionSelection = Set<SavedConnection.ID>()
     @State internal var identitySelection = Set<SavedIdentity.ID>()
     @State internal var connectionSortOrder: [KeyPathComparator<SavedConnection>] = []
@@ -106,7 +103,6 @@ struct ManageConnectionsView: View {
     private var contentView: some View {
         configuredSplitView
             .preferredColorScheme(appearanceStore.effectiveColorScheme)
-            .sheet(item: $folderEditorState, content: folderEditorSheet)
             .sheet(item: $identityEditorState, content: identityEditorSheet)
             .sheet(item: $connectionEditorPresentation, content: connectionEditorSheet)
             .sheet(isPresented: $showExportSheet) { exportSheet }
@@ -193,8 +189,6 @@ struct ManageConnectionsView: View {
                 projectStore: projectStore,
                 selectedSection: $selectedSection,
                 sidebarSelection: $sidebarSelection,
-                pendingConnectionMove: $pendingConnectionMove,
-                pendingIdentityMove: $pendingIdentityMove,
                 filteredConnectionsForTable: filteredConnectionsForTable,
                 filteredIdentitiesForTable: filteredIdentitiesForTable,
                 onProjectChange: resetForProjectChange,
@@ -202,8 +196,7 @@ struct ManageConnectionsView: View {
                 onSidebarSelectionChange: handleSidebarSelectionChange,
                 onFolderIDChange: syncSidebarSelection,
                 onConnectionsChange: { pruneConnectionSelection(allowedIDs: Set($0)) },
-                onIdentitiesChange: { pruneIdentitySelection(allowedIDs: Set($0)) },
-                onFoldersChange: handleFoldersChange
+                onIdentitiesChange: { pruneIdentitySelection(allowedIDs: Set($0)) }
             ))
     }
 

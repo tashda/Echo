@@ -50,10 +50,7 @@ extension ManageConnectionsView {
                     sectionContextMenu(for: section)
                 }
 
-                let nodes = section == .connections ? connectionFolderNodes : identityFolderNodes
-                OutlineGroup(nodes, children: \.childNodes) { node in
-                    sidebarFolderLink(node: node, section: section)
-                }
+                // Round MC: no folders under Connections or Identities.
             }
         }
         .transition(.asymmetric(insertion: .opacity.combined(with: .move(edge: .top)), removal: .opacity))
@@ -108,40 +105,6 @@ extension ManageConnectionsView {
     }
 
     @ViewBuilder
-    func sidebarFolderLink(node: FolderNode, section: ManageSection) -> some View {
-        Label(node.folder.displayName, systemImage: node.folder.icon)
-            .tag(SidebarSelection.folder(node.folder.id, section))
-            .contextMenu {
-                Button {
-                    createNewFolder(for: section, parent: node.folder)
-                } label: {
-                    Label("New Subfolder", systemImage: "folder.badge.plus")
-                }
-
-                Button {
-                    editFolder(node.folder)
-                } label: {
-                    Label("Edit", systemImage: "pencil")
-                }
-
-                Divider()
-
-                Button(role: .destructive) {
-                    handleDeletion(.folder(node.folder))
-                } label: {
-                    Label("Delete", systemImage: "trash")
-                }
-            }
-            .dropDestination(for: String.self) { items, _ in
-                if section == .connections {
-                    return handleConnectionDrop(items: items, folder: node.folder)
-                } else {
-                    return handleIdentityDrop(items: items, folder: node.folder)
-                }
-            }
-    }
-
-    @ViewBuilder
     private func sectionContextMenu(for section: ManageSection) -> some View {
         switch section {
         case .connections:
@@ -150,21 +113,11 @@ extension ManageConnectionsView {
             } label: {
                 Label("New Connection", systemImage: "externaldrive.badge.plus")
             }
-            Button {
-                presentCreateFolder(for: .connections)
-            } label: {
-                Label("New Folder", systemImage: "folder.badge.plus")
-            }
         case .identities:
             Button {
                 handlePrimaryAdd(for: .identities)
             } label: {
                 Label("New Identity", systemImage: "person.crop.circle.badge.plus")
-            }
-            Button {
-                presentCreateFolder(for: .identities)
-            } label: {
-                Label("New Folder", systemImage: "folder.badge.plus")
             }
         case .projects:
             Button {

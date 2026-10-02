@@ -94,6 +94,8 @@ public struct DatabaseAuthenticationConfiguration: Sendable, Hashable {
 
 enum CredentialSource: String, Codable, CaseIterable {
     case manual
+    /// Legacy (before round MC): signed in with a folder's credentials. Kept so older saved and
+    /// synced data decodes; `FolderRetirement` turns it into `.identity` or `.manual` on load.
     case inherit
     case identity
 

@@ -134,7 +134,7 @@ struct ConnectionEditorView: View {
         _authenticationMethod = State(initialValue: model.authenticationMethod)
         _credentialSource = State(initialValue: model.credentialSource)
         _identityID = State(initialValue: model.identityID)
-        _folderID = State(initialValue: model.folderID)
+        _folderID = State(initialValue: nil) // Round MC: connections are no longer in folders.
         _useTLS = State(initialValue: model.useTLS)
         _trustServerCertificate = State(initialValue: model.trustServerCertificate)
         _tlsMode = State(initialValue: model.tlsMode)
@@ -161,14 +161,6 @@ struct ConnectionEditorView: View {
         Color(hex: colorHex) ?? .accentColor
     }
 
-    internal var sortedFolders: [SavedFolder] {
-        connectionStore.folders
-            .filter { $0.kind == .connections }
-            .sorted { lhs, rhs in
-                folderDisplayName(lhs).localizedCaseInsensitiveCompare(folderDisplayName(rhs)) == .orderedAscending
-            }
-    }
-
     internal var sortedIdentities: [SavedIdentity] {
         connectionStore.identities.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
@@ -178,12 +170,10 @@ struct ConnectionEditorView: View {
     }
 
     internal var availableCredentialSources: [CredentialSource] {
+        // Round MC: an identity or the connection's own login; folders no longer give a sign-in.
         var sources: [CredentialSource] = [.manual]
         if authenticationMethod.supportsExternalCredentials {
             sources.append(.identity)
-            if folderID != nil {
-                sources.append(.inherit)
-            }
         }
         return sources
     }
@@ -204,9 +194,6 @@ struct ConnectionEditorView: View {
             }
         }
         .onAppear {
-            if originalConnection == nil && folderID == nil {
-                folderID = connectionStore.selectedFolderID
-            }
             if let conn = originalConnection, conn.credentialSource == .manual {
                 hasSavedPassword = environmentState.identityRepository.password(for: conn) != nil
             }

@@ -105,7 +105,6 @@ extension ManageConnectionsView {
         searchText = ""
         pendingDeletion = nil
         connectionEditorPresentation = nil
-        folderEditorState = nil
         identityEditorState = nil
         connectionSelection.removeAll()
         identitySelection.removeAll()

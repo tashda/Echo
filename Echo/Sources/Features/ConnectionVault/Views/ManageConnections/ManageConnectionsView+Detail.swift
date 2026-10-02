@@ -61,17 +61,11 @@ extension ManageConnectionsView {
             } label: {
                 Label("New Identity", systemImage: "person.crop.circle.badge.plus")
             }
-            Divider()
-            Button {
-                presentCreateFolder(for: activeSection)
-            } label: {
-                Label("New Folder", systemImage: "folder.badge.plus")
-            }
         } label: {
             Label("Add", systemImage: "plus")
         }
         .menuIndicator(.hidden)
-        .help("Add connection, identity, or folder")
+        .help("Add a connection or an identity")
     }
 
     @ViewBuilder

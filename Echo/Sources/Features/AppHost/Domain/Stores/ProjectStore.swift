@@ -215,6 +215,8 @@ final class ProjectStore {
         try await connectionStore.saveConnections()
         try await connectionStore.saveIdentities()
         try await connectionStore.saveFolders()
+        // Round MC: copied folders and inherited sign-ins are retired at once.
+        try await connectionStore.retireFolders()
     }
 
     /// Reset a project's settings to factory defaults.

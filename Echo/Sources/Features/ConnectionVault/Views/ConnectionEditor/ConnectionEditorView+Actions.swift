@@ -171,20 +171,4 @@ extension ConnectionEditorView {
         }
     }
 #endif
-
-    func folderDisplayName(_ folder: SavedFolder) -> String {
-        var components: [String] = [folder.name]
-        var current = folder
-        var visited: Set<UUID> = [folder.id]
-
-        while let parentID = current.parentFolderID,
-              !visited.contains(parentID),
-              let parent = connectionStore.folders.first(where: { $0.id == parentID }) {
-            components.append(parent.name)
-            current = parent
-            visited.insert(parent.id)
-        }
-
-        return components.reversed().joined(separator: " / ")
-    }
 }

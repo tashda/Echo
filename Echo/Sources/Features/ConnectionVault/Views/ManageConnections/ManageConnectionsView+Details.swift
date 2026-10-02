@@ -45,17 +45,13 @@ extension ManageConnectionsView {
                         connections: connections,
                         selection: $connectionSelection,
                         sortOrder: $connectionSortOrder,
-                        folderLookup: folderLookup(for: .connections),
                         onConnect: connectToConnection,
                         onEdit: editConnection,
                         onDuplicate: duplicateConnection,
                         onDelete: { handleDeletion(.connection($0)) },
                         identityDecorationProvider: identityDecoration(for:),
                         onDoubleClick: connectToConnection,
-                        moveConnectionToFolder: moveConnectionToFolder,
-                        createFolderAndMoveConnection: createFolderAndMoveConnection,
-                        onNewConnection: createNewConnection,
-                        onNewFolder: { presentCreateFolder(for: .connections) }
+                        onNewConnection: createNewConnection
                     )
                 }
                 if !identities.isEmpty {
@@ -69,10 +65,7 @@ extension ManageConnectionsView {
                         folderLookup: folderLookup(for: .identities),
                         onEdit: editIdentity,
                         onDelete: { handleDeletion(.identity($0)) },
-                        moveIdentityToFolder: moveIdentityToFolder,
-                        createFolderAndMoveIdentity: createFolderAndMoveIdentity,
-                        onNewIdentity: createNewIdentity,
-                        onNewFolder: { presentCreateFolder(for: .identities) }
+                        onNewIdentity: createNewIdentity
                     )
                 }
             }
@@ -117,17 +110,13 @@ extension ManageConnectionsView {
                 connections: filteredConnectionsForTable,
                 selection: $connectionSelection,
                 sortOrder: $connectionSortOrder,
-                folderLookup: folderLookup(for: ManageSection.connections),
                 onConnect: connectToConnection,
                 onEdit: editConnection,
                 onDuplicate: duplicateConnection,
                 onDelete: { handleDeletion(.connection($0)) },
                 identityDecorationProvider: identityDecoration(for:),
                 onDoubleClick: connectToConnection,
-                moveConnectionToFolder: moveConnectionToFolder,
-                createFolderAndMoveConnection: createFolderAndMoveConnection,
-                onNewConnection: createNewConnection,
-                onNewFolder: { presentCreateFolder(for: .connections) }
+                onNewConnection: createNewConnection
             )
         }
     }
@@ -144,10 +133,7 @@ extension ManageConnectionsView {
                 folderLookup: folderLookup(for: ManageSection.identities),
                 onEdit: editIdentity,
                 onDelete: { handleDeletion(.identity($0)) },
-                moveIdentityToFolder: moveIdentityToFolder,
-                createFolderAndMoveIdentity: createFolderAndMoveIdentity,
-                onNewIdentity: createNewIdentity,
-                onNewFolder: { presentCreateFolder(for: .identities) }
+                onNewIdentity: createNewIdentity
             )
         }
     }

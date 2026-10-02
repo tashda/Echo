@@ -20,7 +20,12 @@ final class ConnectionStore {
 
     /// Called after any data change to notify the sync engine.
     /// Parameters: (objectID, collection, projectID, isDelete)
-    var onDataChanged: ((_ id: UUID, _ collection: SyncCollection, _ projectID: UUID, _ isDelete: Bool) -> Void)?
+    @ObservationIgnored var onDataChanged: ((_ id: UUID, _ collection: SyncCollection, _ projectID: UUID, _ isDelete: Bool) -> Void)? {
+        didSet { flushPendingSyncChanges() }
+    }
+
+    /// Changes made before sync was attached (the folder retirement on launch), sent once it is.
+    @ObservationIgnored private var pendingSyncChanges: [(id: UUID, collection: SyncCollection, projectID: UUID, isDelete: Bool)] = []
     
     // MARK: - Initialization
     init(repository: any ConnectionRepositoryProtocol = ConnectionRepository()) {
@@ -38,11 +43,11 @@ final class ConnectionStore {
         self.connections = try await repository.loadConnections()
         self.folders = try await repository.loadFolders()
         self.identities = try await repository.loadIdentities()
-        
-        // Default selections if none exist
-        if selectedFolderID == nil {
-            selectedFolderID = folders.first(where: { $0.kind == .connections })?.id
-        }
+
+        // Round MC: connection folders retire. Older data is turned into identities once.
+        try await retireFolders()
+        selectedFolderID = nil
+
         if selectedIdentityID == nil {
             selectedIdentityID = identities.first?.id
         }
@@ -60,6 +65,54 @@ final class ConnectionStore {
         try await repository.saveIdentities(identities)
     }
     
+    /// Round MC, MC-0: moves inherited sign-ins to identities and removes connection folders
+    /// (`FolderRetirement`). Runs after loading, after a sync pull and after importing from another
+    /// project, so folders arriving from an older Echo are retired too. Does nothing on data
+    /// without folders or inherited sign-ins.
+    func retireFolders() async throws {
+        let outcome = FolderRetirement.run(connections: connections, folders: folders, identities: identities)
+        guard outcome.didChange else { return }
+
+        connections = outcome.connections
+        identities = outcome.identities
+        folders = outcome.folders
+        if let selected = selectedFolderID, !folders.contains(where: { $0.id == selected }) {
+            selectedFolderID = nil
+        }
+        expandedConnectionFolderIDs = []
+
+        try await saveIdentities()
+        try await saveConnections()
+        try await saveFolders()
+
+        for identity in identities where outcome.changedIdentityIDs.contains(identity.id) {
+            if let projectID = identity.projectID { notifySync(identity.id, .identities, projectID, isDelete: false) }
+        }
+        for connection in connections where outcome.changedConnectionIDs.contains(connection.id) {
+            if let projectID = connection.projectID { notifySync(connection.id, .connections, projectID, isDelete: false) }
+        }
+        for folder in outcome.removedFolders {
+            if let projectID = folder.projectID { notifySync(folder.id, .folders, projectID, isDelete: true) }
+        }
+    }
+
+    private func notifySync(_ id: UUID, _ collection: SyncCollection, _ projectID: UUID, isDelete: Bool) {
+        if let onDataChanged {
+            onDataChanged(id, collection, projectID, isDelete)
+        } else {
+            pendingSyncChanges.append((id, collection, projectID, isDelete))
+        }
+    }
+
+    private func flushPendingSyncChanges() {
+        guard let onDataChanged, !pendingSyncChanges.isEmpty else { return }
+        let pending = pendingSyncChanges
+        pendingSyncChanges = []
+        for change in pending {
+            onDataChanged(change.id, change.collection, change.projectID, change.isDelete)
+        }
+    }
+
     func updateExpandedConnectionFolders(_ ids: Set<UUID>) {
         self.expandedConnectionFolderIDs = ids
     }

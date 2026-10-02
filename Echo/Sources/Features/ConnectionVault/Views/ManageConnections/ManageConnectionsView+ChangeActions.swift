@@ -5,8 +5,6 @@ struct ChangeActions: ViewModifier {
     let projectStore: ProjectStore
     @Binding var selectedSection: ManageSection?
     @Binding var sidebarSelection: SidebarSelection?
-    @Binding var pendingConnectionMove: SavedConnection?
-    @Binding var pendingIdentityMove: SavedIdentity?
 
     let filteredConnectionsForTable: [SavedConnection]
     let filteredIdentitiesForTable: [SavedIdentity]
@@ -17,7 +15,6 @@ struct ChangeActions: ViewModifier {
     let onFolderIDChange: (UUID?) -> Void
     let onConnectionsChange: ([SavedConnection.ID]) -> Void
     let onIdentitiesChange: ([SavedIdentity.ID]) -> Void
-    let onFoldersChange: ([SavedFolder], [SavedFolder]) -> Void
 
     func body(content: Content) -> some View {
         content
@@ -28,6 +25,5 @@ struct ChangeActions: ViewModifier {
             .onChange(of: connectionStore.selectedFolderID) { _, newValue in onFolderIDChange(newValue) }
             .onChange(of: connectionStore.connections) { _, newValue in onConnectionsChange(newValue.map(\.id)) }
             .onChange(of: connectionStore.identities) { _, newValue in onIdentitiesChange(newValue.map(\.id)) }
-            .onChange(of: connectionStore.folders) { oldValue, newValue in onFoldersChange(oldValue, newValue) }
     }
 }

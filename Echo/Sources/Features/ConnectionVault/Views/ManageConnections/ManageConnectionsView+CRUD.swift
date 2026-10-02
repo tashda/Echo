@@ -51,8 +51,6 @@ extension ManageConnectionsView {
         switch target {
         case .connection(let connection):
             Task { await environmentState.deleteConnection(connection) }
-        case .folder(let folder):
-            Task { try? await connectionStore.deleteFolder(folder) }
         case .identity(let identity):
             Task { try? await connectionStore.deleteIdentity(identity) }
         }
@@ -111,26 +109,11 @@ extension ManageConnectionsView {
 
     func createNewIdentity() {
         selectedSection = .identities
-        let parent = currentFolder(for: .identities)
-        identityEditorState = .create(parent: parent, token: UUID())
-    }
-
-    func createNewFolder(for section: ManageSection, parent: SavedFolder? = nil) {
-        guard let kind = section.folderKind else { return }
-        folderEditorState = .create(kind: kind, parent: parent, token: UUID())
-    }
-
-    func presentCreateFolder(for section: ManageSection) {
-        let parent = currentFolder(for: section)
-        createNewFolder(for: section, parent: parent)
+        identityEditorState = .create(parent: nil, token: UUID())
     }
 
     func editIdentity(_ identity: SavedIdentity) {
         identityEditorState = .edit(identity: identity)
-    }
-
-    func editFolder(_ folder: SavedFolder) {
-        folderEditorState = .edit(folder: folder)
     }
 
 }

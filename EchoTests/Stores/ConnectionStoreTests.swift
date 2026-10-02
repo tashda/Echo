@@ -26,8 +26,30 @@ final class ConnectionStoreTests: XCTestCase {
 
         XCTAssertEqual(store.connections.count, 1)
         XCTAssertEqual(store.connections[0].connectionName, "Prod")
-        XCTAssertEqual(store.folders.count, 1)
+        // Round MC: a connection folder is retired on load.
+        XCTAssertEqual(store.folders.count, 0)
         XCTAssertEqual(store.identities.count, 1)
+    }
+
+    func testLoadRetiresAnInheritedSignIn() async throws {
+        let identity = TestFixtures.savedIdentity(name: "loomis", username: "loomis")
+        var folder = TestFixtures.savedFolder(name: "corporate")
+        folder.credentialMode = .identity
+        folder.identityID = identity.id
+        let conn = TestFixtures.savedConnection(credentialSource: .inherit, folderID: folder.id)
+
+        mockRepo.connections = [conn]
+        mockRepo.folders = [folder]
+        mockRepo.identities = [identity]
+
+        try await store.load()
+
+        XCTAssertEqual(store.connections[0].credentialSource, .identity)
+        XCTAssertEqual(store.connections[0].identityID, identity.id)
+        XCTAssertNil(store.connections[0].folderID)
+        XCTAssertTrue(store.folders.isEmpty)
+        XCTAssertTrue(mockRepo.folders.isEmpty, "The retirement is saved")
+        XCTAssertNil(store.selectedFolderID)
     }
 
     // MARK: - Connection CRUD

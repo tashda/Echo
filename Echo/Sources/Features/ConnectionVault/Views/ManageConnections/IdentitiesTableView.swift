@@ -7,10 +7,7 @@ struct IdentitiesTableView: View {
     let folderLookup: [UUID: SavedFolder]
     let onEdit: (SavedIdentity) -> Void
     let onDelete: (SavedIdentity) -> Void
-    let moveIdentityToFolder: (SavedIdentity, SavedFolder) -> Void
-    let createFolderAndMoveIdentity: (SavedIdentity) -> Void
     let onNewIdentity: () -> Void
-    let onNewFolder: () -> Void
 
     var body: some View {
         Table(of: SavedIdentity.self, selection: $selection, sortOrder: $sortOrder) {
@@ -37,7 +34,8 @@ struct IdentitiesTableView: View {
                     .foregroundStyle(trimmed.isEmpty ? ColorTokens.Text.tertiary : ColorTokens.Text.primary)
             }
 
-            TableColumn("Folder") { identity in
+            // Round MC (MB1): identity folders retire; an old folder shows as a group until it empties.
+            TableColumn("Group") { identity in
                 let folderName = identity.folderID.flatMap { folderLookup[$0]?.displayName }
                 Text(folderName ?? "\u{2014}")
                     .font(TypographyTokens.Table.secondaryName)
@@ -54,9 +52,6 @@ struct IdentitiesTableView: View {
         } rows: {
             ForEach(identities) { identity in
                 TableRow(identity)
-                    .itemProvider {
-                        NSItemProvider(object: "identity:\(identity.id.uuidString)" as NSString)
-                    }
             }
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
@@ -66,23 +61,10 @@ struct IdentitiesTableView: View {
                let identity = identities.first(where: { $0.id == selectionID }) {
                 Button("Edit") { onEdit(identity) }
 
-                Menu("Move to Folder") {
-                    ForEach(Array(folderLookup.values).sorted(by: { $0.name < $1.name }), id: \.id) { folder in
-                        Button(folder.displayName) {
-                            moveIdentityToFolder(identity, folder)
-                        }
-                    }
-                    Divider()
-                    Button("Create New Folder") {
-                        createFolderAndMoveIdentity(identity)
-                    }
-                }
-
                 Divider()
                 Button("Delete", role: .destructive) { onDelete(identity) }
             } else {
                 Button("New Identity") { onNewIdentity() }
-                Button("New Folder") { onNewFolder() }
             }
         } primaryAction: { items in
             if let selectionID = items.first,

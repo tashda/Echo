@@ -30,30 +30,6 @@ struct IdentityEditorSheet: View {
         return identity.keychainIdentifier != nil
     }
 
-    private var availableFolders: [SavedFolder] {
-        connectionStore.folders
-            .filter { $0.kind == .identities && $0.projectID == projectStore.selectedProject?.id }
-            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-    }
-
-    private func folderPath(for folder: SavedFolder) -> String {
-        var components: [String] = [folder.name]
-        var current = folder
-        while let parentID = current.parentFolderID,
-              let parent = connectionStore.folders.first(where: { $0.id == parentID }) {
-            components.insert(parent.name, at: 0)
-            current = parent
-        }
-        return components.joined(separator: " / ")
-    }
-
-    private var hierarchicalFolders: [(folder: SavedFolder, path: String)] {
-        availableFolders.map { folder in
-            (folder: folder, path: folderPath(for: folder))
-        }
-        .sorted { $0.path.localizedCaseInsensitiveCompare($1.path) == .orderedAscending }
-    }
-
     private var hasDuplicateName: Bool {
         if isSaving { return false }
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -189,19 +165,7 @@ struct IdentityEditorSheet: View {
                         .listRowSeparator(.hidden)
                 }
             }
-
-            Section("Location") {
-                PropertyRow(title: "Folder") {
-                    Picker("", selection: $selectedFolderID) {
-                        Text("None").tag(UUID?.none)
-                        ForEach(hierarchicalFolders, id: \.folder.id) { item in
-                            Text(item.path).tag(UUID?.some(item.folder.id))
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                }
-            }
+            // Round MC (MB1): identity folders retire; an identity keeps an old folder only as a group.
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)

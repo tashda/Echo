@@ -301,6 +301,9 @@ final class SyncEngine {
                 }
             }
         }
+
+        // Round MC: folders and inherited sign-ins from an older Echo are retired as they arrive.
+        try await connectionStore.retireFolders()
     }
 
     // MARK: - Push

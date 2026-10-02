@@ -3,7 +3,7 @@ import AppKit
 import UniformTypeIdentifiers
 
 /// The short connection form (Design/05-components › Connections): engine, server and sign in
-/// first; Security and timeouts in one disclosure; name, folder and colour only when saving.
+/// first; Security and timeouts in one disclosure; name and appearance only when saving (round MC: no folders).
 extension ConnectionEditorView {
     var detailView: some View {
         VStack(spacing: SpacingTokens.none) {
@@ -122,21 +122,6 @@ extension ConnectionEditorView {
                         .textFieldStyle(.plain)
                         .multilineTextAlignment(.trailing)
                         .focused($focusedField, equals: .name)
-                }
-                PropertyRow(title: "Folder") {
-                    Picker("", selection: $folderID) {
-                        Text("None").tag(nil as UUID?)
-                        ForEach(sortedFolders, id: \.id) { folder in
-                            Text(folderDisplayName(folder)).tag(folder.id as UUID?)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                }
-                .onChange(of: folderID) { _, newFolderID in
-                    if newFolderID == nil && credentialSource == .inherit {
-                        credentialSource = .manual
-                    }
                 }
                 ServerAppearanceControls(name: appearanceName, colorHex: $colorHex, glyph: $railGlyph)
             }
