@@ -11,9 +11,9 @@ struct ServerHeaderPaintTests {
     private let server = Color.red
     private let accent = Color.blue
 
-    @Test func defaultsAreTheWashInTheServersColorWithTheDockInIt() {
+    @Test func defaultsAreTheTitleBannerInTheServersColorWithTheDockInIt() {
         let settings = GlobalSettings()
-        #expect(settings.serverHeaderStyle == .wash)
+        #expect(settings.serverHeaderStyle == .titleBanner)
         #expect(settings.serverHeaderColorSource == .server)
         #expect(settings.sidebarDockCurrentIconTint == .header)
         let paint = ServerHeaderPaint(settings: settings, serverColor: server, accent: accent)
@@ -52,7 +52,7 @@ struct ServerHeaderPaintTests {
         object["sidebarShowsEmptyFolders"] = true
         object["collapsedServerClick"] = "peekCommandReopens"
         let decoded = try JSONDecoder().decode(GlobalSettings.self, from: JSONSerialization.data(withJSONObject: object))
-        #expect(decoded.serverHeaderStyle == .wash)
+        #expect(decoded.serverHeaderStyle == .titleBanner)
         #expect(decoded.serverHeaderColorSource == .server)
         #expect(decoded.sidebarDockCurrentIconTint == .header)
     }
