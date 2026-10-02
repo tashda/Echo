@@ -29,7 +29,7 @@ enum ExplorerTreeArea {
         summary: "Each server sits on its own card: quiet 28pt rows, duotone icons, and a dock of section icons pinned under the server's name.",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "a5f559be", date: "2026-10-02",
+                level: .code, commit: "17369acc", date: "2026-10-02",
                 note: "Read from SidebarRow, SidebarRowConstants, ExplorerDock, ExplorerDockRow, ObjectBrowserRowView+Headers, ObjectBrowserSidebarView+Dock, ExplorerMotion, ExplorerTreeVeilLayer, ExplorerTreeScrollState, ExplorerBlueprint+SQLServer and the tokens, as of round 19 and the 2026-10-01 smoothness work. The specimen is a self-contained copy of the server card. 2026-10-02: checked the commits since dce125e1 (38e19682 is already in the spec as TREE-1 Placed, not stacked; round 52 and 51 are the rail, in the Window area; the others touch menus or the rail files only). Round 51 left the closed card as the header only: SH5 (minimised cards leaving the list) is not built. 2026-10-02 (round 53): rewritten from the code for the title banner (TREE-2.7), the thirty colours (2.8), the chevron on motion.standard, and the removal of the tab and footer dots (round 49). 2026-10-02: round 55 changed what a minimized card looks like in the rail (below a hairline, no ring) and its card leaves with opacity and a 97% scale."),
             stageHeight: 540,
             behaviours: [
