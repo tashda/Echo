@@ -262,6 +262,16 @@ struct QueryCommands: Commands {
                 Label("Save to File…", systemImage: "doc")
             }
             .disabled(savableTab == nil)
+
+            Divider()
+
+            Button {
+                guard let tab = savableTab else { return }
+                Task { await environmentState.revertToSaved(tab) }
+            } label: {
+                Label("Revert to Saved", systemImage: "arrow.uturn.backward")
+            }
+            .disabled(savableTab.map { !environmentState.canRevertToSaved($0) } ?? true)
         }
 
         CommandGroup(after: .newItem) {

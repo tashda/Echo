@@ -31,6 +31,34 @@ extension EnvironmentState {
         return false
     }
 
+    /// File › Revert to Saved: only for a tab with a home and changes since it was saved.
+    func canRevertToSaved(_ tab: WorkspaceTab) -> Bool {
+        (tab.bookmarkContext != nil || tab.fileURL != nil) && tab.query?.hasUnsavedChanges == true
+    }
+
+    /// File › Revert to Saved (round IC): after asking, the editor goes back to the file on disk or
+    /// the bookmark as it is stored now (falling back to what was last saved from this tab).
+    func revertToSaved(_ tab: WorkspaceTab) async {
+        guard canRevertToSaved(tab), let query = tab.query else { return }
+        let choice = await WindowAlert.present(
+            title: "Revert \u{201C}\(tab.title)\u{201D} to the saved version?",
+            message: "Your changes since it was last saved will be lost.",
+            buttons: [.init(title: "Revert", isDestructive: true), .init(title: "Cancel")]
+        )
+        guard choice == 0 else { return }
+        var saved = query.savedSQL
+        if let url = tab.fileURL, let onDisk = try? String(contentsOf: url, encoding: .utf8) {
+            saved = onDisk
+        } else if let context = tab.bookmarkContext,
+                  let bookmark = projectStore.projects.lazy.flatMap(\.bookmarks).first(where: { $0.id == context.bookmarkID }) {
+            saved = bookmark.query
+        }
+        query.sql = saved
+        query.errorMark = nil
+        query.runNote = nil
+        query.markSaved()
+    }
+
     /// File › Save As…, Save to Bookmarks…, Save to File…: the Save card. A tab without a home takes
     /// what you pick as its home; a tab with one keeps it and the card saves a copy.
     func presentSaveCard(for tab: WorkspaceTab, destination: SaveDestination?, movesHome: Bool = false) {
