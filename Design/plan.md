@@ -25,7 +25,7 @@ Branch: `claude/ecstatic-fermi-u1jxr6`, based on `dev`. See `current-state.md` f
 | S1 | A server's own symbol or emoji (`railSymbol`, `railEmoji`, backward compatible and synced), shown in the trail, the Manage Connections list and the connection sheet (TI0, CU2, WS0). | `SavedConnection`, `ServerRailGlyph`, `SyncAdapter`, `ServerRailMark`, `ServerRailItem`, `ConnectionsTableView` | Old data decodes as automatic; `ServerRailGlyphTests` | ☑ built, 👁 pending |
 | S2 | The glass name bubble at once beside a hovered trail item (NM1). | `ServerRailNameBubble`, `ServerRail+Appearance`, `ServerRailEntry` | Hover a server: bubble, no clicks lost | ☑ built, 👁 pending |
 | S3 | Customize Appearance: the item's menu opens a popover; the sheet shows the same controls (WH2). | `ServerAppearanceControls`, `ServerAppearancePopover`, `ConnectionEditorView+Detail` | Pick a symbol and an emoji; both places agree | ☑ built, 👁 pending |
-| S4 | Minimised cards as dashed rings in the trail, their card leaving the list (SH5). | | | ⏸ contradicts CC0 (header-only closed card) and one-at-a-time; owner to decide |
+| S4 | Minimised cards as dashed rings in the trail, their card leaving the list (SH5). | | | ✅ built 2026-10-02 after the owner's decision (Full SH5); replaces CC0 and removes Expand one connection at a time |
 
 ## Round 52 · The + button
 

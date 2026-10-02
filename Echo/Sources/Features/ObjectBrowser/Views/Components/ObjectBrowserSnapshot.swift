@@ -6,16 +6,15 @@ enum ObjectBrowserSnapshotBuilder {
         pendingConnections: [PendingConnection],
         sessions: [ConnectionSession],
         settings: GlobalSettings,
-        viewModel: ObjectBrowserSidebarViewModel,
-        selectedConnectionID: UUID? = nil
+        viewModel: ObjectBrowserSidebarViewModel
     ) -> [ObjectBrowserNode] {
-        let connectionLayoutMode = ObjectBrowserConnectionLayoutMode(
-            expandOneConnectionAtATime: settings.sidebarExpandOneConnectionAtATime
-        )
+        // Kept minimal so the first server card lines up with the top of the rail.
         let topSpacer = ObjectBrowserNode(
             id: "explorer-lab#top-spacer",
-            row: .topSpacer(connectionLayoutMode.outlineTopSpacerHeight)
+            row: .topSpacer(SpacingTokens.micro)
         )
+        // Round 51, SH5: a minimized card is not in the list at all; its server stays in the rail.
+        let minimized = viewModel.minimizedServers(sessions: sessions)
 
         var rows: [ObjectBrowserNode] = [topSpacer]
         // Each server sits on its own card; cards are one gutter apart (the Spacing Between
@@ -26,29 +25,20 @@ enum ObjectBrowserSnapshotBuilder {
             rows.append(ObjectBrowserNode(id: "explorer-lab#gap#\(key)", row: .topSpacer(cardSpacing)))
         }
 
-        if !connectionLayoutMode.showsServerNameInOutline,
-           let activeSession = selectedSession(from: sessions, selectedConnectionID: selectedConnectionID) {
-            rows.append(contentsOf: serverChildren(
-                for: activeSession,
-                settings: settings,
-                viewModel: viewModel
-            ))
-        } else {
-            for session in sessions {
-                appendGap(before: session.connection.id.uuidString)
-                let serverID = ObjectBrowserSidebarViewModel.serverNodeID(connectionID: session.connection.id)
-                rows.append(
-                    ObjectBrowserNode(
-                        id: serverID,
-                        row: .server(session),
-                        children: serverChildren(
-                            for: session,
-                            settings: settings,
-                            viewModel: viewModel
-                        )
+        for session in sessions where !minimized.isMinimized(session.connection.id) {
+            appendGap(before: session.connection.id.uuidString)
+            let serverID = ObjectBrowserSidebarViewModel.serverNodeID(connectionID: session.connection.id)
+            rows.append(
+                ObjectBrowserNode(
+                    id: serverID,
+                    row: .server(session),
+                    children: serverChildren(
+                        for: session,
+                        settings: settings,
+                        viewModel: viewModel
                     )
                 )
-            }
+            )
         }
 
         // Servers still connecting, or that failed to, come last, in the rail's order.
@@ -63,17 +53,6 @@ enum ObjectBrowserSnapshotBuilder {
         }
 
         return rows
-    }
-
-    private static func selectedSession(
-        from sessions: [ConnectionSession],
-        selectedConnectionID: UUID?
-    ) -> ConnectionSession? {
-        if let selectedConnectionID,
-           let selected = sessions.first(where: { $0.connection.id == selectedConnectionID }) {
-            return selected
-        }
-        return sessions.first
     }
 
     static func serverChildren(

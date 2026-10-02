@@ -12,6 +12,8 @@ struct ServerRailItem: View {
     let isSelected: Bool
     let size: CGFloat
     var isAlwaysColored = false
+    /// The server's card is minimized: the mark takes a dashed ring (round 51, SH5).
+    var isMinimized = false
 
     @Environment(\.echoMotion) private var motion
     @State private var isHovering = false
@@ -25,6 +27,17 @@ struct ServerRailItem: View {
             weight: isSelected ? .bold : .semibold,
             size: size
         )
+        .overlay {
+            if isMinimized {
+                Circle()
+                    .strokeBorder(
+                        color,
+                        style: StrokeStyle(lineWidth: LayoutTokens.Rail.minimizedRingWidth, dash: LayoutTokens.Rail.minimizedRingDash)
+                    )
+                    .padding(SpacingTokens.micro)
+            }
+        }
+        .opacity(isMinimized ? LayoutTokens.Rail.minimizedOpacity : 1)
         .opacity(status == .failed ? LayoutTokens.Rail.lostOpacity : 1)
         .modifier(ServerRailBreathing(isActive: status == .connecting))
         .contentShape(Circle())
@@ -32,6 +45,7 @@ struct ServerRailItem: View {
         .animation(motion.hover, value: isHovering)
         .animation(motion.press, value: isSelected)
         .animation(motion.standard, value: status)
+        .animation(motion.standard, value: isMinimized)
     }
 
     private var foreground: Color {

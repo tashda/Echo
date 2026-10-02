@@ -34,7 +34,6 @@ enum SettingsSearchIndex {
         .init(title: "JSON values in inspector", section: .queryResults, group: "Cell Inspector"),
         .init(title: "Auto-open inspector", section: .queryResults, group: "Cell Inspector"),
         .init(title: "Auto-open on activity", section: .queryResults, group: "Bottom Panel"),
-        .init(title: "Expand one connection at a time", section: .sidebar, group: "Object Browser"),
         .init(title: "Show scroll bar", section: .sidebar, group: "Object Browser"),
         .init(title: "Hide offline databases by default", section: .sidebar, group: "Databases"),
         .init(title: "Customize per database type", section: .sidebar, group: "General"),

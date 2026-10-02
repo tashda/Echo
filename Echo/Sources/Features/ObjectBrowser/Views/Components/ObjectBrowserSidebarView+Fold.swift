@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Opening and closing a server's card (rounds 30.2 and 46): the card's edge glides on `expand`,
+/// Opening and minimizing a server's card (rounds 30.2, 46 and 51): the card's edge glides on `expand`,
 /// the dock grows out of the header (DA2), and the card's rows come and go the way a section
 /// switch swaps them (RA1, CL2): under a veil in the card's colour.
 extension ObjectBrowserSidebarView {
@@ -20,27 +20,19 @@ extension ObjectBrowserSidebarView {
     ///    the dock shrinks back into the header; if the tree is now shorter than the view, the
     ///    view glides back with it until the tree fills it (ObjectBrowserOutlineView+Fold).
     ///
-    /// The cards marked are those that open or close: this one, and with one server at a time any
-    /// other open one. The others' rows move with their cards.
+    /// Only this card is marked as folding: cards open and close independently. When it is
+    /// minimized it leaves the list as the fold ends (round 51, SH5), and the cards below close
+    /// the gap on `expand`; the others' rows move with their cards.
     func foldServerCard(of session: ConnectionSession, isExpanded: Bool) {
         let connectionID = session.connection.id
         viewModel.foldGeneration += 1
         let generation = viewModel.foldGeneration
         let timing = ExplorerDockSwitchTiming(motion: motion)
-        let collapseOthers = isExpanded && projectStore.globalSettings.sidebarExpandOneConnectionAtATime
-        // The cards that open or close: this one, and with one server at a time, any other open one.
-        let changing = Set(sessions.map(\.connection.id).filter { id in
-            id == connectionID || (collapseOthers && viewModel.expandedNodeIDs.contains(ObjectBrowserSidebarViewModel.serverNodeID(connectionID: id)))
-        })
+        let changing: Set<UUID> = [connectionID]
         WindowDragPause.pauseWorkspace(for: timing.totalDuration + 0.15)
 
         let toggle = {
-            viewModel.setServerExpanded(
-                isExpanded,
-                connectionID: connectionID,
-                sessions: sessions,
-                collapseOthers: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
-            )
+            viewModel.setServerExpanded(isExpanded, connectionID: connectionID)
         }
         let finish = {
             withoutAnimation {

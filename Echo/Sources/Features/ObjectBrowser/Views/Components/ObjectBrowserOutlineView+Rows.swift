@@ -35,7 +35,7 @@ extension ObjectBrowserOutlineView {
                     VStack(spacing: SpacingTokens.none) {
                         ForEach(group.header) { row in rowSlot(row, fold: fold) }
                     }
-                    .transition(abs(shift) > SpacingTokens.micro ? .offset(y: shift) : .identity)
+                    .transition(abs(shift) > SpacingTokens.micro ? .offset(y: shift) : .opacity)
                     .background { ExplorerPinnedHeaderWash() }
                     .modifier(ExplorerTreePinnedHeader(travel: sectionEnd - server.minY - headerHeight))
                     .zIndex(1)

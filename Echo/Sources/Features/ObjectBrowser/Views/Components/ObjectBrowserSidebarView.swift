@@ -24,17 +24,13 @@ struct ObjectBrowserSidebarView: View {
 
 
     var body: some View {
-        let connectionLayoutMode = ObjectBrowserConnectionLayoutMode(
-            expandOneConnectionAtATime: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
-        )
+        let sessionIDs = sessions.map(\.connection.id)
+        let minimized = viewModel.minimizedServers(sessions: sessions)
         let builtRoots = ObjectBrowserSnapshotBuilder.buildRoots(
-            pendingConnections: connectionLayoutMode.includesPendingConnectionsInOutline
-                ? pendingConnections
-                : [],
+            pendingConnections: pendingConnections,
             sessions: sessions,
             settings: projectStore.globalSettings,
-            viewModel: viewModel,
-            selectedConnectionID: selectedConnectionID
+            viewModel: viewModel
         )
         // TC1: each server shows its dock and the chosen section.
         let roots = ExplorerDock.apply(
@@ -46,23 +42,18 @@ struct ObjectBrowserSidebarView: View {
 
         let mainContent = Group {
             if sessions.isEmpty && pendingConnections.isEmpty {
-                VStack(spacing: SpacingTokens.xs) {
-                    Image(systemName: "server.rack")
-                        .font(TypographyTokens.hero.weight(.medium))
-                        .foregroundStyle(ColorTokens.Text.tertiary)
-                    VStack(spacing: SpacingTokens.xxxs) {
-                        Text("No Servers Connected")
-                            .font(TypographyTokens.standard.weight(.semibold))
-                            .foregroundStyle(ColorTokens.Text.secondary)
-                        Text("Connect with the + button in the rail.")
-                            .font(TypographyTokens.detail)
-                            .foregroundStyle(ColorTokens.Text.tertiary)
-                    }
-                    .multilineTextAlignment(.center)
-                }
-                .padding(.vertical, SpacingTokens.xl2)
-                .padding(.horizontal, SpacingTokens.sm)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                ExplorerEmptyState(
+                    symbol: "server.rack",
+                    title: "No Servers Connected",
+                    hint: "Connect with the + button in the rail."
+                )
+            } else if minimized.leavesTreeEmpty(sessionConnectionIDs: sessionIDs, pendingCount: pendingConnections.count) {
+                // Round 51, SH5: every card is minimized; each server is a ring in the trail.
+                ExplorerEmptyState(
+                    symbol: "rectangle.on.rectangle.slash",
+                    title: "All Servers Are Minimized",
+                    hint: "Click a server in the rail to open its card."
+                )
             } else {
                 ObjectBrowserOutlineView(
                     roots: roots,
@@ -142,6 +133,10 @@ struct ObjectBrowserSidebarView: View {
         .onChange(of: sessions.map(\.connection.id)) { _, _ in
             synchronizeDefaults()
         }
+        // Round 51, SH5: the rail draws a ring on each minimized server.
+        .onChange(of: minimized.connectionIDs, initial: true) { old, new in
+            applyMinimizedServers(from: old, to: new)
+        }
         // Saved a second after the last change, never mid-animation.
         .task(id: viewModel.expandedNodeIDs) {
             guard !sessions.isEmpty, (try? await Task.sleep(for: .seconds(1))) != nil else { return }
@@ -172,9 +167,7 @@ struct ObjectBrowserSidebarView: View {
             autoExpandSectionsForDatabaseType: { databaseType in
                 projectStore.globalSettings.sidebarExpandSections(for: databaseType)
             },
-            hideOfflineDefault: projectStore.globalSettings.sidebarHideOfflineDatabasesByDefault,
-            activeConnectionID: selectedConnectionID ?? sessions.first?.connection.id,
-            expandOneConnectionAtATime: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
+            hideOfflineDefault: projectStore.globalSettings.sidebarHideOfflineDatabasesByDefault
         )
         if !sessions.isEmpty {
             viewModel.persistExpansionState(projectID: projectStore.selectedProject?.id)
@@ -184,8 +177,7 @@ struct ObjectBrowserSidebarView: View {
             pendingConnections: [],
             sessions: sessions,
             settings: projectStore.globalSettings,
-            viewModel: viewModel,
-            selectedConnectionID: selectedConnectionID
+            viewModel: viewModel
         ))
 
         if selectedConnectionID == nil {
@@ -216,12 +208,7 @@ struct ObjectBrowserSidebarView: View {
         selectedConnectionID = session.connection.id
         environmentState.sessionGroup.setActiveSession(session.id)
         viewModel.selectedNodeID = visibleNodeID
-        viewModel.setServerExpanded(
-            true,
-            connectionID: session.connection.id,
-            sessions: sessions,
-            collapseOthers: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
-        )
+        viewModel.setServerExpanded(true, connectionID: session.connection.id)
         viewModel.setExpanded(true, nodeID: ObjectBrowserSidebarViewModel.databasesFolderNodeID(connectionID: session.connection.id))
         viewModel.revealAndPulse(nodeID: visibleNodeID)
 
@@ -240,12 +227,10 @@ struct ObjectBrowserSidebarView: View {
         let visibleNodeID = visibleConnectionRootNodeID(for: connectionID)
         selectedConnectionID = connectionID
         viewModel.selectedNodeID = visibleNodeID
-        viewModel.setServerExpanded(
-            true,
-            connectionID: connectionID,
-            sessions: sessions,
-            collapseOthers: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
-        )
+        // A minimized card comes back into the list, the cards below making room (round 51, SH5).
+        withAnimation(viewModel.isExpanded(visibleNodeID) ? nil : motion.expand) {
+            viewModel.setServerExpanded(true, connectionID: connectionID)
+        }
         viewModel.revealAndPulse(nodeID: visibleNodeID)
         navigationStore.pendingExplorerRevealConnectionID = nil
     }
@@ -310,12 +295,7 @@ struct ObjectBrowserSidebarView: View {
         if animated { WindowDragPause.pauseWorkspace(for: 0.22 * motion.durationScale + 0.1) }
         withAnimation(animated ? motion.expand : nil) {
             if case .server(let session) = node.row {
-                viewModel.setServerExpanded(
-                    isExpanded,
-                    connectionID: session.connection.id,
-                    sessions: sessions,
-                    collapseOthers: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
-                )
+                viewModel.setServerExpanded(isExpanded, connectionID: session.connection.id)
             } else {
                 viewModel.setExpanded(isExpanded, nodeID: node.id)
             }
@@ -390,12 +370,6 @@ struct ObjectBrowserSidebarView: View {
     }
 
     private func visibleConnectionRootNodeID(for connectionID: UUID) -> String {
-        let connectionLayoutMode = ObjectBrowserConnectionLayoutMode(
-            expandOneConnectionAtATime: projectStore.globalSettings.sidebarExpandOneConnectionAtATime
-        )
-        if connectionLayoutMode.showsServerNameInOutline {
-            return ObjectBrowserSidebarViewModel.serverNodeID(connectionID: connectionID)
-        }
-        return ObjectBrowserSidebarViewModel.databasesFolderNodeID(connectionID: connectionID)
+        ObjectBrowserSidebarViewModel.serverNodeID(connectionID: connectionID)
     }
 }

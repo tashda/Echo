@@ -14,19 +14,11 @@ struct SidebarSettingsView: View {
             preview: { SidebarSettingsPreview(settings: settings) }
         ) {
             Section {
-                PropertyRow(title: "Expand one connection at a time", resetAction: projectStore.resetAction(\.sidebarExpandOneConnectionAtATime)) {
-                    Toggle("", isOn: expandOneConnectionToggle).labelsHidden().toggleStyle(.switch)
-                }
-            } header: {
-                Text("Object Browser")
-            } footer: {
-                Text("Collapse other connections when opening a server.")
-            }
-
-            Section {
                 PropertyRow(title: "Show scroll bar", resetAction: projectStore.resetAction(\.sidebarShowsScrollBar)) {
                     Toggle("", isOn: scrollBarToggle).labelsHidden().toggleStyle(.switch)
                 }
+            } header: {
+                Text("Object Browser")
             } footer: {
                 Text("The scroll bar is hidden unless shown here; the rail shows which server you're in.")
             }
@@ -71,23 +63,12 @@ struct SidebarSettingsView: View {
 
     /// Everything Reset This Page puts back.
     static let resettable: [ResettableSetting] = [
-        .init(\.sidebarExpandOneConnectionAtATime), .init(\.sidebarShowsScrollBar),
+        .init(\.sidebarShowsScrollBar),
         .init(\.sidebarHideOfflineDatabasesByDefault), .init(\.sidebarAutoExpandSections),
         .init(\.sidebarCustomizePerDatabaseType),
     ]
 
     // MARK: - Hide offline toggle
-
-    private var expandOneConnectionToggle: Binding<Bool> {
-        Binding(
-            get: { settings.sidebarExpandOneConnectionAtATime },
-            set: { enabled in
-                var updated = settings
-                updated.sidebarExpandOneConnectionAtATime = enabled
-                Task { try? await projectStore.updateGlobalSettings(updated) }
-            }
-        )
-    }
 
     private var scrollBarToggle: Binding<Bool> {
         Binding(

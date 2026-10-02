@@ -171,7 +171,6 @@ struct GlobalSettings: Codable, Hashable {
     var mysqlToolCustomPath: String?
     var sidebarIconColorMode: SidebarIconColorMode = .colorful
     var sidebarDensity: SidebarDensity = .medium
-    var sidebarExpandOneConnectionAtATime: Bool = true
     /// Pins "server › database" above the Explorer once the server's header scrolls away.
     /// The Explorer's scroll bar; hidden by default (round 9, SB3).
     var sidebarShowsScrollBar: Bool = false
@@ -284,7 +283,6 @@ struct GlobalSettings: Codable, Hashable {
         case mysqlToolCustomPath
         case sidebarIconColorMode
         case sidebarDensity
-        case sidebarExpandOneConnectionAtATime
         case sidebarShowsScrollBar
         case interfaceMotionSpeed
         case workspaceGutter
@@ -402,11 +400,6 @@ struct GlobalSettings: Codable, Hashable {
             sidebarDensity = .medium
         }
 
-        sidebarExpandOneConnectionAtATime = try container.decodeIfPresent(
-            Bool.self,
-            forKey: .sidebarExpandOneConnectionAtATime
-        ) ?? true
-
         sidebarShowsScrollBar = try container.decodeIfPresent(Bool.self, forKey: .sidebarShowsScrollBar) ?? false
 
         // Unknown values (from a newer build) fall back to the default instead of failing.
@@ -516,7 +509,6 @@ struct GlobalSettings: Codable, Hashable {
         try container.encodeIfPresent(mysqlToolCustomPath, forKey: .mysqlToolCustomPath)
         try container.encode(sidebarIconColorMode, forKey: .sidebarIconColorMode)
         try container.encode(sidebarDensity, forKey: .sidebarDensity)
-        try container.encode(sidebarExpandOneConnectionAtATime, forKey: .sidebarExpandOneConnectionAtATime)
         try container.encode(sidebarShowsScrollBar, forKey: .sidebarShowsScrollBar)
         try container.encode(interfaceMotionSpeed, forKey: .interfaceMotionSpeed)
         try container.encode(workspaceGutter, forKey: .workspaceGutter)

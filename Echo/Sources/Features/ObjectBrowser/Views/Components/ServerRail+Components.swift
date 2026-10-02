@@ -127,7 +127,8 @@ extension ServerRail {
                 isSelected: isSelected,
                 size: itemSize,
                 // Round 30.1, CO1: with the header in the server's colour, the monogram always is.
-                isAlwaysColored: projectStore.globalSettings.serverHeaderColorSource == .server
+                isAlwaysColored: projectStore.globalSettings.serverHeaderColorSource == .server,
+                isMinimized: bridge.minimizedConnectionIDs.contains(entry.connectionID)
             )
             .background {
                 if drawsOwnDisc && isSelected { ownSelectionDisc }
@@ -148,8 +149,9 @@ extension ServerRail {
 
     func accessibilityValue(for entry: ServerRailEntry, runningQueryCount: Int) -> String {
         let status = entry.status
-        guard status == .ready, runningQueryCount > 0 else { return status.accessibilityDescription }
-        return runningQueryCount == 1 ? "1 query running" : "\(runningQueryCount) queries running"
+        let minimized = bridge.minimizedConnectionIDs.contains(entry.connectionID) ? ", minimized" : ""
+        guard status == .ready, runningQueryCount > 0 else { return status.accessibilityDescription + minimized }
+        return (runningQueryCount == 1 ? "1 query running" : "\(runningQueryCount) queries running") + minimized
     }
 
     func activate(_ entry: ServerRailEntry) {

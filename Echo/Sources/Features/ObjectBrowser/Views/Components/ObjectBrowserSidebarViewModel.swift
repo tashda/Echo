@@ -53,14 +53,11 @@ final class ObjectBrowserSidebarViewModel {
     func synchronizeDefaults(
         sessions: [ConnectionSession],
         autoExpandSectionsForDatabaseType: (DatabaseType) -> Set<SidebarAutoExpandSection>,
-        hideOfflineDefault: Bool = false,
-        activeConnectionID: UUID? = nil,
-        expandOneConnectionAtATime: Bool = false
+        hideOfflineDefault: Bool = false
     ) {
         let validConnectionIDs = Set(sessions.map(\.connection.id))
         initializedConnectionIDs = initializedConnectionIDs.intersection(validConnectionIDs)
         var expanded = expandedNodeIDs
-        let rootConnectionID = activeConnectionID ?? sessions.first?.connection.id
 
         for session in sessions where !initializedConnectionIDs.contains(session.connection.id) {
             initializedConnectionIDs.insert(session.connection.id)
@@ -73,9 +70,7 @@ final class ObjectBrowserSidebarViewModel {
                 hideOfflineDatabasesBySession[session.connection.id] = hideOfflineDefault
             }
 
-            if !expandOneConnectionAtATime || session.connection.id == rootConnectionID {
-                expanded.insert(Self.serverNodeID(connectionID: session.connection.id))
-            }
+            expanded.insert(Self.serverNodeID(connectionID: session.connection.id))
 
             let autoExpand = autoExpandSectionsForDatabaseType(session.connection.databaseType)
             if autoExpand.contains(.databases) {
@@ -93,15 +88,6 @@ final class ObjectBrowserSidebarViewModel {
             }
         }
 
-        if expandOneConnectionAtATime, let rootConnectionID {
-            let otherServerIDs = sessions
-                .map(\.connection.id)
-                .filter { $0 != rootConnectionID }
-                .map { Self.serverNodeID(connectionID: $0) }
-            expanded.subtract(otherServerIDs)
-            expanded.insert(Self.serverNodeID(connectionID: rootConnectionID))
-        }
-
         expandedNodeIDs = expanded
     }
 
@@ -115,44 +101,18 @@ final class ObjectBrowserSidebarViewModel {
         expandedNodeIDs = expanded
     }
 
-    func setServerExpanded(
-        _ isExpanded: Bool,
-        connectionID: UUID,
-        sessions: [ConnectionSession],
-        collapseOthers: Bool
-    ) {
-        setServerExpanded(
-            isExpanded,
-            connectionID: connectionID,
-            allConnectionIDs: sessions.map(\.connection.id),
-            collapseOthers: collapseOthers
-        )
+    /// Opens or minimizes a server's card. Cards open and close independently.
+    func setServerExpanded(_ isExpanded: Bool, connectionID: UUID) {
+        setExpanded(isExpanded, nodeID: Self.serverNodeID(connectionID: connectionID))
     }
 
-    func setServerExpanded(
-        _ isExpanded: Bool,
-        connectionID: UUID,
-        allConnectionIDs: [UUID],
-        collapseOthers: Bool
-    ) {
-        let serverID = Self.serverNodeID(connectionID: connectionID)
-        var expanded = expandedNodeIDs
-
-        if isExpanded {
-            if collapseOthers {
-                let otherServerIDs = Set(
-                    allConnectionIDs
-                        .filter { $0 != connectionID }
-                        .map { Self.serverNodeID(connectionID: $0) }
-                )
-                expanded.subtract(otherServerIDs)
-            }
-            expanded.insert(serverID)
-        } else {
-            expanded.remove(serverID)
-        }
-
-        expandedNodeIDs = expanded
+    /// Which servers' cards are minimized, so they leave the tree and take a ring in the trail.
+    func minimizedServers(sessions: [ConnectionSession]) -> ExplorerMinimizedServers {
+        ExplorerMinimizedServers(
+            sessionConnectionIDs: sessions.map(\.connection.id),
+            initializedConnectionIDs: initializedConnectionIDs,
+            expandedNodeIDs: expandedNodeIDs
+        )
     }
 
     func toggleExpanded(nodeID: String) -> Bool {
@@ -208,7 +168,7 @@ extension ObjectBrowserSidebarViewModel {
 }
 
 extension ObjectBrowserSidebarViewModel {
-    static func serverNodeID(connectionID: UUID) -> String {
+    nonisolated static func serverNodeID(connectionID: UUID) -> String {
         "\(connectionID.uuidString)#server"
     }
 

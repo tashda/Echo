@@ -135,16 +135,27 @@
     "verdicts": {}
   },
   "ongoing.card-to-trail-r54": {
-    "comments": [],
-    "generalNote": "Everything is perfect but let's not add the \"rounded corners\" to customization. Also when the server is collapsed it should not show \"selected session\". Even though maybe we are collapsing servers into the server trail - did I not chose that in a nother round?",
-    "history": [],
+    "comments": [
+      {
+        "date": "2026-10-02T09:22:02Z",
+        "id": "8B71924A-1FBA-4882-BA2E-8205442B5B81",
+        "text": "Review of Minimizing a card into the trail\n1. Journey: no answer yet\n2. Trail item: no answer yet\n3. Gap: no answer yet\n4. Coming back: no answer yet\nOverall: Everything is perfect but let's not add the \"rounded corners\" to customization. Also when the server is collapsed it should not show \"selected session\". Even though maybe we are collapsing servers into the server trail - did I not chose that in a nother round?"
+      }
+    ],
+    "generalNote": " am not a fan of any of them and it needs to be a very thought out and detailed animation.\nAN1 and AN3 are good but look janky -\n\nWhat I want is for the card to transform into the trail circle during animation and then land in it's place. Smooth, no lag, everything must happen when clicked in a beautiful way - maybe a little bounce when it reaches it's destination as a circle, but very little. \nPlease try again",
+    "history": [
+      {
+        "date": "2026-10-02T09:22:02Z",
+        "text": "Feedback sent"
+      }
+    ],
     "needsMore": [],
     "optionNotes": {},
     "pickNotes": {},
     "picks": {},
     "reviewedRevision": 1,
     "revisions": [],
-    "status": "Judging",
+    "status": "New feedback",
     "verdicts": {}
   },
   "ongoing.connect-menu-r52": {
@@ -3964,6 +3975,10 @@
       {
         "date": "2026-10-02T08:20:28Z",
         "text": "Built into Echo: own symbol or emoji on the connection (trail, Manage Connections list, connection sheet), glass name bubble on hover, Customize Appearance popover with the same controls as the sheet. SH5 (dashed rings, cards leaving the list) not built: it contradicts the header-only closed card (CC0) and one-at-a-time; owner to decide."
+      },
+      {
+        "date": "2026-10-02T09:23:11Z",
+        "text": "Built into Echo: SH5, minimized cards leave the tree and take a dashed ring; the one-at-a-time setting is gone"
       }
     ],
     "needsMore": [],
@@ -3985,15 +4000,14 @@
     "verdicts": {},
     "verification": {
       "checks": [
-        "Hover a server in the trail: a glass bubble with its name and product opens at once beside it, and clicks on the tree still work.",
-        "Right-click a server in the trail, Customize Appearance: a popover opens at the item with colour swatches, symbols and emoji, and Reset to Automatic.",
-        "Pick a symbol, then an emoji: the letters in the trail item are replaced right away (symbol in the server colour).",
-        "Open Edit Connection and Manage Connections: the sheet shows the same controls with a preview, and the list's Name column shows the server's mark.",
-        "Collapse a card with its chevron: it stays a header-only card in the list (SH5 is not built, your decision needed)."
+        "Minimize a card with its header chevron: it leaves the tree, the cards below close the gap, and its server in the trail gets a dashed ring",
+        "Click the ringed server in the trail: the card returns, the tree scrolls to it and it is selected",
+        "Minimize every card: the tree says All Servers Are Minimized",
+        "Settings, Sidebar: the Expand one connection at a time row is gone, and cards open and close independently"
       ],
       "done": [],
       "shots": [],
-      "summary": "Trail items can carry a symbol or emoji, show a glass name bubble at once, and be customised from the right-click menu or the connection sheet; minimised-card rings are held back."
+      "summary": "A card closed with its chevron leaves the tree and its server takes a dashed ring in the trail; Expand one connection at a time is deleted."
     }
   },
   "ongoing.settings-controls-r43": {

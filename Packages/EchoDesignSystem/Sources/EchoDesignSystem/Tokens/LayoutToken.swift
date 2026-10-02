@@ -59,6 +59,11 @@ public enum LayoutTokens {
         /// Opacity of a server whose connection was lost, and of a connecting server with
         /// Reduce Motion on.
         public static let lostOpacity: Double = 0.4
+        /// A server whose card is minimized is drawn with a dashed ring (round 51, SH5): the ring's
+        /// line width, its dash pattern, and the opacity of the mark inside it.
+        public static let minimizedRingWidth: CGFloat = 1.5
+        public static let minimizedRingDash: [CGFloat] = [3, 3]
+        public static let minimizedOpacity: Double = 0.7
         /// Inset between the selection disc and its item, so the disc never echoes the pill's edge.
         public static let selectionInset: CGFloat = 3
         /// Monogram point size as a share of the item size (12.5pt at the default 34pt).
