@@ -5,9 +5,21 @@ import Observation
 import OSLog
 
 @Observable @MainActor final class QueryEditorState {
-    var sql: String
+    var sql: String {
+        didSet { refreshEdited() }
+    }
     /// The SQL as it was opened or last saved, to tell whether the tab has unsaved changes.
-    @ObservationIgnored var savedSQL: String
+    @ObservationIgnored var savedSQL: String {
+        didSet { refreshEdited() }
+    }
+    /// `hasUnsavedChanges`, observed: it changes only when it flips, so the tab strip's unsaved
+    /// dot (round IC) doesn't redraw the strip on every keystroke.
+    private(set) var isEdited = false
+
+    private func refreshEdited() {
+        let edited = hasUnsavedChanges
+        if edited != isEdited { isEdited = edited }
+    }
     var results: QueryResultSet?
     var errorMessage: String?
     var isExecuting: Bool = false

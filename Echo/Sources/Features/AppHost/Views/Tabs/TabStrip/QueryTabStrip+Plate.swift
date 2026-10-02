@@ -26,6 +26,7 @@ extension QueryTabStrip {
                 return TabIconLayer.Item(
                     id: tab.id,
                     symbol: element.1 ? nil : tab.iconName,
+                    mark: tab.homeMark(isHovered: hoveredTabID == tab.id && !iconOnly),
                     isActive: tab.id == tabStore.activeTabId,
                     isRunning: tab.query?.isExecuting == true,
                     width: width,

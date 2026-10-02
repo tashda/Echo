@@ -35,6 +35,8 @@ import SwiftUI
     var hasUnseenDetails = false
     /// The Save card, while it shows (round IC, H1).
     var saveCardRequest: SaveCardRequest?
+    /// A tab's Show in Bookmarks: the Bookmarks page selects and scrolls to it, then clears this.
+    var revealedBookmarkID: UUID?
     /// The ⌘K palette (plan K4).
     var isCommandPaletteVisible = false {
         didSet {

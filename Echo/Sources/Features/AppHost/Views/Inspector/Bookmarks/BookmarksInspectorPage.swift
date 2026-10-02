@@ -13,6 +13,7 @@ import AppKit
 struct BookmarksInspectorPage: View {
     @Environment(EnvironmentState.self) private var environmentState
     @Environment(ConnectionStore.self) private var connectionStore
+    @Environment(AppState.self) private var appState
     @Environment(\.echoMotion) private var motion
     @Environment(\.undoManager) private var undoManager
     @AppStorage("inspector.bookmarks.folded") private var foldedStorage = ""
@@ -29,6 +30,8 @@ struct BookmarksInspectorPage: View {
     @State private var noteDraft = ""
     @State private var deletion: FolderDeletionRequest?
     @State private var dropTarget: String?
+    /// Show in Bookmarks: the row to scroll to once it is in the list.
+    @State private var scrollTarget: UUID?
     @FocusState private var focus: Field?
 
     private enum Field: Hashable { case list, folderName, bookmarkTitle }
@@ -59,6 +62,9 @@ struct BookmarksInspectorPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .animation(motion.standard, value: selectedID)
+        .onChange(of: appState.revealedBookmarkID, initial: true) { _, id in
+            if let id { reveal(id) }
+        }
         .sheet(item: $deletion) { request in
             FolderDeletionSheet(request: request,
                                 otherFolders: (project?.bookmarkFolders ?? []).filter { $0 != request.name },
@@ -133,7 +139,25 @@ struct BookmarksInspectorPage: View {
                 selectedID = nil
                 return .handled
             }
+            .onChange(of: scrollTarget, initial: true) { _, id in
+                guard let id else { return }
+                withAnimation(motion.standard) { proxy.scrollTo(id, anchor: .center) }
+                scrollTarget = nil
+            }
         }
+    }
+
+    /// A tab's Show in Bookmarks: clears the search and the server filter, opens the folder, and
+    /// selects the bookmark.
+    private func reveal(_ id: UUID) {
+        appState.revealedBookmarkID = nil
+        guard let bookmark = project?.bookmarks.first(where: { $0.id == id }) else { return }
+        search = ""
+        scopeConnectionID = nil
+        unfold(bookmark.folder)
+        selectedID = id
+        scrollTarget = id
+        focus = .list
     }
 
     @ViewBuilder

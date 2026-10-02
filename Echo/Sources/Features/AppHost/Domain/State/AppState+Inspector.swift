@@ -90,6 +90,12 @@ extension AppState {
     /// The bell.
     func toggleNotificationHistory() { toggleInspectorPage(.notifications) }
 
+    /// A tab's Show in Bookmarks: the Bookmarks page, on that bookmark.
+    func revealBookmark(_ id: UUID) {
+        revealedBookmarkID = id
+        showInspectorPage(.bookmarks)
+    }
+
     /// A toast's Show All.
     func showNotificationHistory() { showInspectorPage(.notifications) }
 

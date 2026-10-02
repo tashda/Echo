@@ -48,6 +48,8 @@ struct QueryTabButton: View {
     @Environment(\.colorScheme) var colorScheme
 #endif
     @Environment(\.echoMotion) var motion
+    @Environment(EnvironmentState.self) var environmentState
+    @Environment(AppState.self) var appState
 
     var tabCornerRadius: CGFloat { 15 }
 
@@ -154,11 +156,9 @@ struct QueryTabButton: View {
             }
             .disabled(closeTabsRightDisabled)
 
-            if let onAddBookmark {
+            if tab.query != nil {
                 Divider()
-                Button(action: onAddBookmark) {
-                    Label("Add to Bookmarks", systemImage: "bookmark")
-                }
+                homeMenuContent
             }
         }
     }
