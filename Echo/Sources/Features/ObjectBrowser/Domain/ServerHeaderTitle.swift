@@ -41,9 +41,11 @@ nonisolated enum ServerHeaderContrast {
     }
 }
 
-/// How much taller the header slot is than the original one, so the larger name and the line over
-/// it fit (round 53). Line heights are the fonts' approximate leading.
-nonisolated enum ServerHeaderSlot {
+/// The title banner header's measures, in one place: the layout reserves `headerHeight` for the
+/// server row and the drawing frames its lines with the same numbers, so the block is tight (no
+/// gap, no overlap, nothing clipped) for every name size, line above the name and typeface.
+/// Line heights are the fonts' approximate leading; the drawing fixes each line to its height.
+nonisolated struct ServerHeaderMetrics: Equatable, Sendable {
     /// The eyebrow's line: 11pt type.
     static let eyebrowLineHeight = 14.0
     /// The gap between the eyebrow and the name.
@@ -53,15 +55,27 @@ nonisolated enum ServerHeaderSlot {
     /// Room under the name before the dock.
     static let bottomInset = 4.0
 
-    static func nameLineHeight(for size: ServerHeaderNameSize) -> Double { (size.points * 1.22).rounded(.up) }
+    let nameSize: ServerHeaderNameSize
+    let hasEyebrow: Bool
 
-    /// The slot the lines need, from the card's top edge to the dock.
-    static func requiredHeight(for size: ServerHeaderNameSize) -> Double {
-        topInset + eyebrowLineHeight + lineGap + nameLineHeight(for: size) + bottomInset
+    init(nameSize: ServerHeaderNameSize, eyebrow: ServerHeaderEyebrowLine) {
+        self.nameSize = nameSize
+        self.hasEyebrow = eyebrow != .none
     }
 
-    /// What to add to the original slot (an ordinary row plus 20pt); never negative.
-    static func extraHeight(for size: ServerHeaderNameSize, originalSlot: Double) -> Double {
-        max(0, requiredHeight(for: size) - originalSlot)
+    init(look: ServerHeaderLook) {
+        self.init(nameSize: look.nameSize, eyebrow: look.eyebrow)
     }
+
+    var nameLineHeight: Double { (nameSize.points * 1.22).rounded(.up) }
+    /// The line over the name and its gap; nothing without the line.
+    var eyebrowBlockHeight: Double { hasEyebrow ? Self.eyebrowLineHeight + Self.lineGap : 0 }
+    /// The lines together: the line over the name, then the name.
+    var linesHeight: Double { eyebrowBlockHeight + nameLineHeight }
+    /// The server row's whole height, from the card's top edge to the dock.
+    var headerHeight: Double { Self.topInset + linesHeight + Self.bottomInset }
+
+    /// What to add to a row slot of `slot` so the row is exactly `headerHeight`; negative when
+    /// the header is tighter than the slot.
+    func extraHeight(overSlot slot: Double) -> Double { headerHeight - slot }
 }

@@ -69,10 +69,6 @@ struct LabHCCard: View {
                     .foregroundStyle(textColor.opacity(0.82)).lineLimit(1).contentTransition(.opacity)
             }
             Text(server.name).font(look.nameFont).foregroundStyle(textColor).lineLimit(1)
-            if look.eyebrow == .none {
-                Text("\(server.product) · \(section.title)").font(SidebarRowConstants.trailingFont)
-                    .foregroundStyle(textColor.opacity(0.82)).lineLimit(1)
-            }
         }
         return HStack(spacing: SpacingTokens.xs) {
             if look.align == .centred { Spacer(minLength: SpacingTokens.lg) }

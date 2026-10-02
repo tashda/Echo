@@ -100,7 +100,7 @@ struct ObjectBrowserOutlineView: View {
                 // the inner modifier, so it wins over `expand` when both change.
                 .animation(nil, value: dockSwitchKey)
                 .animation(motion.expand, value: rowIDs)
-                ExplorerTreeHoldSpacer(scroll: scroll)
+                ExplorerTreeHoldSpacer(scroll: scroll, contentHeight: layout.contentHeight)
             }
         }
         .scrollPosition($position)
@@ -131,6 +131,7 @@ struct ObjectBrowserOutlineView: View {
             // Rows scrolling in and out made AppKit recheck the window's drag regions every
             // frame (a sixth of the main thread, traced 2026-10-01).
             if old.offset != metrics.offset { WindowDragPause.pauseWorkspace(for: 0.3) }
+            scroll.record(metrics)
             scroll.offset = metrics.offset
             let window = ExplorerTreeWindow.around(offset: metrics.offset, viewport: metrics.viewportHeight)
             if scroll.window != window { scroll.window = window }

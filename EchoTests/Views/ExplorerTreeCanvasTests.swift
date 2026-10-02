@@ -46,4 +46,20 @@ struct ExplorerTreeCanvasTests {
         scroll.updateHold(contentHeight: 1_000)
         #expect(scroll.holdHeight == 0)
     }
+
+    @Test func theSpacerHoldsTheRoomInTheSamePassTheRowsShrink() {
+        let scroll = ExplorerTreeScrollState()
+        scroll.record(ExplorerTreeScrollMetrics(offset: 600, viewportHeight: 400, contentWidth: 200, totalHeight: 1_000))
+        // The rows shrink to 700 before the scroll view reports anything: the hold is already 300.
+        #expect(scroll.carriedHold(contentHeight: 700) == 300)
+        // Once worked out for those rows, scrolling up gives the room back.
+        scroll.offset = 600
+        scroll.viewportHeight = 400
+        scroll.totalHeight = 1_000
+        scroll.updateHold(contentHeight: 700)
+        #expect(scroll.holdContent == 700)
+        scroll.offset = 450
+        scroll.updateHold(contentHeight: 700)
+        #expect(scroll.holdHeight == 150)
+    }
 }
