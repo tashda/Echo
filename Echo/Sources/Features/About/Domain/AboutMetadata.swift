@@ -31,22 +31,22 @@ enum AboutMetadata {
             url: homepageURL
         ),
         AboutLink(
-            title: "postgres-wire",
+            title: "echo-postgres",
             subtitle: "PostgreSQL driver used by Echo",
             systemImage: "shippingbox",
-            url: URL(string: "https://github.com/tashda/postgres-wire")!
+            url: URL(string: "https://github.com/tashda/echo-postgres")!
         ),
         AboutLink(
-            title: "sqlserver-nio",
+            title: "echo-sqlserver",
             subtitle: "SQL Server driver used by Echo",
             systemImage: "shippingbox",
-            url: URL(string: "https://github.com/tashda/sqlserver-nio")!
+            url: URL(string: "https://github.com/tashda/echo-sqlserver")!
         ),
         AboutLink(
-            title: "mysql-wire",
+            title: "echo-mysql",
             subtitle: "MySQL driver used by Echo",
             systemImage: "shippingbox",
-            url: URL(string: "https://github.com/tashda/mysql-wire")!
+            url: URL(string: "https://github.com/tashda/echo-mysql")!
         )
     ]
 
@@ -55,31 +55,31 @@ enum AboutMetadata {
             name: "EchoSense",
             purpose: "Shared autocomplete and database metadata models",
             licenseName: "Repository notice not bundled",
-            repositoryURL: URL(string: "https://github.com/tashda/EchoSense")!,
+            repositoryURL: URL(string: "https://github.com/tashda/echo-sense")!,
             licenseURL: nil,
             notice: "EchoSense is a first-party shared package used by Echo and the database drivers."
         ),
         AboutDependency(
-            name: "postgres-wire",
+            name: "echo-postgres",
             purpose: "PostgreSQL connectivity and metadata APIs",
             licenseName: "Apache 2.0",
-            repositoryURL: URL(string: "https://github.com/tashda/postgres-wire")!,
-            licenseURL: URL(string: "https://raw.githubusercontent.com/tashda/postgres-wire/dev/LICENSE.txt"),
+            repositoryURL: URL(string: "https://github.com/tashda/echo-postgres")!,
+            licenseURL: URL(string: "https://raw.githubusercontent.com/tashda/echo-postgres/dev/LICENSE.txt"),
             notice: "Verified from the package license bundled in the local checkout."
         ),
         AboutDependency(
-            name: "sqlserver-nio",
+            name: "echo-sqlserver",
             purpose: "SQL Server connectivity and administrative APIs",
             licenseName: "MIT",
-            repositoryURL: URL(string: "https://github.com/tashda/sqlserver-nio")!,
-            licenseURL: URL(string: "https://raw.githubusercontent.com/tashda/sqlserver-nio/dev/LICENSE"),
+            repositoryURL: URL(string: "https://github.com/tashda/echo-sqlserver")!,
+            licenseURL: URL(string: "https://raw.githubusercontent.com/tashda/echo-sqlserver/dev/LICENSE"),
             notice: "Verified from the package license bundled in the local checkout."
         ),
         AboutDependency(
-            name: "mysql-wire",
+            name: "echo-mysql",
             purpose: "MySQL connectivity and metadata APIs",
             licenseName: "Repository notice not bundled",
-            repositoryURL: URL(string: "https://github.com/tashda/mysql-wire")!,
+            repositoryURL: URL(string: "https://github.com/tashda/echo-mysql")!,
             licenseURL: nil,
             notice: "Echo uses this first-party package for MySQL support. The current repository checkout does not include a separate license file."
         ),

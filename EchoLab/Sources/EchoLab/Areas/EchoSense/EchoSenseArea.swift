@@ -66,10 +66,10 @@ enum EchoSenseArea {
                 "Echo/Sources/Features/QueryWorkspace/Views/Query/Autocomplete/",
                 "Echo/Sources/Features/QueryWorkspace/Views/Query/SQLTextView/Completion/",
                 "Packages/EchoDesignSystem/Sources/EchoDesignSystem/Tokens/LayoutToken+EchoSense.swift",
-                "/Users/k/Development/EchoSense/AUTOCOMPLETE_SPEC.md (the EchoSense package)",
-                "/Users/k/Development/EchoSense/Sources/EchoSense/SQLEditorTriggerPolicy.swift (when typing opens the popup)",
-                "/Users/k/Development/EchoSense/Sources/EchoSense/SQLEditorAcceptance.swift (what accepting a suggestion inserts)",
-                "/Users/k/Development/EchoSense/Sources/EchoSenseScenarios/Scenarios/ (the expected behaviour, one JSON file per group)",
+                "/Users/k/Development/echo-sense/AUTOCOMPLETE_SPEC.md (the EchoSense package)",
+                "/Users/k/Development/echo-sense/Sources/EchoSense/SQLEditorTriggerPolicy.swift (when typing opens the popup)",
+                "/Users/k/Development/echo-sense/Sources/EchoSense/SQLEditorAcceptance.swift (what accepting a suggestion inserts)",
+                "/Users/k/Development/echo-sense/Sources/EchoSenseScenarios/Scenarios/ (the expected behaviour, one JSON file per group)",
             ]
         ) {
             LabRound14SenseEditor(selection: .tintThenSolid, corners: .followCards)

@@ -7,9 +7,9 @@ struct AboutMetadataTests {
         let titles = Set(AboutMetadata.quickLinks.map(\.title))
 
         #expect(titles.contains("Echo Homepage"))
-        #expect(titles.contains("postgres-wire"))
-        #expect(titles.contains("sqlserver-nio"))
-        #expect(titles.contains("mysql-wire"))
+        #expect(titles.contains("echo-postgres"))
+        #expect(titles.contains("echo-sqlserver"))
+        #expect(titles.contains("echo-mysql"))
     }
 
     @Test func dependenciesExposeRepositoryURLs() {

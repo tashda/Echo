@@ -452,7 +452,7 @@ class MSSQLBackupRestoreTests: MSSQLLabTestCase {
         }
 
         // Bring online
-        // No typed call finishes a restore yet: gap GS-41, tashda/sqlserver-nio#16.
+        // No typed call finishes a restore yet: gap GS-41, tashda/echo-sqlserver#16.
         _ = try await session.executeUpdate("RESTORE DATABASE [\(dbName)] WITH RECOVERY")
         let count = try await rowCount(database: dbName, table: "dbo.test_data")
         XCTAssertEqual(count, 5)

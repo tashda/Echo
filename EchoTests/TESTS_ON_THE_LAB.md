@@ -69,7 +69,7 @@ below were made by the owner (2026-10-01). Failures the lab suites found are in
   recipe with a large table).
 - **SQL Server content** is made through sqlserver-nio in each suite's scratch database; the SQL
   text left is what a user types in a query tab, plus two driver gaps (GS-03 compressed tables,
-  tashda/sqlserver-nio#15; GS-41 finishing a restore, tashda/sqlserver-nio#16).
+  tashda/echo-sqlserver#15; GS-41 finishing a restore, tashda/echo-sqlserver#16).
 - **Removed:** the old plans (IntegrationTests, MSSQLCompatibilityTests,
   PostgresCompatibilityTests, SQLiteIntegrationTests) and the self-hosted runner's workflow and
   scripts. `EchoDockerManager` and `.ci-fixtures` stay until the disabled Postgres files move.

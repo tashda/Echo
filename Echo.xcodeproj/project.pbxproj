@@ -316,11 +316,11 @@
 			mainGroup = 0ADF948C2E78B95200E993F8;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-wire" */,
+				0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "echo-mysql" */,
 				0A6970C02F5EEF090027641E /* XCRemoteSwiftPackageReference "sqlite-nio" */,
-				0A6970C32F5EEF5E0027641E /* XCRemoteSwiftPackageReference "postgres-wire" */,
-				0A6970C82F5EEFA40027641E /* XCRemoteSwiftPackageReference "sqlserver-nio" */,
-				0A697AEC2F5EF8220027641E /* XCRemoteSwiftPackageReference "EchoSense" */,
+				0A6970C32F5EEF5E0027641E /* XCRemoteSwiftPackageReference "echo-postgres" */,
+				0A6970C82F5EEFA40027641E /* XCRemoteSwiftPackageReference "echo-sqlserver" */,
+				0A697AEC2F5EF8220027641E /* XCRemoteSwiftPackageReference "echo-sense" */,
 				ELB003000000000000000001 /* XCRemoteSwiftPackageReference "echo-libraries" */,
 				0ADE5D00000000000000A001 /* XCLocalSwiftPackageReference "Packages/EchoDesignSystem" */,
 				0AAD000100000000000000AD /* XCRemoteSwiftPackageReference "swift-active-directory" */,
@@ -791,25 +791,25 @@
 				minimumVersion = 1.12.4;
 			};
 		};
-		0A6970C32F5EEF5E0027641E /* XCRemoteSwiftPackageReference "postgres-wire" */ = {
+		0A6970C32F5EEF5E0027641E /* XCRemoteSwiftPackageReference "echo-postgres" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/tashda/postgres-wire";
+			repositoryURL = "https://github.com/tashda/echo-postgres";
 			requirement = {
 				branch = dev;
 				kind = branch;
 			};
 		};
-		0A6970C82F5EEFA40027641E /* XCRemoteSwiftPackageReference "sqlserver-nio" */ = {
+		0A6970C82F5EEFA40027641E /* XCRemoteSwiftPackageReference "echo-sqlserver" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/tashda/sqlserver-nio";
+			repositoryURL = "https://github.com/tashda/echo-sqlserver";
 			requirement = {
 				branch = dev;
 				kind = branch;
 			};
 		};
-		0A697AEC2F5EF8220027641E /* XCRemoteSwiftPackageReference "EchoSense" */ = {
+		0A697AEC2F5EF8220027641E /* XCRemoteSwiftPackageReference "echo-sense" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/tashda/EchoSense";
+			repositoryURL = "https://github.com/tashda/echo-sense";
 			requirement = {
 				branch = dev;
 				kind = branch;
@@ -831,9 +831,9 @@
 				minimumVersion = 2.9.0;
 			};
 		};
-		0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-wire" */ = {
+		0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "echo-mysql" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/tashda/mysql-wire";
+			repositoryURL = "https://github.com/tashda/echo-mysql";
 			requirement = {
 				branch = dev;
 				kind = branch;
@@ -910,17 +910,17 @@
 		};
 		0A6970C42F5EEF5E0027641E /* PostgresKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 0A6970C32F5EEF5E0027641E /* XCRemoteSwiftPackageReference "postgres-wire" */;
+			package = 0A6970C32F5EEF5E0027641E /* XCRemoteSwiftPackageReference "echo-postgres" */;
 			productName = PostgresKit;
 		};
 		0A6970C92F5EEFA40027641E /* SQLServerKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 0A6970C82F5EEFA40027641E /* XCRemoteSwiftPackageReference "sqlserver-nio" */;
+			package = 0A6970C82F5EEFA40027641E /* XCRemoteSwiftPackageReference "echo-sqlserver" */;
 			productName = SQLServerKit;
 		};
 		0A697AED2F5EF8220027641E /* EchoSense */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 0A697AEC2F5EF8220027641E /* XCRemoteSwiftPackageReference "EchoSense" */;
+			package = 0A697AEC2F5EF8220027641E /* XCRemoteSwiftPackageReference "echo-sense" */;
 			productName = EchoSense;
 		};
 		ELB002000000000000000001 /* CLibpq */ = {
@@ -935,7 +935,7 @@
 		};
 		0A79557D2E8F10A9002279AE /* MySQLKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "mysql-wire" */;
+			package = 0A79557C2E8F10A9002279AE /* XCRemoteSwiftPackageReference "echo-mysql" */;
 			productName = MySQLKit;
 		};
 		0AAD000200000000000000AD /* ActiveDirectory */ = {

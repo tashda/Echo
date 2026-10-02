@@ -19,7 +19,7 @@ final class DomainScenarioStore {
         } else {
             var url = URL(fileURLWithPath: #filePath)
             for _ in 0..<6 { url.deleteLastPathComponent() }
-            directory = url.deletingLastPathComponent().appending(path: "EchoSense/Sources/EchoSenseScenarios/DomainScenarios")
+            directory = url.deletingLastPathComponent().appending(path: "echo-sense/Sources/EchoSenseScenarios/DomainScenarios")
         }
         reload()
     }

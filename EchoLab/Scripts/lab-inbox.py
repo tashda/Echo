@@ -51,7 +51,7 @@ for status, title in groups.items():
         if history: print(f"  history: {history[-1].get('text','')} ({history[-1].get('date','')[:16]})")
 
 # Scenario reviews, from the EchoSense checkout next to this repository.
-scenario_dir = Path(os.environ.get("ECHOSENSE_SCENARIOS") or Path(__file__).resolve().parents[3] / "EchoSense/Sources/EchoSenseScenarios/Scenarios")
+scenario_dir = Path(os.environ.get("ECHOSENSE_SCENARIOS") or Path(__file__).resolve().parents[3] / "echo-sense/Sources/EchoSenseScenarios/Scenarios")
 scenarios = []
 for file in sorted(scenario_dir.glob("*.json")):
     scenarios += json.loads(file.read_text())

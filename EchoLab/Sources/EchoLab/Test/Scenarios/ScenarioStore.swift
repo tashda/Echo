@@ -24,7 +24,7 @@ final class ScenarioStore {
             // <repo>/EchoLab/Sources/EchoLab/Test/Scenarios/ScenarioStore.swift → the EchoSense checkout next to the repo.
             var url = URL(fileURLWithPath: #filePath)
             for _ in 0..<6 { url.deleteLastPathComponent() }
-            directory = url.deletingLastPathComponent().appending(path: "EchoSense/Sources/EchoSenseScenarios/Scenarios")
+            directory = url.deletingLastPathComponent().appending(path: "echo-sense/Sources/EchoSenseScenarios/Scenarios")
         }
         reload()
     }
