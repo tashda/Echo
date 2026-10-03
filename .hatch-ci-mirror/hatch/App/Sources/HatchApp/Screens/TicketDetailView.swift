@@ -264,6 +264,7 @@ struct TicketDetailView: View {
         .pickerStyle(.segmented)
         .labelsHidden()
         .frame(maxWidth: 520)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder private func tabContent(_ t: Ticket) -> some View {

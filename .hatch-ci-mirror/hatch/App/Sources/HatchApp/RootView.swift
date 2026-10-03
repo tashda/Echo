@@ -18,6 +18,7 @@ struct RootView: View {
                     AskPanel().frame(width: 320)
                 }
             }
+            .navigationTitle(state.route.title)
             .toolbar { MainToolbar() }
         }
         .sheet(isPresented: $state.showPalette) { CommandPalette() }
