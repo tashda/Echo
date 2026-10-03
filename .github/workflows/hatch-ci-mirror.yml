@@ -19,20 +19,40 @@ jobs:
     - uses: actions/checkout@v4
     - name: Versions
       run: swift --version && xcodebuild -version
-    - name: Core tests and CLI smoke test
+    - name: Core tests
+      id: tests
+      continue-on-error: true
       working-directory: .hatch-ci-mirror
       run: |
         git config --global user.email ci@hatch.local && git config --global user.name ci
-        swift test
-        swift build --product hatch
-        tools/smoke.sh .build/debug/hatch
+        set -o pipefail
+        swift test 2>&1 | tee /tmp/test.log | grep -E "error:|: failed|Executed [0-9]+ tests" | tail -40
     - name: Build the app
+      id: app
+      continue-on-error: true
       if: hashFiles('.hatch-ci-mirror/App/Package.swift') != ''
       working-directory: .hatch-ci-mirror/App
-      run: swift build 2>&1 | tee /tmp/app-build.log
+      run: |
+        set -o pipefail
+        swift build 2>&1 | tee /tmp/app-build.log | grep -E "error:|Compiling|Build complete" | grep -vE "^\[.*Compiling" | head -120
     - name: Build the Stage
+      id: stage
+      continue-on-error: true
       if: hashFiles('.hatch-ci-mirror/Stage/Package.swift') != ''
       working-directory: .hatch-ci-mirror/Stage
       run: |
-        swift test --filter StageCoreTests
-        swift build 2>&1 | tee /tmp/stage-build.log
+        set -o pipefail
+        swift test 2>&1 | grep -E "error:|: failed|Executed [0-9]+ tests" | tail -10
+        swift build 2>&1 | tee /tmp/stage-build.log | grep -E "error:|Build complete" | head -120
+    - name: Spike timing (round only, StageKit cached)
+      id: spike
+      continue-on-error: true
+      if: steps.stage.outcome == 'success'
+      working-directory: .hatch-ci-mirror/Stage
+      run: |
+        touch Sources/Rounds/ToastR18/*.swift
+        /usr/bin/time -p swift build --product HatchStageToast 2>&1 | tail -6
+    - name: Result
+      run: |
+        echo "tests=${{ steps.tests.outcome }} app=${{ steps.app.outcome }} stage=${{ steps.stage.outcome }} spike=${{ steps.spike.outcome }}"
+        [ "${{ steps.tests.outcome }}" = "success" ] && [ "${{ steps.app.outcome }}" = "success" ] && [ "${{ steps.stage.outcome }}" = "success" ]

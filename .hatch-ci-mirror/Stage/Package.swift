@@ -34,7 +34,9 @@ targets.append(
         dependencies: [
             "StageCore",
             // Only StageKit may depend on Hatch's local API (the adapter point is HatchAPIStageDataSource.swift).
-            .product(name: "HatchAPI", package: "Hatch"),
+            // The package identity of a path dependency is its folder name (lowercased), here "hatch" (the repo tashda/hatch).
+            .product(name: "HatchAPI", package: "hatch"),
+            .product(name: "HatchCore", package: "hatch"),
         ]
     )
 )

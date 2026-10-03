@@ -50,9 +50,9 @@ enum ToastManifest {
     }
   ],
   "specimens": [
-    {"id": "today", "title": "Echo today", "summary": "As it is built now.", "isEchoToday": true, "designWidth": 300, "designHeight": 190, "matchNote": "checked 2 days ago"},
-    {"id": "a", "title": "Option A · Quiet", "summary": "A little more room, same layout.", "designWidth": 300, "designHeight": 190},
-    {"id": "b", "title": "Option B · Roomy", "summary": "Built from the controls above.", "designWidth": 300, "designHeight": 190}
+    {"id": "today", "title": "Echo today", "summary": "As it is built now.", "isEchoToday": true, "designWidth": 300, "designHeight": 240, "matchNote": "checked 2 days ago"},
+    {"id": "a", "title": "Option A · Quiet", "summary": "A little more room, same layout.", "designWidth": 300, "designHeight": 240},
+    {"id": "b", "title": "Option B · Roomy", "summary": "Built from the controls above.", "designWidth": 300, "designHeight": 240}
   ],
   "questions": [
     {

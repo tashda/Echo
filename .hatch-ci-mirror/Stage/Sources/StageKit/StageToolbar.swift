@@ -47,6 +47,13 @@ struct StageToolbar: View {
                 Text("Ask")
             }
             .help("Ask Hatch a question with the current view and state.")
+            panelButtons
+        }
+    }
+
+    /// Kept in its own view so the row stays under SwiftUI's limit of ten children.
+    private var panelButtons: some View {
+        HStack(spacing: 4) {
             foldButton(panel: .controls, symbol: "sidebar.left", help: "Show or hide Controls")
             foldButton(panel: .decision, symbol: "sidebar.right", help: "Show or hide Decision")
             Button {
