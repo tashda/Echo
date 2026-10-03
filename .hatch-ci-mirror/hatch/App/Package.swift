@@ -11,12 +11,12 @@ let package = Package(
         .executableTarget(
             name: "HatchApp",
             dependencies: [
-                .product(name: "HatchCore", package: "Hatch"),
-                .product(name: "HatchGit", package: "Hatch"),
-                .product(name: "HatchSync", package: "Hatch"),
-                .product(name: "HatchAgent", package: "Hatch"),
-                .product(name: "HatchAPI", package: "Hatch"),
-                .product(name: "HatchImport", package: "Hatch"),
+                .product(name: "HatchCore", package: "hatch"),
+                .product(name: "HatchGit", package: "hatch"),
+                .product(name: "HatchSync", package: "hatch"),
+                .product(name: "HatchAgent", package: "hatch"),
+                .product(name: "HatchAPI", package: "hatch"),
+                .product(name: "HatchImport", package: "hatch"),
             ],
             path: "Sources/HatchApp"
         ),

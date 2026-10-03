@@ -8,11 +8,11 @@ SRC="$(cd "$(dirname "$0")/.." && pwd)"
 ECHO="${ECHO_CLONE:-/home/user/Echo}"
 cd "$ECHO"
 git checkout -q claude/echo-labs-features-wmwnbv
-rm -rf .hatch-ci-mirror && mkdir -p .hatch-ci-mirror
-(cd "$SRC" && tar --exclude=.git --exclude=.build -cf - .) | tar -xf - -C .hatch-ci-mirror
+rm -rf .hatch-ci-mirror && mkdir -p .hatch-ci-mirror/hatch   # folder must be called "hatch": SwiftPM names path dependencies by folder
+(cd "$SRC" && tar --exclude=.git --exclude=.build -cf - .) | tar -xf - -C .hatch-ci-mirror/hatch
 mkdir -p .github/workflows
 cp "$SRC/tools/hatch-ci-mirror.yml" .github/workflows/hatch-ci-mirror.yml
-git add -A .hatch-ci-mirror .github/workflows/hatch-ci-mirror.yml
+git add -A -f .hatch-ci-mirror .github/workflows/hatch-ci-mirror.yml   # -f: Echo ignores *.md, the tests need fixtures
 if git diff --cached --quiet; then echo "mirror already up to date"; exit 0; fi
 git -c user.name=Claude -c user.email=noreply@anthropic.com commit -q -m "ci(hatch): mirror of tashda/hatch for macOS compile checks (temporary)
 
