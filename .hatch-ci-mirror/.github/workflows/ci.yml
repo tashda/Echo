@@ -1,0 +1,47 @@
+name: "CI"
+
+on:
+  push:
+    branches: [ main, "claude/**" ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-linux:
+    name: "Core (Linux)"
+    runs-on: ubuntu-latest
+    container: swift:6.1-noble
+    steps:
+    - uses: actions/checkout@v4
+    - name: Test
+      run: |
+        apt-get update -qq && apt-get install -y -qq libsqlite3-dev git >/dev/null
+        git config --global user.email ci@hatch.local && git config --global user.name ci
+        swift test
+        swift build --product hatch
+        tools/smoke.sh .build/debug/hatch
+
+  macos:
+    name: "App and Stage (macOS)"
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Swift version
+      run: swift --version && xcodebuild -version
+    - name: Core tests
+      run: |
+        git config --global user.email ci@hatch.local && git config --global user.name ci
+        swift test
+    - name: Build the app package
+      if: hashFiles('App/Package.swift') != ''
+      working-directory: App
+      run: swift build 2>&1 | tee /tmp/app-build.log
+    - name: Build the Stage package
+      if: hashFiles('Stage/Package.swift') != ''
+      working-directory: Stage
+      run: |
+        swift build 2>&1 | tee /tmp/stage-build.log

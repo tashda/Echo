@@ -1,0 +1,57 @@
+[
+ {
+  "id": "30qpqamiksqabzad3rbl",
+  "at": 1791016402903,
+  "by": "u_c7xQsyNnhFCg3QpACZnuSg",
+  "item": "E8",
+  "kind": "note",
+  "repliedAt": 1791016900000,
+  "reply": "Yes, and I added decision E9 for it. In the same review as the rewrite, the agent also says whether the type looks wrong, with its reason, and you decide. For example: a Bug with no steps to reproduce may really be a Question. A Tweak with several reasonable fixes should be a Proposal. A Question about how something should look may be a Sketch. A ticket that spans several areas may be a Theme with child tickets. Accept changes the type, Keep mine leaves it. I recommend suggesting and not changing it automatically, because the type decides the whole path and you know the intent better than the agent can from the text.",
+  "status": "answered",
+  "text": "Vetting agent should also see if it really is a bug or a question or…"
+ },
+ {
+  "id": "9qh7yfkjueunoic295f9",
+  "at": 1791014799846,
+  "by": "u_c7xQsyNnhFCg3QpACZnuSg",
+  "item": "E7",
+  "kind": "note",
+  "repliedAt": 1791016100000,
+  "reply": "Agreed, and I added decision E8 for exactly this. The vetting agent rewrites your free-form text into the structure of the ticket type and shows it as a diff beside the questions. You choose Accept, Edit or Keep mine, and your original is always kept in the history. That is also why free-form input (your pick on E7) works: you write loosely and Hatch does the structuring.",
+  "status": "answered",
+  "text": "The agent that vets the ticket also rewrites it and suggest the ticket to me and I accept or have notes or can edit it"
+ },
+ {
+  "id": "f8td5itmf8047bglostx",
+  "at": 1791015768613,
+  "by": "u_c7xQsyNnhFCg3QpACZnuSg",
+  "item": "L3",
+  "kind": "question",
+  "repliedAt": 1791016100000,
+  "reply": "I added decision L5 with three options. My suggestion is B: Hatch holds the searchable Spec text with links to tickets and decisions, and a separate Spec app per project, built the same way as the Stage, shows each element as a live specimen so you can still pick the tab bar and see what has been decided and how it looks. A blueprint action has an agent scaffold that Spec app for a new project from its area index, and you review it. That keeps the heavy specimen code out of Hatch. A ticket also cannot reach Done until its Spec pages are updated or marked unchanged, which Hatch checks in code.",
+  "status": "answered",
+  "text": "The specs section is amazing in Echo Labs so I can chose e.g. tab bar and see what we have done for that. It is quite heavy to include in Hatch, but maybe offer a blueprint to build that app for the project or something along those lines. Needs suggestions from you"
+ },
+ {
+  "id": "h1ay3l9kq1axgzf1uqvc",
+  "at": 1791015440964,
+  "by": "u_c7xQsyNnhFCg3QpACZnuSg",
+  "item": "I3",
+  "kind": "note",
+  "repliedAt": 1791016100000,
+  "reply": "You are right, and Echo already has CI: CI (Light) runs Build & Test on every push to dev, and CI (Full) runs on main and on pull requests to it, both on your xcode-27 runner. I reworded I3 so Hatch only runs the area-mapped tests in the ticket's workspace. Your answer to I3 still stands, only the words 'full suite before merge' are gone. I added I6: approved tickets merge into a hatch branch, CI checks it, and Hatch promotes it to dev when it is green. The cost is a small change to ci-light.yml so it also triggers on the hatch branch. Hatch reads the check results from GitHub and shows them on the ticket.",
+  "status": "answered",
+  "text": "I don’t think we need a full build before merge - if we merge to Echo, the repo should cover the testing part, right? Maybe a separate branch in Echo (or whichever project) which is coming from Hatch, so there is a hatch branch?"
+ },
+ {
+  "id": "yb5x4d7tndjnyr0mx5qc",
+  "at": 1791015464378,
+  "by": "u_c7xQsyNnhFCg3QpACZnuSg",
+  "item": "H5",
+  "kind": "note",
+  "repliedAt": 1791016100000,
+  "reply": "I may have read this narrowly, so tell me if I got it wrong. Looking at several options at once is covered by your picks on H2 (all side by side) and H5 (scenarios and the matrix). What side by side does not give you is mixing parts of different options, such as the spacing from A with the icon from B. I added H22 for that: a live Mix column driven by your answers to the questions, which you can pin into extra columns and compare next to the original options in the same scenarios and appearances. If you meant something else, for example several options running with real interaction at the same time, tell me and I will add it as another option.",
+  "status": "answered",
+  "text": "Sometimes I need to test several options at the same time. Please think of how this would be handled best"
+ }
+]

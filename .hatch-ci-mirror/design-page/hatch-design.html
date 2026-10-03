@@ -1,0 +1,1620 @@
+<title>Hatch Design Decisions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout concept: a drafting-table spec. Left rail of sections with progress, one column of screens, each followed by its decisions. */
+:root{
+  --bg:#F1F4F7; --surface:#FFFFFF; --surface2:#E8EDF2; --ink:#14213D; --muted:#566376; --line:#D2DAE3;
+  --accent:#2B59C3; --accent-ink:#FFFFFF; --accent-soft:#E3EBFB;
+  --you:#B4540A; --you-bg:#FBEBDD; --agent:#0B6E80; --agent-bg:#DDF0F3; --app:#4A5B6E; --app-bg:#E4EAF0;
+  --done:#2D7A46; --done-bg:#E0F1E6; --off:#76838F; --off-bg:#ECEFF2; --crit:#B3261E; --crit-bg:#FBE4E2;
+  --win:#FBFCFD; --side:#EDF1F5; --bar:#E4E9EF; --hatch:#C9D3DF;
+  --f-head:"Bricolage Grotesque",system-ui,sans-serif; --f-body:"IBM Plex Sans",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+  --f-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0B1220; --surface:#121B2D; --surface2:#18243A; --ink:#E6ECF7; --muted:#93A1B8; --line:#26354F;
+  --accent:#7FA6FF; --accent-ink:#0B1630; --accent-soft:#1A2A4D;
+  --you:#F0A25E; --you-bg:#3A2412; --agent:#4FC3D4; --agent-bg:#0F3039; --app:#A3B3C8; --app-bg:#1D2B42;
+  --done:#6CCB8A; --done-bg:#12301E; --off:#8697AB; --off-bg:#1B2840; --crit:#FF8A80; --crit-bg:#3C1B19;
+  --win:#0E1626; --side:#121D31; --bar:#17233A; --hatch:#243350; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0B1220; --surface:#121B2D; --surface2:#18243A; --ink:#E6ECF7; --muted:#93A1B8; --line:#26354F;
+  --accent:#7FA6FF; --accent-ink:#0B1630; --accent-soft:#1A2A4D;
+  --you:#F0A25E; --you-bg:#3A2412; --agent:#4FC3D4; --agent-bg:#0F3039; --app:#A3B3C8; --app-bg:#1D2B42;
+  --done:#6CCB8A; --done-bg:#12301E; --off:#8697AB; --off-bg:#1B2840; --crit:#FF8A80; --crit-bg:#3C1B19;
+  --win:#0E1626; --side:#121D31; --bar:#17233A; --hatch:#243350; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;margin:0;padding-inline:16px}
+h1,h2,h3,h4{font-family:var(--f-head);text-wrap:balance;margin:0;line-height:1.15}
+p{margin:0 0 .8em}
+code,.mono{font-family:var(--f-mono);font-size:.88em}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible,label:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+a{color:var(--accent)}
+.page{max-width:1240px;margin-inline:auto;padding-block:20px 80px}
+.hero{border:1px solid var(--line);border-radius:14px;padding:28px 28px 24px;background:
+  repeating-linear-gradient(135deg,transparent 0 9px,var(--hatch) 9px 10px) right/38% 100% no-repeat,var(--surface)}
+.hero h1{font-size:clamp(34px,5vw,54px);letter-spacing:-.02em}
+.hero .sub{max-width:62ch;color:var(--muted);margin-top:10px;font-size:16px}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:22px}
+.rule{background:var(--surface2);border-radius:10px;padding:12px 14px;font-size:14px}
+.rule b{display:block;font-family:var(--f-head);font-size:15px;margin-bottom:2px}
+.howto{margin-top:18px;font-size:14px;color:var(--muted);max-width:80ch}
+.howto b{color:var(--ink)}
+.layout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;margin-top:22px;align-items:start}
+.toc{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:12px 10px}
+.toc h4{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:2px 8px 8px}
+.toc a{display:flex;justify-content:space-between;gap:8px;padding:6px 8px;border-radius:7px;text-decoration:none;color:var(--ink);font-size:13.5px}
+.toc a:hover{background:var(--surface2)}
+.toc a .n{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);white-space:nowrap}
+.toc a .n.full{color:var(--done)}
+.meter{height:6px;background:var(--surface2);border-radius:4px;margin:6px 8px 10px;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--accent);transition:width .25s}
+.tocbtns{display:grid;gap:6px;margin:10px 4px 2px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 11px;font-size:13px;font-weight:500}
+.btn:hover{background:var(--surface2)}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.sm{padding:3px 9px;font-size:12px}
+.btn[disabled]{opacity:.5;cursor:default}
+section.sec{margin-bottom:56px;scroll-margin-top:12px}
+section.sec>h2{font-size:clamp(26px,3.4vw,34px);letter-spacing:-.01em}
+.lead{color:var(--muted);max-width:74ch;margin-top:8px}
+.tag{display:inline-block;font-family:var(--f-mono);font-size:11.5px;color:var(--muted);border:1px solid var(--line);border-radius:5px;padding:0 6px;margin-right:6px;vertical-align:2px}
+h3.sub{font-size:19px;margin:26px 0 10px}
+.mockbox{border:1px solid var(--line);border-radius:12px;background:var(--surface2);padding:14px;margin:18px 0;overflow-x:auto}
+.mockbox>.cap{font-size:12.5px;color:var(--muted);margin:0 2px 10px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.mockbox>.cap b{color:var(--ink)}
+.mi{min-width:880px}
+.sample{font-family:var(--f-mono);font-size:11px;color:var(--muted);border:1px dashed var(--line);border-radius:5px;padding:0 6px}
+table.t{border-collapse:collapse;width:100%;font-size:13.5px;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+table.t th,table.t td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+table.t th{background:var(--surface2);font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+table.t tr:last-child td{border-bottom:0}
+.tscroll{overflow-x:auto}
+.tscroll table{min-width:640px}
+
+/* chips & legends */
+.chip{display:inline-flex;align-items:center;gap:6px;padding:1px 9px;border-radius:999px;font-size:11.5px;font-weight:600;background:var(--app-bg);color:var(--app);white-space:nowrap}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.chip.you{background:var(--you-bg);color:var(--you)}.chip.agent{background:var(--agent-bg);color:var(--agent)}
+.chip.app{background:var(--app-bg);color:var(--app)}.chip.done{background:var(--done-bg);color:var(--done)}
+.chip.off{background:var(--off-bg);color:var(--off)}.chip.crit{background:var(--crit-bg);color:var(--crit)}
+.chip.dim{opacity:.28}
+.ic{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.pathbtns{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.pathbtns button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 12px;font-size:13px}
+.pathbtns button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.lanes{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:10px;overflow-x:auto}
+.lane{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;min-width:150px}
+.lane h4{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.lane .chip{display:flex;margin-bottom:6px;width:fit-content;transition:opacity .15s}
+.types{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.type{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px}
+.type h4{display:flex;align-items:center;gap:8px;font-size:18px}
+.type h4 .ic{width:18px;height:18px}
+.type .k{font-size:12.5px;color:var(--muted);margin-top:8px}
+.type .k b{color:var(--ink);font-weight:600}
+
+/* decision cards */
+.decs{display:grid;gap:18px;margin-top:22px}
+.dec{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 16px 14px;scroll-margin-top:12px}
+.dec.decided{border-color:color-mix(in srgb,var(--accent) 55%,var(--line))}
+.dec .top{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:baseline}
+.dec .top h4{font-size:18px}
+.dec .state{margin-left:auto;font-size:12px;font-weight:600;color:var(--muted)}
+.dec .state.ok{color:var(--done)}.dec .state.q{color:var(--you)}
+.dec .qtext{margin:6px 0 12px;color:var(--muted);max-width:80ch}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:10px}
+.opt{position:relative;display:flex;flex-direction:column;gap:6px;border:1.5px solid var(--line);border-radius:10px;padding:10px 11px 11px;cursor:pointer;background:var(--bg)}
+.opt:hover{border-color:var(--muted)}
+.opt input{position:absolute;opacity:0;pointer-events:none}
+.opt.on{border-color:var(--accent);background:var(--accent-soft)}
+.opt:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.opt .nm{font-weight:600;font-size:14px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.opt .nm .k{font-family:var(--f-mono);font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+.opt .ds{font-size:13px;color:var(--muted)}
+.opt .star{font-size:11px;font-weight:700;color:var(--accent-ink);background:var(--accent);border-radius:999px;padding:0 8px}
+.wire{width:100%;height:auto;display:block;border-radius:6px;background:var(--surface)}
+.wire rect{fill:none;stroke:var(--muted);stroke-width:1}
+.wire rect.f{fill:var(--surface2)}.wire rect.a{fill:var(--accent);fill-opacity:.35;stroke:var(--accent)}
+.wire text{font:5px var(--f-mono);fill:var(--muted)}
+.why{margin-top:12px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0;padding:8px 12px;font-size:14px}
+.why b{font-family:var(--f-head)}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+.nts{display:grid;gap:8px;margin-top:10px}
+.nt{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13.5px;background:var(--bg)}
+.nt .meta{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted);margin-bottom:3px}
+.nt.question{border-color:color-mix(in srgb,var(--you) 50%,var(--line))}
+.nt .reply{margin-top:6px;padding:6px 9px;border-left:3px solid var(--agent);background:var(--agent-bg);border-radius:0 6px 6px 0}
+.nt .reply b{color:var(--agent)}
+.nt .x{margin-left:auto;border:0;background:none;color:var(--muted);font-size:12px;text-decoration:underline}
+.compose{display:grid;gap:6px;margin-top:8px}
+.compose textarea{width:100%;min-height:68px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;padding:8px 10px;resize:vertical}
+.compose .row{display:flex;gap:8px;align-items:center}
+.banner{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 12px;font-size:13.5px;margin:12px 0;display:none}
+.banner.show{display:block}
+.banner.warn{border-color:var(--you);background:var(--you-bg)}
+
+.rvi{border:1px solid var(--line);border-radius:10px;padding:9px 12px;background:var(--surface);display:flex;gap:10px;align-items:flex-start;margin-bottom:8px}
+.rvi .tag{margin-top:2px;flex:none}
+.rvc{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.rvc li{border-left:3px solid var(--accent);background:var(--surface);border-radius:0 10px 10px 0;padding:9px 14px;border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.rvc li b{font-family:var(--f-head)}
+/* app mock chrome */
+.win{background:var(--win);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-family:var(--f-ui);font-size:12px;color:var(--ink);box-shadow:0 8px 24px rgba(10,20,40,.10)}
+.tb{height:30px;background:var(--bar);display:flex;align-items:center;gap:6px;padding:0 12px;border-bottom:1px solid var(--line)}
+.tb i{width:10px;height:10px;border-radius:50%;background:#FF5F57}.tb i:nth-child(2){background:#FEBC2E}.tb i:nth-child(3){background:#28C840}
+.tb .tt{margin:0 auto;color:var(--muted);font-size:11.5px;transform:translateX(-25px)}
+.wb{display:grid;grid-template-columns:190px minmax(0,1fr);min-height:420px}
+.sb{background:var(--side);border-right:1px solid var(--line);padding:10px 8px;display:flex;flex-direction:column;gap:2px}
+.sb .proj{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:7px;background:var(--surface);border:1px solid var(--line);margin-bottom:8px;font-weight:600}
+.sb .proj small{margin-left:auto;color:var(--muted);font-weight:400}
+.sb .grp{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:8px 8px 3px}
+.si{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:6px;color:var(--ink)}
+.si.on{background:var(--accent);color:var(--accent-ink)}
+.si .b{margin-left:auto;font-size:10.5px;background:var(--you);color:#fff;border-radius:9px;padding:0 6px}
+.si.on .b{background:rgba(255,255,255,.3)}
+.sb .sync{margin-top:auto;font-size:10.5px;color:var(--muted);padding:6px 8px;display:flex;gap:6px;align-items:center}
+.sb .sync::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--done)}
+.ct{display:flex;flex-direction:column;min-width:0}
+.bar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--win);flex-wrap:wrap}
+.bar .sp{flex:1}
+.mb{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:2px 9px;font-size:11.5px;display:inline-flex;gap:5px;align-items:center}
+.mb.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.mb.ok{background:var(--done);color:#fff;border-color:var(--done)}
+.mb.bad{background:var(--crit-bg);color:var(--crit);border-color:var(--crit)}
+.mb.you{background:var(--you);color:#fff;border-color:var(--you)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:none;padding:3px 10px;font-size:11.5px;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
+.split{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);flex:1;min-height:0}
+.lst{border-right:1px solid var(--line);overflow:hidden}
+.gh{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:8px 12px 4px;display:flex;gap:8px;align-items:center}
+.gh .cnt{background:var(--surface2);border-radius:8px;padding:0 6px}
+.gh.you{color:var(--you)}.gh.agent{color:var(--agent)}
+.rw{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;padding:7px 12px;border-bottom:1px solid var(--line);align-items:center}
+.rw.on{background:var(--accent-soft)}
+.rw .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rw .s{color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rw .tyi{width:22px;height:22px;border-radius:6px;background:var(--surface2);display:grid;place-items:center}
+.rw .age{font-size:10.5px;color:var(--muted)}
+.rw.mut{opacity:.6}
+.pane{padding:14px;overflow:hidden}
+.pane h5{font-family:var(--f-head);font-size:15px;margin:6px 0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-top:9px}
+.card.rec{border-color:var(--accent);background:var(--accent-soft)}
+.card.turn{background:var(--you-bg);border-color:var(--you)}
+.card.turn.agent{background:var(--agent-bg);border-color:var(--agent)}
+.card small,.muted{color:var(--muted)}
+.mb.pri .kbd{background:transparent;border-color:currentColor;color:inherit}
+.kbd{font-family:var(--f-mono);font-size:10.5px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--surface);color:var(--muted)}
+.two{display:grid;grid-template-columns:minmax(0,1fr) 270px;flex:1}
+.stack{display:grid;gap:9px}
+.fld{border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:5px 9px;color:var(--muted);min-height:26px}
+.fld.big{min-height:84px}
+.drop{border:1.5px dashed var(--line);border-radius:8px;padding:10px;display:flex;gap:8px;align-items:center;color:var(--muted)}
+.thumb{width:62px;height:42px;border-radius:5px;background:linear-gradient(135deg,var(--surface2),var(--line));border:1px solid var(--line)}
+.tabs{display:flex;gap:2px;padding:0 12px;border-bottom:1px solid var(--line)}
+.tabs span{padding:7px 10px;color:var(--muted)}
+.tabs span.on{color:var(--ink);box-shadow:inset 0 -2px 0 var(--accent);font-weight:600}
+.steps{display:grid;gap:0}
+.stp{display:grid;grid-template-columns:20px 1fr auto;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);align-items:center}
+.stp .d{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font-size:9px}
+.stp.ok .d{background:var(--done);border-color:var(--done);color:#fff}
+.stp.run .d{border-color:var(--agent);box-shadow:0 0 0 3px var(--agent-bg)}
+.log{font-family:var(--f-mono);font-size:10.5px;background:var(--bar);border-radius:7px;padding:8px;color:var(--muted);line-height:1.5}
+.bar2{height:6px;border-radius:3px;background:var(--surface2);overflow:hidden}.bar2 i{display:block;height:100%;background:var(--done)}
+.tr{display:grid;gap:0;font-size:11.5px}
+.tr>div{display:grid;grid-template-columns:var(--cols);gap:8px;padding:6px 10px;border-bottom:1px solid var(--line);align-items:center}
+.tr>div.h{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:var(--surface2)}
+.var3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:12px;flex:1;background:var(--side)}
+.vcard{background:var(--win);border:1px solid var(--line);border-radius:9px;padding:10px;position:relative;min-height:230px}
+.vcard h6{margin:0 0 8px;font-size:12px}
+.wf{border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:7px;display:grid;gap:5px}
+.wf i{display:block;height:7px;background:var(--surface2);border-radius:3px}.wf i.s{width:60%}.wf i.t{height:10px;background:var(--line);width:45%}
+.pin{position:absolute;width:18px;height:18px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--you);color:#fff;display:grid;place-items:center;font-size:9px}
+.pin span{transform:rotate(45deg)}
+
+/* the Proposal stage prototype */
+.stagewrap{flex:1;display:grid;grid-template-columns:var(--lcol,176px) minmax(0,1fr) var(--rcol,224px);min-height:520px}
+#stageMount.mi{min-width:1000px}
+.stagewrap.noL{--lcol:0px}.stagewrap.noR{--rcol:0px}
+.ctl,.dcn{padding:10px;overflow:hidden;background:var(--win)}
+.ctl{border-right:1px solid var(--line)}.dcn{border-left:1px solid var(--line)}
+.stagewrap.noL .ctl,.stagewrap.noR .dcn{padding:0;border:0}
+.ctl h6,.dcn h6{margin:0 0 6px;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.stg{--sbg:#E9EEF3;--card:#fff;--st:#142033;--sm:#5B6B7E;--sl:#D6DEE8;--sacc:#2B59C3;--serr:#C0362C;--sok:#2E8B57;
+  background:var(--sbg);color:var(--st);padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0;position:relative}
+.stg[data-app=dark]{--sbg:#12171F;--card:#1E2631;--st:#E9EEF5;--sm:#93A0B2;--sl:#2E3948;--sacc:#7FA6FF;--serr:#FF7B6F;--sok:#5FD08B}
+.stg[data-app=contrast]{--sbg:#fff;--card:#fff;--st:#000;--sm:#222;--sl:#000;--sacc:#0030B0;--serr:#A00000;--sok:#006400}
+.scen{display:flex;gap:5px;flex-wrap:wrap}
+.scen button{border:1px solid var(--sl);background:var(--card);color:var(--st);border-radius:999px;padding:1px 9px;font-size:11px}
+.scen button[aria-pressed=true]{background:var(--sacc);border-color:var(--sacc);color:#fff}
+.cols{display:grid;gap:12px;flex:1;align-content:start}
+.cols.c3{grid-template-columns:repeat(3,minmax(0,1fr))}.cols.c2{grid-template-columns:repeat(2,minmax(0,1fr))}.cols.c1{grid-template-columns:minmax(0,1fr)}
+.xh{display:flex;gap:6px;align-items:center;font-size:11px;font-weight:600;margin-bottom:6px;flex-wrap:wrap}
+.xh .badge{font-weight:500;font-size:10px;color:var(--sm);border:1px solid var(--sl);border-radius:4px;padding:0 5px}
+.xh .badge.ok{color:var(--sok);border-color:var(--sok)}
+.xh .pick{margin-left:auto;display:flex;gap:3px}
+.xh .pick button{border:1px solid var(--sl);background:var(--card);color:var(--st);border-radius:5px;font-size:10px;padding:0 6px}
+.xh .pick button[aria-pressed=true]{background:var(--sacc);color:#fff;border-color:var(--sacc)}
+.slot{border:1px dashed var(--sl);border-radius:9px;padding:14px 10px;min-height:150px;display:grid;align-content:start;gap:7px;justify-items:center;position:relative}
+.tst{--pad:10px;--gap:8px;--r:10px;--ic:20px;--fs:12px;
+  position:relative;display:flex;gap:var(--gap);align-items:flex-start;width:min(100%,250px);padding:var(--pad);border-radius:var(--r);
+  background:var(--card);border:1px solid var(--sl);box-shadow:0 4px 14px rgba(0,0,0,.12);font-size:var(--fs)}
+.tst .i{width:var(--ic);height:var(--ic);border-radius:50%;background:var(--sacc);flex:none}
+.tst.err .i{background:var(--serr)}.tst.ok .i{background:var(--sok)}
+.tst{min-width:0}.tst .b{min-width:0;flex:1;overflow-wrap:break-word}.tst .b b{display:block;font-weight:600}.tst .b span{color:var(--sm);display:block}
+.tst .act{display:none;margin-top:6px;gap:6px}.tst .act u{color:var(--sacc);text-decoration:none;font-weight:600;font-size:calc(var(--fs) - 1px)}
+.tst .cl{display:none;position:absolute;top:5px;right:8px;color:var(--sm);font-size:11px}
+.tst.hov .act,.tst.err .act{display:flex}.tst.hov .cl{display:block}
+.tst.A{--pad:12px;--gap:10px;--r:12px;--ic:22px;--fs:12.5px}
+.tst.B{--pad:16px;--gap:14px;--r:16px;--ic:28px;--fs:13px}
+.tst.r26{--r:26px}.tst.r10{--r:10px}
+.rl{position:absolute;font:9.5px var(--f-mono);color:#E5484D;pointer-events:none}
+.rl.v{border-left:1px dashed #E5484D;width:0}.rl.h{border-top:1px dashed #E5484D;height:0}
+.rl.lb{background:#E5484D;color:#fff;border-radius:3px;padding:0 3px}
+.ovl{position:relative;min-height:150px}.ovl .slot{position:absolute;inset:0;background:transparent}
+.matrix{display:grid;grid-template-columns:76px repeat(3,minmax(0,1fr));gap:7px;font-size:10.5px;align-items:center}
+.matrix .h{font-weight:600;color:var(--sm)}
+.matrix .tst{width:100%;--pad:6px;--ic:12px;--fs:9px;--gap:5px;box-shadow:none}
+.matrix .tst.A{--pad:7px}.matrix .tst.B{--pad:9px;--ic:14px}
+.matrix .df{outline:2px solid var(--serr);outline-offset:2px;border-radius:8px}
+.rngrow{display:flex;gap:8px;align-items:center;font-size:11px;color:var(--sm)}
+.rngrow input{flex:1}
+.optrow{display:grid;gap:5px;margin-bottom:8px}
+.optrow .ln{display:flex;justify-content:space-between;font-size:11px}
+.dcard{border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--surface);margin-bottom:8px;font-size:11.5px}
+.dcard .rc{color:var(--accent);font-weight:600;margin:3px 0}
+.dcard label{display:flex;gap:6px;align-items:center;padding:1px 0}
+.help{font-size:12.5px;color:var(--muted);margin-top:10px}
+.call{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px 18px;margin:12px 0 0;padding:0;list-style:none;font-size:13.5px}
+.call li{display:flex;gap:8px}.call li b{font-family:var(--f-mono);font-size:11px;background:var(--accent);color:var(--accent-ink);border-radius:50%;width:19px;height:19px;display:grid;place-items:center;flex:none;margin-top:2px}
+.sql{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px}
+.sql div{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:13px}
+.sql b{font-family:var(--f-mono);font-size:13px}.sql span{display:block;color:var(--muted);font-family:var(--f-mono);font-size:11.5px;margin-top:3px}
+@media (max-width:900px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .toc{position:static;max-height:none;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+  .toc h4,.meter,.tocbtns{width:100%}
+  .toc a{flex:none}
+  .lanes{grid-template-columns:repeat(5,170px)}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-desk" viewBox="0 0 16 16"><path d="M2 9l2-6h8l2 6v4H2z M2 9h4l1 2h2l1-2h4"/></symbol>
+<symbol id="i-list" viewBox="0 0 16 16"><path d="M5 4h9M5 8h9M5 12h9M2 4h.01M2 8h.01M2 12h.01"/></symbol>
+<symbol id="i-board" viewBox="0 0 16 16"><path d="M2 3h3.5v10H2z M6.5 3H10v6H6.5z M11 3h3v8h-3z"/></symbol>
+<symbol id="i-layers" viewBox="0 0 16 16"><path d="M8 2l6 3-6 3-6-3z M2 8l6 3 6-3 M2 11l6 3 6-3"/></symbol>
+<symbol id="i-pencil" viewBox="0 0 16 16"><path d="M3 13l.7-3L11 2.7a1.4 1.4 0 012 2L5.7 12 3 13z M10 3.7l2.3 2.3"/></symbol>
+<symbol id="i-bubble" viewBox="0 0 16 16"><path d="M2.5 3h11v7.5H8L5 13v-2.5H2.5z"/></symbol>
+<symbol id="i-slider" viewBox="0 0 16 16"><path d="M2 5h12M2 11h12 M5 3v4 M10 9v4"/></symbol>
+<symbol id="i-bug" viewBox="0 0 16 16"><path d="M5.5 6h5v4a2.5 2.5 0 01-5 0z M6 4a2 2 0 014 0 M3 7h2.5 M10.5 7H13 M3 11h2.5 M10.5 11H13"/></symbol>
+<symbol id="i-folder" viewBox="0 0 16 16"><path d="M2 4.5h4l1.5 1.5H14V13H2z"/></symbol>
+<symbol id="i-check" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7"/></symbol>
+<symbol id="i-eye" viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z M8 10a2 2 0 100-4 2 2 0 000 4z"/></symbol>
+<symbol id="i-doc" viewBox="0 0 16 16"><path d="M4 2h6l3 3v9H4z M10 2v3h3 M6 8h5M6 11h5"/></symbol>
+<symbol id="i-flag" viewBox="0 0 16 16"><path d="M4 14V2 M4 3h8l-1.5 3L12 9H4"/></symbol>
+<symbol id="i-cpu" viewBox="0 0 16 16"><path d="M5 5h6v6H5z M8 2v3 M8 11v3 M2 8h3 M11 8h3"/></symbol>
+<symbol id="i-log" viewBox="0 0 16 16"><path d="M3 3h10v10H3z M5.5 6h5 M5.5 8.5h5 M5.5 11h3"/></symbol>
+<symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
+<symbol id="i-search" viewBox="0 0 16 16"><path d="M7 12a5 5 0 100-10 5 5 0 000 10z M11 11l3 3"/></symbol>
+<symbol id="i-spark" viewBox="0 0 16 16"><path d="M8 2l1.5 4.5L14 8l-4.5 1.5L8 14l-1.5-4.5L2 8l4.5-1.5z"/></symbol>
+<symbol id="i-branch" viewBox="0 0 16 16"><path d="M5 3v10 M5 9c0-2 6-1 6-4 M5 3h.01 M11 5h.01 M5 13h.01"/></symbol>
+</defs></svg>
+
+<div class="page">
+<header class="hero">
+  <h1>Hatch</h1>
+  <p class="sub">The design for the new Labs. Every screen, state, workflow and name, with sample data. Where there is a choice to make, you will find the options, my recommendation and the reason, and a place to answer.</p>
+  <div class="rules">
+    <div class="rule"><b>The app does the bookkeeping</b>Statuses, GitHub labels, SQLite and the sync record change in one app function. Agents call <code>hatch</code>, they never edit state.</div>
+    <div class="rule"><b>Every status says whose turn it is</b>You, an agent, or Hatch itself. The Desk shows only what waits for you.</div>
+    <div class="rule"><b>Look first, build later</b>Sketches are HTML and cost seconds. Swift specimens come once a direction is picked.</div>
+  </div>
+  <p class="howto"><b>How to use this page.</b> Each card is a decision. Pick an option, or press <b>Use recommendation</b>. Add a <b>note</b> for context, or <b>ask a question</b> when you need more before deciding. Everything saves as you go. Tell me in the chat when you have left notes or questions and I will read them, answer them here under your question, and change the options if you ask for it. The sample tickets and numbers are invented.</p>
+  <div class="banner" id="dbBanner"></div>
+</header>
+
+<div class="layout">
+<nav class="toc" aria-label="Sections">
+  <h4>Decisions</h4>
+  <div class="meter" aria-hidden="true"><i id="meterFill"></i></div>
+  <div id="tocLinks"></div>
+  <div class="tocbtns">
+    <button class="btn" id="btnAllRec" type="button">Use all recommendations</button>
+    <button class="btn" id="btnFilter" type="button" aria-pressed="false">Show only open decisions</button>
+  </div>
+</nav>
+<main id="main">
+
+<!-- REVIEW -->
+<section class="sec" id="s-review" data-title="For your review">
+  <h2>For your review</h2>
+  <p class="lead">What needs you now, and my comments on it. The two lists update as you answer.</p>
+  <h3 class="sub">Waiting for your answer</h3>
+  <div id="rv-open"></div>
+  <h3 class="sub">My comments</h3>
+  <ul class="rvc">
+    <li><b>Your answers on E8, I6 and O1.</b> All three match my recommendations: the agent's rewrite goes through Accept, Edit or Keep mine; tickets merge into a <code>hatch</code> branch that CI checks; and the first thing to build is the Stage spike.</li>
+    <li><b>Your note on E8: the agent also checks the type.</b> Yes. I added E9: Tally (or whatever name you pick in V1) suggests a type change with its reason, in the same review as the rewrite, and you decide.</li>
+    <li><b>A name for the vetting agent.</b> V1 has five options. I recommend Tally.</li>
+    <li><b>Still open:</b> H22 (mixing options in the Stage) and L5 (the Specs section), plus the two new ones above. They are in the list at the top of this section. None of them blocks the Stage spike.</li>
+    <li><b>E7 and C5 stay as you chose them.</b> E7 works because you chose A on E8. On C5, pressing A on a Proposal accepts all my recommended answers at once, which is only wise after reading the recommendation in the brief pane. Tell me if you want A limited to tickets with a single question.</li>
+    <li><b>Not measured yet.</b> S1 assumes a Stage app per round builds quickly. Your 10 to 15 seconds is for the whole lab, so a round-only build should be well under that, but nobody has timed it. That is what the spike is for.</li>
+    <li><b>What this design changes outside Hatch, when we start.</b> A hatch trigger in <code>ci-light.yml</code> (I6). A DEBUG-only "Preview" banner in Echo (J4). EchoDesignSystem moves to its own repo. Four new repos: <code>hatch</code>, <code>hatch-tickets</code> (private), <code>echo-specimens</code>, <code>echo-design-system</code>. Please check those names.</li>
+    <li><b>Nothing has been built.</b> The next step is step 0 (tidy) and the Stage spike from the build order. Say go and I start there.</li>
+  </ul>
+  <h3 class="sub">My replies to your notes</h3>
+  <div id="rv-replies"></div>
+</section>
+
+<!-- A FOUNDATIONS -->
+<section class="sec" id="s-foundations" data-title="Names and flow">
+  <h2>Names, ticket types and statuses</h2>
+  <p class="lead">The vocabulary comes first because every screen uses it. "Round" is replaced by clearer words, and every status carries a colour for whose turn it is.</p>
+
+  <h3 class="sub">Ticket types</h3>
+  <div class="types">
+    <div class="type"><h4><svg class="ic"><use href="#i-bubble"/></svg>Question</h4><div class="k"><b>Use it for</b> an idea or UX issue that is still words.<br><b>You get</b> a reply that has read the Spec and related tickets, with a recommendation.<br><b>Ends</b> answered, often with new tickets linked.</div></div>
+    <div class="type"><h4><svg class="ic"><use href="#i-pencil"/></svg>Sketch</h4><div class="k"><b>Use it for</b> exploring a layout or flow before any Swift.<br><b>You get</b> 2 to 4 variants as HTML, side by side, with pinned comments.<br><b>Ends</b> a direction chosen. "Make it real" creates a Proposal.</div></div>
+    <div class="type"><h4><svg class="ic"><use href="#i-layers"/></svg>Proposal</h4><div class="k"><b>Use it for</b> a specific change you want to see in Swift, with several options. This replaces today's Round.<br><b>You get</b> specimens with controls and scenarios, judged against Echo today.<br><b>Ends</b> an accepted option goes to Build.</div></div>
+    <div class="type"><h4><svg class="ic"><use href="#i-slider"/></svg>Tweak</h4><div class="k"><b>Use it for</b> a small change with one obvious fix.<br><b>You get</b> no judging step. It is checked against the Spec, built, and shown in a Preview.<br><b>Ends</b> merged after you verify.</div></div>
+    <div class="type"><h4><svg class="ic"><use href="#i-bug"/></svg>Bug</h4><div class="k"><b>Use it for</b> something in Echo that behaves wrongly. Needs steps, expected, actual.<br><b>You get</b> one fix straight to Build, or an upgrade to a Proposal when there are several fixes.</div></div>
+    <div class="type"><h4><svg class="ic"><use href="#i-folder"/></svg>Theme</h4><div class="k"><b>Use it for</b> grouping related tickets, like "Connection management".<br><b>You get</b> a parent with progress (3 of 7 done) and its children listed.</div></div>
+  </div>
+
+  <h3 class="sub">Statuses and whose turn it is</h3>
+  <div class="legend">
+    <span class="chip you">Your turn</span><span class="chip agent">Agent's turn</span><span class="chip app">Hatch (automatic or queued)</span><span class="chip done">Finished</span><span class="chip off">Paused or stopped</span>
+  </div>
+  <p class="lead" style="margin-top:0">Pick a ticket type to see the path it takes. Statuses outside the path dim.</p>
+  <div class="pathbtns" id="pathBtns"></div>
+  <div class="lanes" id="lanes"></div>
+  <div class="tscroll" style="margin-top:16px"><table class="t" id="statusTable"></table></div>
+
+  <h3 class="sub">What replaces what</h3>
+  <div class="tscroll"><table class="t">
+    <tr><th>In Echo Labs today</th><th>In Hatch</th><th>Why it changes</th></tr>
+    <tr><td>Round</td><td>Proposal</td><td>Says what it is: something proposed that you judge.</td></tr>
+    <tr><td>Inbox</td><td>Desk</td><td>It holds only what needs you, not everything that arrived.</td></tr>
+    <tr><td>Judging / New feedback</td><td>Your call / Revising</td><td>Names the person whose turn it is.</td></tr>
+    <tr><td>In Echo / Decided</td><td>Merged / Done (plus the Decisions library)</td><td>Merged and verified are two different facts.</td></tr>
+    <tr><td>Exhibit</td><td>Specimen (Swift) or Variant (Sketch)</td><td>One word per kind of thing.</td></tr>
+    <tr><td>Conformance</td><td>Match check</td><td>Plain words for "does Echo look like what you accepted".</td></tr>
+    <tr><td>Rebuild and Relaunch</td><td>Preview</td><td>A build of the tickets you choose, not of everything.</td></tr>
+    <tr><td>Copy for an agent</td><td><code>hatch take #151</code></td><td>The app hands the brief over, nobody pastes it.</td></tr>
+    <tr><td>Pick / Maybe / No, needsMore</td><td>Kept. "Needs more options" button.</td><td>This part of the contract already works.</td></tr>
+  </table></div>
+  <div class="decs" data-sec="foundations"></div>
+</section>
+
+<!-- B SHELL -->
+<section class="sec" id="s-shell" data-title="Navigation and shell">
+  <h2>The window and navigation</h2>
+  <p class="lead">One window, a project switcher on top of the sidebar, and a toolbar that is the same on every screen.</p>
+  <div class="mockbox"><div class="cap"><b>Recommended shell</b><span class="sample">sample data</span></div><div class="mi">
+  <div class="win"><div class="tb"><i></i><i></i><i></i><span class="tt">Hatch · Echo</span></div>
+  <div class="wb"><div class="sb" data-sb="desk"></div>
+    <div class="ct"><div class="bar"><b style="font-size:14px;font-family:var(--f-head)">Desk</b><span class="muted">4 need you</span><span class="sp"></span><span class="mb"><svg class="ic"><use href="#i-search"/></svg>Search <span class="kbd">⌘K</span></span><span class="mb pri"><svg class="ic"><use href="#i-plus"/></svg>New ticket <span class="kbd" style="color:inherit">⌘N</span></span><span class="mb"><svg class="ic"><use href="#i-spark"/></svg>Ask <span class="kbd">⌥⌘A</span></span></div>
+      <div class="two"><div class="pane"><div class="card">Section content appears here. The toolbar stays the same on every screen.</div><div class="card turn"><b>4 tickets wait for you.</b><br><small>The Dock badge shows the same number.</small></div></div>
+      <div style="border-left:1px solid var(--line);padding:12px;background:var(--side)"><b style="font-family:var(--f-head);font-size:13px">Ask Hatch</b><div class="small muted" style="margin:2px 0 8px">Context: Desk</div>
+        <div class="card"><small>You</small><br>Which of these is the biggest change?</div>
+        <div class="card rec"><small>Hatch</small><br>#151 touches three Spec items (NOTIF-1.2, 1.4, 2.1). The others touch one each.</div></div></div>
+    </div></div></div></div></div>
+  <ol class="call"><li><b>1</b>Project switcher with the branch. Shows "All projects" too.</li><li><b>2</b>Work sections on top, reference sections below.</li><li><b>3</b>Amber badge: how many tickets wait for you.</li><li><b>4</b>Sync state with GitHub, always visible.</li><li><b>5</b>Same toolbar everywhere.</li><li><b>6</b>Ask panel keeps the current ticket as context.</li></ol>
+  <div class="decs" data-sec="shell"></div>
+</section>
+
+<!-- C DESK -->
+<section class="sec" id="s-desk" data-title="Desk (inbox)">
+  <h2>Desk</h2>
+  <p class="lead">What the old Inbox did, rebuilt around the question "what do I have to do now". Opening a ticket takes the whole window, because judging needs room.</p>
+  <div class="mockbox"><div class="cap"><b>Recommended Desk</b><span class="sample">sample data</span></div><div class="mi">
+  <div class="win"><div class="tb"><i></i><i></i><i></i><span class="tt">Hatch · All projects</span></div>
+  <div class="wb"><div class="sb" data-sb="desk"></div>
+    <div class="ct"><div class="bar"><b style="font-size:14px;font-family:var(--f-head)">Desk</b><span class="sp"></span><span class="seg"><button aria-pressed="true">All projects</button><button aria-pressed="false">Echo</button></span></div>
+    <div class="split"><div class="lst">
+      <div class="gh you">Your call <span class="cnt">3</span></div>
+      <div class="rw on"><span class="tyi"><svg class="ic"><use href="#i-layers"/></svg></span><div><div class="t">#151 Notification toast spacing</div><div class="s">Judge 3 options · about 4 min · Hatch recommends B</div></div><span class="age">2h</span></div>
+      <div class="rw"><span class="tyi"><svg class="ic"><use href="#i-pencil"/></svg></span><div><div class="t">#149 Inspector section order</div><div class="s">Choose a direction · 4 variants</div></div><span class="age">5h</span></div>
+      <div class="rw"><span class="tyi"><svg class="ic"><use href="#i-bubble"/></svg></span><div><div class="t">#147 Do we need a tab overflow menu?</div><div class="s">Reply needed · 1 question</div></div><span class="age">1d</span></div>
+      <div class="gh you">Needs answers <span class="cnt">1</span></div>
+      <div class="rw"><span class="tyi"><svg class="ic"><use href="#i-slider"/></svg></span><div><div class="t">#153 Rename "Connect" button</div><div class="s">Hatch asks 2 questions</div></div><span class="age">20m</span></div>
+      <div class="gh you">To verify <span class="cnt">2</span></div>
+      <div class="rw"><span class="tyi"><svg class="ic"><use href="#i-layers"/></svg></span><div><div class="t">#144 Explorer row density</div><div class="s">In Preview 03 · match check passed</div></div><span class="age">3h</span></div>
+      <div class="rw"><span class="tyi"><svg class="ic"><use href="#i-bug"/></svg></span><div><div class="t">#146 Sidebar flickers when a connection drops</div><div class="s">In Preview 03</div></div><span class="age">3h</span></div>
+      <div class="gh agent">Waiting on agents <span class="cnt">5</span> <span class="muted" style="text-transform:none;letter-spacing:0">▸ show</span></div>
+    </div>
+    <div class="pane">
+      <span class="chip you">Your call</span> <span class="muted">· Proposal · Notifications · Echo</span>
+      <h5>#151 Notification toast spacing</h5>
+      <div class="card turn"><b>Your turn:</b> judge 3 options against Echo today.<br><small>Revision 2 · 6 scenarios · changes NOTIF-1.2, NOTIF-1.4</small></div>
+      <div class="card rec"><b>Hatch recommends Option B</b><br><small>Matches the 12pt rhythm you decided in #118 and keeps the error toast readable at Large text.</small></div>
+      <div style="display:flex;gap:6px;margin-top:9px"><div class="thumb"></div><div class="thumb"></div><div class="thumb"></div></div>
+      <div style="display:flex;gap:6px;margin-top:10px"><span class="mb pri">Open <span class="kbd" style="color:inherit">↩</span></span><span class="mb">Park <span class="kbd">P</span></span><span class="mb">Ask <span class="kbd">⌥⌘A</span></span></div>
+      <p class="muted" style="margin-top:10px;font-size:11px">Move with <span class="kbd">J</span> <span class="kbd">K</span>. <span class="kbd">A</span> accepts my recommendation from the list; the confirmation sheet still appears (H16).</p>
+    </div></div></div></div></div></div>
+  <div class="decs" data-sec="desk"></div>
+</section>
+
+<!-- D TICKETS BOARD -->
+<section class="sec" id="s-tickets" data-title="Tickets, Board, Themes">
+  <h2>Tickets, Board and Themes</h2>
+  <p class="lead">The Desk is yours. These screens show everything: all tickets for searching, the Board for flow, and Themes for grouping.</p>
+  <div class="mockbox"><div class="cap"><b>Board, grouped by phase</b><span class="sample">sample data</span></div><div class="mi">
+  <div class="win"><div class="tb"><i></i><i></i><i></i><span class="tt">Hatch · Echo</span></div>
+  <div class="wb"><div class="sb" data-sb="board"></div><div class="ct">
+    <div class="bar"><b style="font-size:14px;font-family:var(--f-head)">Board</b><span class="mb">type: any ▾</span><span class="mb">Theme: any ▾</span><span class="sp"></span><span class="seg"><button aria-pressed="false">List</button><button aria-pressed="true">Board</button></span></div>
+    <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;padding:10px;background:var(--side);flex:1">
+      <div><div class="gh" style="padding:0 2px 6px">Intake <span class="cnt">3</span></div><div class="card" style="margin:0 0 6px"><b>#153</b> Rename "Connect"<br><span class="chip you">Needs answers</span></div><div class="card" style="margin:0 0 6px"><b>#150</b> Pool exhaustion toast<br><span class="chip agent">Checking</span></div><div class="card" style="margin:0"><b>#155</b> Tab drag ghost<br><span class="chip app">Ready</span></div></div>
+      <div><div class="gh" style="padding:0 2px 6px">Exploring <span class="cnt">3</span></div><div class="card" style="margin:0 0 6px"><b>#151</b> Toast spacing<br><span class="chip you">Your call</span></div><div class="card" style="margin:0 0 6px"><b>#149</b> Inspector order<br><span class="chip you">Your call</span></div><div class="card" style="margin:0"><b>#148</b> Empty states<br><span class="chip agent">Preparing</span></div></div>
+      <div><div class="gh" style="padding:0 2px 6px">Building <span class="cnt">3</span></div><div class="card" style="margin:0 0 6px"><b>#152</b> Row hover colour<br><span class="chip agent">Building</span></div><div class="card" style="margin:0 0 6px"><b>#144</b> Row density<br><span class="chip you">To verify</span></div><div class="card" style="margin:0"><b>#146</b> Sidebar flicker<br><span class="chip you">To verify</span></div></div>
+      <div><div class="gh" style="padding:0 2px 6px">Landed <span class="cnt">2</span></div><div class="card" style="margin:0 0 6px"><b>#141</b> Toast stack limit<br><span class="chip app">Merged</span></div><div class="card" style="margin:0"><b>#138</b> Icon weights<br><span class="chip done">Done</span></div></div>
+      <div><div class="gh" style="padding:0 2px 6px">Off <span class="cnt">2</span></div><div class="card" style="margin:0 0 6px"><b>#139</b> Dock badge<br><span class="chip off">Parked</span></div><div class="card" style="margin:0"><b>#145</b> Pin tabs<br><span class="chip app">Blocked by #144</span></div></div>
+    </div></div></div></div></div></div>
+  <div class="decs" data-sec="tickets"></div>
+</section>
+<!-- E COMPOSE -->
+<section class="sec" id="s-compose" data-title="New ticket and check">
+  <h2>New ticket and the Hatch check</h2>
+  <p class="lead">Writing a ticket should be quick, and the system should help you complete it before any agent spends effort. While you type, a free local search finds related tickets and Spec items. After you submit, an agent compares the ticket with everything else and asks its questions.</p>
+  <div class="mockbox"><div class="cap"><b>Recommended composer</b><span class="sample">sample data</span></div><div class="mi">
+  <div class="win"><div class="tb"><i></i><i></i><i></i><span class="tt">Hatch · New ticket</span></div>
+  <div class="wb"><div class="sb" data-sb="tickets"></div><div class="ct">
+    <div class="bar"><b style="font-size:14px;font-family:var(--f-head)">New ticket</b><span class="chip off">Draft · saved on this Mac</span><span class="sp"></span><span class="mb">Cancel</span><span class="mb pri">Submit for check <span class="kbd" style="color:inherit">⌘↩</span></span></div>
+    <div class="two"><div class="pane stack">
+      <div class="seg" style="width:fit-content"><button aria-pressed="false">Question</button><button aria-pressed="false">Sketch</button><button aria-pressed="true">Proposal</button><button aria-pressed="false">Tweak</button><button aria-pressed="false">Bug</button><button aria-pressed="false">Theme</button></div>
+      <div class="muted">Several options to compare in Swift. Hatch will suggest another type if it fits better.</div>
+      <div class="fld" style="color:var(--ink);font-weight:600">Toast spacing is too tight in dark mode</div>
+      <div style="display:flex;gap:6px"><span class="mb">Project: Echo ▾</span><span class="mb">Area: Notifications ▾</span><span class="mb">Theme: Toasts ▾</span></div>
+      <div class="fld big">What should change, and why. Template for Proposals: <i>What · Why · Scope · Constraints</i></div>
+      <div class="drop"><div class="thumb"></div><div class="thumb"></div><span>Drop or paste screenshots · <b style="color:var(--accent)">Capture Echo window</b> · annotate</span></div>
+      <div class="muted">Branches: App → <code>dev</code> · Design system → <code>dev</code> <span class="sample">from project settings</span></div>
+    </div>
+    <div style="border-left:1px solid var(--line);padding:12px;background:var(--side)">
+      <b style="font-family:var(--f-head);font-size:13px">Hatch check</b>
+      <div class="gh" style="padding:8px 0 3px">Found instantly (free)</div>
+      <div class="card" style="margin-top:4px"><b>#118</b> Toast stacking limit <span class="chip done">Done</span><br><small>82% similar · you decided 12pt rhythm</small></div>
+      <div class="card" style="margin-top:4px"><b>#131</b> Notification history <span class="chip you">Your call</span></div>
+      <div class="card" style="margin-top:4px"><b>Spec</b> NOTIF-1.2 Toast spacing · NOTIF-1.4 Toast timeout</div>
+      <div class="gh" style="padding:10px 0 3px">After you submit</div>
+      <div class="card turn" style="margin-top:4px"><b>Hatch asks 2 questions</b><br><small>1 Does this also apply at Compact density?<br>2 Does this replace the decision in #118?</small></div>
+    </div></div></div></div></div></div>
+  <div class="decs" data-sec="compose"></div>
+</section>
+
+<!-- F TICKET VIEW -->
+<section class="sec" id="s-ticket" data-title="Ticket view">
+  <h2>Ticket view</h2>
+  <p class="lead">The page for one ticket, whatever its type. The top banner tells you what is expected and holds the main action. The type-specific work (options, variants, build) lives in its own tab.</p>
+  <div class="mockbox"><div class="cap"><b>Recommended ticket view</b><span class="sample">sample data</span></div><div class="mi">
+  <div class="win"><div class="tb"><i></i><i></i><i></i><span class="tt">Hatch · #151</span></div>
+  <div class="wb"><div class="sb" data-sb="tickets"></div><div class="ct">
+    <div class="bar"><span class="muted">‹ Desk</span><b style="font-size:14px;font-family:var(--f-head)">#151 Toast spacing is too tight in dark mode</b><span class="sp"></span><span class="mb">Park</span><span class="mb">Drop</span></div>
+    <div style="padding:10px 12px;border-bottom:1px solid var(--line)"><div class="card turn" style="margin:0;display:flex;gap:10px;align-items:center"><span class="chip you">Your call</span><span><b>Your turn.</b> Judge 3 options against Echo today. Revision 2.</span><span class="sp"></span><span class="mb pri">Open the Proposal</span></div></div>
+    <div class="tabs"><span class="on">Overview</span><span>Options</span><span>Thread <small>(4)</small></span><span>Work</span><span>History</span></div>
+    <div class="two"><div class="pane stack">
+      <div><b>Description</b><br>Toasts feel cramped in dark mode. Compare spacing against the 12pt rhythm from #118. <span class="muted">(screenshots: 2)</span></div>
+      <div style="display:flex;gap:6px"><div class="thumb"></div><div class="thumb"></div></div>
+      <div class="card"><b>Thread</b><div class="muted" style="margin-top:4px">Hatch (check) · asked 2 questions<br>You · answered both<br>Agent · offered 3 options (rev 1) · you sent back · rev 2</div></div>
+      <div class="card"><b>Work</b><br><small><code>App</code> ticket/151-toast-spacing · not started<br><code>Design system</code> ticket/151-toast-spacing · not started</small></div>
+    </div>
+    <div style="border-left:1px solid var(--line);padding:12px;background:var(--side);font-size:11.5px">
+      <div class="stack"><div><span class="muted">Type</span><br>Proposal</div><div><span class="muted">Project</span><br>Echo · Notifications</div><div><span class="muted">Theme</span><br>Toasts (3 of 7)</div>
+      <div><span class="muted">Related</span><br>#118 Done · #131 Your call</div><div><span class="muted">Touches</span><br>NOTIF-1.2 · NOTIF-1.4</div><div><span class="muted">GitHub</span><br>Issue #151 · synced 12:04 ✓</div><div><span class="muted">Cost so far</span><br>118k tokens</div></div>
+    </div></div></div></div></div></div>
+  <div class="decs" data-sec="ticket"></div>
+</section>
+
+<!-- G SKETCH -->
+<section class="sec" id="s-sketch" data-title="Sketch">
+  <h2>Sketch</h2>
+  <p class="lead">The place for ideas and UX before any Swift. The agent draws variants as HTML, so they appear in seconds and cost few tokens. They are clearly marked as concepts, because HTML is not SwiftUI.</p>
+  <div class="mockbox"><div class="cap"><b>Recommended Sketch view</b><span class="sample">sample data</span></div><div class="mi">
+  <div class="win"><div class="tb"><i></i><i></i><i></i><span class="tt">Hatch · #149 Sketch</span></div>
+  <div class="wb"><div class="sb" data-sb="tickets"></div><div class="ct">
+    <div class="bar"><b style="font-size:14px;font-family:var(--f-head)">#149 Inspector section order</b><span class="chip you">Your call</span><span class="mb" style="border-style:dashed">Concept, not Swift</span><span class="sp"></span><span class="seg"><button aria-pressed="true">Side by side</button><button aria-pressed="false">One at a time</button></span></div>
+    <div class="var3">
+      <div class="vcard"><h6>A · Details first</h6><div class="wf"><i class="t"></i><i></i><i class="s"></i><i></i><i class="s"></i></div><div class="pin" style="right:16px;top:50px"><span>1</span></div></div>
+      <div class="vcard"><h6>B · Activity first</h6><div class="wf"><i class="t"></i><i></i><i></i><i class="s"></i></div></div>
+      <div class="vcard"><h6>C · Tabs</h6><div class="wf"><i class="t"></i><i class="s"></i></div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:10px;padding:10px 12px;border-top:1px solid var(--line);align-items:center"><div class="muted">Pin 1 on A: "Too much scrolling before Activity". Click any variant to drop a pin.</div><div style="display:flex;gap:6px"><span class="mb">Ask</span><span class="mb">Needs more variants</span><span class="mb pri">Choose direction…</span></div></div>
+  </div></div></div></div></div>
+  <div class="decs" data-sec="sketch"></div>
+</section>
+
+<!-- H PROPOSAL -->
+<section class="sec" id="s-proposal" data-title="Proposal stage">
+  <h2>Proposal stage</h2>
+  <p class="lead">This is today's Rounds page, and the most important screen in Hatch, because it is where you try the new features before they exist in Echo. Below is a working prototype, not a picture. Switch specimens, change the compare mode, scenario and appearance, turn on redlines, and see how it feels. The decisions after it cover every part of this screen in detail. In Hatch this stage opens in its own window, as the next section explains.</p>
+  <div class="mockbox" id="stageBox"><div class="cap"><b>Prototype of the recommended stage</b><span class="sample">toast sample, invented</span><span class="muted">Try: change Compare, press Space to flip, pick a scenario, switch appearance. The stage follows your picks: panels that fold away (H1) and a filmstrip when there are four or more options (H2). Try Demo: 5 options in the controls.</span></div><div class="mi" id="stageMount"></div></div>
+  <ol class="call">
+    <li><b>1</b>Compare mode: side by side, overlay, flip, wipe, or a scenario matrix.</li>
+    <li><b>2</b>Appearance bar is always visible and applies to every specimen.</li>
+    <li><b>3</b>Scenario strip: the states worth testing, one click each.</li>
+    <li><b>4</b>Echo today is pinned first and shows whether it still matches Echo.</li>
+    <li><b>5</b>Redlines draw the measurements on the specimens.</li>
+    <li><b>6</b>Every question carries a recommendation and its reason.</li>
+  </ol>
+  <div class="decs" data-sec="proposal"></div>
+</section>
+
+<!-- SWIFT -->
+<section class="sec" id="s-swift" data-title="Swift rounds as separate apps">
+  <h2>Swift rounds as separate apps</h2>
+  <p class="lead">Your idea: when a Proposal has Swift specimens, Hatch opens a separate application for it, so Hatch itself never needs rebuilding when a new round arrives. I think this is the right direction. It also answers the earlier universal-app question: Hatch would contain no project code at all.</p>
+  <div class="mockbox"><div class="cap"><b>How the pieces fit</b><span class="sample">proposed architecture</span></div><div class="mi" style="min-width:860px">
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 150px minmax(0,1.2fr);gap:0;align-items:stretch">
+      <div class="card" style="margin:0"><b style="font-family:var(--f-head)">Hatch</b> <span class="chip app">stable app</span><br><small>Desk, tickets, Board, Previews<br>SQLite and GitHub sync<br>Sketch viewer (HTML)<br>Agents, workspaces, <code>hatch</code> command<br><b>No project code inside.</b></small></div>
+      <div style="display:grid;place-items:center;text-align:center;font-size:11px;color:var(--muted);padding:0 6px"><div>⇄<br>local API<br><span class="mono">picks, notes,<br>verdicts, state</span></div></div>
+      <div class="card" style="margin:0;border-color:var(--accent)"><b style="font-family:var(--f-head)">Hatch Stage · #151</b> <span class="chip agent">one per Proposal</span><br><small><b>StageKit</b> (prebuilt, cached): compare modes, scenarios, redlines, decision panel<br><b>Specimens kit</b> (prebuilt): Echo today, shared views<br><b>Design system</b> (prebuilt, tagged)<br><b>Round #151</b>: the only part compiled for a new round</small></div>
+    </div>
+    <div class="muted" style="font-size:12px;margin-top:10px">Repos: <code>hatch</code> (the app) · <code>echo-design-system</code> (tagged) · <code>echo-specimens</code> (shared Echo-today views plus one folder per round)</div>
+  </div></div>
+  <h3 class="sub">What gets rebuilt</h3>
+  <div class="tscroll"><table class="t">
+    <tr><th>What changed</th><th>Today (Echo Labs)</th><th>Proposed</th></tr>
+    <tr><td>A new Swift round arrives</td><td>Everything: 386 files compiled and relinked, app relaunched</td><td>Only the round's package is compiled and linked into a Stage. Hatch is not touched.</td></tr>
+    <tr><td>You revise a round</td><td>Everything again</td><td>The round again. The Stage offers Reload.</td></tr>
+    <tr><td>Hatch itself changes</td><td>Same as above</td><td>Hatch only</td></tr>
+    <tr><td>The design system changes</td><td>Everything</td><td>The specimens kit, then rounds that use it</td></tr>
+    <tr><td>A round has an error</td><td>The whole lab may fail to build</td><td>Only that round fails. It goes back to the agent, and you never see it.</td></tr>
+  </table></div>
+  <p class="help">I have not measured the build time of a round-only Stage. Your whole-lab build takes 10 to 15 seconds today, and a round-only build should be well below that, but that needs a prototype to confirm. Sketches stay inside Hatch as HTML because they need no compile at all.</p>
+  <div class="decs" data-sec="swift"></div>
+</section>
+
+<!-- I BUILD -->
+<section class="sec" id="s-build" data-title="Building">
+  <h2>Building</h2>
+  <p class="lead">After you accept, an agent builds the change in its own workspace. This screen shows the steps and results so you can see progress without reading logs, and take over if you want to.</p>
+  <div class="mockbox"><div class="cap"><b>Recommended Build tab</b><span class="sample">sample data</span></div><div class="mi">
+  <div class="win"><div class="tb"><i></i><i></i><i></i><span class="tt">Hatch · #144 · Work</span></div>
+  <div class="wb"><div class="sb" data-sb="tickets"></div><div class="ct">
+    <div class="bar"><b style="font-size:14px;font-family:var(--f-head)">#144 Explorer row density</b><span class="chip agent">Building</span><span class="sp"></span><span class="mb">Open workspace in Terminal</span><span class="mb bad">Stop agent</span></div>
+    <div class="tabs"><span>Overview</span><span>Options</span><span>Thread</span><span class="on">Work</span><span>History</span></div>
+    <div class="two"><div class="pane"><div class="steps">
+      <div class="stp ok"><span class="d">✓</span><span><b>Plan</b> · 4 files in 2 repos</span><small class="muted">0:42</small></div>
+      <div class="stp ok"><span class="d">✓</span><span><b>Claim</b> · no overlap with other tickets</span><small class="muted">instant</small></div>
+      <div class="stp ok"><span class="d">✓</span><span><b>Implement</b> · 3 commits on <code>ticket/144-row-density</code></span><small class="muted">6:10</small></div>
+      <div class="stp ok"><span class="d">✓</span><span><b>Build</b> · Echo Debug</span><small class="muted">14 s</small></div>
+      <div class="stp ok"><span class="d">✓</span><span><b>Tests</b> · Explorer plan · 31 of 31</span><small class="muted">38 s</small></div>
+      <div class="stp run"><span class="d"></span><span><b>Match check</b> · 11 of 14 parts compared</span><small class="muted">running</small></div>
+      <div class="stp"><span class="d"></span><span class="muted">Ready for Preview</span><small></small></div></div>
+      <div class="log" style="margin-top:10px">12:31:08 capture toast.stack light rest ok<br>12:31:10 capture toast.stack dark rest ok<br>12:31:12 compare parts toast.title ±0.0pt ok</div></div>
+    <div style="border-left:1px solid var(--line);padding:12px;background:var(--side);font-size:11.5px" class="stack">
+      <div><b>Files claimed</b><br><code>Explorer/RowView.swift</code><br><code>Explorer/RowMetrics.swift</code><br><code>DesignSystem/Row.swift</code></div>
+      <div><b>Token use</b><br>118k · estimate 150k</div>
+      <div><b>Workspaces</b><br>App · Design system</div></div>
+  </div></div></div></div></div>
+  <div class="decs" data-sec="build"></div>
+</section>
+
+<!-- J PREVIEW -->
+<section class="sec" id="s-preview" data-title="Preview and verify">
+  <h2>Preview and verify</h2>
+  <p class="lead">You verify several finished tickets in one Echo build. You choose which tickets go in, Hatch merges them into a throwaway branch, builds once, and you decide per ticket.</p>
+  <div class="mockbox"><div class="cap"><b>Recommended Preview screen</b><span class="sample">sample data</span></div><div class="mi">
+  <div class="win"><div class="tb"><i></i><i></i><i></i><span class="tt">Hatch · Previews</span></div>
+  <div class="wb"><div class="sb" data-sb="previews"></div><div class="ct">
+    <div class="bar"><b style="font-size:14px;font-family:var(--f-head)">Preview 03</b><span class="chip done">Built 14 s</span><span class="chip app">Merged cleanly</span><span class="sp"></span><span class="mb pri"><svg class="ic"><use href="#i-eye"/></svg>Open Echo (Preview 03)</span></div>
+    <div class="two"><div class="pane stack">
+      <div class="card" style="margin:0"><b>#144 Explorer row density</b> <span class="chip you">To verify</span><br><small>Look at: row height 28 → 26, selected row contrast in dark, drag handle position.</small><div style="display:flex;gap:6px;margin-top:7px"><span class="mb ok">Looks right</span><span class="mb bad">Needs work…</span><span class="mb">Add screenshot</span></div></div>
+      <div class="card" style="margin:0"><b>#146 Sidebar flickers when a connection drops</b> <span class="chip you">To verify</span><br><small>Look at: drop a connection and watch the sidebar for 5 seconds.</small><div style="display:flex;gap:6px;margin-top:7px"><span class="mb">Looks right</span><span class="mb">Needs work…</span></div></div>
+      <div class="card" style="margin:0;opacity:.6"><b>#152 Row hover colour</b> <span class="chip agent">Building</span><br><small>Not in this Preview yet.</small></div></div>
+    <div style="border-left:1px solid var(--line);padding:12px;background:var(--side);font-size:11.5px" class="stack">
+      <div><b>Merge plan</b><br>1 Design system: merge #144 → tag 1.8.0<br>2 Echo: bump to 1.8.0 → merge #144, #146</div>
+      <span class="mb pri" style="width:fit-content">Merge 1 approved</span>
+      <div class="muted">Preview 03 is deleted after merge.</div></div></div></div></div></div></div>
+  <div class="decs" data-sec="preview"></div>
+</section>
+
+<!-- K AGENTS -->
+<section class="sec" id="s-agents" data-title="Agents and claims">
+  <h2>Agents and claims</h2>
+  <p class="lead">Several agents work at once, each in its own workspace. This screen shows who is doing what, which files each ticket has claimed, and what is waiting in line.</p>
+  <div class="mockbox"><div class="cap"><b>Recommended Agents screen</b><span class="sample">sample data</span></div><div class="mi">
+  <div class="win"><div class="tb"><i></i><i></i><i></i><span class="tt">Hatch · Agents</span></div>
+  <div class="wb"><div class="sb" data-sb="agents"></div><div class="ct">
+    <div class="bar"><b style="font-size:14px;font-family:var(--f-head)">Agents</b><span class="muted">2 of 3 slots in use · 241k tokens today</span></div>
+    <div class="tr" style="--cols:1.4fr 1.6fr 1fr 1.2fr"><div class="h"><span>On</span><span>Doing</span><span>Time</span><span>Files claimed</span></div>
+      <div><span>#144 Row density</span><span class="chip agent">Building · match check</span><span>9:12</span><span>RowView, RowMetrics</span></div>
+      <div><span>#148 Empty states</span><span class="chip agent">Preparing · specimens</span><span>3:40</span><span>(read only)</span></div>
+      <div><span class="muted">free slot</span><span></span><span></span><span></span></div></div>
+    <div class="pane"><b>Waiting</b>
+      <div class="card turn"><b>#152 Row hover colour</b> shares <code>RowView.swift</code> with #144.<br><small>Queued after #144 by default.</small><div style="display:flex;gap:6px;margin-top:6px"><span class="mb">Stack on #144</span><span class="mb">Keep queued</span></div></div></div>
+  </div></div></div></div></div>
+  <div class="decs" data-sec="agents"></div>
+</section>
+
+<!-- L PROJECTS -->
+<section class="sec" id="s-projects" data-title="Projects and setup">
+  <h2>Projects and setup</h2>
+  <p class="lead">A project links repositories, branches and the knowledge an agent needs about them. Echo is the first project. Others can be added without changing Hatch.</p>
+  <div class="mockbox"><div class="cap"><b>Recommended Project settings</b><span class="sample">sample data</span></div><div class="mi">
+  <div class="win"><div class="tb"><i></i><i></i><i></i><span class="tt">Hatch · Project: Echo</span></div>
+  <div class="wb"><div class="sb" data-sb="projects"></div><div class="ct">
+    <div class="bar"><b style="font-size:14px;font-family:var(--f-head)">Echo</b><span class="chip done">Config in repo: .hatch/project.json</span><span class="sp"></span><span class="mb">Re-scan areas</span></div>
+    <div class="pane stack">
+      <div class="tr" style="--cols:1fr 1.4fr .7fr 1.4fr"><div class="h"><span>Role</span><span>Repository</span><span>Branch</span><span>Build and test</span></div>
+        <div><span>App</span><span>tashda/echo</span><span>dev</span><span>Echo Debug · UnitTests, LabTests</span></div>
+        <div><span>Design system</span><span>tashda/echo-design-system</span><span>dev</span><span>swift build · tag on merge</span></div>
+        <div><span>Specimens</span><span>tashda/echo-specimens</span><span>dev</span><span>swift build per round</span></div>
+        <div><span>Tickets</span><span>tashda/hatch-tickets (private)</span><span>main</span><span>none</span></div></div>
+      <div class="tr" style="--cols:1fr 2fr 1fr"><div class="h"><span>Area</span><span>Where it lives</span><span>Spec IDs</span></div>
+        <div><span>Notifications</span><span>Echo/Sources/Features/Notifications/**</span><span>NOTIF-*</span></div>
+        <div><span>Explorer tree</span><span>Echo/Sources/Features/Explorer/**</span><span>EXPL-*</span></div></div>
+      <div class="card" style="margin:0">Docs for agents: <code>CLAUDE.md</code>, <code>Design/decisions.md</code>, <code>Design/plan.md</code> · Specs: <code>.hatch/spec/*.md</code></div>
+    </div></div></div></div></div>
+  <div class="decs" data-sec="projects"></div>
+</section>
+
+<!-- M SYNC -->
+<section class="sec" id="s-sync" data-title="Data, sync, agent contract">
+  <h2>Data, sync and the agent contract</h2>
+  <p class="lead">SQLite is the local database with proper indexes and full-text search. GitHub Issues in a private repo hold the tickets. Hatch syncs them with code, and every sync is recorded. Agents talk to Hatch through one command and never edit state.</p>
+  <h3 class="sub">Tables and indexes</h3>
+  <div class="sql">
+    <div><b>ticket</b><span>id, gh_number, project_id, type, status, turn, title, body, parent_id, priority, updated_at<br>idx: (project_id,status) · (turn,updated_at) · gh_number unique · parent_id</span></div>
+    <div><b>ticket_fts (FTS5)</b><span>title, body, comments, spec text<br>feeds the free instant search and the check</span></div>
+    <div><b>event</b><span>id, ticket_id, at, actor, kind, payload<br>idx: (ticket_id,at) · append only history</span></div>
+    <div><b>sync_log</b><span>id, ticket_id, op, direction, state, attempt, error, at<br>idx: (state,at) · every GitHub write is recorded here</span></div>
+    <div><b>ticket_link</b><span>from_id, to_id, kind (related, parent, blocks, duplicates, supersedes)<br>idx: both directions</span></div>
+    <div><b>option / verdict / note</b><span>Proposal state: options, picks, Pick/Maybe/No, pinned notes with scenario + appearance, revisions</span></div>
+    <div><b>repo / workspace / claim</b><span>repos by role, per-ticket workspaces and branches, claimed paths<br>idx: (path_glob,state)</span></div>
+    <div><b>preview / preview_ticket</b><span>preview branches, which tickets are in, verdicts</span></div>
+    <div><b>stage_session</b><span>ticket, revision, process, port, build state, last seen<br>one row per open Stage app</span></div>
+    <div><b>agent_run</b><span>ticket, step, tokens, started, ended, outcome</span></div>
+    <div><b>spec_item / decision</b><span>Spec IDs by area with text, and frozen decisions linked to tickets</span></div>
+  </div>
+  <h3 class="sub">The <code>hatch</code> command agents use</h3>
+  <p class="lead" style="margin-top:0">Each command validates the move, writes SQLite and GitHub, records the sync, and answers with the exact next step. An agent never has to remember a procedure.</p>
+  <div class="tscroll"><table class="t">
+    <tr><th>Command</th><th>What it does</th><th>Returns</th></tr>
+    <tr><td><code>hatch next</code></td><td>Which ticket should I take?</td><td>The ticket and its type of work</td></tr>
+    <tr><td><code>hatch take #151</code></td><td>Claim the ticket, create the workspace</td><td>Brief: ticket, answers, related, Spec items, rules for this type</td></tr>
+    <tr><td><code>hatch ask #151 "…"</code></td><td>Ask you a question (structured)</td><td>Status moves to Needs answers</td></tr>
+    <tr><td><code>hatch offer #151</code></td><td>Hand in options or variants</td><td>Hatch builds the Stage, runs the quality gate, then Your call. A failed build goes back to the agent.</td></tr>
+    <tr><td><code>hatch plan #144 --files …</code></td><td>Declare files to touch</td><td>Claim granted, or who holds the files</td></tr>
+    <tr><td><code>hatch ready #144</code></td><td>Work is done</td><td>Hatch runs build, tests, match check and reports back</td></tr>
+    <tr><td><code>hatch note #144 "…"</code></td><td>Add a note to the thread</td><td>Posted to GitHub too</td></tr>
+  </table></div>
+  <div class="decs" data-sec="sync"></div>
+</section>
+
+<!-- N LIBRARY -->
+<section class="sec" id="s-library" data-title="Specs, Decisions, Log">
+  <h2>Specs, Decisions and Log</h2>
+  <p class="lead">The reference sections. Specs say what Echo is meant to be. Decisions are the frozen results of finished tickets. The Log records everything Hatch did.</p>
+  <div class="mockbox"><div class="cap"><b>Reference screens in one picture</b><span class="sample">sample data</span></div><div class="mi">
+  <div class="win"><div class="tb"><i></i><i></i><i></i><span class="tt">Hatch · Log</span></div>
+  <div class="wb"><div class="sb" data-sb="log"></div><div class="ct">
+    <div class="bar"><b style="font-size:14px;font-family:var(--f-head)">Log</b><span class="mb">All events ▾</span><span class="mb">Failed syncs (1)</span><span class="sp"></span><span class="mb">Retry failed</span></div>
+    <div class="tr" style="--cols:.8fr .6fr 1.6fr 1.2fr .8fr"><div class="h"><span>Time</span><span>Ticket</span><span>Event</span><span>GitHub</span><span>State</span></div>
+      <div><span>12:04</span><span>#151</span><span>Status Revising → Your call</span><span>label status:your-call</span><span class="chip done">synced</span></div>
+      <div><span>12:01</span><span>#151</span><span>Agent offered rev 2</span><span>comment posted</span><span class="chip done">synced</span></div>
+      <div><span>11:48</span><span>#153</span><span>Question added by Hatch</span><span>comment posted</span><span class="chip crit">failed · retry 2</span></div></div>
+  </div></div></div></div></div>
+  <div class="decs" data-sec="library"></div>
+</section>
+
+<!-- ORDER -->
+<section class="sec" id="s-order" data-title="Build order">
+  <h2>Build order</h2>
+  <p class="lead">Proposed order, based on your picks so far. Nothing is built yet. Each step is small enough to try before the next one starts.</p>
+  <div class="tscroll"><table class="t">
+    <tr><th>Step</th><th>What</th><th>Why here</th></tr>
+    <tr><td>0 Tidy</td><td>Fix the rebuild flake. Commit a trimmed CLAUDE.md and the round guide. Split Echo Lab Tools (EchoSense and server testing) out of Echo Labs.</td><td>Small, and it removes the unreliable build and four moving dependencies.</td></tr>
+    <tr><td>1 Stage spike</td><td>The toast round as a Stage app with the specimens kit. Measure the round-only build time.</td><td>Tests the assumption behind S1 before the rest depends on it.</td></tr>
+    <tr><td>2 Foundation</td><td>Extract EchoDesignSystem to its own tagged repo. SQLite, GitHub sync with sync_log, projects and repos, the <code>hatch</code> command.</td><td>"The app does the bookkeeping" has to exist before any screen uses it.</td></tr>
+    <tr><td>3 Desk and tickets</td><td>Desk, Tickets, Board, composer with the Hatch check and rewrite, ticket view.</td><td>The daily screens. Works for Question, Tweak and Bug straight away.</td></tr>
+    <tr><td>4 Sketch</td><td>HTML variants in Hatch, pinned comments, Make it real.</td><td>Cheap, no Swift, and useful from day one.</td></tr>
+    <tr><td>5 Full Stage</td><td>Compare modes, scenarios, redlines, Mix column, decision panel, quality gate, revisions.</td><td>The big one, built on the spike.</td></tr>
+    <tr><td>6 Workspaces and Preview</td><td>Workspaces, claims, Preview, merge plan, hatch branch and CI watching.</td><td>Lets several agents work in parallel safely.</td></tr>
+    <tr><td>7 Specs and import</td><td>Spec text and the Spec app blueprint. Import the existing Echo Labs rounds and decisions.</td><td>Last, because it depends on everything above.</td></tr>
+  </table></div>
+  <div class="decs" data-sec="order"></div>
+</section>
+
+<!-- NOTES -->
+<section class="sec" id="s-notes" data-title="Your notes and questions">
+  <h2>Your notes and questions</h2>
+  <p class="lead">Everything you wrote on this page, in one list, with my answers once I have read them. A general note here is not tied to any decision.</p>
+  <div class="compose" id="generalCompose"><textarea id="generalText" placeholder="A general note, idea or question about Hatch…" aria-label="General note"></textarea><div class="row"><button class="btn" id="generalNote" type="button">Save as note</button><button class="btn" id="generalAsk" type="button">Save as question</button></div></div>
+  <div class="nts" id="allNotes"></div>
+</section>
+
+</main></div></div>
+<script>
+/* wire thumbnails: [x,y,w,h,cls] in a 100x64 box */
+const WIRES={
+ three:[[2,2,20,60],[24,2,34,60,'f'],[60,2,38,60,'a']],
+ stageFirst:[[2,2,96,7],[2,11,96,38,'f'],[2,51,44,11],[50,51,48,11,'a']],
+ stacked:[[2,2,96,36,'f'],[2,40,96,22,'a']],
+ listDetail:[[2,2,34,60],[38,2,60,60,'a']],
+ listFull:[[2,2,96,60,'f']],
+ grid3:[[2,10,30,50,'f'],[35,10,30,50,'f'],[68,10,30,50,'a']],
+ overlay:[[8,8,58,44,'f'],[30,16,58,44,'a']],
+ flip:[[8,6,84,46,'f'],[2,56,96,6,'a']],
+ filmstrip:[[2,2,96,40,'f'],[2,46,22,16],[26,46,22,16,'a'],[50,46,22,16],[74,46,22,16]],
+ tabs:[[2,2,96,8],[2,12,96,50,'f']],
+ oneScroll:[[2,2,96,14,'f'],[2,18,96,20],[2,40,96,22]],
+ split2:[[2,2,60,60,'f'],[64,2,34,60,'a']],
+ wizard:[[2,2,96,6],[14,12,72,40,'f'],[60,54,26,8,'a']],
+ sheet:[[2,2,96,60],[18,14,64,36,'a']],
+ board5:[[2,4,17,56,'f'],[21,4,17,56],[40,4,17,56,'a'],[59,4,17,56],[78,4,17,56]],
+ cols15:[[1,4,6,56],[8,4,6,56],[15,4,6,56],[22,4,6,56],[29,4,6,56],[36,4,6,56],[43,4,6,56],[50,4,6,56],[57,4,6,56],[64,4,6,56],[71,4,6,56],[78,4,6,56],[85,4,6,56],[92,4,6,56]],
+ rows:[[2,2,96,8,'f'],[2,12,96,8],[2,22,96,8],[2,32,96,8],[2,42,96,8],[2,52,96,8]],
+ chat:[[2,2,60,60,'f'],[64,2,34,60,'a']],
+ popup:[[2,2,28,8,'a'],[2,12,28,48,'f'],[34,2,64,60]],
+ palette:[[18,8,64,10,'a'],[18,20,64,8],[18,30,64,8],[18,40,64,8]],
+ steps:[[2,4,60,8,'f'],[2,16,60,8,'f'],[2,28,60,8,'a'],[2,40,60,8],[2,52,60,8],[66,4,32,56]],
+ cards:[[2,4,30,26,'f'],[35,4,30,26,'f'],[68,4,30,26,'a'],[2,34,30,26],[35,34,30,26]],
+};
+const DECISIONS=[
+/* ---------- A FOUNDATIONS ---------- */
+{id:'A1',sec:'foundations',title:'Which ticket types should exist?',
+ q:'The types decide which screens, statuses and agent instructions exist. Fewer types are simpler to learn, more types make each one sharper.',
+ opts:[
+  {k:'A',n:'Six types',d:'Question, Sketch, Proposal, Tweak, Bug, Theme.'},
+  {k:'B',n:'Three types',d:'Discuss, Design, Fix. Sketch and Proposal become two modes of Design.'},
+  {k:'C',n:'One type plus labels',d:'Every ticket is the same, labels say what it is.'}],
+ rec:'A',why:'Each of the six has a different path and a different main screen. A Sketch needs no Swift and a Proposal does, and you asked for exactly that split. With three types the difference hides inside a mode, and with one type the agent has to remember the rules for each label.'},
+{id:'A2',sec:'foundations',title:'What should the old "Round" be called?',
+ q:'The Swift-specimen comparison with options is the heart of Echo Labs today.',
+ opts:[{k:'A',n:'Proposal',d:'"Proposal #151, 3 options".'},{k:'B',n:'Trial',d:'Suggests testing options out.'},{k:'C',n:'Study',d:'A design word, less clear for newcomers.'},{k:'D',n:'Keep "Round"',d:'No migration of vocabulary.'}],
+ rec:'A',why:'It reads naturally in a sentence and states what the ticket is for: something proposed that you judge. "Round" says nothing to a new agent or a new project, and "Trial" implies the change is being tested rather than chosen.'},
+{id:'A3',sec:'foundations',title:'How should tickets be numbered?',
+ q:'GitHub gives every issue a number in its repo.',
+ opts:[{k:'A',n:'Plain #151',d:'The GitHub issue number, project shown as a chip.'},{k:'B',n:'Project prefix',d:'ECHO-151, with the project name in the ID.'},{k:'C',n:'Own counter',d:'Hatch numbers tickets itself.'}],
+ rec:'A',why:'The number is the one thing you cannot change on GitHub, so using it directly means no mapping table and no way for the two to disagree. One shared tickets repo keeps numbers unique across projects. A prefix is easy to add later as display only.'},
+{id:'A4',sec:'foundations',title:'How many statuses?',
+ q:'Every status must say whose turn it is. The Desk sorts on that.',
+ opts:[{k:'A',n:'16 statuses in 5 phases',d:'Draft to Done, grouped as Intake, Exploring, Building, Landed, Off.'},{k:'B',n:'8 coarse statuses',d:'Merges agent and your turns into the same status.'},{k:'C',n:'Different statuses per type',d:'Each type has its own list.'}],
+ rec:'A',why:'The Desk needs to know who has the ball, so your turn and the agent\'s turn cannot share a status. The 5 phases keep the Board readable even though there are 15 statuses. Per-type lists would mean learning six vocabularies.'},
+{id:'A5',sec:'foundations',title:'How should "whose turn" be shown?',
+ q:'This appears on rows, cards, banners and the Board.',
+ opts:[{k:'A',n:'Colour plus text',d:'Amber for you, teal for agents, slate for Hatch, green finished, grey paused. The status name always sits beside the colour.'},{k:'B',n:'Avatars',d:'A small avatar for the person or agent holding the ticket.'},{k:'C',n:'Position only',d:'No colour, only the grouping on the Desk.'}],
+ rec:'A',why:'Colour is read at a glance in a long list, and the text beside it keeps it usable without relying on colour alone. Avatars suit teams, and this is a one-person tool with agents.'},
+{id:'A6',sec:'foundations',title:'How do type, status and project appear on GitHub?',
+ q:'Tickets are GitHub issues in a private repo.',
+ opts:[{k:'A',n:'Labels',d:'type:proposal, status:your-call, project:echo.'},{k:'B',n:'GitHub Projects fields',d:'Custom fields on a project board.'},{k:'C',n:'Issue types',d:'Native issue types, where the repo supports them.'}],
+ rec:'A',why:'Labels work in every repo, in the list view, on the phone and through the plain API. Projects fields need a separate API and extra sync. Native issue types depend on the repo being owned by an organization, so I would use them only for the type, later, if you move.'},
+
+/* ---------- B SHELL ---------- */
+{id:'B1',sec:'shell',title:'How is the sidebar organized?',
+ q:'The sidebar is the map of the whole app.',
+ opts:[
+  {k:'A',n:'Work and reference groups',d:'Desk, Tickets, Board, Previews on top. Specs, Decisions on a second group. Agents, Log at the bottom.',w:'popup'},
+  {k:'B',n:'Few sections, views inside',d:'Desk and Tickets only. Board and Previews become views inside Tickets.',w:'listDetail'},
+  {k:'C',n:'Top tabs',d:'A tab bar instead of a sidebar.',w:'tabs'}],
+ rec:'A',why:'You move between Desk, Board and Previews several times a day, so they should be one click away. The groups separate things you act on from things you look up. It also matches Echo\'s own sidebar conventions on macOS.'},
+{id:'B2',sec:'shell',title:'How do you switch project?',
+ q:'Echo is the first project, others will follow.',
+ opts:[{k:'A',n:'Popup at the top of the sidebar',d:'Shows project and branch. Includes "All projects".'},{k:'B',n:'One window per project',d:'Each project opens its own window.'},{k:'C',n:'Projects as sidebar sections',d:'Every project expands in the same sidebar.'}],
+ rec:'A',why:'It keeps one window and one Desk across projects, which matters because "your turn" does not care which project a ticket belongs to. Separate windows split your attention, and expanding every project in the sidebar gets long quickly.'},
+{id:'B3',sec:'shell',title:'What does the Desk show when you have several projects?',
+ q:'',
+ opts:[{k:'A',n:'Everything, with a project chip',d:'All projects at once, filter available.'},{k:'B',n:'Current project only',d:'Switch project to see another Desk.'}],
+ rec:'A',why:'Your turn is your turn. If a Question in another project waits for you, hiding it behind a switch is how tickets get forgotten. A filter handles the day you want to focus.'},
+{id:'B4',sec:'shell',title:'Where does "Ask Hatch" live?',
+ q:'A way to ask Claude about the current ticket or screen without leaving it.',
+ opts:[{k:'A',n:'Side panel',d:'Opens on the right, keeps the current ticket as context. Toggle with a shortcut.',w:'chat'},{k:'B',n:'Separate window',d:'A floating chat window.'},{k:'C',n:'Only inside tickets',d:'Via the thread of each ticket.'}],
+ rec:'A',why:'The panel lets you look at the specimen and talk about it at the same time. A separate window loses the context, and thread-only misses the questions that are not about one ticket. Everything asked in the panel about a ticket is also saved to its thread.'},
+{id:'B5',sec:'shell',title:'How is sync with GitHub shown?',
+ q:'Sync is automatic, but you should know when it is not working.',
+ opts:[{k:'A',n:'Footer status plus Log',d:'A small status at the bottom of the sidebar, details in Log, a banner only when something fails.'},{k:'B',n:'Toolbar badge',d:'A sync icon in the toolbar.'},{k:'C',n:'Hidden',d:'Only visible in the Log.'}],
+ rec:'A',why:'It is always visible without taking toolbar space. A failure becomes a banner you cannot miss, which matters because a failed sync means GitHub and Hatch disagree.'},
+{id:'B6',sec:'shell',title:'How do you get notified?',
+ q:'Agents work while you are elsewhere.',
+ opts:[{k:'A',n:'Dock badge plus macOS notification',d:'Badge counts your-turn tickets. Notification when something new needs you, grouped.'},{k:'B',n:'Badge only',d:'No notifications.'},{k:'C',n:'Email or push',d:'Through GitHub.'}],
+ rec:'A',why:'The badge is the quiet default and the notification is what pulls you back when a Proposal is ready. GitHub notifications can still be turned on separately for the phone.'},
+
+/* ---------- C DESK ---------- */
+{id:'C1',sec:'desk',title:'What is the Desk layout?',
+ q:'The old Inbox used a list and a reading pane. For judging work the reading pane was too small to be useful.',
+ opts:[
+  {k:'A',n:'List and brief, open takes the window',d:'The right pane is a short brief. Return opens the ticket full width.',w:'listDetail'},
+  {k:'B',n:'Classic three panes',d:'Sidebar, list and a large reading pane that shows the work itself.',w:'three'},
+  {k:'C',n:'One card at a time',d:'Triage mode: a single large card, next and previous.',w:'sheet'}],
+ rec:'A',why:'The Desk exists to decide what to do next. The actual judging needs the full window anyway, so squeezing it into a pane serves neither job. The brief pane still tells you how big the task is before you open it.'},
+{id:'C2',sec:'desk',title:'How is the Desk grouped?',
+ q:'',
+ opts:[{k:'A',n:'By what is needed from you',d:'Your call, Needs answers, To verify, then Waiting on agents.'},{k:'B',n:'By project',d:'One group per project.'},{k:'C',n:'By age',d:'Oldest first, one list.'}],
+ rec:'A',why:'The groups map to different kinds of effort: judge, answer, verify. You can do them in batches. Age is shown on each row, so you can still spot what has waited longest.'},
+{id:'C3',sec:'desk',title:'What does each Desk row show?',
+ q:'',
+ opts:[{k:'A',n:'Type, number, title, what to do and how long it takes',d:'Plus project chip and age. For Proposals, the recommendation.'},{k:'B',n:'Title only',d:'Minimal.'},{k:'C',n:'With thumbnails',d:'A small preview of the options in the row.'}],
+ rec:'A',why:'"What to do and about how long" is what lets you choose between ten items. Thumbnails look nice but add cost on every row and are too small to judge, so they belong in the brief pane.'},
+{id:'C4',sec:'desk',title:'What about tickets waiting on agents?',
+ q:'',
+ opts:[{k:'A',n:'Collapsed group at the bottom',d:'With a count, expand when you want.'},{k:'B',n:'Only on the Board',d:'Not on the Desk at all.'},{k:'C',n:'Always expanded',d:'Everything visible.'}],
+ rec:'A',why:'You want to know that work is happening, but it should never push your own tickets out of sight. Collapsed with a count gives you both.'},
+{id:'C5',sec:'desk',title:'How much can you do from the Desk list itself?',
+ q:'Keyboard triage is fast, but a decision made without seeing the options is risky.',
+ opts:[{k:'A',n:'Navigate, open, park, drop',d:'Decisions are made inside the ticket.'},{k:'B',n:'Full triage',d:'Accept the recommendation straight from the list.'},{k:'C',n:'Mouse only',d:'No keyboard shortcuts.'}],
+ rec:'A',why:'Accepting triggers an agent run that costs tokens and time, so it should follow a look at the options. Parking and dropping are safe to do from the list.'},
+{id:'C6',sec:'desk',title:'What does an empty Desk show?',
+ q:'',
+ opts:[{k:'A',n:'All clear plus what agents are doing',d:'A calm message and a summary of running work.'},{k:'B',n:'Plain empty state',d:'Just "nothing to do".'},{k:'C',n:'Suggestions',d:'Prompts to create tickets or revisit parked ones.'}],
+ rec:'A',why:'Knowing that three agents are building is what makes "nothing for you" reassuring instead of suspicious. Parked tickets are linked at the bottom without pushing them.'},
+
+/* ---------- D TICKETS ---------- */
+{id:'D1',sec:'tickets',title:'What does the Tickets screen look like?',
+ q:'',
+ opts:[{k:'A',n:'Table with filters and saved views',d:'Columns for type, status, turn, project, age. Toggle to group by Theme.',w:'rows'},{k:'B',n:'Outline by Theme',d:'Themes expand into their children.',w:'oneScroll'},{k:'C',n:'Cards',d:'A grid of ticket cards.',w:'cards'}],
+ rec:'A',why:'You will search and sort a lot, and a table is the clearest way to do that. The Theme grouping is one toggle away when you want the outline view.'},
+{id:'D2',sec:'tickets',title:'How are the Board columns defined?',
+ q:'',
+ opts:[{k:'A',n:'Five phases',d:'Intake, Exploring, Building, Landed, Off. Cards show their exact status chip.',w:'board5'},{k:'B',n:'One column per status',d:'Sixteen columns.',w:'cols15'},{k:'C',n:'Swimlanes by project',d:'Rows per project, columns by phase.',w:'rows'}],
+ rec:'A',why:'Sixteen columns do not fit on a window, and the phases tell the story of where work is. The chip on each card keeps the detail. Swimlanes can be added once there are several active projects.'},
+{id:'D3',sec:'tickets',title:'How do filters and saved views work?',
+ q:'',
+ opts:[{k:'A',n:'Token filter bar plus saved views',d:'type:bug status:to-verify, saved by name in the sidebar.'},{k:'B',n:'Sidebar filters',d:'Checkboxes in a panel.'},{k:'C',n:'Search only',d:'Type words.'}],
+ rec:'A',why:'Token filters are fast with the keyboard and map directly to the SQLite columns and GitHub labels. Saved views give you "Everything waiting on agents" in one click.'},
+{id:'D4',sec:'tickets',title:'What does a Theme (parent ticket) look like?',
+ q:'',
+ opts:[{k:'A',n:'Progress header and child list',d:'"3 of 7 done", children grouped by phase.'},{k:'B',n:'Tree',d:'A nested tree on the Tickets screen only.'}],
+ rec:'A',why:'A Theme is a place to see how a body of work is going, so progress comes first. The tree is still available as the grouped view of the Tickets table.'},
+
+/* ---------- E COMPOSE ---------- */
+{id:'E1',sec:'compose',title:'How do you create a ticket?',
+ q:'',
+ opts:[{k:'A',n:'One form with a check panel',d:'Type, title, description, screenshots, links. Hatch check on the right. A quick-capture shortcut makes a Draft with only a title.',w:'split2'},{k:'B',n:'Step-by-step wizard',d:'One question per step.',w:'wizard'},{k:'C',n:'Quick capture only',d:'A title and a screenshot, Hatch asks the rest.',w:'sheet'}],
+ rec:'A',why:'You can see everything at once and fill what you know. The quick-capture shortcut covers the case where you only have time for a line and a screenshot, and Hatch then asks for the rest.'},
+{id:'E2',sec:'compose',title:'When does the check run?',
+ q:'Free local search can run while you type. The agent check costs tokens.',
+ opts:[{k:'A',n:'Local search while typing, agent check on Submit',d:'Related tickets and Spec items appear instantly. Questions come after you submit.'},{k:'B',n:'Agent check while typing',d:'Questions appear as you write.'},{k:'C',n:'Manual "Check" button',d:'Only when you press it.'}],
+ rec:'A',why:'It gives you the useful hints for free and spends tokens only once, on a ticket you decided to send. Checking while typing would re-run the agent on every pause.'},
+{id:'E3',sec:'compose',title:'How do screenshots get into a ticket?',
+ q:'',
+ opts:[{k:'A',n:'Drop or paste, capture the Echo window, simple annotation',d:'Box, arrow and note on the image.'},{k:'B',n:'Drop or paste only',d:'Annotate in another app.'},{k:'C',n:'Capture only',d:'Window capture, nothing else.'}],
+ rec:'A',why:'Pointing at the exact element is what makes a screenshot useful to an agent, and capture-and-mark is the fastest way to do that. The annotation is only three tools, so it is small to build.'},
+{id:'E4',sec:'compose',title:'How do the agent\'s questions reach you?',
+ q:'',
+ opts:[{k:'A',n:'Answer cards in the ticket',d:'Each question has suggested answers as buttons and a free text field. They also appear on the Desk.'},{k:'B',n:'Comments only',d:'Questions are posted as thread comments.'},{k:'C',n:'A dialog',d:'A modal shows all questions.'}],
+ rec:'A',why:'Structured answers are what lets the agent read your reply exactly. Suggested answers make most questions one click. Everything is mirrored to the GitHub thread for the record.'},
+{id:'E5',sec:'compose',title:'Which kinds of links exist between tickets?',
+ q:'',
+ opts:[{k:'A',n:'Five kinds',d:'Related, Parent (Theme), Blocks, Duplicates, Supersedes.'},{k:'B',n:'Three kinds',d:'Related, Parent, Blocks.'},{k:'C',n:'Free text',d:'Mention #numbers.'}],
+ rec:'A',why:'Supersedes matters here: a new decision that replaces an old one should say so, so the old Spec item is flagged. Duplicates lets the check offer to merge. Both are small to add and hard to reconstruct later.'},
+{id:'E6',sec:'compose',title:'What happens when the check finds a likely duplicate?',
+ q:'',
+ opts:[{k:'A',n:'Offer Merge, Link, or Keep separate',d:'You decide.'},{k:'B',n:'Close automatically',d:'The newer ticket is closed.'}],
+ rec:'A',why:'Similar is not the same. A new ticket may be about the same area but a different change, and closing it silently would lose that.'},
+{id:'E7',sec:'compose',title:'Should each type have a template?',
+ q:'',
+ opts:[{k:'A',n:'Required fields per type',d:'Bug: steps, expected, actual. Tweak: element and change. Sketch: goal and constraints. Proposal: what, why, scope.'},{k:'B',n:'One free-form body',d:'Write what you like.'}],
+ rec:'A',why:'The fields are what the agent will ask about anyway. Having them in the form means fewer round trips. You can leave a field short, and Hatch will ask only about what is missing.'},
+];
+DECISIONS.push(
+/* ---------- F TICKET VIEW ---------- */
+{id:'F1',sec:'ticket',title:'How is a ticket page structured?',
+ q:'',
+ opts:[{k:'A',n:'Header and banner, then tabs',d:'Overview, Options (or Variants), Thread, Work, History.',w:'tabs'},{k:'B',n:'One long scroll',d:'All sections on one page.',w:'oneScroll'},{k:'C',n:'Thread always visible',d:'Main content left, thread always on the right.',w:'split2'}],
+ rec:'A',why:'Each tab is a different kind of work: judging, discussing, watching a build. Tabs keep the Options tab free for the full width the stage needs. The thread is one click away, and the banner always shows what is expected.'},
+{id:'F2',sec:'ticket',title:'How prominent is "whose turn it is"?',
+ q:'',
+ opts:[{k:'A',n:'A banner with the main action',d:'A coloured bar at the top: what is expected, and the button for it.'},{k:'B',n:'A status chip only',d:'Small chip in the header.'}],
+ rec:'A',why:'The most common question on opening a ticket is "what do I do here". A banner answers it with a button, so you do not hunt for the next step.'},
+{id:'F3',sec:'ticket',title:'How is the thread shown?',
+ q:'GitHub comments, agent messages and system events all belong to the ticket.',
+ opts:[{k:'A',n:'One timeline with filters',d:'Comments, agent messages and events together. Toggle events on or off.'},{k:'B',n:'Separate Thread and History tabs',d:'Conversation apart from system events.'}],
+ rec:'A',why:'The order of events is the story, for example "you sent it back, then rev 2 arrived". Filters give the clean conversation view when you want it.'},
+{id:'F4',sec:'ticket',title:'How do you talk to the agent from a ticket?',
+ q:'A comment from you can mean different things.',
+ opts:[{k:'A',n:'Three message kinds: Note, Ask, Instruction',d:'Note adds context. Ask expects an answer and moves the turn to the agent. Instruction changes the work.'},{k:'B',n:'A single comment box',d:'The agent decides what you meant.'}],
+ rec:'A',why:'The kind decides what Hatch does next, so it should not be guessed. An Ask moves the turn, a Note does not, and an Instruction creates a revision. That is code, not agent memory.'},
+{id:'F5',sec:'ticket',title:'How much history do you see?',
+ q:'',
+ opts:[{k:'A',n:'Every event in History',d:'Status changes, picks, syncs, commits, token use. Searchable.'},{k:'B',n:'Status changes only',d:'A short list.'}],
+ rec:'A',why:'It is already recorded in SQLite, so showing it costs nothing, and it is the answer to "why is this in that status" and "did that reach GitHub".'},
+
+/* ---------- G SKETCH ---------- */
+{id:'G1',sec:'sketch',title:'How are variants arranged?',
+ q:'',
+ opts:[{k:'A',n:'Side by side, with a one-at-a-time mode',d:'Up to three in a row, a carousel for more.',w:'grid3'},{k:'B',n:'Carousel only',d:'One variant at a time.',w:'flip'},{k:'C',n:'Stacked list',d:'Variants one below the other.',w:'rows'}],
+ rec:'A',why:'You choose by comparing, and side by side is the quickest way to compare layouts. The one-at-a-time mode covers four or more variants and detail checks.'},
+{id:'G2',sec:'sketch',title:'How do you give feedback on a variant?',
+ q:'',
+ opts:[{k:'A',n:'Pinned comments',d:'Click on the variant to drop a numbered pin with a note.'},{k:'B',n:'A note per variant',d:'One text box under each variant.'},{k:'C',n:'Rating',d:'Stars or thumbs.'}],
+ rec:'A',why:'"Too much scrolling here" is more useful to an agent than "B is worse". The pin records the position, and you can still add a general note per variant.'},
+{id:'G3',sec:'sketch',title:'How are Sketches drawn?',
+ q:'No Swift is compiled for a Sketch.',
+ opts:[{k:'A',n:'HTML styled like macOS, clearly marked as a concept',d:'Appears in seconds, cheap in tokens.'},{k:'B',n:'Static images',d:'Generated pictures.'},{k:'C',n:'SwiftUI right away',d:'No Sketch type, only Proposals.'}],
+ rec:'A',why:'It answers the layout and flow questions without a compile, which is the point of a Sketch. The Concept label is permanent so nobody mistakes it for a faithful render.'},
+{id:'G4',sec:'sketch',title:'How does a Sketch end?',
+ q:'',
+ opts:[{k:'A',n:'Choose a direction, mix parts, Make it real',d:'"Header from A, list from C". Make it real creates a Proposal or Tweak, prefilled.'},{k:'B',n:'Pick one variant',d:'The chosen variant is the result.'}],
+ rec:'A',why:'Real choices mix: you like the header of one and the list of another. A recorded mix gives the next ticket a precise starting point.'},
+
+/* ---------- I BUILD ---------- */
+{id:'I1',sec:'build',title:'How is a build shown?',
+ q:'',
+ opts:[{k:'A',n:'Steps with results and a live log',d:'Plan, Claim, Implement, Build, Tests, Match check, Ready.',w:'steps'},{k:'B',n:'Status and log only',d:'A chip and a text stream.',w:'rows'}],
+ rec:'A',why:'You can see in one glance where it is and where it failed. The log stays one click away for details.'},
+{id:'I2',sec:'build',title:'When must you approve the agent\'s plan?',
+ q:'The plan lists the files it will touch and the tests it will run.',
+ opts:[{k:'A',n:'Only for Bugs and large changes',d:'Auto-proceeds for accepted Proposals and Tweaks. Asks when more than a set number of files.'},{k:'B',n:'Always',d:'Every build waits for you.'},{k:'C',n:'Never',d:'Plan is shown, not approved.'}],
+ rec:'A',why:'An accepted Proposal already says what to build, so asking again is friction. A Bug fix or a plan that spreads over many files is where surprises happen, so that is where you get a say.'},
+{id:'I3',sec:'build',title:'Which tests run?',
+ q:'',
+ opts:[{k:'A',n:'Tests mapped to the area; the repo\'s CI runs the full suite',d:'The project config says which test plan belongs to which area. Hatch runs only that in the ticket\'s workspace. The full suite is left to CI (see I6).'},{k:'B',n:'Always the full suite',d:'Every ticket.'},{k:'C',n:'None until merge',d:'Only build.'}],
+ rec:'A',why:'It keeps the loop fast while you iterate. You said the testing must stay limited, and that the repo should cover the rest, so Hatch does not run a full build before merge. CI does that (see I6).'},
+{id:'I4',sec:'build',title:'How is the Match check shown?',
+ q:'',
+ opts:[{k:'A',n:'Parts table plus image comparison',d:'Per part pass or fail, and the accepted | Echo | diff image for each state.'},{k:'B',n:'Pass or fail only',d:'A single result.'}],
+ rec:'A',why:'It is the evidence that Echo looks like what you accepted. If it fails, you want to see which part and how far off.'},
+{id:'I5',sec:'build',title:'What can you do while an agent is working?',
+ q:'',
+ opts:[{k:'A',n:'Stop, take over in Terminal or Xcode, send an instruction',d:'Take over opens the workspace.'},{k:'B',n:'Stop only',d:'End the run.'}],
+ rec:'A',why:'Sometimes you want to finish the last bit yourself. Because each ticket has its own workspace, handing it to you does not disturb any other agent.'},
+
+/* ---------- J PREVIEW ---------- */
+{id:'J1',sec:'preview',title:'How do tickets get into a Preview?',
+ q:'',
+ opts:[{k:'A',n:'You select them',d:'Checkboxes on Previews. Hatch builds that set.'},{k:'B',n:'Automatic',d:'Everything To verify is merged into one Preview.'},{k:'C',n:'One Preview per ticket',d:'Separate builds.'}],
+ rec:'A',why:'You choose what you want to look at together, and a ticket that is not ready stays out. Automatic previews change under you, and per-ticket builds are the slow thing you wanted to avoid.'},
+{id:'J2',sec:'preview',title:'What happens when two tickets conflict?',
+ q:'',
+ opts:[{k:'A',n:'Tell you which pair, offer drop, stack or ask the agent to resolve',d:''},{k:'B',n:'Fail the build',d:'Show an error.'}],
+ rec:'A',why:'A conflict is information about which tickets overlap. Naming the pair and offering the next step turns an error into a decision.'},
+{id:'J3',sec:'preview',title:'How do you verify?',
+ q:'',
+ opts:[{k:'A',n:'Per ticket: Looks right or Needs work',d:'With a checklist of what to look at, notes and screenshots.'},{k:'B',n:'Approve all',d:'One button for the whole Preview.'}],
+ rec:'A',why:'You will often find two good and one wrong. Per-ticket verdicts let the good ones merge while the third goes back. The checklist comes from the accepted option so you know what to look at.'},
+{id:'J4',sec:'preview',title:'How does the Preview app run?',
+ q:'The Preview is a separate build of Echo.',
+ opts:[{k:'A',n:'A separate copy, labelled Preview 03',d:'Runs next to your normal Echo. A banner in the window says it is a Preview.'},{k:'B',n:'Replaces your running Echo',d:'Quit and relaunch.'}],
+ rec:'A',why:'You can compare with the Echo you use every day and nothing you rely on is replaced. The banner needs a small DEBUG addition in Echo.'},
+{id:'J5',sec:'preview',title:'How are approved tickets merged?',
+ q:'',
+ opts:[{k:'A',n:'Merge plan shown first, one button',d:'Design system first, tag, then Echo bumps and merges.'},{k:'B',n:'Manual',d:'You merge each branch yourself.'}],
+ rec:'A',why:'The order matters and is easy to get wrong by hand. Showing the plan first keeps you in control, and one button does the safe sequence.'},
+{id:'J6',sec:'preview',title:'What if one ticket in a Preview fails?',
+ q:'',
+ opts:[{k:'A',n:'Others still merge',d:'The failed one goes to Fixing.'},{k:'B',n:'All or nothing',d:'The Preview is rejected.'}],
+ rec:'A',why:'Tickets are independent changes. Holding good ones back for a bad one only slows you down. The merge plan is recomputed without the failed ticket.'},
+
+/* ---------- K AGENTS ---------- */
+{id:'K1',sec:'agents',title:'Is there an Agents screen?',
+ q:'',
+ opts:[{k:'A',n:'Yes: runs, claims, queue and cost',d:'One table of running work with queue and claims.'},{k:'B',n:'Only inside tickets',d:'No overview.'}],
+ rec:'A',why:'With several agents in parallel you need one place that shows what is running, what is waiting for files, and what it costs. It is also where conflicts are resolved.'},
+{id:'K2',sec:'agents',title:'How many agents run at once?',
+ q:'',
+ opts:[{k:'A',n:'Default 3, configurable',d:'Slots shown on the Agents screen.'},{k:'B',n:'Unlimited',d:'Start everything.'},{k:'C',n:'One at a time',d:'A queue.'}],
+ rec:'A',why:'Three parallel Swift builds is about what a Mac does comfortably, and it limits how many token streams run at the same time. A setting lets you raise it.'},
+{id:'K3',sec:'agents',title:'What happens when two tickets want the same files?',
+ q:'',
+ opts:[{k:'A',n:'Queue by default, offer Stack',d:'The later ticket waits. A button stacks both on one branch in order.'},{k:'B',n:'Always ask you',d:'A prompt every time.'},{k:'C',n:'Stack automatically',d:'One agent, one branch.'}],
+ rec:'A',why:'Queueing is the safest default because the second ticket then builds on the first one\'s finished work. Stacking is faster but couples two tickets, so it should be a choice you make.'},
+{id:'K4',sec:'agents',title:'How are agents named?',
+ q:'',
+ opts:[{k:'A',n:'By ticket: "Agent on #144"',d:'No persistent identity.'},{k:'B',n:'Agent 1, 2, 3',d:'Fixed slots.'}],
+ rec:'A',why:'Agent sessions are temporary, and the ticket is the useful label. Slot numbers would suggest an identity that does not exist.'},
+{id:'K5',sec:'agents',title:'Do you see token use?',
+ q:'',
+ opts:[{k:'A',n:'Per run, per ticket and per day',d:'Shown on the Agents screen and ticket sidebar.'},{k:'B',n:'Hidden',d:'Not shown.'}],
+ rec:'A',why:'You said cost matters, and seeing which kinds of tickets are expensive is how you learn where to simplify.'},
+
+/* ---------- L PROJECTS ---------- */
+{id:'L1',sec:'projects',title:'How is a project set up?',
+ q:'',
+ opts:[{k:'A',n:'Settings screen that writes .hatch/project.json into the app repo',d:'Agents and CI can read it too.'},{k:'B',n:'Settings stored only in Hatch',d:'A database record.'},{k:'C',n:'Config file only',d:'No settings UI.'}],
+ rec:'A',why:'You get a friendly screen, and the config is versioned and readable by any agent, even outside Hatch. The file can be committed with the code it describes.'},
+{id:'L2',sec:'projects',title:'How is the area index created?',
+ q:'The index maps each area to files and Spec IDs so agents read only the relevant part of a large app.',
+ opts:[{k:'A',n:'An agent drafts it, you review',d:'On setup and on Re-scan.'},{k:'B',n:'You write it by hand',d:''}],
+ rec:'A',why:'It is a one-time reading job that an agent does well and you can correct in minutes. The index is the biggest single saving in tokens per ticket.'},
+{id:'L3',sec:'projects',title:'Where do Specs live?',
+ q:'Today they are Swift code in Echo Labs.',
+ opts:[{k:'A',n:'Markdown files in the project repo',d:'Under .hatch/spec/, indexed into SQLite for search.'},{k:'B',n:'Inside the Hatch database',d:'Edited in the app.'},{k:'C',n:'Stay as Swift',d:'Keep the current files.'}],
+ rec:'A',why:'Plain text is searchable, readable by every agent and reviewable in a diff. Swift-encoded specs are hard to search and tie Hatch to the old code.'},
+{id:'L4',sec:'projects',title:'What happens to the existing Echo Labs rounds?',
+ q:'',
+ opts:[{k:'A',n:'Import: decided rounds become Done and Decisions, open ones become Proposals',d:'Keeps history and your decisions.'},{k:'B',n:'Start fresh',d:'Old Echo Labs stays as an archive.'}],
+ rec:'A',why:'Your decisions are the most valuable thing in Echo Labs, and the Spec depends on them. Open rounds continue in the new flow without being re-created.'},
+
+/* ---------- M SYNC ---------- */
+{id:'M1',sec:'sync',title:'Who wins when GitHub and Hatch disagree?',
+ q:'',
+ opts:[{k:'A',n:'Hatch owns status, GitHub owns text',d:'Edits to title, body and comments on GitHub are accepted. A hand-edited status label is flagged, not obeyed.'},{k:'B',n:'GitHub wins everything',d:'Always pull.'}],
+ rec:'A',why:'Status transitions have rules (claims, checks) that live in Hatch. Text is free-form and benefits from editing on the phone. Flagging a changed label tells you without breaking the flow.'},
+{id:'M2',sec:'sync',title:'What happens offline?',
+ q:'',
+ opts:[{k:'A',n:'Queue and retry with backoff',d:'A banner shows pending items. Nothing is lost.'},{k:'B',n:'Block changes',d:'Require a connection.'}],
+ rec:'A',why:'Work should never stop because the network does. Every change is recorded in sync_log as pending first, so it survives a quit.'},
+{id:'M3',sec:'sync',title:'Where are screenshots stored?',
+ q:'GitHub\'s API does not support uploading images to issues.',
+ opts:[{k:'A',n:'Committed to the private tickets repo',d:'attachments/<ticket>/. Linked from the issue.'},{k:'B',n:'Local only',d:'Not on GitHub.'}],
+ rec:'A',why:'It keeps screenshots next to the ticket on every device and for cloud sessions, and it stays private. The cost is repo size, which is small for screenshots.'},
+{id:'M4',sec:'sync',title:'How does search work?',
+ q:'',
+ opts:[{k:'A',n:'SQLite full-text over tickets, comments, Specs and decisions',d:'Behind Search (⌘K), instant and offline.'},{k:'B',n:'GitHub search',d:'Through the API.'}],
+ rec:'A',why:'It is instant, offline and covers Specs and decisions that are not on GitHub. The same index feeds the free similar-ticket hints in the composer.'},
+
+/* ---------- N LIBRARY ---------- */
+{id:'N1',sec:'library',title:'What do Specs and Decisions look like?',
+ q:'',
+ opts:[{k:'A',n:'Specs by area with IDs and linked tickets, Decisions as read-only frozen results',d:'Each Decision links the ticket, picks and the Spec items it changed.'},{k:'B',n:'One combined Library',d:'Specs and Decisions together.'}],
+ rec:'A',why:'A Spec says what is true now and a Decision says why. They change at different speeds, and keeping them apart is how Echo Labs already works.'},
+{id:'N2',sec:'library',title:'What does the Log show?',
+ q:'',
+ opts:[{k:'A',n:'Every Hatch action with its GitHub sync result',d:'Filter by failed. Retry from the row.'},{k:'B',n:'Only errors',d:'A shorter list.'}],
+ rec:'A',why:'You asked that syncs are recorded. A full log makes "did it reach GitHub" answerable in seconds, and errors are one filter away.'},
+);
+DECISIONS.push(
+/* ---------- H PROPOSAL STAGE ---------- */
+{id:'H1',sec:'proposal',title:'Stage layout: where do controls, specimens and the decision sit?',
+ q:'Try the prototype above. The old Rounds page had three fixed columns, which left the specimens the least room.',
+ opts:[
+  {k:'A',n:'Three fixed columns',d:'Controls left, specimens in the middle, decision right. Today\'s layout.',w:'three'},
+  {k:'B',n:'Stage first, panels fold away',d:'Specimens get the width. Controls and Decision are side panels you can fold, open by default on wide windows and folded on narrow ones.',w:'stageFirst'},
+  {k:'C',n:'Stacked',d:'Specimens on top, controls and decision below.',w:'stacked'}],
+ rec:'B',why:'Judging is about looking, so the specimens should get the width. Folding panels gives you a full-width view when comparing and brings the controls back when tuning. The prototype has both panels so you can feel it. Three fixed columns waste space at 2 or 3 options, and stacking loses the view of the specimen while you decide.'},
+{id:'H2',sec:'proposal',title:'How do you switch between specimens?',
+ q:'Proposals have 2 to 5 options plus Echo today.',
+ opts:[
+  {k:'A',n:'All side by side, solo button on each',d:'Everything visible, and a button shows one large. This is today\'s behaviour.',w:'grid3'},
+  {k:'B',n:'Tabs, one at a time',d:'Select an option, flip back and forth with a key.',w:'tabs'},
+  {k:'C',n:'Adaptive: side by side up to three, filmstrip beyond',d:'With 4 or more, a filmstrip of thumbnails at the bottom and two shown large. Space always flips with Echo today.',w:'filmstrip'}],
+ rec:'C',why:'Side by side is the best way to compare, until it gets too narrow to judge. At four or five options a filmstrip keeps every option one click away while two stay large. Space as a flip key means you can always check an option against Echo today without moving the mouse.'},
+{id:'H3',sec:'proposal',title:'Which compare modes exist?',
+ q:'Try each one in the prototype: Side by side, Overlay, Flip, Wipe, Matrix.',
+ opts:[
+  {k:'A',n:'Side by side only',d:'Simple, as today.',w:'grid3'},
+  {k:'B',n:'Side by side, Overlay, Flip, Wipe',d:'Four ways to compare one option against Echo today.',w:'overlay'},
+  {k:'C',n:'All four plus Matrix',d:'Matrix shows every scenario for every option in a grid.',w:'cards'}],
+ rec:'C',why:'Different differences show up in different modes: Flip reveals small shifts, Wipe shows alignment, Overlay shows spacing, and Matrix shows what changes across states. They are cheap to build because the specimens are the same views, only arranged differently. The default stays Side by side.'},
+{id:'H4',sec:'proposal',title:'How is Echo today shown?',
+ q:'Every proposal is judged against how Echo looks now.',
+ opts:[
+  {k:'A',n:'A pinned specimen with a Match badge',d:'First in the list. A badge says when it was last checked against the real Echo, and warns if Echo changed since.'},
+  {k:'B',n:'A screenshot of the real Echo',d:'Captured from the running Echo for each scenario.'},
+  {k:'C',n:'Not shown',d:'Judge on the options alone.'}],
+ rec:'A',why:'A specimen can be switched across scenarios, appearances and zoom, which a screenshot cannot. The Match badge keeps it honest: if Echo changed after the specimen was written, you see a warning instead of judging against stale ground. The real-Echo screenshot remains available in the Match check after build.'},
+{id:'H5',sec:'proposal',title:'How are scenarios (states) tested?',
+ q:'This is the part of the old page that was hardest to use.',
+ opts:[
+  {k:'A',n:'Scenario strip',d:'Named states in a row, one click each. Applies to all specimens at once.'},
+  {k:'B',n:'Strip plus Matrix view',d:'The strip, and a grid of every scenario by every option for spotting differences.'},
+  {k:'C',n:'Controls panel only',d:'States are knobs among the other controls.'}],
+ rec:'B',why:'The strip answers "how does it look when it errors". The Matrix answers "where do my options differ across all states", and flags the cells that differ from Echo today. Having states as knobs hides them among tuning controls and makes you set them one by one on each specimen.'},
+{id:'H6',sec:'proposal',title:'Which scenarios must every Proposal include?',
+ q:'The agent decides what to test unless there is a standard set.',
+ opts:[
+  {k:'A',n:'A standard set, extendable',d:'Rest, Hover, Pressed, Focus, Disabled, Empty, Error, Long text, Many items, Loading. A Proposal marks a state as not applicable with a reason.'},
+  {k:'B',n:'The agent chooses',d:'Whatever seems relevant.'},
+  {k:'C',n:'A short set',d:'Rest, Hover, Error.'}],
+ rec:'A',why:'Most regressions live in the states nobody looked at, such as long text or empty. A standard set makes them part of every judgment, and the "not applicable, because" note makes skipping a deliberate choice. Hatch checks this in code (see the quality gate).'},
+{id:'H7',sec:'proposal',title:'Appearance controls: what and where?',
+ q:'',
+ opts:[
+  {k:'A',n:'Always-visible bar: appearance, contrast, corners, text size, motion',d:'Light, Dark, Increase Contrast; Corners 10 or 26; text size; Reduce Motion. Applies to all specimens, remembered per ticket.'},
+  {k:'B',n:'A menu in the toolbar',d:'Hidden behind one button.'},
+  {k:'C',n:'Show all appearances at once',d:'Each specimen rendered in light and dark together.'}],
+ rec:'A',why:'You check light and dark constantly, and Corners 10 versus 26 matters in Echo, so these must be one click. A bar that is always visible makes them part of every look. A "both at once" toggle can be offered from the same bar, but doubling every specimen all the time costs width.'},
+{id:'H8',sec:'proposal',title:'Measurements: how do you see exact spacing and sizes?',
+ q:'Turn on Redlines in the prototype.',
+ opts:[
+  {k:'A',n:'Redlines overlay',d:'A toggle draws padding, gaps and sizes on the specimens in the specimen\'s units.'},
+  {k:'B',n:'A measurements table',d:'Numbers listed beside the specimens.'},
+  {k:'C',n:'None',d:'Judge by eye.'}],
+ rec:'A',why:'Spacing is the thing you keep deciding, and numbers drawn on the specimen tie each value to the place it applies. It is also the same data the Match check compares afterwards, so the specimens already know their measurements. A table can come later as a detail view.'},
+{id:'H9',sec:'proposal',title:'Zoom and sizing',
+ q:'Specimens have a real design size.',
+ opts:[
+  {k:'A',n:'100% means Echo\'s real size, fit when too wide, with a label',d:'Zoom steps up to 200%. A note says when a specimen is scaled down.'},
+  {k:'B',n:'Always fit to the available width',d:'Specimens scale to the window.'}],
+ rec:'A',why:'You judge spacing and type at their real size, and scaling by stealth would make 12pt look like 9pt without telling you. Fit-to-width is still one click for overview.'},
+{id:'H10',sec:'proposal',title:'Controls panel: how are the knobs organized?',
+ q:'',
+ opts:[
+  {k:'A',n:'Decision controls first, Playground folded, presets on top',d:'Controls with a question come first with the recommended star. Knobs without a question are in a folded Playground. A Recommended preset sets everything.'},
+  {k:'B',n:'One flat list',d:'All controls together.'},
+  {k:'C',n:'No controls',d:'Only fixed options.'}],
+ rec:'A',why:'Controls with a question are the decision, and playground knobs like speed are not. Keeping them apart stops a speed slider looking like a design question. The Recommended preset lets you try my whole answer in one click.'},
+{id:'H11',sec:'proposal',title:'The decision panel',
+ q:'Today: one card per question with a recommendation, reason, radio choices and a note.',
+ opts:[
+  {k:'A',n:'Keep the card per question, add "Use recommendation" and "Use what\'s in preview"',d:'Every card shows what I recommend and why. Bottom: Accept or Send back.'},
+  {k:'B',n:'Single choice',d:'Choose one option as a whole, no per-question answers.'},
+  {k:'C',n:'Ranking',d:'Order the options by preference.'}],
+ rec:'A',why:'Your decisions are rarely "all of B". You choose the spacing from one and the placement from another, and per-question answers capture that. The recommendation with its reason is a requirement you set, so it is part of every card.'},
+{id:'H12',sec:'proposal',title:'Verdicts on options',
+ q:'',
+ opts:[
+  {k:'A',n:'Pick, Maybe, No on each option, plus a note',d:'Shown on the specimen header (see prototype) and summarized in the decision panel.'},
+  {k:'B',n:'Pick only',d:'One selected option.'},
+  {k:'C',n:'Star rating',d:'1 to 5.'}],
+ rec:'A',why:'"Maybe" is the verdict that tells the agent what to keep refining, and "No" tells it what not to bring back. Both are lost with pick-only. It already works this way in Echo Labs.'},
+{id:'H13',sec:'proposal',title:'Notes on the stage',
+ q:'A note should say what you were looking at.',
+ opts:[
+  {k:'A',n:'Pin a note on the specimen',d:'Click a spot to drop a pin. It stores the scenario, appearance, corners and zoom you had on. Also notes per option, per question and general.'},
+  {k:'B',n:'Text notes only',d:'No position.'}],
+ rec:'A',why:'"Spacing too tight" means something different in dark mode with Large text than in light. A pin that records the state it was written in lets the agent reproduce what you saw, and re-opens the stage in that state when you click it.'},
+{id:'H14',sec:'proposal',title:'Asking a question while judging',
+ q:'',
+ opts:[
+  {k:'A',n:'Ask button in the stage toolbar',d:'Sends your question with a picture of the current view and the state. The answer arrives in the thread and in the Ask panel.'},
+  {k:'B',n:'Ask through the thread only',d:'Leave the stage to write.'}],
+ rec:'A',why:'The question is usually about what you are looking at. Sending the current view and state with it means the agent sees what you see, with no explanation needed.'},
+{id:'H15',sec:'proposal',title:'Revisions after you send it back',
+ q:'',
+ opts:[
+  {k:'A',n:'Keep old options, mark new ones, revision switcher, compare revisions',d:'NEW badges, a "New since your last review" summary, and a way to view revision 1 or overlay 1 on 2.'},
+  {k:'B',n:'Only the latest',d:'Replace the options.'}],
+ rec:'A',why:'It keeps the existing rule that old options are never removed, because your earlier picks refer to them. Overlaying revisions shows exactly what changed.'},
+{id:'H16',sec:'proposal',title:'What happens when you press Accept?',
+ q:'Accepting starts an agent run that costs tokens.',
+ opts:[
+  {k:'A',n:'A confirmation sheet',d:'Lists your choices, the repos and branches that will change, the tests that will run and a token estimate. Then Accept.'},
+  {k:'B',n:'Immediate',d:'Accept and start.'}],
+ rec:'A',why:'Accept starts work and spends money, so it is the one place worth one more look. The sheet is also where you notice that the wrong repo or branch is selected.'},
+{id:'H17',sec:'proposal',title:'What happens when you press Send back?',
+ q:'',
+ opts:[
+  {k:'A',n:'Choose a reason, then write what to change',d:'Needs more options, Change an option, or Different direction. A note is required.'},
+  {k:'B',n:'Free note only',d:'Write whatever you like.'}],
+ rec:'A',why:'The reason picks what the agent does: add options and keep the old ones, edit one option, or start from a new angle. Saying so in a field is faster and less error-prone than expecting the agent to infer it from prose.'},
+{id:'H18',sec:'proposal',title:'How are animated specimens judged?',
+ q:'Toasts, sheets and transitions move.',
+ opts:[
+  {k:'A',n:'Transport bar',d:'Play, scrub, step one frame, speed 0.25x to 2x, loop, and Reduce Motion preview. The timeline of tagged parts is drawn under it.'},
+  {k:'B',n:'Play button only',d:'Plays at normal speed.'}],
+ rec:'A',why:'Motion decisions are about timing you cannot judge at 1x, such as when the toast goes away. Scrubbing and slow speed let you see it, and the timeline is the same data the Match check compares against Echo afterwards.'},
+{id:'H19',sec:'proposal',title:'A quality gate before a Proposal reaches you',
+ q:'',
+ opts:[
+  {k:'A',n:'Hatch validates the Proposal in code on hatch offer',d:'Echo today present, standard scenarios covered or marked not applicable, every question has a recommendation and reason, specimens render, design sizes set. If not, it goes back to the agent.'},
+  {k:'B',n:'The agent follows the guide',d:'As HOW_TO_WRITE_A_ROUND.md today.'}],
+ rec:'A',why:'This is your rule of doing as much as possible in code. A missing recommendation is currently an assertion that fails in the app, after the agent has finished. The gate catches it while the agent can still fix it, and you never see a half-finished Proposal.'},
+{id:'H20',sec:'proposal',title:'Keyboard on the stage',
+ q:'',
+ opts:[
+  {k:'A',n:'Full map',d:'Space flip, ← → switch specimen, 1–5 compare modes, L/D light and dark, R redlines, S scenario next, ⌘↩ Accept, ⌘⇧↩ Send back. A help overlay on ?'},
+  {k:'B',n:'Mouse only',d:'No shortcuts.'}],
+ rec:'A',why:'You will switch and compare hundreds of times. The shortcuts are single keys, and ⌘↩ for Accept can be a confirm sheet (see above), so a stray key never starts a build.'},
+{id:'H21',sec:'proposal',title:'When a specimen fails or is out of date',
+ q:'',
+ opts:[
+  {k:'A',n:'Show the failure on the specimen',d:'A clear message in the place of the specimen, a button to report it to the agent, and the rest of the stage keeps working. A banner says when a specimen is older than the latest code.'},
+  {k:'B',n:'Blank or crash',d:'Whatever the code does.'}],
+ rec:'A',why:'One broken specimen must not stop you judging the others. The report button turns the failure into an instruction to the agent.'},
+);
+DECISIONS.push(
+{id:'S1',sec:'swift',title:'Where do Swift Proposals run?',
+ q:'Your idea: open a separate application for a Swift round, so Hatch is not rebuilt for every new round.',
+ opts:[
+  {k:'A',n:'Inside Hatch',d:'Echo\'s specimens are compiled into Hatch. Every new round rebuilds and relaunches Hatch, as Echo Labs does today.'},
+  {k:'B',n:'A separate Stage app per Proposal',d:'Hatch launches a small app that contains the stage and that round only. Prebuilt kits are reused, only the round is compiled.'},
+  {k:'C',n:'One long-running Stage that loads rounds as plug-ins',d:'No relaunch at all, but compiled SwiftUI is loaded into a running app.'}],
+ rec:'B',why:'Hatch is rebuilt only when Hatch itself changes, and a broken round cannot take Hatch down, which is the failure you hit with the Rebuild button today. Only the round is compiled because the stage kit, the specimens and the design system are prebuilt and cached. Option C would remove even the relaunch, but loading compiled SwiftUI into a running app is fragile, so I would measure B first and consider C only if the relaunch feels slow.'},
+{id:'S2',sec:'swift',title:'What does the Stage app contain?',
+ q:'The compare modes, scenarios and decision panel need to sit next to the specimens.',
+ opts:[
+  {k:'A',n:'The whole stage, from a shared StageKit, plus the round',d:'Everything in the prototype above runs inside the Stage app.'},
+  {k:'B',n:'Specimens only',d:'Hatch captures pictures of them and draws the stage around the pictures.'}],
+ rec:'A',why:'One app cannot draw live SwiftUI views from another app, so the stage and the specimens have to live in the same process. With pictures only, you would lose hover, motion, scrubbing and the exact sizes, and that is what judging a Swift round is for.'},
+{id:'S3',sec:'swift',title:'How do Hatch and the Stage app talk to each other?',
+ q:'Every pick, note and verdict has to end up in SQLite and, through the sync, on GitHub.',
+ opts:[
+  {k:'A',n:'Local API, Hatch is the only writer',d:'The Stage sends each pick and note to Hatch. If Hatch is not running, the Stage keeps them and delivers them later.'},
+  {k:'B',n:'Both write to the SQLite file',d:'Shared database access.'},
+  {k:'C',n:'The Stage writes files that Hatch reads',d:'JSON files in a folder.'}],
+ rec:'A',why:'You set the rule that the app owns the bookkeeping. With one writer there are no lock conflicts, and every change goes through the same status rules and the sync record. Two processes writing to one SQLite file is where corrupted or half-synced state comes from.'},
+{id:'S4',sec:'swift',title:'Where does the code of a Swift round live?',
+ q:'Rounds are Swift packages that depend on the design system and on Echo\'s shared "today" specimens.',
+ opts:[
+  {k:'A',n:'A per-project specimens repo',d:'echo-specimens: the shared Echo-today views, plus one folder per round.'},
+  {k:'B',n:'In the Echo repo',d:'Next to the app code.'},
+  {k:'C',n:'In the private tickets repo',d:'Next to the issue.'}],
+ rec:'A',why:'It keeps experiments out of Echo, which was your goal in splitting Labs out. Rounds share the Echo-today views instead of copying them, and the repo has real Swift versions and tags. An accepted round is archived into Decisions with a tag. The tickets repo is meant for text, and mixing code into it makes both harder to read.'},
+{id:'S5',sec:'swift',title:'How do the Stage windows behave?',
+ q:'',
+ opts:[
+  {k:'A',n:'One Stage window per Proposal',d:'Hatch shows its status and a Focus button. A new revision offers Reload. It closes when the ticket leaves Your call, after a confirmation.'},
+  {k:'B',n:'One reusable Stage window',d:'Opening another Proposal replaces the first.'}],
+ rec:'A',why:'You may want to compare two Proposals, or keep one open while writing a note in Hatch. State is stored per ticket in SQLite, so closing and reopening a Stage loses nothing.'},
+{id:'S6',sec:'swift',title:'When is the Stage built and checked?',
+ q:'',
+ opts:[
+  {k:'A',n:'Before it reaches you',d:'Hatch builds the Stage and runs it headless for the quality gate before the ticket becomes Your call. The build log is on the ticket.'},
+  {k:'B',n:'The agent builds it and Hatch trusts it',d:'No check by Hatch.'},
+  {k:'C',n:'When you press Open',d:'Build on demand.'}],
+ rec:'A',why:'The quality gate (H19) needs the specimens to run, and a round that does not compile should go back to the agent, not to you. It also means Open is instant, because the Stage is already built.'},
+{id:'S7',sec:'swift',title:'What if a Stage crashes, or Hatch is not running?',
+ q:'',
+ opts:[
+  {k:'A',n:'Contain it',d:'Hatch shows "Stage closed unexpectedly" with Relaunch and Send crash report to agent. The Stage keeps your picks until Hatch is back.'},
+  {k:'B',n:'Nothing special',d:'Whatever happens, happens.'}],
+ rec:'A',why:'Separate processes only help if one failing does not lose the other\'s work. Keeping your picks in the Stage until they are delivered means a crash never costs you a judgement, and the crash report turns into an instruction for the agent.'},
+);
+DECISIONS.push(
+{id:'E8',sec:'compose',title:'The vetting agent rewrites your ticket: how does the rewrite reach you?',
+ q:'From your note on E7: the agent that vets the ticket also rewrites it, and you accept it, add notes or edit it. Your free-form text stays the starting point.',
+ opts:[
+  {k:'A',n:'Suggested rewrite with a diff: Accept, Edit or Keep mine',d:'Hatch shows your original and the rewrite side by side, structured for the type (for a Bug: steps, expected, actual), with changed passages marked and the questions beside it. Accept publishes the rewrite to GitHub. Edit opens it for changes. Keep mine publishes your text. Your original is always kept in the history.'},
+  {k:'B',n:'The agent edits the ticket directly, you review afterwards',d:'The issue on GitHub is already rewritten when you see it.'},
+  {k:'C',n:'Questions only, no rewrite',d:'The agent asks, and you fix the text yourself.'}],
+ rec:'A',why:'The rewrite is the same pass as the check, so it costs almost nothing extra, and it is why free-form input (E7) works: you write loosely and Hatch does the structuring. Showing it as a diff with Accept, Edit or Keep mine means the text on GitHub is always something you approved, and keeping your original in the history means a rewrite can never lose what you meant.'},
+{id:'H22',sec:'proposal',title:'Testing several options at the same time',
+ q:'From your note on H5. This can mean three things: (1) looking at several options side by side, (2) mixing parts of different options, such as spacing from A with the icon from B, (3) comparing all options across every state. Your picks on H2 and H5 already cover 1 and 3. The open question is mixing.',
+ opts:[
+  {k:'A',n:'Choose which options are shown, side by side only',d:'Checkboxes pick up to five columns. Scenarios and appearance apply to all of them at once.'},
+  {k:'B',n:'Add a live Mix column, pinnable into extra columns',d:'A Mix column is drawn from your current answers to the decision questions. Pin a Mix to keep it as its own column (Mix 1, Mix 2) and try other combinations next to the original options.'},
+  {k:'C',n:'One Stage window per option',d:'Open each option in its own window, as in S5.'}],
+ rec:'B',why:'Your decisions are rarely "all of B". They are the spacing from one option and the placement from another, and a Mix lets you see that combination before you accept it instead of imagining it. Pinned Mixes sit next to the original options in the same scenarios and appearances, so you compare them the same way. Separate windows work, but they make state-by-state comparison harder.'},
+{id:'I6',sec:'build',title:'Where do merged tickets go, and what tests them?',
+ q:'From your note on I3: no full build before merge, the repo\'s CI should cover testing. Echo already has CI: "CI (Light)" runs Build & Test on every push to dev, and "CI (Full)" runs on main and on pull requests to it, both on your xcode-27 runner.',
+ opts:[
+  {k:'A',n:'Straight to dev',d:'Approved tickets merge to dev. CI (Light) tests them afterwards. If it fails, the ticket reopens.'},
+  {k:'B',n:'A hatch integration branch checked by CI, then promoted',d:'Approved tickets merge into a hatch branch. CI runs on it. When it is green, Hatch promotes it to dev. Hatch reads the check results from GitHub and shows them on each ticket.'},
+  {k:'C',n:'Full local suite before merge',d:'Hatch runs all the tests on your Mac.'}],
+ rec:'B',why:'It uses the testing you already maintain, so Hatch does not duplicate it, and nothing reaches dev until CI is green. The cost is a small change to ci-light.yml so it also runs on the hatch branch. A failing ticket is named on the Board. Straight to dev is faster, but a red dev then blocks whatever else you are working on, and a full local run is the slow thing you wanted to avoid.'},
+{id:'L5',sec:'projects',title:'How does the Specs section work in Hatch?',
+ q:'From your note on L3: the Specs section in Echo Labs is great, because you can pick e.g. the tab bar and see what has been decided and how it looks. It is heavy to include in Hatch, so you asked for suggestions, maybe a blueprint to build it per project.',
+ opts:[
+  {k:'A',n:'Text only in Hatch',d:'Spec items as searchable text, linked to tickets and decisions, with reference screenshots. No live specimens.'},
+  {k:'B',n:'Text in Hatch, plus a per-project Spec app launched by Hatch',d:'Hatch holds the searchable Spec text and the links. A separate Spec app per project, built like the Stage, shows each element as a live specimen. "Open in Spec app" jumps to the element. A blueprint action has an agent scaffold the Spec app for a new project from its area index, and you review it.'},
+  {k:'C',n:'Live specimen pages inside Hatch',d:'As in Echo Labs today.'}],
+ rec:'B',why:'It keeps the part you love, picking an element and seeing what is decided and how it looks, and keeps the heavy specimen code out of Hatch, which is the point of S1. The text layer gives search and links to tickets and decisions. The blueprint means a new project starts from a generated skeleton instead of hand-built pages. A ticket then cannot reach Done until its Spec text and Spec app pages are updated or marked unchanged, which Hatch checks in code and an agent no longer has to remember.'},
+{id:'O1',sec:'order',title:'What do we build first?',
+ q:'Nothing has been built yet. The order matters because the biggest assumption is S1: that a Stage app per round builds quickly.',
+ opts:[
+  {k:'A',n:'Foundation first',d:'SQLite, GitHub sync, projects and the hatch command, then screens, then the Stage.'},
+  {k:'B',n:'Spike the Stage first, then the foundation',d:'Build one real round (the toast) as a Stage app with the specimens kit and measure the build time. Then the foundation.'},
+  {k:'C',n:'Screens first with fake data',d:'Build the Desk and ticket screens against sample data.'}],
+ rec:'B',why:'S1 is what the rest of the design leans on, and it is also the part you most want to try. The spike needs no GitHub and no database, only the existing toast round and the design system, so it is small. If the build time disappoints, S1 changes, and that is far cheaper to learn before the core is built on top of it.'},
+);
+DECISIONS.push(
+{id:'E9',sec:'compose',title:'The agent checks whether the ticket type is right',
+ q:'From your note on E8: the vetting agent should also check whether a ticket really is a Bug, a Question or something else.',
+ opts:[
+  {k:'A',n:'Suggest a type change with the reason, you decide',d:'Shown in the same review as the rewrite: "This reads as a Question, not a Bug: there are no steps to reproduce." Accept changes the type, Keep mine leaves it. Signals it looks for: a Bug without steps or an expected result may be a Question. A Tweak with several reasonable fixes should be a Proposal. A Question about how something should look may be a Sketch. A ticket that spans several areas may be a Theme with child tickets.'},
+  {k:'B',n:'Change the type automatically',d:'The agent re-types the ticket and tells you afterwards.'},
+  {k:'C',n:'Never change the type',d:'It stays as you chose it.'}],
+ rec:'A',why:'The type decides the whole path: a Bug goes straight to build and a Question never does, so a wrong type wastes real work. But the agent is guessing from text and you know the intent, so the final call stays with you. Putting it in the same review as the rewrite costs no extra step, and the reason it gives makes a wrong suggestion easy to refuse.'},
+{id:'V1',sec:'compose',title:'What is the vetting agent called?',
+ q:'The agent that checks, questions, rewrites and re-types your tickets should feel like one consistent colleague. The name appears in the Desk ("Tally asks 2 questions"), in the ticket thread and in the rewrite review.',
+ opts:[
+  {k:'A',n:'Tally',d:'A tally clerk checks what comes aboard against the manifest, which is what vetting does against the Spec and other tickets. Short, friendly, reads like a first name.'},
+  {k:'B',n:'Quill',d:'A pen. Fits the rewriting, but says less about checking.'},
+  {k:'C',n:'Latch',d:'It holds the hatch shut until the ticket is ready. Ties to the app name, but sounds more like a gate than a colleague.'},
+  {k:'D',n:'Iris',d:'A person\'s name, and also the ring that controls an opening, like a hatch. Warm, but the link to vetting is indirect.'},
+  {k:'E',n:'No name, "Hatch check"',d:'Keep it as a function of the app.'}],
+ rec:'A',why:'The agent does something specific: it checks a ticket against the manifest of what already exists, and asks about what is missing. "Tally" says that in one word, is easy to say in a sentence ("Tally wants to know if this replaces #118"), and works as a first name without pretending to be a person. It is also not a word that appears elsewhere in Hatch, so it stays recognisable. I would use the same name for every vetting step: questions, rewrite and type check.'},
+);
+/* ===== helpers ===== */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+function h(tag,attrs,...kids){const e=document.createElement(tag);for(const k in (attrs||{})){const v=attrs[k];if(k==='class')e.className=v;else if(k==='text')e.textContent=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else if(v!==false&&v!=null)e.setAttribute(k,v===true?'':v)}
+ for(const c of kids.flat()){if(c==null||c===false)continue;e.append(c.nodeType?c:document.createTextNode(c))}return e}
+function ic(id){const s=document.createElementNS('http://www.w3.org/2000/svg','svg');s.setAttribute('class','ic');const u=document.createElementNS('http://www.w3.org/2000/svg','use');u.setAttribute('href','#i-'+id);s.append(u);return s}
+
+/* ===== sidebar for mocks ===== */
+function sidebar(active){
+  const it=(id,icon,label,badge)=>`<div class="si${active===id?' on':''}"><svg class="ic"><use href="#i-${icon}"/></svg>${label}${badge?`<span class="b">${badge}</span>`:''}</div>`;
+  return `<div class="proj"><svg class="ic"><use href="#i-branch"/></svg>Echo<small>dev ▾</small></div>
+  <div class="grp">Work</div>${it('desk','desk','Desk',4)}${it('tickets','list','Tickets')}${it('board','board','Board')}${it('previews','eye','Previews',1)}
+  <div class="grp">Reference</div>${it('specs','doc','Specs')}${it('decisions','flag','Decisions')}
+  <div class="grp">Machine</div>${it('agents','cpu','Agents')}${it('log','log','Log')}
+  <div class="sync">Synced with GitHub · 2 min ago</div>`;
+}
+$$('[data-sb]').forEach(e=>{e.innerHTML=sidebar(e.dataset.sb)});
+
+/* ===== statuses and flow ===== */
+const ALL='question sketch proposal tweak bug theme', PIPE='question sketch proposal tweak bug';
+const LANES=['Intake','Exploring','Building','Landed','Off'];
+const STAT=[
+['Draft','you',0,ALL,'Writing it. Stays on this Mac until you submit.','You press Submit for check','not on GitHub yet'],
+['Checking','agent',0,PIPE,'An agent compares it with open tickets and the Spec and writes its questions.','Hatch on submit, the agent finishes','status:checking'],
+['Needs answers','you',0,PIPE,'Hatch has questions before work can start.','The agent, with hatch ask','status:needs-answers'],
+['Ready','app',0,PIPE,'Complete, waiting for a free agent.','Hatch, when everything is answered','status:ready'],
+['Preparing','agent',1,'question sketch proposal','The agent is making the reply, variants or specimens.','The agent, with hatch take','status:preparing'],
+['Your call','you',1,'question sketch proposal','Options are ready to judge, or a reply waits for you.','The agent, with hatch offer','status:your-call'],
+['Revising','agent',1,'sketch proposal','You sent it back. Old options stay, new ones are added.','You, with Send back','status:revising'],
+['Accepted','app',2,'proposal','You chose. Waiting for a build slot or for claimed files.','You, with Accept','status:accepted'],
+['Building','agent',2,'proposal tweak bug','Implementing in its own workspace.','The agent, with hatch take and plan','status:building'],
+['To verify','you',2,'proposal tweak bug','In a Preview, waiting for you on your Mac.','Hatch, after build, tests and match check pass','status:to-verify'],
+['Fixing','agent',2,'proposal tweak bug','You marked Needs work in a Preview.','You, with Needs work','status:fixing'],
+['Merged','app',3,'proposal tweak bug','Merged into dev. Design system tagged if needed.','Hatch, when you press Merge','status:merged'],
+['Done','done',3,ALL,'Spec and Decisions updated. Issue closed.','Hatch, after the agent records the change','closed (completed)'],
+['Blocked','app',4,ALL,'Waiting on another ticket or on claimed files. Shows which.','Hatch','status:blocked'],
+['Parked','off',4,ALL,'You paused it. It leaves the Desk.','You','status:parked'],
+['Dropped','off',4,ALL,'Will not be done. Kept for history.','You','closed (not planned)'],
+];
+const TYPES=[['all','All'],['question','Question'],['sketch','Sketch'],['proposal','Proposal'],['tweak','Tweak'],['bug','Bug'],['theme','Theme']];
+(function flow(){
+  const lanes=$('#lanes');LANES.forEach((n,i)=>{const l=h('div',{class:'lane'},h('h4',{text:n}));STAT.filter(s=>s[2]===i).forEach(s=>l.append(h('span',{class:'chip '+s[1],'data-t':s[3]},s[0])));lanes.append(l)});
+  const pb=$('#pathBtns');
+  const set=t=>{$$('button',pb).forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.t===t)));$$('.lane .chip').forEach(c=>c.classList.toggle('dim',t!=='all'&&!c.dataset.t.split(' ').includes(t)))};
+  TYPES.forEach(([k,n])=>pb.append(h('button',{type:'button','data-t':k,'aria-pressed':String(k==='all'),onclick:()=>set(k)},n)));
+  const tb=$('#statusTable');tb.append(h('tr',{},...['Status','Turn','Meaning','Moved by','GitHub'].map(x=>h('th',{text:x}))));
+  const turn={you:'You',agent:'Agent',app:'Hatch',done:'Finished',off:'Paused'};
+  STAT.forEach(s=>tb.append(h('tr',{},h('td',{},h('span',{class:'chip '+s[1]},s[0])),h('td',{text:turn[s[1]]}),h('td',{text:s[4]}),h('td',{text:s[5]}),h('td',{},h('code',{text:s[6]})))));
+})();
+
+/* ===== state: decisions and notes ===== */
+let db=null,uid=null,dbReady=false;
+const decisions={}, notes=[];       // decisions[id]={choice,rec,at}; notes:{id,item,kind,text,status,reply,at}
+const optName=(d,k)=>{const o=d.opts.find(x=>x.k===k);return o?o.n:k};
+const banner=$('#dbBanner');
+function showBanner(t,warn){banner.textContent=t;banner.classList.add('show');banner.classList.toggle('warn',!!warn)}
+
+/* ===== render decision cards ===== */
+function wireSvg(key){
+  const r=WIRES[key];if(!r)return null;
+  const s=document.createElementNS('http://www.w3.org/2000/svg','svg');s.setAttribute('viewBox','0 0 100 64');s.setAttribute('class','wire');s.setAttribute('role','img');s.setAttribute('aria-label','Layout sketch');
+  r.forEach(([x,y,w,hh,c])=>{const e=document.createElementNS('http://www.w3.org/2000/svg','rect');e.setAttribute('x',x);e.setAttribute('y',y);e.setAttribute('width',w);e.setAttribute('height',hh);e.setAttribute('rx',2);if(c)e.setAttribute('class',c);s.append(e)});return s;
+}
+const writeQ={};
+function queue(key,fn){writeQ[key]=(writeQ[key]||Promise.resolve()).then(fn).catch(e=>showBanner('Could not save: '+(e&&e.message||e),true))}
+function choose(d,k){
+  const v={choice:k,rec:k===d.rec,at:Date.now(),by:uid};
+  decisions[d.id]=v;refreshCard(d.id);refreshProgress();
+  if(db)queue('d'+d.id,()=>db.doc('decisions/'+d.id).set(v));
+}
+function addNote(item,kind,text){
+  const n={item,kind,text,status:'open',at:Date.now(),by:uid};
+  if(db){queue('n'+Math.random(),async()=>{await db.collection('notes').add(n)})}else{n.id='local'+Math.random();notes.push(n);refreshAllNotes()}
+}
+function delNote(id){if(db&&!String(id).startsWith('local'))queue('x'+id,()=>db.doc('notes/'+id).delete());else{const i=notes.findIndex(n=>n.id===id);if(i>=0)notes.splice(i,1);refreshAllNotes()}}
+function noteEl(n){
+  const el=h('div',{class:'nt '+n.kind},
+    h('div',{class:'meta'},h('b',{text:n.kind==='question'?'Question':'Note'}),
+      n.kind==='question'?h('span',{class:'chip '+(n.status==='answered'?'done':'you'),text:n.status==='answered'?'Answered':'Open'}):null,
+      h('span',{text:new Date(n.at).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}),
+      n.status!=='answered'?h('button',{class:'x',type:'button',onclick:()=>delNote(n.id)},'Delete'):null),
+    h('div',{text:n.text}));
+  if(n.reply)el.append(h('div',{class:'reply'},h('b',{text:'Hatch design reply: '}),document.createTextNode(n.reply)));
+  return el;
+}
+function buildCard(d){
+  const card=h('article',{class:'dec',id:'dec-'+d.id,'data-id':d.id});
+  const state=h('span',{class:'state'});
+  card.append(h('div',{class:'top'},h('span',{class:'tag',text:d.id}),h('h4',{text:d.title}),state));
+  if(d.q)card.append(h('p',{class:'qtext',text:d.q}));
+  const opts=h('div',{class:'opts',role:'radiogroup','aria-label':d.title});
+  d.opts.forEach(o=>{
+    const inp=h('input',{type:'radio',name:'r-'+d.id,value:o.k,onchange:()=>choose(d,o.k)});
+    const lab=h('label',{class:'opt','data-k':o.k},inp,wireSvg(o.w),
+      h('div',{class:'nm'},h('span',{class:'k',text:o.k}),o.n,o.k===d.rec?h('span',{class:'star',text:'★ Recommended'}):null),
+      o.d?h('div',{class:'ds',text:o.d}):null);
+    opts.append(lab);
+  });
+  card.append(opts);
+  card.append(h('div',{class:'why'},h('b',{text:'I recommend '+optName(d,d.rec)+'. '}),d.why));
+  const compose=h('div',{class:'compose',hidden:true});
+  const ta=h('textarea',{'aria-label':'Your note or question about '+d.title,placeholder:'Write here…'});
+  let kind='note';
+  const save=h('button',{class:'btn pri sm',type:'button',onclick:()=>{const t=ta.value.trim();if(!t)return;addNote(d.id,kind,t);ta.value='';compose.hidden=true}},'Save');
+  compose.append(ta,h('div',{class:'row'},save,h('button',{class:'btn sm',type:'button',onclick:()=>{compose.hidden=true}},'Cancel')));
+  const open=k=>{kind=k;save.textContent=k==='question'?'Send question':'Save note';ta.placeholder=k==='question'?'What do you want to know before deciding?':'Context, preference, or something I should consider…';compose.hidden=false;ta.focus()};
+  card.append(h('div',{class:'acts'},
+    h('button',{class:'btn pri sm','data-role':'userec',type:'button',onclick:()=>choose(d,d.rec)},'Use recommendation'),
+    h('button',{class:'btn sm',type:'button',onclick:()=>open('note')},'Add note'),
+    h('button',{class:'btn sm',type:'button',onclick:()=>open('question')},'Ask a question')));
+  card.append(compose,h('div',{class:'nts','data-role':'notes'}));
+  card._state=state;return card;
+}
+const cards={};
+function refreshCard(id){
+  const d=DECISIONS.find(x=>x.id===id),card=cards[id];if(!card)return;
+  const v=decisions[id];
+  $$('.opt',card).forEach(l=>{const on=v&&v.choice===l.dataset.k;l.classList.toggle('on',!!on);$('input',l).checked=!!on});
+  card.classList.toggle('decided',!!v);
+  const mine=notes.filter(n=>n.item===id),openQ=mine.filter(n=>n.kind==='question'&&n.status!=='answered').length;
+  const st=card._state;st.className='state';
+  if(openQ){st.textContent=openQ+' open question'+(openQ>1?'s':'')+(v?' · decided':'');st.classList.add('q')}
+  else if(v){st.textContent=v.choice===d.rec?'Decided · my recommendation':'Decided · Option '+v.choice;st.classList.add('ok')}
+  else st.textContent='Undecided';
+  const ub=$('[data-role=userec]',card);ub.disabled=!!(v&&v.choice===d.rec);
+  const box=$('[data-role=notes]',card);box.replaceChildren(...mine.map(noteEl));
+  applyFilter();
+}
+function refreshAllNotes(){
+  DECISIONS.forEach(d=>refreshCard(d.id));
+  const box=$('#allNotes');box.replaceChildren(...[...notes].sort((a,b)=>b.at-a.at).map(n=>{
+    const e=noteEl(n);const d=DECISIONS.find(x=>x.id===n.item);
+    e.querySelector('.meta').prepend(d?h('a',{href:'#dec-'+d.id,text:d.id+' '+d.title}):h('span',{class:'tag',text:'General'}));return e}));
+  if(!notes.length)box.append(h('p',{class:'muted',text:'Nothing yet.'}));
+  refreshProgress();
+}
+function refreshProgress(){
+  const total=DECISIONS.length,done=DECISIONS.filter(d=>decisions[d.id]).length;
+  $('#meterFill').style.width=(100*done/total)+'%';
+  $$('#tocLinks a').forEach(a=>{const s=a.dataset.sec;if(!s)return;const ds=DECISIONS.filter(d=>d.sec===s),n=ds.filter(d=>decisions[d.id]).length;const el=$('.n',a);el.textContent=n+'/'+ds.length;el.classList.toggle('full',n===ds.length)});
+  $('#tocTotal').textContent=done+' of '+total+' decided';
+  refreshReview();
+}
+let onlyOpen=false;
+function applyFilter(){$$('.dec').forEach(c=>{c.hidden=onlyOpen&&c.classList.contains('decided')&&!/open question/.test(c._state.textContent)})}
+
+/* ===== build page ===== */
+$$('.decs').forEach(box=>{DECISIONS.filter(d=>d.sec===box.dataset.sec).forEach(d=>{const c=buildCard(d);cards[d.id]=c;box.append(c)})});
+(function toc(){
+  const t=$('#tocLinks');t.append(h('div',{class:'muted',id:'tocTotal',style:'font-size:12px;margin:0 8px 6px'}));
+  $$('section.sec').forEach(s=>{const sec=s.id.replace('s-','');const has=DECISIONS.some(d=>d.sec===sec);
+    t.append(h('a',{href:'#'+s.id,'data-sec':has?sec:null},h('span',{text:s.dataset.title}),has?h('span',{class:'n'}):null))});
+})();
+$('#btnFilter').addEventListener('click',e=>{onlyOpen=!onlyOpen;e.currentTarget.setAttribute('aria-pressed',String(onlyOpen));e.currentTarget.textContent=onlyOpen?'Show all decisions':'Show only open decisions';applyFilter()});
+let confirmTimer=null;
+$('#btnAllRec').addEventListener('click',e=>{
+  const b=e.currentTarget,open=DECISIONS.filter(d=>!decisions[d.id]);
+  if(!open.length){b.textContent='Nothing left to decide';setTimeout(()=>b.textContent='Use all recommendations',2000);return}
+  if(!b.dataset.arm){b.dataset.arm='1';b.textContent='Confirm: set '+open.length+' undecided';clearTimeout(confirmTimer);confirmTimer=setTimeout(()=>{delete b.dataset.arm;b.textContent='Use all recommendations'},4000);return}
+  clearTimeout(confirmTimer);delete b.dataset.arm;b.textContent='Use all recommendations';open.forEach(d=>choose(d,d.rec));
+});
+$('#generalNote').addEventListener('click',()=>{const t=$('#generalText');if(t.value.trim()){addNote('general','note',t.value.trim());t.value=''}});
+$('#generalAsk').addEventListener('click',()=>{const t=$('#generalText');if(t.value.trim()){addNote('general','question',t.value.trim());t.value=''}});
+DECISIONS.forEach(d=>refreshCard(d.id));refreshAllNotes();
+
+/* ===== database ===== */
+(async function connect(){
+  try{
+    if(!window.claude||!claude.use){showBanner('Saving is not available here. Your picks stay on this page until you leave it.',true);return}
+    db=await claude.use('db');
+    if(!db){showBanner('Saving needs a signed-in view. Your picks stay on this page until you leave it.',true);return}
+    try{const u=await claude.use('user');uid=u?await u.id():null}catch(_){}
+    const err=e=>showBanner('Live updates stopped ('+(e&&e.code||'error')+'). Reload the page.',true);
+    db.collection('decisions').onSnapshot(snap=>{
+      for(const k in decisions)delete decisions[k];
+      snap.docs.forEach(x=>{decisions[x.id]=x.data()});
+      DECISIONS.forEach(d=>refreshCard(d.id));refreshProgress();
+    },err);
+    db.collection('notes').orderBy('at').onSnapshot(snap=>{
+      notes.length=0;snap.docs.forEach(x=>notes.push({id:x.id,...x.data()}));refreshAllNotes();
+    },err);
+  }catch(e){showBanner('Saving is not available here. Your picks stay on this page until you leave it.',true)}
+})();
+
+/* ===== Proposal stage prototype ===== */
+const S={mode:'side',app:'light',corner:10,scen:'rest',red:false,flip:0,cmp:'B',opa:50,wipe:50,padB:16,iconB:28,L:true,R:true,n5:false,sel:'A',verdict:{},q1:'',q2:'',shown:false};
+const SCENS=[['rest','Rest'],['hover','Hover'],['error','Error'],['long','Long text'],['many','Many items']];
+const OPTS={T:{name:'Echo today',pad:10,gap:8,ic:20,fs:12},A:{name:'Option A · Quiet',pad:12,gap:10,ic:22,fs:12.5},B:{name:'Option B · Roomy'},C:{name:'Option C · Balanced',pad:14,gap:12,ic:24,fs:12.5},D:{name:'Option D · Large',pad:18,gap:15,ic:30,fs:13},E:{name:'Option E · Airy',pad:20,gap:17,ic:32,fs:13.5}};
+const optionKeys=()=>S.n5?['A','B','C','D','E']:['A','B'];
+const optv=k=>k==='B'?{name:OPTS.B.name,pad:S.padB,gap:Math.round(S.padB*0.85),ic:S.iconB,fs:13}:OPTS[k];
+function toast(k,scen,opts){
+  const o=optv(k),red=opts&&opts.red;
+  const t={rest:['Connection restored','Prod-EU is reachable again.',''],hover:['Connection restored','Prod-EU is reachable again.','hov'],error:['Query failed','Timed out after 30 s.','err'],long:['Export finished','4,812 rows written to "Quarterly revenue by region and product line.csv" in your Downloads folder.',''],many:['Connection restored','Prod-EU is reachable again.','']}[scen];
+  const cls=['tst',k==='T'?'':k,'r'+S.corner,t[2]].filter(Boolean).join(' ');
+  const el=document.createElement('div');el.className=cls;
+  const z=(opts&&opts.compact)?(opts.compact===true?0.72:opts.compact):1;el.style.cssText=`--pad:${o.pad*z}px;--gap:${o.gap*z}px;--ic:${o.ic*z}px;--fs:${o.fs*z}px`;
+  el.innerHTML=`<div class="i"></div><div class="b"><b></b><span></span><div class="act"><u>${scen==='error'?'Retry':'View'}</u><u>Dismiss</u></div></div><div class="cl">✕</div>`;
+  el.querySelector('b').textContent=t[0];el.querySelector('span').textContent=t[1];
+  if(red&&scen==='rest'){
+    el.insertAdjacentHTML('beforeend',`<span class="rl" style="inset:${o.pad}px;border:1px dashed #E5484D"></span><span class="rl lb" style="left:3px;top:${Math.max(0,o.pad/2-6)}px">${o.pad}</span><span class="rl lb" style="left:${o.pad+o.ic+o.gap/2-7}px;top:${o.pad+o.ic+3}px">${o.gap}</span>`);
+  }
+  if(scen==='many'){const w=document.createElement('div');w.style.cssText='display:grid;gap:8px;width:min(100%,250px)';const a=el.cloneNode(true),b=el.cloneNode(true);b.querySelector('b').textContent='Sync complete';b.querySelector('span').textContent='3 changes pulled.';a.querySelector('b').textContent='Backup saved';a.querySelector('span').textContent='Prod-EU at 12:04.';w.append(el,a,b);return w}
+  return el;
+}
+function est(k,scen){const o=optv(k);const lines=scen==='long'?3:2;return 2*o.pad+Math.max(o.ic,lines*(o.fs+3))+(scen==='hover'||scen==='error'?20:0)+(scen==='many'?2*(2*o.pad+o.fs*2+8):0)}
+function slot(k,scen,opts){const s=document.createElement('div');s.className='slot';s.append(toast(k,scen,opts));return s}
+function colHead(k){
+  const d=optv(k);const x=document.createElement('div');x.className='xh';
+  x.innerHTML=`<span></span>${k==='T'?'<span class="badge ok">Matches Echo · checked 2 days ago</span>':''}`;x.firstChild.textContent=d.name;
+  if(k!=='T'){const p=document.createElement('span');p.className='pick';['Pick','Maybe','No'].forEach(v=>{const b=document.createElement('button');b.type='button';b.textContent=v;b.setAttribute('aria-pressed',String((S.verdict[k]||'')===v));b.onclick=()=>{S.verdict[k]=(S.verdict[k]||'')===v?'':v;draw()};p.append(b)});x.append(p)}
+  return x;
+}
+function centre(){
+  const el=$('#stg');if(!el)return;el.dataset.app=S.app;el.replaceChildren();
+  const strip=h('div',{class:'scen'},...SCENS.map(([k,n])=>h('button',{type:'button','aria-pressed':String(S.scen===k),onclick:()=>{S.scen=k;draw()}},n)),h('button',{type:'button',disabled:true,title:'Not applicable: a toast has no empty state.',style:'opacity:.5;border-style:dashed'},'Empty · n/a'));
+  el.append(strip);
+  const sc=S.scen;
+  if(S.mode==='side'){
+    if(S.n5){
+      const g=h('div',{class:'cols c2'});['T',S.sel].forEach(k=>{const c=h('div',{});c.append(colHead(k),slot(k,sc,{red:S.red,compact:0.9}));g.append(c)});el.append(g);
+      const fs=h('div',{style:'display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:4px'});
+      optionKeys().forEach(k=>{const b=h('button',{type:'button','aria-pressed':String(S.sel===k),title:optv(k).name,style:'border:1.5px solid '+(S.sel===k?'var(--sacc)':'var(--sl)')+';background:var(--card);color:var(--st);border-radius:8px;padding:5px 4px;font-size:10px;display:grid;gap:3px;justify-items:center;min-width:0',onclick:()=>{S.sel=k;draw()}},h('span',{text:optv(k).name.split(' ·')[0]}));b.append(toast(k,sc==='many'?'rest':sc,{compact:0.42}));fs.append(b)});
+      el.append(fs,h('div',{style:'font-size:10.5px;color:var(--sm)'},'Four or more options: two shown large, the rest in the filmstrip. Arrow keys move through it.'));
+    }else{
+      const g=h('div',{class:'cols c3'});['T','A','B'].forEach(k=>{const c=h('div',{});c.append(colHead(k),slot(k,sc,{red:S.red,compact:0.86}));g.append(c)});el.append(g);
+    }
+  }else if(S.mode==='matrix'){
+    const mk=['T','A','B'].concat(S.n5&&!['A','B'].includes(S.sel)?[S.sel]:[]);
+    const m=h('div',{class:'matrix',style:'grid-template-columns:76px repeat('+mk.length+',minmax(0,1fr))'},h('span'),...mk.map(k=>h('span',{class:'h',text:optv(k).name.split(' ·')[0]})));
+    SCENS.forEach(([sk,sn])=>{m.append(h('span',{class:'h',text:sn}));mk.forEach(k=>{const diff=k!=='T'&&Math.abs(est(k,sk)-est('T',sk))>14;const cell=h('div',{class:diff?'df':''});cell.append(toast(k,sk,{compact:true}));m.append(cell)})});
+    el.append(m,h('div',{style:'font-size:10.5px;color:var(--sm)'},'Outlined: height differs from Echo today by more than 14pt in that scenario.'));
+  }else{
+    const cmp=h('div',{class:'xh'},h('span',{text:S.mode==='flip'?'Flip':S.mode==='overlay'?'Overlay':'Wipe'}),
+      h('span',{class:'badge',text:'Echo today vs'}),
+      (()=>{const s=h('span',{class:'scen'});optionKeys().forEach(k=>s.append(h('button',{type:'button','aria-pressed':String(S.cmp===k),onclick:()=>{S.cmp=k;draw()}},'Option '+k)));return s})());
+    el.append(cmp);
+    if(S.mode==='flip'){
+      const cur=S.flip?S.cmp:'T';
+      el.append(h('div',{class:'xh'},h('b',{text:'Showing: '+optv(cur).name}),h('button',{type:'button',class:'btn sm',onclick:()=>{S.flip=S.flip?0:1;draw()}},'Flip (Space)')),slot(cur,sc,{red:S.red}));
+    }else{
+      const ctl=h('div',{class:'rngrow'},S.mode==='overlay'?'Option opacity':'Reveal',h('input',{type:'range',min:0,max:100,value:S.mode==='overlay'?S.opa:S.wipe,'aria-label':S.mode==='overlay'?'Option opacity':'Wipe position',oninput:e=>{S[S.mode==='overlay'?'opa':'wipe']=+e.target.value;layers()}}));
+      const ov=h('div',{class:'ovl',id:'ovl',style:'min-height:'+(sc==='many'?300:210)+'px'});
+      ['T',S.cmp].forEach((k,i)=>{const L=h('div',{class:'layer','data-i':i,style:'position:absolute;inset:0;display:grid;justify-items:center;align-content:start;padding:14px 10px'});L.append(toast(k,sc,{red:S.red&&i===1}));ov.append(L)});
+      el.append(ctl,ov);layers();
+    }
+  }
+}
+function layers(){const ov=$('#ovl');if(!ov)return;const top=$('[data-i="1"]',ov);if(!top)return;
+  if(S.mode==='overlay'){top.style.opacity=S.opa/100;top.style.clipPath='none'}else{top.style.opacity=1;top.style.clipPath=`inset(0 ${100-S.wipe}% 0 0)`}}
+function draw(){
+  const m=$('#stageMount');if(!m)return;
+  const seg=(items,cur,fn)=>{const s=h('span',{class:'seg'});items.forEach(([k,n])=>s.append(h('button',{type:'button','aria-pressed':String(cur===k),onclick:()=>fn(k)},n)));return s};
+  const bar=h('div',{class:'bar'},
+    h('b',{style:'font-family:var(--f-head);font-size:13px',text:'#151 Toast spacing'}),
+    seg([['side','Side by side'],['overlay','Overlay'],['flip','Flip'],['wipe','Wipe'],['matrix','Matrix']],S.mode,k=>{S.mode=k;draw()}),
+    h('span',{class:'sp'}),
+    seg([['light','Light'],['dark','Dark'],['contrast','Contrast']],S.app,k=>{S.app=k;draw()}),
+    seg([[10,'Corners 10'],[26,'Corners 26']],S.corner,k=>{S.corner=k;draw()}),
+    h('button',{type:'button',class:'mb','aria-pressed':String(S.red),style:S.red?'background:var(--accent);color:var(--accent-ink)':'',onclick:()=>{S.red=!S.red;draw()}},'Redlines'),
+    h('button',{type:'button',class:'mb','aria-pressed':String(S.L),onclick:()=>{S.L=!S.L;draw()}},S.L?'Hide controls':'Controls'),
+    h('button',{type:'button',class:'mb','aria-pressed':String(S.R),onclick:()=>{S.R=!S.R;draw()}},S.R?'Hide decision':'Decision'));
+  const ctl=h('div',{class:'ctl'});
+  if(S.L){
+    ctl.append(h('h6',{text:'Decision controls'}),
+      h('div',{class:'optrow'},h('div',{class:'ln'},h('b',{text:'Padding, Option B'}),h('span',{id:'padv',text:S.padB+' pt'})),
+        h('input',{type:'range',min:10,max:22,value:S.padB,'aria-label':'Padding on Option B',oninput:e=>{S.padB=+e.target.value;$('#padv').textContent=S.padB+' pt';centre()}}),
+        h('div',{class:'muted',style:'font-size:10.5px'},'★ Hatch recommends 16 pt')),
+      h('div',{class:'optrow'},h('div',{class:'ln'},h('b',{text:'Icon size, Option B'})),
+        seg([[22,'Small'],[28,'Medium'],[34,'Large']],S.iconB,k=>{S.iconB=k;draw()}),
+        h('div',{class:'muted',style:'font-size:10.5px'},'★ Hatch recommends Medium')),
+      h('div',{style:'display:flex;gap:6px;margin:8px 0'},h('button',{type:'button',class:'mb',onclick:()=>{S.padB=16;S.iconB=28;draw()}},'Recommended preset'),h('button',{type:'button',class:'mb',onclick:()=>{S.padB=20;S.iconB=34;draw()}},'Reset')),
+      h('h6',{text:'Playground ▸ (folded)',style:'margin-top:12px'}),h('div',{class:'muted',style:'font-size:10.5px;margin-bottom:6px'},'Knobs without a question, like dismiss time, live here.'),h('button',{type:'button',class:'mb',onclick:()=>{S.n5=!S.n5;if(!S.n5&&!['A','B'].includes(S.cmp))S.cmp='B';draw()}},S.n5?'Demo: back to 2 options':'Demo: 5 options'));
+  }
+  const dcn=h('div',{class:'dcn'});
+  if(S.R){
+    const rc=(name,key,rec,why)=>h('div',{class:'dcard'},h('b',{text:name}),
+      ...[['T','Echo today'],['A','Option A'],['B','Option B']].map(([k,n])=>h('label',{},h('input',{type:'radio',name:'p'+key,checked:S[key]===k,onchange:()=>{S[key]=k}}),n+(k===rec?' ★':''))),
+      h('div',{class:'rc',text:'I recommend '+(rec==='B'?'Option B':'Option A')}),h('div',{class:'muted',text:why}));
+    dcn.append(h('h6',{text:'Your decision'}),rc('Which spacing?','q1','B','Matches the 12pt rhythm from #118 and keeps the error toast readable at Large text.'),rc('Which icon size?','q2','A','The icon should not outweigh the title.'),
+      h('div',{style:'display:grid;gap:6px'},h('button',{type:'button',class:'mb pri',onclick:()=>{S.shown=!S.shown;draw()}},'Accept…'),h('button',{type:'button',class:'mb'},'Send back…'),h('button',{type:'button',class:'mb'},'Ask Hatch')),
+      ...(S.shown?[h('div',{class:'dcard',style:'margin-top:8px'},h('b',{text:'Accept sheet (prototype)'}),h('div',{class:'muted',text:'Would list your choices, the repos and branches that change, the tests that run and a token estimate.'}))]:[]));
+  }
+  const stg=h('div',{class:'stg',id:'stg'});
+  const wrap=h('div',{class:'stagewrap'+(S.L?'':' noL')+(S.R?'':' noR')},ctl,stg,dcn);
+  const win=h('div',{class:'win',tabindex:'0','aria-label':'Proposal stage prototype. Space flips, keys 1 to 5 change compare mode, L and D change appearance, R toggles redlines, S changes scenario.'},
+    h('div',{class:'tb'},h('i'),h('i'),h('i'),h('span',{class:'tt',text:'Hatch Stage · #151 · rev 2'})),bar,wrap);
+  win.addEventListener('keydown',e=>{
+    if(['INPUT','TEXTAREA'].includes(e.target.tagName)&&e.target.type!=='radio')return;
+    const k=e.key;let used=true;
+    if(k===' '){S.mode='flip';S.flip=S.flip?0:1}
+    else if('12345'.includes(k)&&k.length===1){S.mode=['side','overlay','flip','wipe','matrix'][+k-1]}
+    else if(k==='l'||k==='L')S.app='light';else if(k==='d'||k==='D')S.app='dark';
+    else if(k==='r'||k==='R')S.red=!S.red;
+    else if(k==='ArrowRight'||k==='ArrowLeft'){const ks=optionKeys();const i=ks.indexOf(S.sel);S.sel=ks[(i+(k==='ArrowRight'?1:ks.length-1))%ks.length]}
+    else if(k==='s'||k==='S'){const i=SCENS.findIndex(x=>x[0]===S.scen);S.scen=SCENS[(i+1)%SCENS.length][0]}
+    else used=false;
+    if(used){e.preventDefault();draw();const w=$('#stageMount .win');if(w)w.focus()}
+  });
+  m.replaceChildren(win);centre();
+}
+draw();
+document.querySelectorAll('.opt').forEach(l=>l.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('input',l).click()}}));
+
+/* ===== for your review (live) ===== */
+function refreshReview(){
+  const box=$('#rv-open');if(!box)return;
+  const open=DECISIONS.filter(d=>!decisions[d.id]);
+  box.replaceChildren();
+  if(!open.length){box.append(h('div',{class:'rvi'},h('b',{text:'Every decision is answered.'})))}
+  else{
+    box.append(h('div',{class:'muted',style:'margin-bottom:6px',text:open.length+' decision'+(open.length>1?'s':'')+' waiting for your answer'}));
+    open.slice(0,12).forEach(d=>box.append(h('div',{class:'rvi'},h('span',{class:'tag',text:d.id}),
+      h('div',{style:'flex:1;min-width:0'},h('a',{href:'#dec-'+d.id,text:d.title}),h('div',{class:'muted',style:'font-size:13px',text:'I recommend '+optName(d,d.rec)})),
+      h('button',{class:'btn sm',type:'button',onclick:()=>choose(d,d.rec)},'Use recommendation'))));
+    if(open.length>12)box.append(h('div',{class:'muted',text:'…and '+(open.length-12)+' more. Use "Show only open decisions" in the left menu to see them all.'}));
+  }
+  const rb=$('#rv-replies');rb.replaceChildren();
+  const rep=notes.filter(n=>n.reply),wait=notes.filter(n=>!n.reply&&n.kind==='question');
+  if(!rep.length&&!wait.length)rb.append(h('p',{class:'muted',text:'No replies yet.'}));
+  rep.forEach(n=>{const d=DECISIONS.find(x=>x.id===n.item);rb.append(h('div',{class:'rvi'},h('span',{class:'tag',text:n.item}),h('div',{style:'flex:1;min-width:0'},h('a',{href:'#dec-'+n.item,text:d?d.title:'General note'}),h('div',{class:'muted',style:'font-size:13px',text:n.reply.length>150?n.reply.slice(0,150)+'…':n.reply}))))});
+  wait.forEach(n=>rb.append(h('div',{class:'rvi'},h('span',{class:'tag',text:n.item}),h('div',{style:'flex:1'},h('span',{class:'chip you',text:'Waiting for my reply'})))));
+}
+refreshReview();
+</script>

@@ -1,0 +1,38 @@
+name: "Hatch CI (mirror)"
+
+# Temporary: compiles the mirror of tashda/hatch in .hatch-ci-mirror/ (see tools/mirror-to-echo.sh in that repository).
+on:
+  push:
+    branches: [ "claude/echo-labs-features-wmwnbv" ]
+    paths: [ ".hatch-ci-mirror/**", ".github/workflows/hatch-ci-mirror.yml" ]
+  workflow_dispatch:
+
+concurrency:
+  group: hatch-ci-mirror
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    name: "Core, App and Stage (macOS)"
+    runs-on: xcode-27
+    steps:
+    - uses: actions/checkout@v4
+    - name: Versions
+      run: swift --version && xcodebuild -version
+    - name: Core tests and CLI smoke test
+      working-directory: .hatch-ci-mirror
+      run: |
+        git config --global user.email ci@hatch.local && git config --global user.name ci
+        swift test
+        swift build --product hatch
+        tools/smoke.sh .build/debug/hatch
+    - name: Build the app
+      if: hashFiles('.hatch-ci-mirror/App/Package.swift') != ''
+      working-directory: .hatch-ci-mirror/App
+      run: swift build 2>&1 | tee /tmp/app-build.log
+    - name: Build the Stage
+      if: hashFiles('.hatch-ci-mirror/Stage/Package.swift') != ''
+      working-directory: .hatch-ci-mirror/Stage
+      run: |
+        swift test --filter StageCoreTests
+        swift build 2>&1 | tee /tmp/stage-build.log
