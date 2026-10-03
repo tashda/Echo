@@ -44,6 +44,8 @@ enum Snapshots {
                                          ("project", .projects), ("new-ticket", .newTicket)]
         if let first { routes.insert(("ticket", .ticket(first)), at: 3) }
         try? await Task.sleep(nanoseconds: 2_500_000_000)
+        if let w = NSApp.windows.first(where: { $0.isVisible }) { w.setContentSize(NSSize(width: 1360, height: 860)); w.center() }
+        try? await Task.sleep(nanoseconds: 800_000_000)
         for (mode, appearance) in [("light", NSAppearance.Name.aqua), ("dark", NSAppearance.Name.darkAqua)] {
             NSApp.appearance = NSAppearance(named: appearance)
             for (name, route) in routes {

@@ -87,9 +87,6 @@ struct TurnBanner: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            Rectangle()
-                .fill(Theme.color(for: turn))
-                .frame(width: 4)
             VStack(alignment: .leading, spacing: 2) {
                 Text(Theme.turnTitle(turn))
                     .font(.caption.weight(.semibold))
@@ -109,9 +106,12 @@ struct TurnBanner: View {
                     .controlSize(.large)
             }
         }
+        .padding(.leading, 16)
         .padding(.trailing, 12)
+        .padding(.vertical, 8)
         .frame(minHeight: 52)
         .background(Theme.background(for: turn), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(alignment: .leading) { Rectangle().fill(Theme.color(for: turn)).frame(width: 4) }
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }

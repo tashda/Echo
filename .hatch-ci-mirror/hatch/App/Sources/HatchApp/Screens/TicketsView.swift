@@ -226,6 +226,7 @@ struct TicketsView: View {
             TableColumn("Title") { ticket in
                 Text(ticket.title).lineLimit(1)
             }
+            .width(min: 220, ideal: 360)
             TableColumn("Status") { ticket in
                 StatusChip(status: ticket.status)
             }
