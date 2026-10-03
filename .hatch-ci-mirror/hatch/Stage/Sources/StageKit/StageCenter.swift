@@ -222,14 +222,23 @@ struct ColumnHeader: View {
             .font(.system(size: 10))
             .foregroundStyle(palette.error)
             .help("The specimen may no longer match the real Echo. Judge with care.")
-        } else {
+        } else if let note = spec?.matchNote, !note.isEmpty {
             HStack(spacing: 3) {
                 Image(systemName: "checkmark.seal")
-                Text("Match · \(spec?.matchNote ?? "not checked yet")")
+                Text("Match · \(note)")
             }
             .font(.system(size: 10))
             .foregroundStyle(palette.ok)
             .help("Last checked against the real Echo.")
+        } else {
+            // Never green without a check: a Match badge that was not checked must not look like one that was.
+            HStack(spacing: 3) {
+                Image(systemName: "questionmark.circle")
+                Text("Match not checked yet")
+            }
+            .font(.system(size: 10))
+            .foregroundStyle(palette.muted)
+            .help("Nobody has compared this specimen with the real Echo yet. Judge with care.")
         }
     }
 

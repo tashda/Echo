@@ -90,3 +90,31 @@ jobs:
         touch Sources/Rounds/ToastR18/*.swift
         start=$(date +%s); swift build --product HatchStageToast 2>&1 | tail -3; end=$(date +%s)
         echo "SPIKE round-only build seconds: $((end-start))"
+
+  xcode:
+    name: "Xcode project (macOS)"
+    runs-on: xcode-27
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+    - name: Generate the project and build the app
+      working-directory: .hatch-ci-mirror/hatch
+      run: |
+        set -o pipefail
+        brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+        xcodegen generate
+        xcodebuild -project Hatch.xcodeproj -scheme Hatch -destination 'platform=macOS' -configuration Debug \
+          -derivedDataPath /tmp/dd CODE_SIGNING_ALLOWED=NO build 2>&1 | tee /tmp/xcodebuild.log | grep -E "error:|warning: .*(icon|Icon|asset)|BUILD (SUCCEEDED|FAILED)" | sort -u | head -60
+        ls -la /tmp/dd/Build/Products/Debug/ | head
+        plutil -p /tmp/dd/Build/Products/Debug/Hatch.app/Contents/Info.plist | head -30
+    - name: Publish the generated project on a scratch branch
+      if: success()
+      continue-on-error: true
+      working-directory: .hatch-ci-mirror/hatch
+      run: |
+        rm -rf /tmp/xp && mkdir -p /tmp/xp/App && cp -R Hatch.xcodeproj /tmp/xp/ && cp App/Info.plist /tmp/xp/App/ 
+        cd /tmp/xp && git init -q && git checkout -q -b hatch-xcodeproj
+        git config user.email ci@hatch.local && git config user.name ci
+        git add -A && git commit -qm "xcodeproj for ${GITHUB_SHA}"
+        git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" hatch-xcodeproj

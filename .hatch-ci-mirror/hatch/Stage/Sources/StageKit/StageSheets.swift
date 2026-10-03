@@ -85,13 +85,15 @@ struct AcceptSheet: View {
                 } label: {
                     Text("Cancel")
                 }
+                .buttonStyle(.glass)
                 .keyboardShortcut(.cancelAction)
                 Button {
                     model.send(.confirmAccept)
                 } label: {
                     Text("Accept")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
+                .keyboardShortcut(.defaultAction)
             }
         }
         .padding(20)
@@ -132,13 +134,14 @@ struct SendBackSheet: View {
                 } label: {
                     Text("Cancel")
                 }
+                .buttonStyle(.glass)
                 .keyboardShortcut(.cancelAction)
                 Button {
                     model.send(.confirmSendBack)
                 } label: {
                     Text("Send back")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
             }
         }
         .padding(20)
@@ -176,13 +179,14 @@ struct AskSheet: View {
                 } label: {
                     Text("Cancel")
                 }
+                .buttonStyle(.glass)
                 .keyboardShortcut(.cancelAction)
                 Button {
                     model.send(.sendAsk)
                 } label: {
                     Text("Send question")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
             }
         }
         .padding(20)
@@ -224,6 +228,7 @@ struct HelpSheet: View {
                 } label: {
                     Text("Close")
                 }
+                .buttonStyle(.glassProminent)
                 .keyboardShortcut(.cancelAction)
             }
         }

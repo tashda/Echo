@@ -35,13 +35,15 @@ struct DecisionPanel: View {
                 Button {
                     model.send(.useAllRecommendations)
                 } label: {
-                    Text("Use all recommendations")
+                    Label("Use all recommendations", systemImage: "star")
                 }
+                .buttonStyle(.glass)
                 Button {
                     model.send(.useAllPreview)
                 } label: {
-                    Text("Use what's in the preview")
+                    Label("Use what's in the preview", systemImage: "eye")
                 }
+                .buttonStyle(.glass)
             }
         }
     }
@@ -49,11 +51,17 @@ struct DecisionPanel: View {
     @ViewBuilder
     private var newSinceCard: some View {
         let items = model.manifest.newItems
-        if !items.isEmpty {
+        let seen: Bool = (model.state.seenRevision ?? 0) >= model.manifest.revision
+        if !items.isEmpty && !seen {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text("New since your last review").font(.callout.weight(.semibold))
                     NewBadge()
+                    Spacer()
+                    Button("Mark as seen") { model.send(.markRevisionSeen) }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .help("Hide this card. The NEW badges stay.")
                 }
                 ForEach(items, id: \.self) { item in
                     Text("• \(item)").font(.caption)
@@ -62,6 +70,30 @@ struct DecisionPanel: View {
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.10)))
+        }
+        laterRevisionsCard
+    }
+
+    /// Compare revisions (decision H15): while an earlier revision is in view, what the later ones added.
+    @ViewBuilder
+    private var laterRevisionsCard: some View {
+        if model.isViewingEarlierRevision {
+            let later = model.latestManifest.additions(after: model.manifest.revision)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Added after revision \(model.manifest.revision)").font(.callout.weight(.semibold))
+                if later.isEmpty {
+                    Text("Nothing was added. Later revisions changed the code of existing options, which this view cannot show.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                ForEach(later, id: \.self) { item in
+                    Text("• \(item)").font(.caption)
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.10)))
         }
     }
 
@@ -92,6 +124,8 @@ struct DecisionPanel: View {
                 } label: {
                     Text("Send note")
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
                 .disabled(model.state.generalNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
@@ -102,21 +136,23 @@ struct DecisionPanel: View {
             Button {
                 model.send(.requestAccept)
             } label: {
-                Text("Accept…").frame(maxWidth: .infinity)
+                Label("Accept…", systemImage: "checkmark").frame(maxWidth: .infinity)
             }
             .controlSize(.large)
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.glassProminent)
             Button {
                 model.send(.requestSendBack)
             } label: {
-                Text("Send back…").frame(maxWidth: .infinity)
+                Label("Send back…", systemImage: "arrow.uturn.backward").frame(maxWidth: .infinity)
             }
             .controlSize(.large)
+            .buttonStyle(.glass)
             Button {
                 model.send(.requestAsk)
             } label: {
-                Text("Ask Hatch").frame(maxWidth: .infinity)
+                Label("Ask Hatch", systemImage: "questionmark.bubble").frame(maxWidth: .infinity)
             }
+            .buttonStyle(.glass)
         }
         .padding(.top, 4)
     }
@@ -289,6 +325,7 @@ struct DecisionCard: View {
                 Text(model.state.needsMore.contains(decision.id) ? "Needs more options ✓" : "Needs more options")
             }
         }
+        .buttonStyle(.bordered)
         .controlSize(.small)
     }
 

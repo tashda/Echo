@@ -1,0 +1,60 @@
+# Generates Hatch.xcodeproj (run `xcodegen generate`). The project is committed too, so opening it needs no tools.
+name: Hatch
+options:
+  bundleIdPrefix: app.hatch
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+packages:
+  hatch:
+    path: .
+targets:
+  Hatch:
+    type: application
+    platform: macOS
+    sources:
+      - path: App/Sources/HatchApp
+      - path: App/Resources
+    dependencies:
+      - package: hatch
+        product: HatchCore
+      - package: hatch
+        product: HatchGit
+      - package: hatch
+        product: HatchSync
+      - package: hatch
+        product: HatchAgent
+      - package: hatch
+        product: HatchAPI
+      - package: hatch
+        product: HatchImport
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Hatch
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        LSApplicationCategoryType: public.app-category.developer-tools
+        LSMinimumSystemVersion: "26.0"
+        NSHumanReadableCopyright: ""
+    settings:
+      base:
+        PRODUCT_NAME: Hatch
+        PRODUCT_BUNDLE_IDENTIFIER: app.hatch.Hatch
+        SWIFT_VERSION: "5.0"
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        # Hatch starts git, claude and xcodebuild, so it cannot run in the App Sandbox.
+        ENABLE_APP_SANDBOX: NO
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: NO
+schemes:
+  Hatch:
+    build:
+      targets:
+        Hatch: all
+    run:
+      config: Debug

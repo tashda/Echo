@@ -217,11 +217,22 @@ struct SpecimenFailureView: View {
             Text("The other specimens still work.")
                 .font(.system(size: 11))
                 .foregroundStyle(model.palette.muted)
+            if model.manifestIsNewerThanApp {
+                // Decision H21: say that the specimen is older than the latest code. The app was built for an earlier revision.
+                Text("This Stage was built for revision \(model.launchRevision); Hatch has revision \(model.latestManifest.revision). "
+                     + "Relaunch the Stage from Hatch to get the new specimens.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(model.palette.error)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             Button {
                 model.reportFailure(column)
             } label: {
-                Text("Report to agent")
+                Label("Report to agent", systemImage: "exclamationmark.bubble")
             }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
         }
         .padding(12)
     }
