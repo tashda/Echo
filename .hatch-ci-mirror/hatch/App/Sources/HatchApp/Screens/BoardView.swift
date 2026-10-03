@@ -83,7 +83,7 @@ struct BoardView: View {
         tickets = all.filter { $0.type != .theme }
         themes = ((try? state.store.tickets(TicketFilter(projectId: pid, types: [.theme]))) ?? []).filter { !$0.status.isTerminal || $0.id == themeId }
         if let themeId {
-            progress = (try? state.store.themeProgress(themeId)) ?? (0, 0)
+            progress = (try? state.store.themeProgress(themeId)) ?? (done: 0, total: 0)
         }
     }
 }

@@ -66,7 +66,7 @@ struct AgentsView: View {
     private var startOfToday: Date { Calendar.current.startOfDay(for: Date()) }
 
     private func tokenText(ticketId: Int?, since: Date?) -> String {
-        let totals = (try? state.store.tokenTotals(ticketId: ticketId, since: since)) ?? (0, 0)
+        let totals = (try? state.store.tokenTotals(ticketId: ticketId, since: since)) ?? (input: 0, output: 0)
         return hxTokens(totals.0 + totals.1)
     }
 

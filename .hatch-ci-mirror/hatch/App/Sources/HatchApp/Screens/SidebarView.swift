@@ -56,7 +56,7 @@ struct SidebarView: View {
     private func reloadCounts() {
         let count = state.yourTurnCount
         if count != yourTurn { yourTurn = count }
-        let counts = (try? state.store.syncCounts()) ?? (0, 0)
+        let counts = (try? state.store.syncCounts()) ?? (pending: 0, failed: 0)
         if counts.pending != state.syncSummary.pending || counts.failed != state.syncSummary.failed {
             state.refreshSyncSummary()
         }

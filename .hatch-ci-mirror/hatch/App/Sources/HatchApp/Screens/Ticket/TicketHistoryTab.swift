@@ -50,7 +50,7 @@ struct TicketHistoryTab: View {
         let all: [Event] = (try? state.store.events(ticketId: ticket.id)) ?? []
         let reversed: [Event] = all.reversed()
         if reversed.map({ $0.id }) != events.map({ $0.id }) { events = reversed }
-        tokens = (try? state.store.tokenTotals(ticketId: ticket.id)) ?? (0, 0)
+        tokens = (try? state.store.tokenTotals(ticketId: ticket.id)) ?? (input: 0, output: 0)
     }
 }
 

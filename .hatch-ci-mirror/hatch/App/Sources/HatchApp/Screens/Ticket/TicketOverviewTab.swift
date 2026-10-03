@@ -364,13 +364,13 @@ struct TicketOverviewTab: View {
         linkEntries = entries
         if let parentId = ticket.parentId, let theme = try? store.ticket(id: parentId) {
             parentTheme = theme
-            parentProgress = (try? store.themeProgress(parentId)) ?? (0, 0)
+            parentProgress = (try? store.themeProgress(parentId)) ?? (done: 0, total: 0)
         } else {
             parentTheme = nil
         }
         if ticket.type == .theme {
             children = (try? store.tickets(TicketFilter(parentId: id))) ?? []
-            childProgress = (try? store.themeProgress(id)) ?? (0, 0)
+            childProgress = (try? store.themeProgress(id)) ?? (done: 0, total: 0)
         }
         let info = ProposalInfo.load(store: store, ticket: ticket)
         var codes: [String] = info.specs
@@ -379,7 +379,7 @@ struct TicketOverviewTab: View {
         }
         specCodes = codes
         specLines = (try? store.specItems(projectId: ticket.projectId)) ?? []
-        tokens = (try? store.tokenTotals(ticketId: id)) ?? (0, 0)
+        tokens = (try? store.tokenTotals(ticketId: id)) ?? (input: 0, output: 0)
         pendingSync = ((try? store.pendingOps(ticketId: id)) ?? []).count
     }
 }
