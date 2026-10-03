@@ -146,7 +146,7 @@ enum HXShell {
     }
 }
 
-// MARK: Previews (HatchGit.PreviewBuilder)
+// MARK: HatchCore.Previews (HatchGit.PreviewBuilder)
 
 struct HXPreviewOutcome: Sendable {
     var previewId: Int?
@@ -200,7 +200,7 @@ enum HXPreviewAdapter {
         return outcome
     }
 
-    static func discard(store: HatchStore, preview: Preview, repo: Repo) -> String? {
+    static func discard(store: HatchStore, preview: HatchCore.Preview, repo: Repo) -> String? {
         do {
             let manager = WorkspaceManager(store: store)
             let builder = PreviewBuilder(workspaces: manager)

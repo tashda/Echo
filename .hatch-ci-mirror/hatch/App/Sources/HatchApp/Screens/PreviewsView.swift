@@ -36,7 +36,7 @@ struct PreviewsView: View {
         return (try? state.store.tickets(filter)) ?? []
     }
 
-    private var latestPreview: Preview? {
+    private var latestPreview: HatchCore.Preview? {
         let all = (try? state.store.previews()) ?? []
         return all.last { $0.state != "discarded" }
     }
@@ -282,7 +282,7 @@ struct PreviewsView: View {
         return items
     }
 
-    private func verifyCard(_ t: Ticket, _ pt: PreviewTicket, _ preview: Preview) -> some View {
+    private func verifyCard(_ t: Ticket, _ pt: PreviewTicket, _ preview: HatchCore.Preview) -> some View {
         HXCard {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
@@ -326,7 +326,7 @@ struct PreviewsView: View {
         .toggleStyle(.checkbox)
     }
 
-    private func verdictButtons(_ t: Ticket, _ preview: Preview) -> some View {
+    private func verdictButtons(_ t: Ticket, _ preview: HatchCore.Preview) -> some View {
         HStack {
             Button("Looks right") { markRight(t, preview) }
             Button("Needs work...") {
@@ -337,7 +337,7 @@ struct PreviewsView: View {
         }
     }
 
-    private func needsWorkForm(_ t: Ticket, _ preview: Preview) -> some View {
+    private func needsWorkForm(_ t: Ticket, _ preview: HatchCore.Preview) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             TextField("What is wrong?", text: $needsNote, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
@@ -362,14 +362,14 @@ struct PreviewsView: View {
         if panel.runModal() == .OK { screenshot = panel.url }
     }
 
-    private func markRight(_ t: Ticket, _ preview: Preview) {
+    private func markRight(_ t: Ticket, _ preview: HatchCore.Preview) {
         state.perform("Record verdict") {
             try state.store.setVerdict(previewId: preview.id, ticketId: t.id, verdict: "looks-right", note: nil)
             try state.store.record(t.id, actor: "owner", kind: "verified", payload: ["preview": .string(preview.name), "verdict": "looks-right"])
         }
     }
 
-    private func markNeedsWork(_ t: Ticket, _ preview: Preview) {
+    private func markNeedsWork(_ t: Ticket, _ preview: HatchCore.Preview) {
         let note = needsNote.trimmingCharacters(in: .whitespacesAndNewlines)
         let shot = screenshot
         state.perform("Send back") {
@@ -483,7 +483,7 @@ struct PreviewsView: View {
         }
     }
 
-    private func discardPreview(_ p: Preview) {
+    private func discardPreview(_ p: HatchCore.Preview) {
         guard let repo = appRepo else { return }
         let store = state.store
         Task {
