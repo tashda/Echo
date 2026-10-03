@@ -28,6 +28,14 @@ Total: 334 package tests plus the CLI smoke test, all green.
 - `Stage/`: StageCore tests pass, StageKit and the toast round (`HatchStageToast`) **build**.
 - Spike (decision S1/O1): a round-only incremental rebuild with StageKit cached took about **2 s** (build log: "Build complete! (1.24 sec)"). Well under the 10-15 s target.
 
+## Design decisions applied in the app (2026-10-03, all answered on the design page)
+
+Status = phase glyph (SF Symbol) coloured by turn plus the name (LK1). Project = title control in the toolbar with a popover (LK2, the owner's pick over the recommended sidebar card). Section switcher = glass text dock, a pull-down from six sections (LK3). Buttons = glass capsules with icon and label, one prominent first, rare actions behind More (LK10, LK11). Rules and component map: `DESIGN.md`; shared components: `App/Sources/HatchApp/Components/DesignSystem.swift`.
+
+Seen in CI screenshots: status glyphs, dock, project control, Board cards. Not judged: Liquid Glass itself (the screenshot method does not capture glass, so buttons and the dock look flat there), and the selected sidebar row shows black in captures (thought to be a capture artifact; please check on a Mac). Still on the old look: Previews, Agents, Sketch, Iris review and Project screens use `glassProminent` now but have not been walked through for the rest of the button rules.
+
+The App starts the Stage API at launch; the Stage can clear a verdict. `hatch-design.html` decision IDs for this round are `LK1` to `LK11`.
+
 ## Not started or open
 
 - Wiring `StageKit` to `HatchAPI.StageClient` and launching the Stage from the app end to end.

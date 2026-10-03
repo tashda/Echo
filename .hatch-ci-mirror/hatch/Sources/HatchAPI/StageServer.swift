@@ -173,11 +173,27 @@ public final class StageServer: @unchecked Sendable {
             let worker = Thread { [self] in
                 defer { inflight.leave() }
                 serve(client)
-                close(client)
+                Self.lingeringClose(client)
             }
             worker.name = "hatch.stage-conn"
             worker.start()
         }
+    }
+
+    /// Closing with unread request bytes makes the kernel reset the connection, and on macOS the client then loses the
+    /// response it was about to read (a 413 for an oversized body). Send the end of the response, then read what is left.
+    private static func lingeringClose(_ fd: Int32) {
+        shutdown(fd, Int32(SHUT_WR))
+        var tv = timeval(tv_sec: 1, tv_usec: 0)
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
+        var buffer = [UInt8](repeating: 0, count: 64 * 1024)
+        var drained = 0
+        while drained < 16 * 1024 * 1024 {
+            let n = recv(fd, &buffer, buffer.count, 0)
+            if n <= 0 { break }
+            drained += n
+        }
+        close(fd)
     }
 
     // MARK: HTTP
