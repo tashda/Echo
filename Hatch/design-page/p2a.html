@@ -1,0 +1,174 @@
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-desk" viewBox="0 0 16 16"><path d="M2 9l2-6h8l2 6v4H2z M2 9h4l1 2h2l1-2h4"/></symbol>
+<symbol id="i-list" viewBox="0 0 16 16"><path d="M5 4h9M5 8h9M5 12h9M2 4h.01M2 8h.01M2 12h.01"/></symbol>
+<symbol id="i-board" viewBox="0 0 16 16"><path d="M2 3h3.5v10H2z M6.5 3H10v6H6.5z M11 3h3v8h-3z"/></symbol>
+<symbol id="i-layers" viewBox="0 0 16 16"><path d="M8 2l6 3-6 3-6-3z M2 8l6 3 6-3 M2 11l6 3 6-3"/></symbol>
+<symbol id="i-pencil" viewBox="0 0 16 16"><path d="M3 13l.7-3L11 2.7a1.4 1.4 0 012 2L5.7 12 3 13z M10 3.7l2.3 2.3"/></symbol>
+<symbol id="i-bubble" viewBox="0 0 16 16"><path d="M2.5 3h11v7.5H8L5 13v-2.5H2.5z"/></symbol>
+<symbol id="i-slider" viewBox="0 0 16 16"><path d="M2 5h12M2 11h12 M5 3v4 M10 9v4"/></symbol>
+<symbol id="i-bug" viewBox="0 0 16 16"><path d="M5.5 6h5v4a2.5 2.5 0 01-5 0z M6 4a2 2 0 014 0 M3 7h2.5 M10.5 7H13 M3 11h2.5 M10.5 11H13"/></symbol>
+<symbol id="i-folder" viewBox="0 0 16 16"><path d="M2 4.5h4l1.5 1.5H14V13H2z"/></symbol>
+<symbol id="i-check" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7"/></symbol>
+<symbol id="i-eye" viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z M8 10a2 2 0 100-4 2 2 0 000 4z"/></symbol>
+<symbol id="i-doc" viewBox="0 0 16 16"><path d="M4 2h6l3 3v9H4z M10 2v3h3 M6 8h5M6 11h5"/></symbol>
+<symbol id="i-flag" viewBox="0 0 16 16"><path d="M4 14V2 M4 3h8l-1.5 3L12 9H4"/></symbol>
+<symbol id="i-cpu" viewBox="0 0 16 16"><path d="M5 5h6v6H5z M8 2v3 M8 11v3 M2 8h3 M11 8h3"/></symbol>
+<symbol id="i-log" viewBox="0 0 16 16"><path d="M3 3h10v10H3z M5.5 6h5 M5.5 8.5h5 M5.5 11h3"/></symbol>
+<symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
+<symbol id="i-search" viewBox="0 0 16 16"><path d="M7 12a5 5 0 100-10 5 5 0 000 10z M11 11l3 3"/></symbol>
+<symbol id="i-spark" viewBox="0 0 16 16"><path d="M8 2l1.5 4.5L14 8l-4.5 1.5L8 14l-1.5-4.5L2 8l4.5-1.5z"/></symbol>
+<symbol id="i-branch" viewBox="0 0 16 16"><path d="M5 3v10 M5 9c0-2 6-1 6-4 M5 3h.01 M11 5h.01 M5 13h.01"/></symbol>
+</defs></svg>
+
+<div class="page">
+<header class="hero">
+  <h1>Hatch</h1>
+  <p class="sub">The design for the new Labs. Every screen, state, workflow and name, with sample data. Where there is a choice to make, you will find the options, my recommendation and the reason, and a place to answer.</p>
+  <div class="rules">
+    <div class="rule"><b>The app does the bookkeeping</b>Statuses, GitHub labels, SQLite and the sync record change in one app function. Agents call <code>hatch</code>, they never edit state.</div>
+    <div class="rule"><b>Every status says whose turn it is</b>You, an agent, or Hatch itself. The Desk shows only what waits for you.</div>
+    <div class="rule"><b>Look first, build later</b>Sketches are HTML and cost seconds. Swift specimens come once a direction is picked.</div>
+  </div>
+  <p class="howto"><b>How to use this page.</b> Each card is a decision. Pick an option, or press <b>Use recommendation</b>. Add a <b>note</b> for context, or <b>ask a question</b> when you need more before deciding. Everything saves as you go. Tell me in the chat when you have left notes or questions and I will read them, answer them here under your question, and change the options if you ask for it. The sample tickets and numbers are invented.</p>
+  <div class="banner" id="dbBanner"></div>
+</header>
+
+<div class="layout">
+<nav class="toc" aria-label="Sections">
+  <h4>Decisions</h4>
+  <div class="meter" aria-hidden="true"><i id="meterFill"></i></div>
+  <div id="tocLinks"></div>
+  <div class="tocbtns">
+    <button class="btn" id="btnAllRec" type="button">Use all recommendations</button>
+    <button class="btn" id="btnFilter" type="button" aria-pressed="false">Show only open decisions</button>
+  </div>
+</nav>
+<main id="main">
+
+<!-- REVIEW -->
+<section class="sec" id="s-review" data-title="For your review">
+  <h2>For your review</h2>
+  <p class="lead">What needs you now, and my comments on it. The two lists update as you answer.</p>
+  <h3 class="sub">Waiting for your answer</h3>
+  <div id="rv-open"></div>
+  <h3 class="sub">My comments</h3>
+  <ul class="rvc">
+    <li><b>Your answers on E8, I6 and O1.</b> All three match my recommendations: the agent's rewrite goes through Accept, Edit or Keep mine; tickets merge into a <code>hatch</code> branch that CI checks; and the first thing to build is the Stage spike.</li>
+    <li><b>Your note on E8: the agent also checks the type.</b> Yes. I added E9: Tally (or whatever name you pick in V1) suggests a type change with its reason, in the same review as the rewrite, and you decide.</li>
+    <li><b>A name for the vetting agent.</b> V1 has five options. I recommend Tally.</li>
+    <li><b>Still open:</b> H22 (mixing options in the Stage) and L5 (the Specs section), plus the two new ones above. They are in the list at the top of this section. None of them blocks the Stage spike.</li>
+    <li><b>E7 and C5 stay as you chose them.</b> E7 works because you chose A on E8. On C5, pressing A on a Proposal accepts all my recommended answers at once, which is only wise after reading the recommendation in the brief pane. Tell me if you want A limited to tickets with a single question.</li>
+    <li><b>Not measured yet.</b> S1 assumes a Stage app per round builds quickly. Your 10 to 15 seconds is for the whole lab, so a round-only build should be well under that, but nobody has timed it. That is what the spike is for.</li>
+    <li><b>What this design changes outside Hatch, when we start.</b> A hatch trigger in <code>ci-light.yml</code> (I6). A DEBUG-only "Preview" banner in Echo (J4). EchoDesignSystem moves to its own repo. Four new repos: <code>hatch</code>, <code>hatch-tickets</code> (private), <code>echo-specimens</code>, <code>echo-design-system</code>. Please check those names.</li>
+    <li><b>Nothing has been built.</b> The next step is step 0 (tidy) and the Stage spike from the build order. Say go and I start there.</li>
+  </ul>
+  <h3 class="sub">My replies to your notes</h3>
+  <div id="rv-replies"></div>
+</section>
+
+<!-- A FOUNDATIONS -->
+<section class="sec" id="s-foundations" data-title="Names and flow">
+  <h2>Names, ticket types and statuses</h2>
+  <p class="lead">The vocabulary comes first because every screen uses it. "Round" is replaced by clearer words, and every status carries a colour for whose turn it is.</p>
+
+  <h3 class="sub">Ticket types</h3>
+  <div class="types">
+    <div class="type"><h4><svg class="ic"><use href="#i-bubble"/></svg>Question</h4><div class="k"><b>Use it for</b> an idea or UX issue that is still words.<br><b>You get</b> a reply that has read the Spec and related tickets, with a recommendation.<br><b>Ends</b> answered, often with new tickets linked.</div></div>
+    <div class="type"><h4><svg class="ic"><use href="#i-pencil"/></svg>Sketch</h4><div class="k"><b>Use it for</b> exploring a layout or flow before any Swift.<br><b>You get</b> 2 to 4 variants as HTML, side by side, with pinned comments.<br><b>Ends</b> a direction chosen. "Make it real" creates a Proposal.</div></div>
+    <div class="type"><h4><svg class="ic"><use href="#i-layers"/></svg>Proposal</h4><div class="k"><b>Use it for</b> a specific change you want to see in Swift, with several options. This replaces today's Round.<br><b>You get</b> specimens with controls and scenarios, judged against Echo today.<br><b>Ends</b> an accepted option goes to Build.</div></div>
+    <div class="type"><h4><svg class="ic"><use href="#i-slider"/></svg>Tweak</h4><div class="k"><b>Use it for</b> a small change with one obvious fix.<br><b>You get</b> no judging step. It is checked against the Spec, built, and shown in a Preview.<br><b>Ends</b> merged after you verify.</div></div>
+    <div class="type"><h4><svg class="ic"><use href="#i-bug"/></svg>Bug</h4><div class="k"><b>Use it for</b> something in Echo that behaves wrongly. Needs steps, expected, actual.<br><b>You get</b> one fix straight to Build, or an upgrade to a Proposal when there are several fixes.</div></div>
+    <div class="type"><h4><svg class="ic"><use href="#i-folder"/></svg>Theme</h4><div class="k"><b>Use it for</b> grouping related tickets, like "Connection management".<br><b>You get</b> a parent with progress (3 of 7 done) and its children listed.</div></div>
+  </div>
+
+  <h3 class="sub">Statuses and whose turn it is</h3>
+  <div class="legend">
+    <span class="chip you">Your turn</span><span class="chip agent">Agent's turn</span><span class="chip app">Hatch (automatic or queued)</span><span class="chip done">Finished</span><span class="chip off">Paused or stopped</span>
+  </div>
+  <p class="lead" style="margin-top:0">Pick a ticket type to see the path it takes. Statuses outside the path dim.</p>
+  <div class="pathbtns" id="pathBtns"></div>
+  <div class="lanes" id="lanes"></div>
+  <div class="tscroll" style="margin-top:16px"><table class="t" id="statusTable"></table></div>
+
+  <h3 class="sub">What replaces what</h3>
+  <div class="tscroll"><table class="t">
+    <tr><th>In Echo Labs today</th><th>In Hatch</th><th>Why it changes</th></tr>
+    <tr><td>Round</td><td>Proposal</td><td>Says what it is: something proposed that you judge.</td></tr>
+    <tr><td>Inbox</td><td>Desk</td><td>It holds only what needs you, not everything that arrived.</td></tr>
+    <tr><td>Judging / New feedback</td><td>Your call / Revising</td><td>Names the person whose turn it is.</td></tr>
+    <tr><td>In Echo / Decided</td><td>Merged / Done (plus the Decisions library)</td><td>Merged and verified are two different facts.</td></tr>
+    <tr><td>Exhibit</td><td>Specimen (Swift) or Variant (Sketch)</td><td>One word per kind of thing.</td></tr>
+    <tr><td>Conformance</td><td>Match check</td><td>Plain words for "does Echo look like what you accepted".</td></tr>
+    <tr><td>Rebuild and Relaunch</td><td>Preview</td><td>A build of the tickets you choose, not of everything.</td></tr>
+    <tr><td>Copy for an agent</td><td><code>hatch take #151</code></td><td>The app hands the brief over, nobody pastes it.</td></tr>
+    <tr><td>Pick / Maybe / No, needsMore</td><td>Kept. "Needs more options" button.</td><td>This part of the contract already works.</td></tr>
+  </table></div>
+  <div class="decs" data-sec="foundations"></div>
+</section>
+
+<!-- B SHELL -->
+<section class="sec" id="s-shell" data-title="Navigation and shell">
+  <h2>The window and navigation</h2>
+  <p class="lead">One window, a project switcher on top of the sidebar, and a toolbar that is the same on every screen.</p>
+  <div class="mockbox"><div class="cap"><b>Recommended shell</b><span class="sample">sample data</span></div><div class="mi">
+  <div class="win"><div class="tb"><i></i><i></i><i></i><span class="tt">Hatch · Echo</span></div>
+  <div class="wb"><div class="sb" data-sb="desk"></div>
+    <div class="ct"><div class="bar"><b style="font-size:14px;font-family:var(--f-head)">Desk</b><span class="muted">4 need you</span><span class="sp"></span><span class="mb"><svg class="ic"><use href="#i-search"/></svg>Search <span class="kbd">⌘K</span></span><span class="mb pri"><svg class="ic"><use href="#i-plus"/></svg>New ticket <span class="kbd" style="color:inherit">⌘N</span></span><span class="mb"><svg class="ic"><use href="#i-spark"/></svg>Ask <span class="kbd">⌥⌘A</span></span></div>
+      <div class="two"><div class="pane"><div class="card">Section content appears here. The toolbar stays the same on every screen.</div><div class="card turn"><b>4 tickets wait for you.</b><br><small>The Dock badge shows the same number.</small></div></div>
+      <div style="border-left:1px solid var(--line);padding:12px;background:var(--side)"><b style="font-family:var(--f-head);font-size:13px">Ask Hatch</b><div class="small muted" style="margin:2px 0 8px">Context: Desk</div>
+        <div class="card"><small>You</small><br>Which of these is the biggest change?</div>
+        <div class="card rec"><small>Hatch</small><br>#151 touches three Spec items (NOTIF-1.2, 1.4, 2.1). The others touch one each.</div></div></div>
+    </div></div></div></div></div>
+  <ol class="call"><li><b>1</b>Project switcher with the branch. Shows "All projects" too.</li><li><b>2</b>Work sections on top, reference sections below.</li><li><b>3</b>Amber badge: how many tickets wait for you.</li><li><b>4</b>Sync state with GitHub, always visible.</li><li><b>5</b>Same toolbar everywhere.</li><li><b>6</b>Ask panel keeps the current ticket as context.</li></ol>
+  <div class="decs" data-sec="shell"></div>
+</section>
+
+<!-- C DESK -->
+<section class="sec" id="s-desk" data-title="Desk (inbox)">
+  <h2>Desk</h2>
+  <p class="lead">What the old Inbox did, rebuilt around the question "what do I have to do now". Opening a ticket takes the whole window, because judging needs room.</p>
+  <div class="mockbox"><div class="cap"><b>Recommended Desk</b><span class="sample">sample data</span></div><div class="mi">
+  <div class="win"><div class="tb"><i></i><i></i><i></i><span class="tt">Hatch · All projects</span></div>
+  <div class="wb"><div class="sb" data-sb="desk"></div>
+    <div class="ct"><div class="bar"><b style="font-size:14px;font-family:var(--f-head)">Desk</b><span class="sp"></span><span class="seg"><button aria-pressed="true">All projects</button><button aria-pressed="false">Echo</button></span></div>
+    <div class="split"><div class="lst">
+      <div class="gh you">Your call <span class="cnt">3</span></div>
+      <div class="rw on"><span class="tyi"><svg class="ic"><use href="#i-layers"/></svg></span><div><div class="t">#151 Notification toast spacing</div><div class="s">Judge 3 options · about 4 min · Hatch recommends B</div></div><span class="age">2h</span></div>
+      <div class="rw"><span class="tyi"><svg class="ic"><use href="#i-pencil"/></svg></span><div><div class="t">#149 Inspector section order</div><div class="s">Choose a direction · 4 variants</div></div><span class="age">5h</span></div>
+      <div class="rw"><span class="tyi"><svg class="ic"><use href="#i-bubble"/></svg></span><div><div class="t">#147 Do we need a tab overflow menu?</div><div class="s">Reply needed · 1 question</div></div><span class="age">1d</span></div>
+      <div class="gh you">Needs answers <span class="cnt">1</span></div>
+      <div class="rw"><span class="tyi"><svg class="ic"><use href="#i-slider"/></svg></span><div><div class="t">#153 Rename "Connect" button</div><div class="s">Hatch asks 2 questions</div></div><span class="age">20m</span></div>
+      <div class="gh you">To verify <span class="cnt">2</span></div>
+      <div class="rw"><span class="tyi"><svg class="ic"><use href="#i-layers"/></svg></span><div><div class="t">#144 Explorer row density</div><div class="s">In Preview 03 · match check passed</div></div><span class="age">3h</span></div>
+      <div class="rw"><span class="tyi"><svg class="ic"><use href="#i-bug"/></svg></span><div><div class="t">#146 Sidebar flickers when a connection drops</div><div class="s">In Preview 03</div></div><span class="age">3h</span></div>
+      <div class="gh agent">Waiting on agents <span class="cnt">5</span> <span class="muted" style="text-transform:none;letter-spacing:0">▸ show</span></div>
+    </div>
+    <div class="pane">
+      <span class="chip you">Your call</span> <span class="muted">· Proposal · Notifications · Echo</span>
+      <h5>#151 Notification toast spacing</h5>
+      <div class="card turn"><b>Your turn:</b> judge 3 options against Echo today.<br><small>Revision 2 · 6 scenarios · changes NOTIF-1.2, NOTIF-1.4</small></div>
+      <div class="card rec"><b>Hatch recommends Option B</b><br><small>Matches the 12pt rhythm you decided in #118 and keeps the error toast readable at Large text.</small></div>
+      <div style="display:flex;gap:6px;margin-top:9px"><div class="thumb"></div><div class="thumb"></div><div class="thumb"></div></div>
+      <div style="display:flex;gap:6px;margin-top:10px"><span class="mb pri">Open <span class="kbd" style="color:inherit">↩</span></span><span class="mb">Park <span class="kbd">P</span></span><span class="mb">Ask <span class="kbd">⌥⌘A</span></span></div>
+      <p class="muted" style="margin-top:10px;font-size:11px">Move with <span class="kbd">J</span> <span class="kbd">K</span>. <span class="kbd">A</span> accepts my recommendation from the list; the confirmation sheet still appears (H16).</p>
+    </div></div></div></div></div></div>
+  <div class="decs" data-sec="desk"></div>
+</section>
+
+<!-- D TICKETS BOARD -->
+<section class="sec" id="s-tickets" data-title="Tickets, Board, Themes">
+  <h2>Tickets, Board and Themes</h2>
+  <p class="lead">The Desk is yours. These screens show everything: all tickets for searching, the Board for flow, and Themes for grouping.</p>
+  <div class="mockbox"><div class="cap"><b>Board, grouped by phase</b><span class="sample">sample data</span></div><div class="mi">
+  <div class="win"><div class="tb"><i></i><i></i><i></i><span class="tt">Hatch · Echo</span></div>
+  <div class="wb"><div class="sb" data-sb="board"></div><div class="ct">
+    <div class="bar"><b style="font-size:14px;font-family:var(--f-head)">Board</b><span class="mb">type: any ▾</span><span class="mb">Theme: any ▾</span><span class="sp"></span><span class="seg"><button aria-pressed="false">List</button><button aria-pressed="true">Board</button></span></div>
+    <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;padding:10px;background:var(--side);flex:1">
+      <div><div class="gh" style="padding:0 2px 6px">Intake <span class="cnt">3</span></div><div class="card" style="margin:0 0 6px"><b>#153</b> Rename "Connect"<br><span class="chip you">Needs answers</span></div><div class="card" style="margin:0 0 6px"><b>#150</b> Pool exhaustion toast<br><span class="chip agent">Checking</span></div><div class="card" style="margin:0"><b>#155</b> Tab drag ghost<br><span class="chip app">Ready</span></div></div>
+      <div><div class="gh" style="padding:0 2px 6px">Exploring <span class="cnt">3</span></div><div class="card" style="margin:0 0 6px"><b>#151</b> Toast spacing<br><span class="chip you">Your call</span></div><div class="card" style="margin:0 0 6px"><b>#149</b> Inspector order<br><span class="chip you">Your call</span></div><div class="card" style="margin:0"><b>#148</b> Empty states<br><span class="chip agent">Preparing</span></div></div>
+      <div><div class="gh" style="padding:0 2px 6px">Building <span class="cnt">3</span></div><div class="card" style="margin:0 0 6px"><b>#152</b> Row hover colour<br><span class="chip agent">Building</span></div><div class="card" style="margin:0 0 6px"><b>#144</b> Row density<br><span class="chip you">To verify</span></div><div class="card" style="margin:0"><b>#146</b> Sidebar flicker<br><span class="chip you">To verify</span></div></div>
+      <div><div class="gh" style="padding:0 2px 6px">Landed <span class="cnt">2</span></div><div class="card" style="margin:0 0 6px"><b>#141</b> Toast stack limit<br><span class="chip app">Merged</span></div><div class="card" style="margin:0"><b>#138</b> Icon weights<br><span class="chip done">Done</span></div></div>
+      <div><div class="gh" style="padding:0 2px 6px">Off <span class="cnt">2</span></div><div class="card" style="margin:0 0 6px"><b>#139</b> Dock badge<br><span class="chip off">Parked</span></div><div class="card" style="margin:0"><b>#145</b> Pin tabs<br><span class="chip app">Blocked by #144</span></div></div>
+    </div></div></div></div></div></div>
+  <div class="decs" data-sec="tickets"></div>
+</section>
