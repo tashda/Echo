@@ -1,6 +1,7 @@
 import SwiftUI
 import HatchCore
 import HatchSync
+import HatchAPI
 
 /// The one object every screen reads. It wraps the store (the only place state changes, decision S3), re-publishes after every
 /// change, and holds navigation and panel state. Screens never write SQL; they call store methods inside `perform`.
@@ -8,6 +9,7 @@ import HatchSync
 final class AppState: ObservableObject {
     let store: HatchStore
     let paths: AppPaths
+    private var stageServer: StageServer?
 
     @Published var route: Route = .desk
     @Published var selectedProjectKey: String?          // nil means "All projects" (decision B2, B3)
@@ -44,6 +46,27 @@ final class AppState: ObservableObject {
             state.errorMessage = "Could not open the Hatch database: \(error)"
             return state
         }
+    }
+
+    /// Starts the local API the Stage talks to (decision S3) and the notification bridge. Safe to call more than once.
+    func startServices() {
+        NotificationCenterBridge.shared.start(state: self)
+        guard stageServer == nil else { return }
+        let server = StageServer(store: store, paths: HatchPaths(home: paths.root))
+        server.events = { [weak self] _ in
+            Task { @MainActor in self?.refresh() }
+        }
+        do {
+            try server.start()
+            stageServer = server
+        } catch {
+            errorMessage = "Could not start the Stage connection: \(error)"
+        }
+    }
+
+    func stopServices() {
+        stageServer?.stop()
+        stageServer = nil
     }
 
     // MARK: Data helpers used by many screens

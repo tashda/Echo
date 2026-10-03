@@ -120,9 +120,6 @@ public final class HatchAPIStageDataSource: StageDataSource {
     }
 
     public func postVerdict(topic: String, option: String, verdict: String, note: String?) async throws -> StageCore.StageDelivery {
-        // ADAPTER GAP: the local API has no way to clear a verdict. The Stage sends "none" when the owner toggles one off;
-        // it is kept locally and not sent. Add a clear endpoint to StageServer, then send it here.
-        if verdict == "none" { return StageCore.StageDelivery.delivered }
         do {
             let d = try await blocking { try self.client.verdict(ref: self.ref, topic: topic, option: option, verdict: verdict, note: note) }
             return delivery(d)

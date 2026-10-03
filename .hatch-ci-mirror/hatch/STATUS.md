@@ -22,10 +22,11 @@ Updated whenever work lands. "Verified" means it was compiled and its tests were
 
 Total: 334 package tests plus the CLI smoke test, all green.
 
-## Written, not yet compiled (macOS only)
+## Compiled on macOS (Swift 6.4, Xcode 27, via the CI mirror, 2026-10-03)
 
-- `App/`: the SwiftUI app (shell, Desk, Tickets, Board, ticket view, composer with Iris review, Previews, Agents, Project, Specs, Decisions, Log, Ask panel, command palette, Sketch board, Stage launcher, settings). Compile errors are expected on the first macOS build.
-- `Stage/`: `StageCore` logic (tests run on Linux), `StageKit` SwiftUI and the toast spike round (macOS only).
+- `App/`: the SwiftUI app (shell, Desk, Tickets, Board, ticket view, composer with Iris review, Previews, Agents, Project, Specs, Decisions, Log, Ask panel, command palette, Sketch board, Stage launcher, settings) **builds**. It has not been run or looked at by a person yet; there are no UI tests.
+- `Stage/`: StageCore tests pass, StageKit and the toast round (`HatchStageToast`) **build**.
+- Spike (decision S1/O1): a round-only incremental rebuild with StageKit cached took about **2 s** (build log: "Build complete! (1.24 sec)"). Well under the 10-15 s target.
 
 ## Not started or open
 

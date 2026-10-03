@@ -45,6 +45,12 @@ public extension HatchStore {
         try record(ticketId, actor: "owner", kind: "verdict", payload: ["topic": .string(topic), "option": .string(option), "verdict": .string(verdict)])
     }
 
+    /// The owner toggled a verdict off in the Stage.
+    func clearVerdict(ticketId: Int, topic: String, option: String) throws {
+        try db.execute("DELETE FROM verdict WHERE ticket_id = ? AND topic = ? AND option = ?", [.int(ticketId), .text(topic), .text(option)])
+        try record(ticketId, actor: "owner", kind: "verdict", payload: ["topic": .string(topic), "option": .string(option), "verdict": .string("none")])
+    }
+
     func verdicts(ticketId: Int) throws -> [Verdict] {
         try db.query("SELECT * FROM verdict WHERE ticket_id = ? ORDER BY topic, option", [.int(ticketId)]) { Verdict(topic: $0.string("topic")!, option: $0.string("option")!, verdict: $0.string("verdict")!, note: $0.string("note")) }
     }

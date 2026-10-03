@@ -125,6 +125,8 @@ final class ServerTests: APITestCase {
         XCTAssertEqual(r.status, 200)
         XCTAssertEqual(try store.verdicts(ticketId: t.id).first?.verdict, "no")
         XCTAssertEqual(try call("POST", "/v1/tickets/151/verdict", body: ["topic": "spacing", "option": "A", "verdict": "love"]).status, 400)
+        XCTAssertEqual(try call("POST", "/v1/tickets/151/verdict", body: ["topic": "spacing", "option": "A", "verdict": "none"]).status, 200)
+        XCTAssertTrue(try store.verdicts(ticketId: t.id).isEmpty)
         XCTAssertEqual(try call("POST", "/v1/tickets/151/verdict", body: ["topic": "spacing", "verdict": "no"]).status, 400)
     }
 

@@ -423,7 +423,11 @@ public final class StageServer: @unchecked Sendable {
         let t = try ticket(ref); try requireOpen(t)
         let topic = try b.string("topic", max: 200), option = try b.string("option", max: 200)
         let verdict = try b.string("verdict", max: 20)
-        guard ["pick", "maybe", "no"].contains(verdict) else { throw APIError(status: 400, code: "bad_request", message: "verdict must be pick, maybe or no.") }
+        guard ["pick", "maybe", "no", "none"].contains(verdict) else { throw APIError(status: 400, code: "bad_request", message: "verdict must be pick, maybe, no or none.") }
+        if verdict == "none" {
+            try store.clearVerdict(ticketId: t.id, topic: topic, option: option)
+            return (["ok": true], StageEvent(kind: .verdict, ticketId: t.id))
+        }
         let note = try b.optionalString("note", max: 10_000)
         try store.setVerdict(ticketId: t.id, topic: topic, option: option, verdict: verdict, note: note)
         return (["ok": true], StageEvent(kind: .verdict, ticketId: t.id))

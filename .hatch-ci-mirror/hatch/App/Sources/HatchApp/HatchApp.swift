@@ -10,6 +10,8 @@ struct HatchApp: App {
             RootView()
                 .environmentObject(state)
                 .frame(minWidth: 1000, minHeight: 640)
+                .task { state.startServices() }
+                .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in state.stopServices() }
         }
         .commands { HatchCommands(state: state) }
 
