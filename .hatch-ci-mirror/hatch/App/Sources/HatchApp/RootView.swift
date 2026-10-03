@@ -60,36 +60,68 @@ struct MainToolbar: ToolbarContent {
     }
 }
 
-/// The project as the window's title menu (decision LK2, option D): tile, name and a pull-down with every project.
+/// The project as the window's title control (decision LK2, option D): tile and name; a click opens the list of projects.
 struct ProjectTitleMenu: View {
     @EnvironmentObject var state: AppState
+    @State private var open = false
 
     private var current: Project? {
         state.projects.first { $0.key == state.selectedProjectKey }
     }
 
     var body: some View {
-        Menu {
-            Button { state.selectedProjectKey = nil } label: {
-                if state.selectedProjectKey == nil { Label("All projects", systemImage: "checkmark") } else { Text("All projects") }
-            }
-            Divider()
-            ForEach(state.projects) { project in
-                Button { state.selectedProjectKey = project.key } label: {
-                    let branch = project.config?.repo(.app)?.branch ?? ""
-                    let name = branch.isEmpty ? project.name : "\(project.name) · \(branch)"
-                    if project.key == state.selectedProjectKey { Label(name, systemImage: "checkmark") } else { Text(name) }
-                }
-            }
-            Divider()
-            Button("Project settings…") { state.route = .projects }
-        } label: {
+        Button { open.toggle() } label: {
             HStack(spacing: 6) {
-                if let p = current { ProjectTile(name: p.name, key: p.key) } else { Image(systemName: "square.stack.3d.up").foregroundStyle(.secondary) }
+                if let p = current {
+                    ProjectTile(name: p.name, key: p.key)
+                } else {
+                    Image(systemName: "square.stack.3d.up").foregroundStyle(.secondary).frame(width: 20, height: 20)
+                }
                 Text(current?.name ?? "All projects").fontWeight(.semibold)
+                Image(systemName: "chevron.down").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
             }
+            .padding(.horizontal, 4)
         }
-        .menuIndicator(.visible)
+        .buttonStyle(.plain)
         .help("Switch project")
+        .popover(isPresented: $open, arrowEdge: .bottom) { list }
+    }
+
+    private var list: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            row(title: "All projects", subtitle: nil, key: nil, name: nil)
+            Divider().padding(.vertical, 4)
+            ForEach(state.projects) { project in
+                row(title: project.name, subtitle: project.config?.repo(.app)?.branch, key: project.key, name: project.name)
+            }
+            Divider().padding(.vertical, 4)
+            Button { open = false; state.route = .projects } label: {
+                Label("Project settings…", systemImage: "gearshape").frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 8).padding(.vertical, 4)
+        }
+        .padding(8)
+        .frame(minWidth: 240)
+    }
+
+    private func row(title: String, subtitle: String?, key: String?, name: String?) -> some View {
+        Button {
+            state.selectedProjectKey = key
+            open = false
+        } label: {
+            HStack(spacing: 8) {
+                if let key, let name { ProjectTile(name: name, key: key) } else { Image(systemName: "square.stack.3d.up").frame(width: 20, height: 20).foregroundStyle(.secondary) }
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(title)
+                    if let subtitle, !subtitle.isEmpty { Text("branch \(subtitle)").font(.caption).foregroundStyle(.secondary) }
+                }
+                Spacer()
+                if state.selectedProjectKey == key { Image(systemName: "checkmark").foregroundStyle(Color.accentColor) }
+            }
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
