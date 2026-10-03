@@ -1,22 +1,21 @@
 import SwiftUI
 import HatchCore
 
-/// The status name with the colour of whose turn it is. The colour never appears without the name (decision A5).
+/// The phase glyph, coloured by whose turn it is, and the status name in normal text (decisions A5 and LK1).
 struct StatusChip: View {
     let status: Status
 
     var body: some View {
-        HStack(spacing: 5) {
-            Circle()
-                .fill(Theme.color(for: status.turn))
-                .frame(width: 6, height: 6)
+        Label {
             Text(status.displayName)
-                .font(.caption.weight(.medium))
+                .font(.callout)
+                .foregroundStyle(.primary)
+        } icon: {
+            Image(systemName: status.phaseSymbol)
+                .symbolRenderingMode(.monochrome)
                 .foregroundStyle(Theme.color(for: status.turn))
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(Theme.background(for: status.turn), in: Capsule())
+        .labelStyle(.titleAndIcon)
         .fixedSize()
     }
 }
@@ -101,7 +100,7 @@ struct TurnBanner: View {
             }
             if let actionTitle, let action {
                 Button(actionTitle, action: action)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
                     .tint(Theme.color(for: turn))
                     .controlSize(.large)
             }

@@ -41,12 +41,6 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            ProjectPicker()
-                .padding(.horizontal, 12)
-                .padding(.top, 8)
-                .padding(.bottom, 4)
-        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             SidebarFooter()
         }
@@ -89,29 +83,6 @@ struct SidebarRow: View {
 }
 
 /// "All projects" or one project, shown with its default branch (decision B2).
-struct ProjectPicker: View {
-    @EnvironmentObject var state: AppState
-
-    var body: some View {
-        Picker("Project", selection: $state.selectedProjectKey) {
-            Text("All projects").tag(String?.none)
-            ForEach(state.projects) { project in
-                Text(label(for: project)).tag(Optional(project.key))
-            }
-        }
-        .labelsHidden()
-        .pickerStyle(.menu)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func label(for project: Project) -> String {
-        if let branch = project.config?.repo(.app)?.branch, !branch.isEmpty {
-            return "\(project.name) · \(branch)"
-        }
-        return project.name
-    }
-}
-
 /// "Synced with GitHub · 2 pending". Red when something failed. Click opens the Log (decision B5).
 struct SidebarFooter: View {
     @EnvironmentObject var state: AppState

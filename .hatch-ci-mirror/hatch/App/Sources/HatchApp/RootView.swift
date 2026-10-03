@@ -48,6 +48,7 @@ struct MainToolbar: ToolbarContent {
     @EnvironmentObject var state: AppState
 
     var body: some ToolbarContent {
+        ToolbarItem(placement: .navigation) { ProjectTitleMenu() }
         ToolbarItemGroup(placement: .primaryAction) {
             Button { state.showPalette = true } label: { Label("Search", systemImage: "magnifyingglass") }
                 .help("Search (⌘K)")
@@ -56,5 +57,39 @@ struct MainToolbar: ToolbarContent {
             Button { state.showAskPanel.toggle() } label: { Label("Ask", systemImage: "sparkles") }
                 .help("Ask Hatch (⌥⌘A)")
         }
+    }
+}
+
+/// The project as the window's title menu (decision LK2, option D): tile, name and a pull-down with every project.
+struct ProjectTitleMenu: View {
+    @EnvironmentObject var state: AppState
+
+    private var current: Project? {
+        state.projects.first { $0.key == state.selectedProjectKey }
+    }
+
+    var body: some View {
+        Menu {
+            Button { state.selectedProjectKey = nil } label: {
+                if state.selectedProjectKey == nil { Label("All projects", systemImage: "checkmark") } else { Text("All projects") }
+            }
+            Divider()
+            ForEach(state.projects) { project in
+                Button { state.selectedProjectKey = project.key } label: {
+                    let branch = project.config?.repo(.app)?.branch ?? ""
+                    let name = branch.isEmpty ? project.name : "\(project.name) · \(branch)"
+                    if project.key == state.selectedProjectKey { Label(name, systemImage: "checkmark") } else { Text(name) }
+                }
+            }
+            Divider()
+            Button("Project settings…") { state.route = .projects }
+        } label: {
+            HStack(spacing: 6) {
+                if let p = current { ProjectTile(name: p.name, key: p.key) } else { Image(systemName: "square.stack.3d.up").foregroundStyle(.secondary) }
+                Text(current?.name ?? "All projects").fontWeight(.semibold)
+            }
+        }
+        .menuIndicator(.visible)
+        .help("Switch project")
     }
 }

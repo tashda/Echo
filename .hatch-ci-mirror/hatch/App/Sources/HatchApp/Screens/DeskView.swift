@@ -438,7 +438,7 @@ struct AcceptPlanSheet: View {
                     .keyboardShortcut(.cancelAction)
                 Button("Accept") { finish(true) }
                     .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
             }
         }
         .padding(20)

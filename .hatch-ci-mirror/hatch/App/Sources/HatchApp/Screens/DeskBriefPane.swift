@@ -151,22 +151,26 @@ struct DeskBriefPane: View {
             Button(action: onOpen) {
                 Label("Open", systemImage: "return")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.glassProminent)
             Button(action: onPark) {
-                Text("Park")
+                Label("Park", systemImage: "pause")
             }
+            .buttonStyle(.glass)
             .help("Park (P)")
             Button(action: onAsk) {
-                Text("Ask")
+                Label("Ask", systemImage: "sparkles")
             }
+            .buttonStyle(.glass)
             .help("Ask (\u{2325}\u{2318}A)")
             if canAccept {
                 Button(action: onAccept) {
-                    Text("Accept recommendation")
+                    Label("Accept recommendation", systemImage: "checkmark")
                 }
+                .buttonStyle(.glass)
                 .help("Accept (A)")
             }
         }
+        .controlSize(.large)
     }
 
     private var canAccept: Bool {

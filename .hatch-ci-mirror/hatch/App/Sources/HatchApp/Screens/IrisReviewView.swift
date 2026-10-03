@@ -217,7 +217,7 @@ struct IrisReviewView: View {
             }
             HStack {
                 Button("Accept") { acceptType(newType) }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
                 Button("Keep mine") { record("type", outcome: "kept") }
             }
             .controlSize(.small)
@@ -245,7 +245,7 @@ struct IrisReviewView: View {
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
                 Button("Accept") { decideText(.accept) }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
                 Button("Edit") {
                     editTitle = r.title
                     editBody = r.body
@@ -323,7 +323,7 @@ struct IrisReviewView: View {
                     decideText(.edit)
                 }
                 .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
                 .disabled(editTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }

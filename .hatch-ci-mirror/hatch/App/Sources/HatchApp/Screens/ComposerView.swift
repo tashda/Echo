@@ -101,7 +101,7 @@ struct ComposerView: View {
             Button("Save as draft") { create(submit: false) }
                 .disabled(!canSubmit)
             Button(type == .theme ? "Create Theme" : "Submit for check") { create(submit: true) }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
                 .keyboardShortcut(.return, modifiers: .command)
                 .disabled(!canSubmit)
         }
@@ -127,13 +127,7 @@ struct ComposerView: View {
 
     private var typePicker: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Picker("Type", selection: $type) {
-                ForEach(TicketType.allCases, id: \.self) { t in
-                    Text(t.displayName).tag(t)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
+            HXDock(items: TicketType.allCases.map { HXDock.Item(id: $0, title: $0.displayName) }, selection: $type)
             Text(Self.typeHelp(type))
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -495,7 +489,7 @@ struct ComposerView: View {
                     Spacer()
                     Button("New ticket") { resetForm() }
                     Button("Open ticket") { state.open(ticket) }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.glassProminent)
                 }
                 if !VettingBridge.isAvailable {
                     Text("Iris is not connected in this build, so the check will not run on its own. The ticket waits in Checking.")

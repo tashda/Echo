@@ -65,7 +65,7 @@ struct TicketOptionsTab: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.glassProminent)
             .controlSize(.large)
             .tint(Theme.color(for: ticket.turn))
             .disabled(!canOpenStage)

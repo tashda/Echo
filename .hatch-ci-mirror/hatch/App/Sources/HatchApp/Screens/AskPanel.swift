@@ -107,7 +107,7 @@ struct AskPanel: View {
                 .lineLimit(1...6)
                 .onSubmit { send() }
             Button(running ? "Waiting..." : "Send") { send() }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
                 .disabled(running || input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         .padding(10)

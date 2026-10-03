@@ -46,7 +46,7 @@ struct HXStatusChip: View {
     let status: Status
 
     var body: some View {
-        HXChip(text: status.displayName, turn: status.turn)
+        StatusChip(status: status)
     }
 }
 

@@ -58,7 +58,7 @@ struct AnswerCard: View {
                     .textFieldStyle(.roundedBorder)
                     .onSubmit { send() }
                 Button("Answer") { send() }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
                     .tint(Theme.you)
                     .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }

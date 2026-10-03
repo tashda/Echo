@@ -98,7 +98,7 @@ struct PreviewsView: View {
                     ForEach(toVerify) { t in chooserRow(t) }
                     HStack {
                         Button { buildPreview() } label: { Text(building ? "Building..." : "Build Preview") }
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(.glassProminent)
                             .disabled(selected.isEmpty || building || appRepo == nil)
                         if appRepo == nil {
                             Text("Add the app repository in Project settings first.").font(.caption).foregroundStyle(.secondary)
@@ -348,7 +348,7 @@ struct PreviewsView: View {
                 Spacer()
                 Button("Cancel") { needsWorkFor = nil }
                 Button("Send back to agent") { markNeedsWork(t, preview) }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
                     .disabled(needsNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
@@ -426,7 +426,7 @@ struct PreviewsView: View {
     private var mergeButtons: some View {
         HStack {
             Button(merging ? "Merging..." : "Merge approved (\(approved.count))") { mergeApproved() }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
                 .disabled(approved.isEmpty || merging)
             Button("Check CI") { refreshCI() }
             Button("Promote") { promote() }

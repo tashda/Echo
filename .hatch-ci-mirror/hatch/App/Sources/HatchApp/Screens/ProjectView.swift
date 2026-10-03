@@ -228,7 +228,7 @@ struct ProjectForm: View {
 
     private var saveRow: some View {
         HStack {
-            Button("Save") { save() }.buttonStyle(.borderedProminent)
+            Button("Save") { save() }.buttonStyle(.glassProminent)
             Button("Revert") { load() }
             if !message.isEmpty { Text(message).font(.callout).foregroundStyle(.secondary) }
         }
@@ -354,7 +354,7 @@ struct AddProjectSheet: View {
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }
-                Button("Add") { add() }.buttonStyle(.borderedProminent).disabled(!canAdd)
+                Button("Add") { add() }.buttonStyle(.glassProminent).disabled(!canAdd)
             }
         }
         .padding(20)

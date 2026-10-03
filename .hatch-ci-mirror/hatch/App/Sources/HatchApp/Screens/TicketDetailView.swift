@@ -107,17 +107,21 @@ struct TicketDetailView: View {
     @ViewBuilder private func headerButtons(_ t: Ticket) -> some View {
         HStack(spacing: 8) {
             if t.status == .parked || t.status == .blocked {
-                Button("Resume") { resume() }
+                Button { resume() } label: { Label("Resume", systemImage: "play") }.buttonStyle(.glass)
             } else if canMove(t, to: .parked) {
-                Button("Park") { move(to: .parked) }
-            }
-            if canMove(t, to: .dropped) {
-                Button("Drop") { confirmDrop = true }
+                Button { move(to: .parked) } label: { Label("Park", systemImage: "pause") }.buttonStyle(.glass)
             }
             if t.status == .done || t.status == .dropped {
-                Button("Reopen") { move(to: .draft) }
+                Button { move(to: .draft) } label: { Label("Reopen", systemImage: "arrow.uturn.backward") }.buttonStyle(.glass)
+            }
+            if canMove(t, to: .dropped) {
+                // Rare and hard to undo: behind More, then a confirmation (LK11).
+                HXMenuButton(title: "More", symbol: "ellipsis") {
+                    Button("Drop", role: .destructive) { confirmDrop = true }
+                }
             }
         }
+        .controlSize(.large)
     }
 
     private func canMove(_ t: Ticket, to target: Status) -> Bool {
@@ -255,16 +259,8 @@ struct TicketDetailView: View {
     }
 
     private func tabBar(_ t: Ticket) -> some View {
-        let tabs = visibleTabs(t)
-        return Picker("Section", selection: $tab) {
-            ForEach(tabs) { item in
-                Text(tabTitle(item, t)).tag(item)
-            }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .frame(maxWidth: 520)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        HXDock(items: visibleTabs(t).map { HXDock.Item(id: $0, title: tabTitle($0, t)) }, selection: $tab)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder private func tabContent(_ t: Ticket) -> some View {

@@ -339,7 +339,7 @@ struct SketchBoard: View {
                     .textFieldStyle(.roundedBorder)
                     .onSubmit { savePin(p) }
                 Button("Add pin") { savePin(p) }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
                     .disabled(pendingText.trimmingCharacters(in: .whitespaces).isEmpty)
                 Button("Cancel") { pending = nil }
             }
@@ -367,7 +367,7 @@ struct SketchBoard: View {
                 .disabled(!canAct)
                 .help(canAct ? "Sends the sketch back to the agent with your pins and notes." : "Only available while it is your call.")
             Button("Choose direction...") { showChoose = true }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
         }
     }
 
@@ -436,7 +436,7 @@ struct ChooseDirectionSheet: View {
                 Spacer()
                 Button("Cancel") { dismiss() }
                 Button("Choose") { choose() }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
                     .disabled(parts.isEmpty || parts.contains { $0.name.trimmingCharacters(in: .whitespaces).isEmpty })
             }
         }

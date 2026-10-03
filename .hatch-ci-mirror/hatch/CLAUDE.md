@@ -1,6 +1,6 @@
 # Hatch
 
-Hatch is a macOS app and a `hatch` command-line tool for tickets, AI agents and visual design decisions. It replaces Echo Labs. Read `SUMMARY.md` for what it is, `DECISIONS.md` for every decision (99, with the reason), `STATUS.md` for what is built and verified, `NEXT.md` for how to continue.
+Hatch is a macOS app and a `hatch` command-line tool for tickets, AI agents and visual design decisions. It replaces Echo Labs. Read `DESIGN.md` before changing any UI. Read `SUMMARY.md` for what it is, `DECISIONS.md` for every decision (99, with the reason), `STATUS.md` for what is built and verified, `NEXT.md` for how to continue.
 
 ## Layout
 

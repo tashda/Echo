@@ -124,7 +124,7 @@ struct TicketOverviewTab: View {
                 .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
             HStack {
                 Button("Save") { saveEdit() }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
                     .disabled(editTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 Button("Cancel") { editing = false }
             }

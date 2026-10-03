@@ -131,7 +131,7 @@ struct TicketThreadTab: View {
                     .frame(height: 70)
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
                 Button("Send \(kindTitle(kind))") { send() }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
                     .keyboardShortcut(.return, modifiers: .command)
                     .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }

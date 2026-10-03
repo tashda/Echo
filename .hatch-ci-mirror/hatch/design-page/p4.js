@@ -304,14 +304,23 @@ document.querySelectorAll('.opt').forEach(l=>l.addEventListener('keydown',e=>{if
 function refreshReview(){
   const box=$('#rv-open');if(!box)return;
   const open=DECISIONS.filter(d=>!decisions[d.id]);
+  const first=t=>{const s=(t||'').split(/(?<=[.!?])\s/)[0]||'';return s.length>150?s.slice(0,147)+'…':s};
   box.replaceChildren();
-  if(!open.length){box.append(h('div',{class:'rvi'},h('b',{text:'Every decision is answered.'})))}
+  if(!open.length){box.append(h('div',{class:'rvi'},h('b',{class:'dn-done',text:'Every decision is answered. Nothing is waiting for you.'})))}
   else{
-    box.append(h('div',{class:'muted',style:'margin-bottom:6px',text:open.length+' decision'+(open.length>1?'s':'')+' waiting for your answer'}));
-    open.slice(0,12).forEach(d=>box.append(h('div',{class:'rvi'},h('span',{class:'tag',text:d.id}),
-      h('div',{style:'flex:1;min-width:0'},h('a',{href:'#dec-'+d.id,text:d.title}),h('div',{class:'muted',style:'font-size:13px',text:'I recommend '+optName(d,d.rec)})),
-      h('button',{class:'btn sm',type:'button',onclick:()=>choose(d,d.rec)},'Use recommendation'))));
-    if(open.length>12)box.append(h('div',{class:'muted',text:'…and '+(open.length-12)+' more. Use "Show only open decisions" in the left menu to see them all.'}));
+    const bar=h('div',{class:'dn-bar'},h('b',{text:open.length+' decision'+(open.length>1?'s':'')+' to take'}),
+      h('button',{class:'btn sm',type:'button',onclick:()=>open.slice().forEach(d=>choose(d,d.rec))},'Use my recommendation for all '+open.length));
+    const list=h('div',{class:'dn'});
+    open.forEach(d=>{
+      const opts=h('div',{class:'dn-opts'});
+      d.opts.forEach(o=>opts.append(h('button',{class:'dn-o'+(o.k===d.rec?' rec':''),type:'button',onclick:()=>choose(d,o.k)},
+        h('span',{class:'k',text:o.k}),h('b',{},o.n,o.k===d.rec?h('span',{class:'star',text:'★ Recommended'}):null),h('span',{class:'t',text:first(o.d)}))));
+      list.append(h('article',{class:'dn-card'},
+        h('div',{class:'hd'},h('span',{class:'tag',text:d.id}),h('h4',{text:d.title}),h('a',{href:'#dec-'+d.id,text:'Full details and notes'})),
+        h('p',{class:'dn-q',text:((d.q||'').split(/(?<=[.!?])\s/).slice(0,2).join(' ')).slice(0,260)}),opts,
+        h('div',{class:'dn-why'},h('b',{text:'Why I recommend '+d.rec+': '}),first(d.why))));
+    });
+    box.append(bar,list);
   }
   const rb=$('#rv-replies');rb.replaceChildren();
   const rep=notes.filter(n=>n.reply),wait=notes.filter(n=>!n.reply&&n.kind==='question');
