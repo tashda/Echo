@@ -85,7 +85,7 @@ final class AppState: ObservableObject {
     }
 
     func refreshSyncSummary() {
-        let counts = (try? store.syncCounts()) ?? (0, 0)
+        let counts = (try? store.syncCounts()) ?? (pending: 0, failed: 0)
         syncSummary.pending = counts.pending
         syncSummary.failed = counts.failed
     }
