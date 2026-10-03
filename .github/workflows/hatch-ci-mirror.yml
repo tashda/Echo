@@ -32,6 +32,8 @@ jobs:
   app:
     name: "App (macOS)"
     runs-on: xcode-27
+    permissions:
+      contents: write
     steps:
     - uses: actions/checkout@v4
     - name: Versions
@@ -57,6 +59,15 @@ jobs:
         name: hatch-screens
         path: /tmp/shots/*.png
         if-no-files-found: warn
+    - name: Publish the pictures on a scratch branch (so they can be fetched with git)
+      if: always()
+      continue-on-error: true
+      run: |
+        cd /tmp/shots && ls *.png >/dev/null 2>&1 || exit 0
+        git init -q && git checkout -q -b hatch-screens
+        git config user.email ci@hatch.local && git config user.name ci
+        git add -A && git commit -qm "screens for ${GITHUB_SHA}"
+        git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" hatch-screens
 
   stage:
     name: "Stage and spike timing (macOS)"
