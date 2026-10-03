@@ -3,7 +3,8 @@ import HatchCore
 @testable import HatchImport
 
 enum Paths {
-    static let echoRepo = URL(fileURLWithPath: "/home/user/Echo")
+    /// Tests that read real Echo Labs data run only when a checkout is given: HATCH_ECHO_CHECKOUT=/path/to/Echo.
+    static let echoRepo = URL(fileURLWithPath: ProcessInfo.processInfo.environment["HATCH_ECHO_CHECKOUT"] ?? "/nonexistent-echo-checkout")
     static let labState = echoRepo.appendingPathComponent("EchoLab/State/lab-state.json")
     static let labSources = echoRepo.appendingPathComponent("EchoLab/Sources/EchoLab")
     static let areas = labSources.appendingPathComponent("Areas")
@@ -17,7 +18,7 @@ func requireEcho(_ url: URL = Paths.labState) throws {
 
 func makeStore() throws -> (HatchStore, Project) {
     let store = try HatchStore.inMemory()
-    let project = try store.upsertProject(key: "echo", name: "Echo", config: ProjectConfig(name: "Echo", ticketsRepo: "tashda/hatch-tickets"))
+    let project = try store.upsertProject(key: "echo", name: "Echo", config: ProjectConfig(name: "Echo", ticketsRepo: "acme/tickets"))
     return (store, project)
 }
 

@@ -210,6 +210,13 @@ public struct StageState: Codable, Equatable {
     public var askDraft: String = ""
     public var sendBackReason: StageSendBackReason = .changeAnOption
     public var sendBackNote: String = ""
+    /// The revision the owner looks at, or `nil` for the latest (decision H15: revision switcher). Optional so state files
+    /// saved before this field existed still load.
+    public var viewRevision: Int? = nil
+    /// The newest revision whose "New since your last review" card the owner dismissed.
+    public var seenRevision: Int? = nil
+    /// Pins the owner removed here, as `StageMerge.pinKey`, so merging Hatch's copy does not bring them back.
+    public var hiddenPinKeys: [String]? = nil
     /// Set by the last Accept or Send back; shown as a banner.
     public var outcome: String? = nil
     /// Why the open sheet cannot be confirmed yet (for example Send back without a note).

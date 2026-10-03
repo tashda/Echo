@@ -8,7 +8,7 @@ final class SyncTests: XCTestCase {
     var tracker: InMemoryTracker!
     var engine: SyncEngine!
     var clock: Date!
-    let repo = "tashda/hatch-tickets"
+    let repo = "acme/tickets"
 
     override func setUpWithError() throws {
         clock = Date(timeIntervalSince1970: 1_800_000_000)
@@ -16,7 +16,7 @@ final class SyncTests: XCTestCase {
         self.box = box
         store = try HatchStore.inMemory(now: { box.date })
         project = try store.upsertProject(key: "echo", name: "Echo", config: ProjectConfig(name: "Echo", ticketsRepo: repo, repos: [
-            RepoConfig(role: .app, remote: "tashda/echo", branch: "dev", testPlans: ["UnitTests"]),
+            RepoConfig(role: .app, remote: "acme/app", branch: "dev", testPlans: ["UnitTests"]),
         ], areas: []))
         tracker = InMemoryTracker(clock: { box.date })
         engine = SyncEngine(store: store, tracker: tracker)
@@ -104,7 +104,7 @@ final class SyncTests: XCTestCase {
 
     func testCommentPushStoresCommentIdOnNote() throws {
         let t = try synced()
-        let note = try store.addNote(t.id, kind: .note, author: "tashda", body: "Remember dark mode")
+        let note = try store.addNote(t.id, kind: .note, author: "owner", body: "Remember dark mode")
         try engine.pushPending(repo: repo)
         let comments = tracker.comments(repo, 1)
         XCTAssertEqual(comments.count, 1)
@@ -125,7 +125,7 @@ final class SyncTests: XCTestCase {
 
     func testCreateBeforeOthersEvenWhenQueuedTogether() throws {
         let t = try submitted()
-        _ = try store.addNote(t.id, kind: .note, author: "tashda", body: "first note")
+        _ = try store.addNote(t.id, kind: .note, author: "owner", body: "first note")
         _ = try store.move(t.id, to: .ready, actor: .hatch)
         let ops = try store.pendingSync().map(\.op)
         XCTAssertEqual(ops.first, "issue.create")
@@ -138,7 +138,7 @@ final class SyncTests: XCTestCase {
     func testOpForTicketWithoutNumberStaysPending() throws {
         let t = try submitted()
         // Create fails, so the comment queued after it must wait, not fail.
-        _ = try store.addNote(t.id, kind: .note, author: "tashda", body: "later")
+        _ = try store.addNote(t.id, kind: .note, author: "owner", body: "later")
         tracker.failNext(1, error: .transport("offline"))
         let s = try engine.pushPending(repo: repo)
         XCTAssertEqual(s.failed, 1)
@@ -205,7 +205,7 @@ final class SyncTests: XCTestCase {
 
     func testHumanCommentsImportedOnceAndOwnSkipped() throws {
         let t = try synced()
-        _ = try store.addNote(t.id, kind: .note, author: "tashda", body: "mine")
+        _ = try store.addNote(t.id, kind: .note, author: "owner", body: "mine")
         try engine.pushPending(repo: repo)
         tracker.humanComment(repo: repo, number: 1, body: "Looks good to me")
         tracker.humanEdit(repo: repo, number: 1, title: "Toast spacing")   // touch, keeps listing it
@@ -216,7 +216,7 @@ final class SyncTests: XCTestCase {
         let comments = try store.notes(ticketId: t.id).filter { $0.kind == .comment }
         XCTAssertEqual(comments.count, 1)
         XCTAssertEqual(comments[0].body, "Looks good to me")
-        XCTAssertEqual(comments[0].author, "tashda")
+        XCTAssertEqual(comments[0].author, "owner")
         XCTAssertTrue(try store.pendingSync().isEmpty, "imported comments are not pushed back")
     }
 
@@ -299,13 +299,13 @@ final class SyncTests: XCTestCase {
 
     func testCIAggregation() throws {
         tracker.checkRunsByRef["hatch"] = []
-        XCTAssertEqual(try engine.ciStatus(repo: "tashda/echo", ref: "hatch"), .pending)
+        XCTAssertEqual(try engine.ciStatus(repo: "acme/app", ref: "hatch"), .pending)
         tracker.checkRunsByRef["hatch"] = [CheckRun(name: "build", status: "completed", conclusion: "success"), CheckRun(name: "test", status: "in_progress")]
-        XCTAssertEqual(try engine.ciStatus(repo: "tashda/echo", ref: "hatch"), .pending)
+        XCTAssertEqual(try engine.ciStatus(repo: "acme/app", ref: "hatch"), .pending)
         tracker.checkRunsByRef["hatch"] = [CheckRun(name: "build", status: "completed", conclusion: "success"), CheckRun(name: "test", status: "completed", conclusion: "success")]
-        XCTAssertEqual(try engine.ciStatus(repo: "tashda/echo", ref: "hatch"), .passed)
+        XCTAssertEqual(try engine.ciStatus(repo: "acme/app", ref: "hatch"), .passed)
         tracker.checkRunsByRef["hatch"] = [CheckRun(name: "build", status: "completed", conclusion: "success"), CheckRun(name: "test", status: "completed", conclusion: "failure"), CheckRun(name: "lint", status: "queued")]
-        XCTAssertEqual(try engine.ciStatus(repo: "tashda/echo", ref: "hatch"), .failed(["test"]))
+        XCTAssertEqual(try engine.ciStatus(repo: "acme/app", ref: "hatch"), .failed(["test"]))
     }
 
     func testCommitAttachment() throws {
@@ -322,7 +322,7 @@ final class SyncTests: XCTestCase {
     // MARK: Hatch comment detection
 
     func testHatchCommentRecognition() {
-        XCTAssertTrue(SyncEngine.isHatchComment("**Ask from tashda**\n\nWhy?"))
+        XCTAssertTrue(SyncEngine.isHatchComment("**Ask from owner**\n\nWhy?"))
         XCTAssertTrue(SyncEngine.isHatchComment("**iris**\n\nChecked."))
         XCTAssertFalse(SyncEngine.isHatchComment("Looks good"))
         XCTAssertFalse(SyncEngine.isHatchComment("**bold** start of a human sentence"))

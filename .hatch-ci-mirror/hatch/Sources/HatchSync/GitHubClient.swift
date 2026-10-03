@@ -81,7 +81,7 @@ public final class GitHubClient: IssueTracker, @unchecked Sendable {
         throw TrackerError.noToken
     }
 
-    private static func runGh() -> String? {
+    static func runGh() -> String? {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         p.arguments = ["gh", "auth", "token"]
@@ -102,7 +102,7 @@ public final class GitHubClient: IssueTracker, @unchecked Sendable {
         return c.url!
     }
 
-    private func perform(_ method: String, _ url: URL, body: JSONValue? = nil, useETag: Bool = false) throws -> HTTPResponse {
+    func perform(_ method: String, _ url: URL, body: JSONValue? = nil, useETag: Bool = false) throws -> HTTPResponse {
         var headers = ["Authorization": "Bearer \(try resolveToken())", "Accept": "application/vnd.github+json",
                        "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "Hatch"]
         if body != nil { headers["Content-Type"] = "application/json" }
@@ -185,7 +185,7 @@ public final class GitHubClient: IssueTracker, @unchecked Sendable {
                            isPullRequest: j["pull_request"] != nil)
     }
 
-    private func repoPath(_ repo: String) -> String { "/repos/\(repo)" }
+    func repoPath(_ repo: String) -> String { "/repos/\(repo)" }
 
     // MARK: IssueTracker
 

@@ -2,7 +2,7 @@
 //
 // It wraps `HatchAPI.StageClient` (decision S3: Hatch is the only writer; writes that cannot be delivered wait in the client's
 // outbox and are replayed in order, decision S7). The orchestrator should check this file against the real `StageClient`
-// when wiring the Stage into the app. Known gaps are marked ADAPTER GAP.
+// when wiring the Stage into the app.
 import Foundation
 import StageCore
 import HatchAPI
@@ -16,6 +16,11 @@ public final class HatchAPIStageDataSource: StageDataSource {
     public init(ticket: String, client: StageClient = StageClient()) {
         self.ref = ticket
         self.client = client
+    }
+
+    /// For `--home <dir>`: Hatch's support directory as the app that launched this Stage passes it.
+    public convenience init(ticket: String, home: URL) {
+        self.init(ticket: ticket, client: StageClient(paths: HatchPaths(home: home)))
     }
 
     // MARK: Helpers
@@ -70,32 +75,45 @@ public final class HatchAPIStageDataSource: StageDataSource {
         return try StageManifest.parse(json: text)
     }
 
-    /// The state remembered on this Mac, with the answers and verdicts Hatch has recorded laid over it.
+    /// The state remembered on this Mac. Hatch's copy of the answers, verdicts and pins is merged over it by the model
+    /// (`loadSnapshot`), so this file is only a cache and a pick is never kept only here.
     public func loadState() async throws -> StageState? {
-        var state: StageState? = nil
-        if let data = try? Data(contentsOf: stateURL) {
-            state = try? JSONDecoder().decode(StageState.self, from: data)
+        guard let data = try? Data(contentsOf: stateURL) else { return nil }
+        return try? JSONDecoder().decode(StageState.self, from: data)
+    }
+
+    /// Hatch's picks, verdicts, pins and revision summaries, or `nil` when Hatch cannot be reached.
+    public func loadSnapshot() async -> StageHatchSnapshot? {
+        guard let json = try? await blocking({ try self.client.proposal(ref: self.ref) }), case .object(let object) = json else { return nil }
+        var snapshot = StageHatchSnapshot()
+        for item in object["picks"]?.arrayValue ?? [] {
+            guard let topic = item["topic"]?.stringValue, let choice = item["choice"]?.stringValue else { continue }
+            snapshot.picks.append(.init(topic: topic, choice: choice, note: item["note"]?.stringValue))
         }
-        // ADAPTER GAP: pins and notes are kept in the local state file only; Hatch's copy is not merged back.
-        let json = try? await blocking { try self.client.proposal(ref: self.ref) }
-        guard let proposal = json, case .object(let object) = proposal else { return state }
-        var merged: StageState = state ?? StageState()
-        if let picks = object["picks"]?.arrayValue {
-            for pick in picks {
-                if case .object(let p) = pick, let topic = p["topic"]?.stringValue, let choice = p["choice"]?.stringValue {
-                    merged.answers[topic] = choice
-                }
-            }
+        for item in object["verdicts"]?.arrayValue ?? [] {
+            guard let topic = item["topic"]?.stringValue, let option = item["option"]?.stringValue, let word = item["verdict"]?.stringValue else { continue }
+            snapshot.verdicts.append(.init(topic: topic, option: option, verdict: word, note: item["note"]?.stringValue))
         }
-        if let verdicts = object["verdicts"]?.arrayValue {
-            for item in verdicts {
-                if case .object(let v) = item, let option = v["option"]?.stringValue, let word = v["verdict"]?.stringValue,
-                   let verdict = StageVerdict(rawValue: word) {
-                    merged.verdicts[option] = verdict
-                }
-            }
+        for item in object["pins"]?.arrayValue ?? [] {
+            guard let id = item["id"]?.intValue, let text = item["text"]?.stringValue else { continue }
+            snapshot.pins.append(.init(id: id, text: text, option: item["option"]?.stringValue, x: item["x"]?.doubleValue, y: item["y"]?.doubleValue,
+                                       scenario: item["scenario"]?.stringValue, appearance: item["appearance"]?.stringValue,
+                                       corners: item["corners"]?.intValue, zoom: item["zoom"]?.doubleValue))
         }
-        return merged
+        for item in object["revisions"]?.arrayValue ?? [] {
+            guard let n = item["n"]?.intValue, let summary = item["summary"]?.stringValue else { continue }
+            snapshot.revisionSummaries[n] = summary
+        }
+        return snapshot
+    }
+
+    public func heartbeat(revision: Int, state: String) async -> StageHeartbeatReply? {
+        let pid = Int(ProcessInfo.processInfo.processIdentifier)
+        guard let json = try? await blocking({ try self.client.heartbeat(ticket: self.ref, revision: revision, pid: pid, state: state) }),
+              let latest = json["latestRevision"]?.intValue else { return nil }
+        let status = json["status"]?.stringValue ?? ""
+        return StageHeartbeatReply(latestRevision: latest, reload: json["reload"]?.boolValue ?? false,
+                                   open: status == "your-call" || status == "revising" || status.isEmpty)
     }
 
     public func saveState(_ state: StageState) async {
@@ -141,9 +159,13 @@ public final class HatchAPIStageDataSource: StageDataSource {
     }
 
     public func postNote(kind: String, body: String) async throws -> StageCore.StageDelivery {
-        // ADAPTER GAP: "ask" should carry a picture of the current view (decision H14); StageClient has no attachment yet.
+        try await postNote(kind: kind, body: body, screenshot: nil)
+    }
+
+    /// A question carries a JPEG of the view (decision H14). Hatch keeps it as an attachment of the ticket.
+    public func postNote(kind: String, body: String, screenshot: Data?) async throws -> StageCore.StageDelivery {
         do {
-            let d = try await blocking { try self.client.note(ref: self.ref, kind: kind, body: body) }
+            let d = try await blocking { try self.client.note(ref: self.ref, kind: kind, body: body, screenshot: screenshot) }
             return delivery(d)
         } catch {
             throw translate(error)

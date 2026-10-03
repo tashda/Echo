@@ -61,6 +61,7 @@ struct AskPanel: View {
             Spacer()
             Button { state.showAskPanel = false } label: { Image(systemName: "xmark") }
                 .buttonStyle(.borderless)
+                .help("Close (\u{2325}\u{2318}A)")
         }
         .padding(10)
     }
@@ -88,7 +89,7 @@ struct AskPanel: View {
 
     private func bubble(_ m: Message) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(m.fromOwner ? "You" : "Claude").font(.caption).foregroundStyle(m.fromOwner ? Theme.you : Theme.agent)
+            Text(m.fromOwner ? "You" : "Claude").font(.caption).foregroundStyle(.secondary)
             Text(m.text).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -106,7 +107,7 @@ struct AskPanel: View {
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1...6)
                 .onSubmit { send() }
-            Button(running ? "Waiting..." : "Send") { send() }
+            Button { send() } label: { Label(running ? "Waiting..." : "Send", systemImage: "paperplane") }
                 .buttonStyle(.glassProminent)
                 .disabled(running || input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }

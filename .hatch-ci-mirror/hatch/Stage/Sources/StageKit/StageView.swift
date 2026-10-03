@@ -114,17 +114,29 @@ public struct StageView: View {
     }
 }
 
-/// Shows the outcome of Accept or Send back, and a note when Hatch is away.
+/// Shows the outcome of Accept or Send back, a note when Hatch is away, a new revision to reload, and an earlier revision in view.
 struct NoticeBar: View {
     @ObservedObject var model: StageModel
 
     var body: some View {
         VStack(spacing: 0) {
             if let outcome = model.state.outcome {
-                bar(text: outcome, symbol: "checkmark.circle") { model.send(.dismissOutcome) }
+                bar(text: outcome, symbol: "checkmark.circle", close: { model.send(.dismissOutcome) })
             }
             if let notice = model.notice {
-                bar(text: notice, symbol: "exclamationmark.triangle") { model.dismissNotice() }
+                bar(text: notice, symbol: "exclamationmark.triangle", close: { model.dismissNotice() })
+            }
+            if let n = model.reloadAvailable {
+                // Decision S5: a new revision offers Reload. Decision H21: the banner also says the code may be older.
+                bar(text: "Revision \(n) is ready. This window shows revision \(model.latestManifest.revision).",
+                    symbol: "arrow.triangle.2.circlepath", close: nil,
+                    action: ("Reload", { Task { await model.reload() } }))
+            }
+            if model.isViewingEarlierRevision {
+                bar(text: "You are looking at revision \(model.manifest.revision) of \(model.latestManifest.revision). Your picks still apply; "
+                        + "options added later are hidden.",
+                    symbol: "clock.arrow.circlepath", close: nil,
+                    action: ("Back to latest", { model.send(.setViewRevision(nil)) }))
             }
             if model.pendingWrites > 0 {
                 bar(text: "\(model.pendingWrites) change\(model.pendingWrites == 1 ? "" : "s") waiting for Hatch.", symbol: "clock", close: nil)
@@ -132,11 +144,16 @@ struct NoticeBar: View {
         }
     }
 
-    private func bar(text: String, symbol: String, close: (() -> Void)?) -> some View {
+    private func bar(text: String, symbol: String, close: (() -> Void)?, action: (String, () -> Void)? = nil) -> some View {
         HStack(spacing: 8) {
             Image(systemName: symbol)
             Text(text).font(.callout)
             Spacer()
+            if let action = action {
+                Button(action.0) { action.1() }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            }
             if let close = close {
                 Button("Dismiss") { close() }.buttonStyle(.link)
             }

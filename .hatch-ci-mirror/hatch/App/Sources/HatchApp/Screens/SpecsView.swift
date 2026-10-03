@@ -58,7 +58,7 @@ struct SpecsView: View {
             topBar
             Divider()
             if projectId == nil {
-                HXEmpty(symbol: "doc.text", title: "No project", detail: "Add a project to see its Spec.")
+                ContentUnavailableView("No project", systemImage: "doc.text", description: Text("Add a project to see its Spec."))
             } else if areaNames.isEmpty {
                 emptyState
             } else {
@@ -69,6 +69,7 @@ struct SpecsView: View {
                 }
             }
         }
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 
     private var topBar: some View {
@@ -78,56 +79,51 @@ struct SpecsView: View {
             TextField("Search the Spec", text: $query)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 240)
-            Button("Create Spec app blueprint") { createBlueprint() }
+            Button { createBlueprint() } label: { Label("Create Spec app blueprint", systemImage: "wand.and.stars") }
+                .buttonStyle(.glass)
                 .help("Creates a ticket for an agent to scaffold the project's Spec app from its area index.")
         }
         .padding(12)
     }
 
     private var emptyState: some View {
-        VStack(spacing: 8) {
-            HXEmpty(symbol: "doc.text", title: "The Spec is empty", detail: "Spec items are read from .hatch/spec/*.md in the app repo when Hatch syncs the project.")
+        ContentUnavailableView {
+            Label("The Spec is empty", systemImage: "doc.text")
+        } description: {
+            Text("Spec items are read from .hatch/spec/*.md in the app repo when Hatch syncs the project. Add one file per area.")
         }
+        .frame(maxHeight: .infinity)
     }
 
     private var areaList: some View {
-        List {
-            Button { selectedArea = nil } label: {
-                HStack { Text(allAreas); Spacer() }
-            }
-            .buttonStyle(.plain)
-            .fontWeight(selectedArea == nil ? .semibold : .regular)
+        List(selection: $selectedArea) {
+            Label(allAreas, systemImage: "square.grid.2x2").tag(String?.none)
             ForEach(areaNames, id: \.self) { name in
-                Button { selectedArea = name } label: {
-                    HStack {
-                        Text(name)
-                        Spacer()
-                        Text("\(count(in: name))").foregroundStyle(.secondary).font(.caption)
-                    }
+                HStack {
+                    Text(name)
+                    Spacer()
+                    Text("\(count(in: name))").foregroundStyle(.secondary).font(.caption).monospacedDigit()
                 }
-                .buttonStyle(.plain)
-                .fontWeight(selectedArea == name ? .semibold : .regular)
+                .tag(String?.some(name))
             }
         }
     }
 
     private var itemList: some View {
-        List {
-            ForEach(items) { item in
-                Button { selectedCode = item.code } label: { itemRow(item) }
-                    .buttonStyle(.plain)
+        List(selection: $selectedCode) {
+            ForEach(items, id: \.code) { item in
+                itemRow(item).tag(String?.some(item.code))
             }
         }
     }
 
     private func itemRow(_ item: SpecItem) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(item.code).font(.callout.monospaced()).foregroundStyle(Theme.hatch).frame(width: 90, alignment: .leading)
+            Text(item.code).font(.callout.monospaced()).foregroundStyle(.secondary).frame(width: 90, alignment: .leading)
             Text(item.text).lineLimit(2)
             Spacer()
         }
         .padding(.vertical, 2)
-        .background(selectedCode == item.code ? Color.accentColor.opacity(0.12) : Color.clear)
     }
 
     // MARK: Detail
@@ -148,14 +144,15 @@ struct SpecsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         } else {
-            HXEmpty(symbol: "doc.text.magnifyingglass", title: "Pick a Spec item", detail: "See the tickets and decisions that touch it.")
+            ContentUnavailableView("Pick a Spec item", systemImage: "doc.text.magnifyingglass", description: Text("See the tickets and decisions that touch it."))
         }
     }
 
     private func specAppRow(_ item: SpecItem) -> some View {
         let path = state.hxSetting("spec_app_path")
         return VStack(alignment: .leading, spacing: 4) {
-            Button("Open in Spec app") { openSpecApp(path: path, code: item.code) }
+            Button { openSpecApp(path: path, code: item.code) } label: { Label("Open in Spec app", systemImage: "arrow.up.forward.app") }
+                .buttonStyle(.glass)
                 .disabled(path == nil)
             if path == nil {
                 Text("No Spec app is set for this project. Set its path in Settings, or create the blueprint first.")

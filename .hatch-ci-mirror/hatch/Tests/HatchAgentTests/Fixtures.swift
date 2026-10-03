@@ -12,10 +12,10 @@ final class TestClock: @unchecked Sendable {
 
 enum Fixture {
     static let config = ProjectConfig(
-        name: "Echo", ticketsRepo: "tashda/hatch-tickets",
+        name: "Echo", ticketsRepo: "acme/tickets",
         repos: [
-            RepoConfig(role: .app, remote: "tashda/echo", branch: "dev", buildCommand: "swift build", testPlans: ["UnitTests"]),
-            RepoConfig(role: .specimens, remote: "tashda/echo-specimens", branch: "main"),
+            RepoConfig(role: .app, remote: "acme/app", branch: "dev", buildCommand: "swift build", testPlans: ["UnitTests"]),
+            RepoConfig(role: .specimens, remote: "acme/specimens", branch: "main"),
         ],
         areas: [AreaConfig(name: "Notifications", paths: ["Echo/Notifications/**", "Echo/Toast/*.swift"], specPrefix: "NOTIF", testPlans: ["NotificationTests"])],
         docs: ["docs/agents.md"])

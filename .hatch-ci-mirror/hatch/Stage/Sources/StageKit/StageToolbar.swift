@@ -44,9 +44,10 @@ struct StageToolbar: View {
             Button {
                 model.send(.requestAsk)
             } label: {
-                Text("Ask")
+                Label("Ask", systemImage: "questionmark.bubble")
             }
-            .help("Ask Hatch a question with the current view and state.")
+            .buttonStyle(.glass)
+            .help("Ask Hatch a question. The current view and state go with it.")
             panelButtons
         }
     }
@@ -56,6 +57,13 @@ struct StageToolbar: View {
         HStack(spacing: 4) {
             foldButton(panel: .controls, symbol: "sidebar.left", help: "Show or hide Controls")
             foldButton(panel: .decision, symbol: "sidebar.right", help: "Show or hide Decision")
+            Button {
+                Task { await model.reload() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .disabled(model.reloading)
+            .help("Reload the Proposal from Hatch. A new revision shows up here.")
             Button {
                 model.send(.toggleHelp)
             } label: {
@@ -70,12 +78,44 @@ struct StageToolbar: View {
             Text(model.manifest.title.isEmpty ? "Proposal" : model.manifest.title)
                 .font(.headline)
                 .lineLimit(1)
+            revisionControl
+        }
+    }
+
+    /// The revision switcher (decision H15): the latest revision, or an earlier one with what was added since listed in the
+    /// Decision panel. Only a Proposal that has been sent back has more than one.
+    @ViewBuilder
+    private var revisionControl: some View {
+        let latest: Int = model.latestManifest.revision
+        if latest > 1 {
+            Menu {
+                Picker("Revision", selection: model.binding({ $0.viewRevision ?? latest }, { StageAction.setViewRevision($0 >= latest ? nil : $0) })) {
+                    ForEach(model.revisionNumbers, id: \.self) { n in
+                        Text(revisionTitle(n, latest: latest)).tag(n)
+                    }
+                }
+                .pickerStyle(.inline)
+            } label: {
+                Text("rev \(model.manifest.revision)")
+            }
+            .menuStyle(.button)
+            .menuIndicator(.visible)
+            .fixedSize()
+            .help("Switch revision. Old options are kept, so your earlier picks still apply.")
+        } else {
             Text("rev \(model.manifest.revision)")
                 .font(.caption2)
                 .padding(.horizontal, 5)
                 .padding(.vertical, 1)
                 .background(Capsule().fill(Color.secondary.opacity(0.18)))
         }
+    }
+
+    private func revisionTitle(_ n: Int, latest: Int) -> String {
+        var t = "Revision \(n)"
+        if n == latest { t += " (latest)" }
+        if let summary = model.revisionSummaries[n], !summary.isEmpty { t += " · \(summary)" }
+        return t
     }
 
     private var zoomControls: some View {
@@ -166,15 +206,33 @@ struct StageToolbar: View {
             Button {
                 model.send(.requestSendBack)
             } label: {
-                Text("Send back…")
+                Label("Send back…", systemImage: "arrow.uturn.backward")
             }
+            .buttonStyle(.glass)
             .keyboardShortcut(.return, modifiers: [.command, .shift])
-            Button {
-                model.send(.requestAccept)
-            } label: {
-                Text("Accept…")
-            }
-            .keyboardShortcut(.return, modifiers: .command)
+            .help("Send back with a reason and what to change. Shift-Command-Return.")
+            acceptButton
         }
+    }
+
+    /// One prominent action per screen (DESIGN.md): this button is prominent only while the Decision panel, which has its own
+    /// prominent Accept, is folded away.
+    @ViewBuilder
+    private var acceptButton: some View {
+        if model.state.isFolded(.decision) {
+            acceptLabel.buttonStyle(.glassProminent)
+        } else {
+            acceptLabel.buttonStyle(.glass)
+        }
+    }
+
+    private var acceptLabel: some View {
+        Button {
+            model.send(.requestAccept)
+        } label: {
+            Label("Accept…", systemImage: "checkmark")
+        }
+        .keyboardShortcut(.return, modifiers: .command)
+        .help("Accept. A sheet shows what will change first. Command-Return.")
     }
 }

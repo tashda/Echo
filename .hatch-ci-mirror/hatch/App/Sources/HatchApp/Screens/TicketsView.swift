@@ -88,8 +88,10 @@ struct TicketsView: View {
     @State private var newViewName = ""
     @State private var themeTitles: [Int: Ticket] = [:]
     @State private var projectNames: [Int: String] = [:]
+    /// A saved view chosen in the sidebar (decision D3) arrives here; the sidebar cannot reach this view's state.
+    @AppStorage("hatch.pendingTicketQuery") private var pendingQuery = ""
 
-    private static let defaultViews: [SavedView] = [
+    static let defaultViews: [SavedView] = [
         SavedView(name: "Waiting for me", query: "turn:you"),
         SavedView(name: "Waiting on agents", query: "turn:agent"),
         SavedView(name: "Bugs to verify", query: "type:bug status:to-verify"),
@@ -112,7 +114,9 @@ struct TicketsView: View {
         .autoReload(every: 6) { load() }
         .onChange(of: queryText) { _, _ in load() }
         .onChange(of: sort) { _, _ in load() }
-        .onAppear { loadViews() }
+        .onAppear { loadViews(); takePendingQuery() }
+        .onChange(of: pendingQuery) { _, _ in takePendingQuery() }
+        .searchable(text: $queryText, prompt: "type:bug status:to-verify project:echo turn:you, or words")
         .alert("Save this view", isPresented: $showSave) {
             TextField("Name", text: $newViewName)
             Button("Save") { saveCurrentView() }
@@ -126,16 +130,9 @@ struct TicketsView: View {
 
     private var filterBar: some View {
         HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField("type:bug status:to-verify project:echo turn:you, or words", text: $queryText)
-                .textFieldStyle(.plain)
-            if !queryText.isEmpty {
-                Button { queryText = "" } label: { Image(systemName: "xmark.circle.fill") }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-            }
             addFilterMenu
             viewsMenu
+            Spacer()
             Picker("Sort", selection: $sort) {
                 ForEach(TicketSort.allCases) { option in
                     Text(option.title).tag(option)
@@ -370,6 +367,12 @@ struct TicketsView: View {
     }
 
     // MARK: Saved views
+
+    private func takePendingQuery() {
+        guard !pendingQuery.isEmpty else { return }
+        queryText = pendingQuery
+        pendingQuery = ""
+    }
 
     private func loadViews() {
         guard let json = (try? state.store.setting("views")) ?? nil,

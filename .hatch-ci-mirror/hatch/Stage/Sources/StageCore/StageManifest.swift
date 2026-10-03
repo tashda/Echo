@@ -407,6 +407,56 @@ extension StageManifest {
         return out
     }
 
+    /// The Proposal as it was at revision `n` (decision H15: revision switcher). Old options are never removed, so an earlier
+    /// revision is the current one without what was added later. `n` at or above the latest returns the manifest unchanged.
+    public func atRevision(_ n: Int) -> StageManifest {
+        guard n < revision else { return self }
+        func kept(_ added: Int?) -> Bool { added.map { $0 <= n } ?? true }
+        var m = self
+        m.revision = max(n, 1)
+        m.controls = controls.filter { kept($0.addedIn) }.map { c in
+            var c = c
+            c.choices = c.choices.filter { kept($0.addedIn) }
+            if !c.choices.contains(where: { $0.id == c.defaultChoice }), let first = c.choices.first { c.defaultChoice = first.id }
+            if let r = c.recommend, !c.choices.contains(where: { $0.id == r }) { c.recommend = nil }
+            return c
+        }
+        m.questions = questions.filter { kept($0.addedIn) }.map { q in
+            var q = q
+            q.choices = q.choices.filter { kept($0.addedIn) }
+            if let r = q.recommended, !q.choices.contains(where: { $0.id == r }) { q.recommended = nil }
+            return q
+        }
+        m.specimens = specimens.filter { kept($0.addedIn) }
+        m.presets = presets.filter { kept($0.addedIn) }
+        m.scenarios = scenarios.filter { kept($0.addedIn) }
+        if let t = exhibitTopic, let r = t.recommended, !m.specimens.contains(where: { $0.id == r }) {
+            var t = t
+            t.recommended = nil
+            m.exhibitTopic = t
+        }
+        if let mix = mixSpecimen, !m.specimens.contains(where: { $0.id == mix }) { m.mixSpecimen = nil }
+        return m
+    }
+
+    /// Everything added after revision `n`, up to the latest; the "compare revisions" list (decision H15).
+    public func additions(after n: Int) -> [String] {
+        func later(_ a: Int?) -> Bool { a.map { $0 > n } ?? false }
+        var out: [String] = []
+        for c in controls {
+            if later(c.addedIn) { out.append("New control: \(c.title)") }
+            for ch in c.choices where later(ch.addedIn) { out.append("New choice in \(c.title): \(ch.name)") }
+        }
+        for q in questions {
+            if later(q.addedIn) { out.append("New question: \(q.title)") }
+            for ch in q.choices where later(ch.addedIn) { out.append("New choice in \(q.title): \(ch.name)") }
+        }
+        for s in specimens where later(s.addedIn) { out.append("New option: \(s.title)") }
+        for p in presets where later(p.addedIn) { out.append("New preset: \(p.name)") }
+        for sc in scenarios where later(sc.addedIn) { out.append("New scenario: \(sc.title)") }
+        return out
+    }
+
     /// The scenarios the strip shows. A manifest without any gets a single Rest scenario.
     public var effectiveScenarios: [StageScenario] {
         scenarios.isEmpty ? [StageScenario(id: "rest", title: "Rest")] : scenarios

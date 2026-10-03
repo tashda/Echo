@@ -1,10 +1,14 @@
 import SwiftUI
 import HatchCore
 
-/// Project popup, Work / Reference / Machine sections, sync footer and Project settings (decisions B1, B2, B5, B6).
+/// Work / Views / Reference / Machine sections, sync footer and Project settings (decisions B1, B5, D3).
+/// The project switch is the toolbar title control (LK2), not a popup here.
 struct SidebarView: View {
     @EnvironmentObject var state: AppState
     @State private var yourTurn: Int = 0
+    @State private var views: [SavedView] = []
+    /// Read by TicketsView, which applies it as its filter (decision D3).
+    @AppStorage("hatch.pendingTicketQuery") private var pendingQuery = ""
 
     private var selection: Binding<Route?> {
         Binding<Route?>(
@@ -31,6 +35,20 @@ struct SidebarView: View {
                 SidebarRow(route: .board).tag(Route.board)
                 SidebarRow(route: .previews).tag(Route.previews)
             }
+            if !views.isEmpty {
+                Section("Views") {
+                    ForEach(views) { view in
+                        Button {
+                            pendingQuery = view.query
+                            state.route = .tickets
+                        } label: {
+                            Label(view.name, systemImage: "bookmark")
+                        }
+                        .buttonStyle(.plain)
+                        .help(view.query)
+                    }
+                }
+            }
             Section("Reference") {
                 SidebarRow(route: .specs).tag(Route.specs)
                 SidebarRow(route: .decisions).tag(Route.decisions)
@@ -45,9 +63,22 @@ struct SidebarView: View {
             SidebarFooter()
         }
         .autoReload(every: 5) { reloadCounts() }
+        .onAppear { reloadViews() }
+    }
+
+    /// The same saved views the Tickets screen keeps; the built-in ones show until the owner saves their own.
+    private func reloadViews() {
+        guard let json = (try? state.store.setting("views")) ?? nil,
+              let data = json.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode([SavedView].self, from: data) else {
+            if views != TicketsView.defaultViews { views = TicketsView.defaultViews }
+            return
+        }
+        if views != decoded { views = decoded }
     }
 
     private func reloadCounts() {
+        reloadViews()
         let count = state.yourTurnCount
         if count != yourTurn { yourTurn = count }
         let counts = (try? state.store.syncCounts()) ?? (pending: 0, failed: 0)
@@ -82,7 +113,6 @@ struct SidebarRow: View {
     }
 }
 
-/// "All projects" or one project, shown with its default branch (decision B2).
 /// "Synced with GitHub · 2 pending". Red when something failed. Click opens the Log (decision B5).
 struct SidebarFooter: View {
     @EnvironmentObject var state: AppState
@@ -90,12 +120,14 @@ struct SidebarFooter: View {
     private var summary: AppState.SyncSummary { state.syncSummary }
 
     private var text: String {
+        if let message = summary.message, !message.isEmpty { return message }
         if summary.failed > 0 {
             return "\(summary.failed) failed to sync · \(summary.pending) pending"
         }
         if summary.pending > 0 {
-            return "Synced with GitHub · \(summary.pending) pending"
+            return "Syncing with GitHub · \(summary.pending) pending"
         }
+        if summary.lastOK == nil { return "Not synced yet" }
         return "Synced with GitHub"
     }
 
@@ -106,14 +138,14 @@ struct SidebarFooter: View {
                 state.route = .log
             } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: summary.failed > 0 ? "exclamationmark.triangle.fill" : "arrow.triangle.2.circlepath")
+                    Image(systemName: (summary.failed > 0 || summary.message != nil) ? "exclamationmark.triangle.fill" : "arrow.triangle.2.circlepath")
                         .font(.caption)
                     Text(text)
                         .font(.caption)
                         .lineLimit(1)
                     Spacer()
                 }
-                .foregroundStyle(summary.failed > 0 ? Theme.critical : Color.secondary)
+                .foregroundStyle((summary.failed > 0 || summary.message != nil) ? Theme.critical : Color.secondary)
             }
             .buttonStyle(.plain)
             .help("Open the Log")

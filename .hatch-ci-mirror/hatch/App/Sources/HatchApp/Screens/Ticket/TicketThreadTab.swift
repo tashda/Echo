@@ -17,6 +17,8 @@ struct ThreadItem: Identifiable {
 /// Thread: one timeline with filter toggles, and a composer with three message kinds (decisions F3, F4).
 struct TicketThreadTab: View {
     let ticket: Ticket
+    /// The message kind to start with, so "Send instruction" on the Work tab lands on Instruction (decision I5).
+    var startKind: NoteKind = .note
     @EnvironmentObject var state: AppState
 
     @State private var items: [ThreadItem] = []
@@ -45,6 +47,7 @@ struct TicketThreadTab: View {
             composer
         }
         .autoReload(every: 4) { load() }
+        .onAppear { kind = startKind }
     }
 
     private var filterRow: some View {
@@ -130,8 +133,9 @@ struct TicketThreadTab: View {
                     .font(.body)
                     .frame(height: 70)
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
-                Button("Send \(kindTitle(kind))") { send() }
-                    .buttonStyle(.glassProminent)
+                Button { send() } label: { Label("Send \(kindTitle(kind))", systemImage: "paperplane") }
+                    .buttonStyle(.glass)
+                    .controlSize(.large)
                     .keyboardShortcut(.return, modifiers: .command)
                     .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }

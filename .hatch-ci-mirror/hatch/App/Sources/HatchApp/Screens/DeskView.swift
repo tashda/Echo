@@ -82,7 +82,8 @@ struct DeskView: View {
                                 copy: copy(for: ticket),
                                 recommendation: recommendationText(for: ticket),
                                 showProject: state.selectedProjectKey == nil && projectNames.count > 1,
-                                projectName: projectNames[ticket.projectId] ?? "")
+                                projectName: projectNames[ticket.projectId] ?? "",
+                                onAccept: selection == ticket.id && canAccept(ticket) ? { prepareAccept(ticket) } : nil)
                             .tag(ticket.id)
                             .contextMenu { rowMenu(ticket) }
                     }
@@ -147,8 +148,15 @@ struct DeskView: View {
 
     @ViewBuilder private func rowMenu(_ ticket: Ticket) -> some View {
         Button("Open") { open(ticket) }
+        if canAccept(ticket) { Button("Accept recommendation") { prepareAccept(ticket) } }
         Button("Park") { park(ticket) }
         Button("Ask") { ask(ticket) }
+    }
+
+    /// Full triage from the list (decision C5): only where Hatch has a recommendation or suggested answers.
+    private func canAccept(_ ticket: Ticket) -> Bool {
+        if ticket.status == .yourCall && ticket.type == .proposal { return !(infos[ticket.id]?.recommendations.isEmpty ?? true) }
+        return ticket.status == .needsAnswers && !(questions[ticket.id] ?? []).isEmpty
     }
 
     // MARK: Empty state (C6)
@@ -157,8 +165,9 @@ struct DeskView: View {
         VStack(spacing: 18) {
             Spacer()
             Image(systemName: "checkmark.circle")
-                .font(.system(size: 44))
-                .foregroundStyle(Theme.finished)
+                .font(.largeTitle)
+                .imageScale(.large)
+                .foregroundStyle(.secondary)
             Text("All clear")
                 .font(.title2.weight(.semibold))
             Text("Nothing waits for you.")
@@ -342,6 +351,8 @@ struct DeskRow: View {
     let recommendation: String?
     let showProject: Bool
     let projectName: String
+    /// Set only on the selected row when Hatch has a recommendation to accept from the list.
+    var onAccept: (() -> Void)? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -370,6 +381,12 @@ struct DeskRow: View {
                 }
             }
             Spacer(minLength: 8)
+            if let onAccept {
+                Button(action: onAccept) { Label("Accept", systemImage: "checkmark") }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Accept Hatch's recommendation (A)")
+            }
             if showProject {
                 PlainChip(text: projectName)
             }
@@ -420,7 +437,7 @@ struct AcceptPlanSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(plan.lines, id: \.self) { line in
                     HStack(alignment: .top, spacing: 6) {
-                        Image(systemName: "checkmark").font(.caption).foregroundStyle(Theme.finished)
+                        Image(systemName: "checkmark").font(.caption).foregroundStyle(.secondary)
                         Text(line).fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -436,7 +453,7 @@ struct AcceptPlanSheet: View {
                 Spacer()
                 Button("Cancel") { finish(false) }
                     .keyboardShortcut(.cancelAction)
-                Button("Accept") { finish(true) }
+                Button { finish(true) } label: { Label("Accept", systemImage: "checkmark") }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.glassProminent)
             }

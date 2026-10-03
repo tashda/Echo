@@ -165,6 +165,7 @@ struct SketchBoard: View {
     let ticketId: Int
 
     @State private var carousel = false
+    @State private var current = 0
     @State private var pending: PendingPin?
     @State private var pendingText = ""
     @State private var variantNotes: [String: String] = [:]
@@ -229,33 +230,50 @@ struct SketchBoard: View {
             conceptLabel
             Spacer()
             if variants.count >= 2 {
-                Picker("Layout", selection: $carousel) {
+                // A view mode, so a segmented control is right (DESIGN). Four or more variants are always one at a time (G1).
+                Picker("Layout", selection: Binding(get: { oneAtATime }, set: { carousel = $0 })) {
                     Text("Side by side").tag(false)
                     Text("One at a time").tag(true)
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 240)
                 .labelsHidden()
+                .disabled(variants.count > 3)
             }
         }
     }
 
+    /// Up to three side by side; more than that, or when asked, one at a time (G1).
+    private var oneAtATime: Bool { carousel || variants.count > 3 }
+
+    private var shownIndex: Int { min(max(current, 0), max(variants.count - 1, 0)) }
+
+    // Neutral on purpose: colour is for turn and problems (DESIGN). The label stays permanent (G3).
     private var conceptLabel: some View {
-        Text("Concept, not Swift")
+        Label("Concept, not Swift", systemImage: "pencil.and.outline")
             .font(.caption.weight(.semibold))
             .padding(.horizontal, 8).padding(.vertical, 2)
-            .foregroundStyle(Theme.hatch)
-            .background(Theme.hatchBackground, in: Capsule())
+            .foregroundStyle(.secondary)
+            .background(Color.secondary.opacity(0.12), in: Capsule())
     }
 
     @ViewBuilder private var variantArea: some View {
-        if variants.count >= 4 || carousel {
-            ScrollView(.horizontal) {
-                HStack(alignment: .top, spacing: 12) {
-                    ForEach(variants) { v in
-                        variantCard(v).frame(width: 440)
-                    }
+        if oneAtATime {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Button { current = shownIndex - 1 } label: { Image(systemName: "chevron.left") }
+                        .disabled(shownIndex == 0)
+                        .help("Previous variant")
+                    Text("Variant \(shownIndex + 1) of \(variants.count)")
+                        .font(.callout.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                    Button { current = shownIndex + 1 } label: { Image(systemName: "chevron.right") }
+                        .disabled(shownIndex >= variants.count - 1)
+                        .help("Next variant")
                 }
+                .controlSize(.small)
+                variantCard(variants[shownIndex])
+                    .frame(maxWidth: 720, alignment: .leading)
             }
         } else {
             HStack(alignment: .top, spacing: 12) {
@@ -299,7 +317,7 @@ struct SketchBoard: View {
         return VStack(alignment: .leading, spacing: 3) {
             ForEach(mine) { p in
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(p.x == nil ? "Note" : "Pin \(number(of: p))").font(.caption.weight(.semibold)).foregroundStyle(Theme.you)
+                    Text(p.x == nil ? "Note" : "Pin \(number(of: p))").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                     Text(p.text).font(.callout)
                 }
             }
@@ -338,10 +356,12 @@ struct SketchBoard: View {
                 TextField("What do you want to say here?", text: $pendingText)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit { savePin(p) }
+                // Inside a card: small bordered buttons, so Choose direction stays the one prominent action.
                 Button("Add pin") { savePin(p) }
-                    .buttonStyle(.glassProminent)
+                    .controlSize(.small)
                     .disabled(pendingText.trimmingCharacters(in: .whitespaces).isEmpty)
                 Button("Cancel") { pending = nil }
+                    .controlSize(.small)
             }
         }
     }
@@ -360,15 +380,18 @@ struct SketchBoard: View {
 
     private var actionRow: some View {
         let canAct = ticket.map { Workflow.isAllowed(type: $0.type, from: $0.status, to: .revising, actor: .owner) } ?? false
-        return HStack {
-            Button("Ask") { state.showAskPanel = true }
-            Spacer()
-            Button("Needs more variants") { needsMore() }
+        return HStack(spacing: 8) {
+            Button { showChoose = true } label: { Label("Choose direction", systemImage: "checkmark.circle") }
+                .buttonStyle(.glassProminent)
+            Button { needsMore() } label: { Label("Needs more variants", systemImage: "arrow.triangle.2.circlepath") }
+                .buttonStyle(.glass)
                 .disabled(!canAct)
                 .help(canAct ? "Sends the sketch back to the agent with your pins and notes." : "Only available while it is your call.")
-            Button("Choose direction...") { showChoose = true }
-                .buttonStyle(.glassProminent)
+            Button { state.showAskPanel = true } label: { Label("Ask", systemImage: "questionmark.bubble") }
+                .buttonStyle(.glass)
+            Spacer()
         }
+        .controlSize(.large)
     }
 
     private func needsMore() {

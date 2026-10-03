@@ -5,6 +5,7 @@ import HatchCore
 struct LogView: View {
     @EnvironmentObject var state: AppState
     @State private var failedOnly = false
+    @State private var tick = 0
 
     private var ops: [SyncOp] {
         let result: [SyncOp]?
@@ -28,14 +29,15 @@ struct LogView: View {
             Divider()
             let list = ops
             if list.isEmpty {
-                HXEmpty(symbol: "list.bullet.rectangle", title: failedOnly ? "Nothing failed" : "Nothing logged yet",
-                        detail: "Every change Hatch makes is recorded here with its result on GitHub.")
+        ContentUnavailableView(failedOnly ? "Nothing failed" : "Nothing logged yet", systemImage: "list.bullet.rectangle",
+                                       description: Text("Every change Hatch makes is recorded here with its result on GitHub."))
             } else {
                 List {
                     ForEach(list) { op in row(op) }
                 }
             }
         }
+        .autoReload(every: 5) { tick += 1 }
     }
 
     private var toolbarRow: some View {
@@ -43,9 +45,10 @@ struct LogView: View {
             HXHeader(title: "Log", subtitle: "\(state.syncSummary.pending) waiting, \(state.syncSummary.failed) failed")
             Spacer()
             Toggle("Failed only", isOn: $failedOnly).toggleStyle(.checkbox)
-            Button("Retry all failed") {
+            Button {
                 state.perform("Retry") { try state.store.retryFailed() }
-            }
+            } label: { Label("Retry all failed", systemImage: "arrow.clockwise") }
+            .buttonStyle(.glass)
             .disabled(state.syncSummary.failed == 0)
         }
         .padding(12)
@@ -73,7 +76,11 @@ struct LogView: View {
                 .frame(width: 80, alignment: .leading)
             Text(op.op).font(.callout.monospaced()).frame(width: 150, alignment: .leading)
             Text(ticketLabel(op.ticketId)).foregroundStyle(.secondary).frame(width: 70, alignment: .leading)
-            HXChip(text: stateName(op), turn: turn(for: op))
+            if op.state == "failed" {
+                HXProblemChip(text: stateName(op))
+            } else {
+                HXChip(text: stateName(op), turn: turn(for: op))
+            }
             if op.attempt > 0 { Text("attempt \(op.attempt)").font(.caption).foregroundStyle(.secondary) }
             if let error = op.error, !error.isEmpty {
                 Text(error).font(.caption).foregroundStyle(Theme.critical).lineLimit(2).textSelection(.enabled)
@@ -81,6 +88,8 @@ struct LogView: View {
             Spacer()
             if op.state == "failed" || (op.state == "pending" && op.error != nil) {
                 Button("Retry") { state.perform("Retry") { try state.store.retrySync(op.id) } }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
             }
         }
         .padding(.vertical, 2)

@@ -10,6 +10,9 @@ final class AppState: ObservableObject {
     let store: HatchStore
     let paths: AppPaths
     private var stageServer: StageServer?
+    private var syncTimer: Timer?
+    private var syncing = false
+    private var syncDebounce: DispatchWorkItem?
 
     @Published var route: Route = .desk
     @Published var selectedProjectKey: String?          // nil means "All projects" (decision B2, B3)
@@ -51,6 +54,7 @@ final class AppState: ObservableObject {
     /// Starts the local API the Stage talks to (decision S3) and the notification bridge. Safe to call more than once.
     func startServices() {
         NotificationCenterBridge.shared.start(state: self)
+        startSync()
         guard stageServer == nil else { return }
         let server = StageServer(store: store, paths: HatchPaths(home: paths.root))
         server.events = { [weak self] _ in
@@ -64,7 +68,59 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Pushes queued changes to the tickets repository of every project and pulls what changed there. Off the main thread;
+    /// the sidebar footer shows the result (decision B5). Runs on a timer, shortly after a change, and from the Go menu.
+    func startSync() {
+        guard syncTimer == nil else { return }
+        syncNow()
+        syncTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.syncNow() }
+        }
+    }
+
+    func syncNow() {
+        guard !syncing else { return }
+        let targets: [(repo: String, projectId: Int)] = projects.compactMap { p in
+            guard let repo = p.config?.ticketsRepo, !repo.isEmpty else { return nil }
+            return (repo, p.id)
+        }
+        guard !targets.isEmpty else { return }
+        syncing = true
+        let store = store
+        Task {
+            let outcome = await Task.detached { () -> (ok: Bool, message: String?) in
+                guard GitHubClient.tokenSource(stored: HXKeychain.read()) != .none else {
+                    return (false, "Not connected to GitHub. Add a token in Settings.")
+                }
+                let engine = SyncEngine(store: store, tracker: HXGitHub.client())
+                var message: String?
+                for target in targets {
+                    do {
+                        _ = try engine.pushPending(repo: target.repo)
+                        _ = try engine.pull(repo: target.repo, projectId: target.projectId)
+                    } catch {
+                        message = "\(target.repo): \(error)"
+                    }
+                }
+                return (message == nil, message)
+            }.value
+            syncing = false
+            if outcome.ok { syncSummary.lastOK = Date() }
+            syncSummary.message = outcome.message
+            refreshSyncSummary()
+        }
+    }
+
+    /// Called after a change: sync a few seconds later, once, however many changes came in.
+    private func scheduleSync() {
+        syncDebounce?.cancel()
+        let work = DispatchWorkItem { [weak self] in Task { @MainActor in self?.syncNow() } }
+        syncDebounce = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4, execute: work)
+    }
+
     func stopServices() {
+        syncTimer?.invalidate(); syncTimer = nil
         stageServer?.stop()
         stageServer = nil
     }
@@ -104,6 +160,7 @@ final class AppState: ObservableObject {
     func refresh() {
         revision += 1
         refreshSyncSummary()
+        if syncSummary.pending > 0, syncTimer != nil { scheduleSync() }
         NSApp?.dockTile.badgeLabel = yourTurnCount > 0 ? String(yourTurnCount) : nil
     }
 

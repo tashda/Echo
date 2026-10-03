@@ -3,3 +3,6 @@
 *.sqlite-wal
 *.sqlite-shm
 .swiftpm/
+
+# Private design notes and saved answers (the interactive page keeps them in its own database)
+design-page/db/

@@ -19,6 +19,16 @@ public enum StageDataSourceError: Error, CustomStringConvertible, Equatable {
     }
 }
 
+/// Hatch's answer to a heartbeat: is there a newer revision than the one on screen, and is the Proposal still open for judging.
+public struct StageHeartbeatReply: Equatable {
+    public var latestRevision: Int
+    public var reload: Bool
+    public var open: Bool
+    public init(latestRevision: Int, reload: Bool, open: Bool = true) {
+        self.latestRevision = latestRevision; self.reload = reload; self.open = open
+    }
+}
+
 /// Where the Stage gets its Proposal from and where its picks go. Hatch is the only writer (decision S3), so the real
 /// implementation talks to Hatch's local API; the in-memory one serves `--demo` and the tests.
 public protocol StageDataSource: AnyObject {
@@ -38,14 +48,28 @@ public protocol StageDataSource: AnyObject {
     func sendBack(reason: String, note: String) async throws
     /// How many writes wait for Hatch.
     func pendingCount() async -> Int
+
+    /// A question with a picture of the current view (decision H14). `screenshot` is JPEG or PNG data; the source that cannot
+    /// carry a picture sends the text alone.
+    @discardableResult func postNote(kind: String, body: String, screenshot: Data?) async throws -> StageDelivery
+    /// Tells Hatch this Stage is alive and which revision it shows (`state` is running, idle or closed). `nil` when Hatch cannot
+    /// be reached or the source has no Hatch behind it. A late heartbeat is worthless, so it is never queued.
+    func heartbeat(revision: Int, state: String) async -> StageHeartbeatReply?
+    /// Hatch's copy of the picks, verdicts and pins, to merge over the remembered state. `nil` when Hatch cannot be reached.
+    func loadSnapshot() async -> StageHatchSnapshot?
 }
 
 extension StageDataSource {
     public func pendingCount() async -> Int { 0 }
+    public func postNote(kind: String, body: String, screenshot: Data?) async throws -> StageDelivery {
+        try await postNote(kind: kind, body: body)
+    }
+    public func heartbeat(revision: Int, state: String) async -> StageHeartbeatReply? { nil }
+    public func loadSnapshot() async -> StageHatchSnapshot? { nil }
 
     /// Sends one effect of the reducer. The result says whether it was delivered, queued, or needs no waiting.
     @discardableResult
-    public func perform(_ effect: StageEffect) async throws -> StageDelivery {
+    public func perform(_ effect: StageEffect, screenshot: Data? = nil) async throws -> StageDelivery {
         switch effect {
         case .pick(let topic, let choice, let note):
             return try await postPick(topic: topic, choice: choice, note: note)
@@ -54,6 +78,8 @@ extension StageDataSource {
         case .pin(let pin):
             return try await postPin(pin)
         case .note(let kind, let body):
+            // Only a question carries the picture of the view (decision H14).
+            if kind == "ask", let screenshot { return try await postNote(kind: kind, body: body, screenshot: screenshot) }
             return try await postNote(kind: kind, body: body)
         case .accept(let choices):
             try await accept(choices: choices)
@@ -83,6 +109,9 @@ public final class InMemoryStageDataSource: StageDataSource {
     private var recorded: [StageRecordedEvent] = []
     private var away = false
     private var queued = 0
+    private var beats: [String] = []
+    private var reply: StageHeartbeatReply?
+    private var snapshot: StageHatchSnapshot?
 
     public init(manifest: StageManifest, state: StageState? = nil) {
         self.manifest = manifest
@@ -96,6 +125,19 @@ public final class InMemoryStageDataSource: StageDataSource {
     }
 
     public var events: [StageRecordedEvent] { lock.withLock { recorded } }
+
+    /// What the next heartbeats answer; tests set it to simulate Hatch announcing a new revision.
+    public var heartbeatReply: StageHeartbeatReply? {
+        get { lock.withLock { reply } }
+        set { lock.withLock { reply = newValue } }
+    }
+    /// What `loadSnapshot` returns; tests set it to simulate Hatch holding answers the Stage does not have.
+    public var hatchSnapshot: StageHatchSnapshot? {
+        get { lock.withLock { snapshot } }
+        set { lock.withLock { snapshot = newValue } }
+    }
+    /// The states of the heartbeats received, in order.
+    public var heartbeats: [String] { lock.withLock { beats } }
 
     // The lock is only taken in these synchronous helpers (NSLock must not be held across an await).
     private func currentManifest() -> StageManifest { lock.withLock { manifest } }
@@ -131,6 +173,23 @@ public final class InMemoryStageDataSource: StageDataSource {
 
     public func postNote(kind: String, body: String) async throws -> StageDelivery {
         record(.note, ["kind": kind, "body": body])
+    }
+
+    public func postNote(kind: String, body: String, screenshot: Data?) async throws -> StageDelivery {
+        var fields = ["kind": kind, "body": body]
+        if let screenshot { fields["screenshotBytes"] = String(screenshot.count) }
+        return record(.note, fields)
+    }
+
+    public func heartbeat(revision: Int, state: String) async -> StageHeartbeatReply? {
+        lock.withLock {
+            beats.append(state)
+            return away ? nil : reply
+        }
+    }
+
+    public func loadSnapshot() async -> StageHatchSnapshot? {
+        lock.withLock { away ? nil : snapshot }
     }
 
     public func accept(choices: [String: String]) async throws {

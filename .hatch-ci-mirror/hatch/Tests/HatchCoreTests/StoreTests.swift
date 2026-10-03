@@ -7,8 +7,8 @@ final class StoreTests: XCTestCase {
 
     override func setUpWithError() throws {
         store = try HatchStore.inMemory()
-        project = try store.upsertProject(key: "echo", name: "Echo", config: ProjectConfig(name: "Echo", ticketsRepo: "tashda/hatch-tickets", repos: [
-            RepoConfig(role: .app, remote: "tashda/echo", branch: "dev", testPlans: ["UnitTests"]),
+        project = try store.upsertProject(key: "echo", name: "Echo", config: ProjectConfig(name: "Echo", ticketsRepo: "acme/tickets", repos: [
+            RepoConfig(role: .app, remote: "acme/app", branch: "dev", testPlans: ["UnitTests"]),
         ], areas: [AreaConfig(name: "Notifications", paths: ["Echo/Notifications/**"], specPrefix: "NOTIF")]))
     }
 

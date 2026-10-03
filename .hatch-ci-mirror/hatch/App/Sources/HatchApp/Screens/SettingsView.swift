@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import HatchCore
+import HatchSync
 
 /// Settings: paths, agent limit, the apps Hatch launches, and where the GitHub token comes from.
 struct SettingsView: View {
@@ -10,6 +11,8 @@ struct SettingsView: View {
     @State private var tokenStatus = "Checking..."
     @State private var claudeStatus = "Checking..."
     @State private var loaded = false
+    @StateObject private var account = GitHubAccountModel()
+    @State private var tokenText = ""
 
     var body: some View {
         Form {
@@ -31,14 +34,47 @@ struct SettingsView: View {
                 HXPathRow(title: "Spec app", key: "spec_app_path", placeholder: "Optional: the project's Spec app", chooseApp: true)
             }
             Section("GitHub") {
-                LabeledContent("Token") { Text(tokenStatus) }
-                Text("Hatch uses GITHUB_TOKEN if it is set, otherwise the token from the gh command line tool.")
+                LabeledContent("Account") { Text(accountLine) }
+                if let error = account.error {
+                    Text(error).font(.callout).foregroundStyle(Theme.critical)
+                }
+                HStack {
+                    SecureField("Paste a token", text: $tokenText).textFieldStyle(.roundedBorder)
+                    Button { account.connect(token: tokenText); tokenText = "" } label: { Label("Connect", systemImage: "link") }
+                        .buttonStyle(.glassProminent)
+                        .disabled(tokenText.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+                .controlSize(.large)
+                HStack {
+                    Link(destination: URL(string: "https://github.com/settings/tokens/new?scopes=repo&description=Hatch")!) {
+                        Label("Create a token on GitHub", systemImage: "arrow.up.right.square")
+                    }
+                    Spacer()
+                    if account.source == .stored {
+                        Button { account.signOut() } label: { Label("Remove token", systemImage: "xmark") }.buttonStyle(.glass)
+                    }
+                    Button { account.refresh() } label: { Label("Check again", systemImage: "arrow.clockwise") }.buttonStyle(.glass)
+                }
+                Text("A token with the repo scope lets Hatch create private repositories and sync tickets. It is kept in the macOS Keychain. Without one, Hatch uses GITHUB_TOKEN or the gh command line tool. Tickets repositories are always created private.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
         .frame(minWidth: 520, minHeight: 480)
-        .onAppear { load() }
+        .onAppear { load(); account.refresh() }
+    }
+
+    private var accountLine: String {
+        if account.busy && account.user == nil { return "Checking…" }
+        guard let user = account.user else { return account.source == .none ? "Not connected" : "Token found, but not accepted" }
+        let from: String
+        switch account.source {
+        case .stored: from = "token in Keychain"
+        case .environment: from = "GITHUB_TOKEN"
+        case .ghTool: from = "gh tool"
+        case .none: from = ""
+        }
+        return "@\(user.login) · \(from)"
     }
 
     private func load() {

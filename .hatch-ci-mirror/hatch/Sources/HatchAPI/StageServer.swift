@@ -468,10 +468,41 @@ public final class StageServer: @unchecked Sendable {
             throw APIError(status: 400, code: "bad_request", message: "kind must be note, ask or instruction.")
         }
         let body = try b.string("body", max: 20_000)
-        let added = try store.addNote(t.id, kind: kind, author: "owner", body: body)
+        // A question can carry a picture of what the owner was looking at (decision H14). It is kept as a ticket attachment.
+        let attachment = try saveScreenshot(b, ticket: t)
+        let context: JSONValue? = attachment.map { .object(["attachment": .string($0)]) }
+        let added = try store.addNote(t.id, kind: kind, author: "owner", body: body, context: context)
         let after = try ticket(ref)
-        return (["ok": true, "id": .int(added.id), "status": .string(after.status.rawValue), "sentBack": .bool(after.status != t.status)],
-                StageEvent(kind: .note, ticketId: t.id))
+        var out: JSONValue = ["ok": true, "id": .int(added.id), "status": .string(after.status.rawValue), "sentBack": .bool(after.status != t.status)]
+        if let attachment, case .object(var o) = out { o["attachment"] = .string(attachment); out = .object(o) }
+        return (out, StageEvent(kind: .note, ticketId: t.id))
+    }
+
+    /// Largest picture accepted, decoded. The body limit (2 MB) also covers the base64 text.
+    static let maxScreenshotBytes = 1_400_000
+
+    /// Writes `screenshot` (base64 JPEG or PNG, `screenshotType` jpg or png) under `attachments/<ticket>/` in Hatch's home and
+    /// records it as an attachment. Returns the path relative to Hatch's home, or nil when the request has no picture.
+    private func saveScreenshot(_ b: Body, ticket t: Ticket) throws -> String? {
+        guard let text = try b.optionalString("screenshot", max: 1_900_000), !text.isEmpty else { return nil }
+        let type = try b.optionalString("screenshotType", max: 10) ?? "jpg"
+        guard type == "jpg" || type == "png" else { throw APIError(status: 400, code: "bad_request", message: "screenshotType must be jpg or png.") }
+        guard let data = Data(base64Encoded: text) else { throw APIError(status: 400, code: "bad_request", message: "screenshot must be base64.") }
+        guard !data.isEmpty, data.count <= Self.maxScreenshotBytes else {
+            throw APIError(status: 413, code: "too_large", message: "screenshot must be between 1 byte and \(Self.maxScreenshotBytes) bytes.")
+        }
+        let root = paths?.home ?? FileManager.default.temporaryDirectory.appendingPathComponent("hatch-stage", isDirectory: true)
+        let relative = "attachments/\(t.id)"
+        let name = "stage-\(Int(Date().timeIntervalSince1970))-\(UUID().uuidString.prefix(6).lowercased()).\(type)"
+        let dir = root.appendingPathComponent(relative, isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try data.write(to: dir.appendingPathComponent(name), options: .atomic)
+        } catch {
+            throw APIError(status: 500, code: "internal", message: "Could not save the screenshot: \(error.localizedDescription)")
+        }
+        try store.addAttachment(t.id, path: "\(relative)/\(name)", kind: "screenshot", caption: "Stage view sent with a question")
+        return "\(relative)/\(name)"
     }
 
     private func acceptTicket(_ ref: String, _ b: Body) throws -> (JSONValue, StageEvent?) {

@@ -115,7 +115,7 @@ struct SideBySideView: View {
 
     var body: some View {
         let all = model.columns
-        if StageColumns.usesFilmstrip(columnCount: all.count) {
+        if StageColumns.usesFilmstrip(columns: all) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top, spacing: 12) {
                     ForEach(model.visibleColumns, id: \.id) { column in
@@ -124,7 +124,7 @@ struct SideBySideView: View {
                     }
                 }
                 FilmstripView(model: model, columns: all, width: width)
-                Text("Four or more columns: two are shown large, the rest sit in the filmstrip. Arrow keys move through it, Space flips with Echo today.")
+                Text("Four or more options: two are shown large, the rest sit in the filmstrip. Arrow keys move through it, Space flips with Echo today.")
                     .font(.caption)
                     .foregroundStyle(model.palette.muted)
             }

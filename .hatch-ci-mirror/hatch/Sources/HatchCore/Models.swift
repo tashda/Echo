@@ -67,7 +67,7 @@ public enum RepoRole: String, Codable, CaseIterable, Sendable {
 
 public struct RepoConfig: Codable, Equatable, Sendable {
     public var role: RepoRole
-    public var remote: String          // "tashda/echo"
+    public var remote: String          // "acme/app"
     public var branch: String          // default/base branch
     public var localPath: String?
     public var buildCommand: String?

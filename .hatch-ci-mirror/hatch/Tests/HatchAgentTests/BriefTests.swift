@@ -45,8 +45,8 @@ final class BriefTests: XCTestCase {
         Tests: NotificationTests
 
         ## Repos
-        - app: tashda/echo (base dev) · build: swift build · tests: UnitTests
-        - specimens: tashda/echo-specimens (base main)
+        - app: acme/app (base dev) · build: swift build · tests: UnitTests
+        - specimens: acme/specimens (base main)
 
         ## Docs to read
         - docs/agents.md

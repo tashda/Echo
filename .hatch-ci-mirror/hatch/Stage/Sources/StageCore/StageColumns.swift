@@ -83,10 +83,14 @@ public enum StageColumns {
                     designWidth: s.designWidth ?? defaultDesignWidth, designHeight: s.designHeight ?? defaultDesignHeight)
     }
 
-    /// Side by side up to three columns, a filmstrip beyond (decision H2).
+    /// Side by side up to three options, a filmstrip from four (decision H2: "with 4 or more", counted in options; Echo today is
+    /// always pinned and does not count).
     public static let sideBySideLimit = 3
 
-    public static func usesFilmstrip(columnCount: Int) -> Bool { columnCount > sideBySideLimit }
+    public static func usesFilmstrip(optionCount: Int) -> Bool { optionCount > sideBySideLimit }
+
+    /// The same rule for a list of columns: Echo today does not count.
+    public static func usesFilmstrip(columns: [StageColumn]) -> Bool { usesFilmstrip(optionCount: navigable(columns).count) }
 
     /// Columns an arrow key moves through: everything except Echo today.
     public static func navigable(_ columns: [StageColumn]) -> [StageColumn] { columns.filter { !$0.isToday } }

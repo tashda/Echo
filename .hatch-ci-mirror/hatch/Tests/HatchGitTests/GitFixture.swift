@@ -22,9 +22,9 @@ class GitTestCase: XCTestCase {
         var repos: [RepoConfig] = []
         for (role, name) in [(RepoRole.app, "echo"), (.designSystem, "echo-ds"), (.specimens, "echo-specimens")] {
             let dir = try makeRepo(name)
-            repos.append(RepoConfig(role: role, remote: "tashda/\(name)", branch: "dev", localPath: dir))
+            repos.append(RepoConfig(role: role, remote: "acme/\(name)", branch: "dev", localPath: dir))
         }
-        project = try store.upsertProject(key: "echo", name: "Echo", config: ProjectConfig(name: "Echo", ticketsRepo: "tashda/t", repos: repos))
+        project = try store.upsertProject(key: "echo", name: "Echo", config: ProjectConfig(name: "Echo", ticketsRepo: "acme/t", repos: repos))
         app = try store.repo(projectId: project.id, role: .app)
         manager = WorkspaceManager(store: store, git: git)
     }

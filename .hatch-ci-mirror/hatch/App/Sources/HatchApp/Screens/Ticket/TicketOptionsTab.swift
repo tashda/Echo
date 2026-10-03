@@ -65,9 +65,9 @@ struct TicketOptionsTab: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
             }
-            .buttonStyle(.glassProminent)
+            // The banner above holds the one prominent action; this is the same door, quieter (DESIGN: one prominent per screen).
+            .buttonStyle(.glass)
             .controlSize(.large)
-            .tint(Theme.color(for: ticket.turn))
             .disabled(!canOpenStage)
         }
         .padding(16)

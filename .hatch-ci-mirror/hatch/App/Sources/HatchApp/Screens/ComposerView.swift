@@ -96,15 +96,20 @@ struct ComposerView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
-            Button("Cancel") { state.route = .desk }
+            Button { state.route = .desk } label: { Label("Cancel", systemImage: "xmark") }
+                .buttonStyle(.glass)
                 .keyboardShortcut(.cancelAction)
-            Button("Save as draft") { create(submit: false) }
+            Button { create(submit: false) } label: { Label("Save as draft", systemImage: "square.and.arrow.down") }
+                .buttonStyle(.glass)
                 .disabled(!canSubmit)
-            Button(type == .theme ? "Create Theme" : "Submit for check") { create(submit: true) }
-                .buttonStyle(.glassProminent)
-                .keyboardShortcut(.return, modifiers: .command)
-                .disabled(!canSubmit)
+            Button { create(submit: true) } label: {
+                Label(type == .theme ? "Create Theme" : "Submit for check", systemImage: type == .theme ? "plus" : "paperplane")
+            }
+            .buttonStyle(.glassProminent)
+            .keyboardShortcut(.return, modifiers: .command)
+            .disabled(!canSubmit)
         }
+        .controlSize(.large)
         .padding(.horizontal, 20)
         .padding(.vertical, 10)
     }
@@ -212,9 +217,15 @@ struct ComposerView: View {
                     .foregroundStyle(.secondary)
                 Spacer()
                 Button("Choose…") { chooseFiles() }
+                    .buttonStyle(.bordered)
                     .controlSize(.small)
                 Button("Paste") { pasteFromClipboard() }
+                    .buttonStyle(.bordered)
                     .controlSize(.small)
+                Button("Capture window") { captureWindow() }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help("Pick a window to capture, for example the Echo window")
             }
             if !shots.isEmpty {
                 ScrollView(.horizontal) {
@@ -228,7 +239,7 @@ struct ComposerView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(dropTargeted ? Theme.agentBackground : Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+        .background(dropTargeted ? Color.accentColor.opacity(0.12) : Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.secondary.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [5, 4])))
         .onDrop(of: [UTType.fileURL], isTargeted: $dropTargeted) { providers in
             handleDrop(providers)
@@ -275,6 +286,27 @@ struct ComposerView: View {
         for url in panel.urls {
             if let data = try? Data(contentsOf: url) {
                 shots.append(PendingShot(name: url.lastPathComponent, data: data))
+            }
+        }
+    }
+
+    /// Capture the Echo window (decision E3): the system picker lets the owner click any window.
+    /// Runs `screencapture` off the main thread; cancelling the picker leaves no file and adds nothing.
+    private func captureWindow() {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("hatch-capture-\(UUID().uuidString).png")
+        Task {
+            let data: Data? = await Task.detached { () -> Data? in
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+                process.arguments = ["-i", "-w", "-x", file.path]
+                do { try process.run() } catch { return nil }
+                process.waitUntilExit()
+                let result = try? Data(contentsOf: file)
+                try? FileManager.default.removeItem(at: file)
+                return result
+            }.value
+            if let data, !data.isEmpty {
+                shots.append(PendingShot(name: "capture-\(shots.count + 1).png", data: data))
             }
         }
     }
@@ -338,6 +370,8 @@ struct ComposerView: View {
                     .frame(width: 120)
                     .onSubmit { addLinkFromField() }
                 Button("Add link") { addLinkFromField() }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                     .disabled(linkRef.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
@@ -479,7 +513,7 @@ struct ComposerView: View {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 10) {
                     Image(systemName: "paperplane")
-                        .foregroundStyle(Theme.agent)
+                        .foregroundStyle(.secondary)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("\(ticket.displayNumber) submitted")
                             .font(.title3.weight(.semibold))
@@ -487,8 +521,9 @@ struct ComposerView: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Button("New ticket") { resetForm() }
-                    Button("Open ticket") { state.open(ticket) }
+                    Button { resetForm() } label: { Label("New ticket", systemImage: "plus") }
+                        .buttonStyle(.glass)
+                    Button { state.open(ticket) } label: { Label("Open ticket", systemImage: "arrow.right") }
                         .buttonStyle(.glassProminent)
                 }
                 if !VettingBridge.isAvailable {
@@ -597,6 +632,7 @@ struct HatchCheckPanel: View {
                         StatusChip(status: hit.ticket.status)
                         Spacer()
                         Button("Link") { onLink(hit.ticket, .related) }
+                            .buttonStyle(.bordered)
                             .controlSize(.small)
                     }
                 }
@@ -632,6 +668,6 @@ struct HatchCheckPanel: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.agentBackground.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
+        .background(Color.secondary.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
     }
 }

@@ -1,0 +1,64 @@
+{
+  "name": "Acme",
+  "ticketsRepo": "acme/tickets",
+  "integrationBranch": "hatch",
+  "maxAgents": 3,
+  "planApprovalFileThreshold": 8,
+  "docs": [
+    "README.md",
+    "Design"
+  ],
+  "repos": [
+    {
+      "role": "app",
+      "remote": "acme/app",
+      "branch": "dev",
+      "buildCommand": "xcodebuild -project Acme.xcodeproj -scheme Acme -destination 'platform=macOS' build",
+      "testPlans": [
+        "UnitTests"
+      ]
+    },
+    {
+      "role": "design-system",
+      "remote": "acme/design-system",
+      "branch": "main"
+    },
+    {
+      "role": "specimens",
+      "remote": "acme/specimens",
+      "branch": "main"
+    }
+  ],
+  "areas": [
+    {
+      "name": "Connections",
+      "paths": [
+        "Acme/Sources/Features/Connections/**"
+      ],
+      "specPrefix": "CONN",
+      "testPlans": [
+        "UnitTests"
+      ]
+    },
+    {
+      "name": "Editor",
+      "paths": [
+        "Acme/Sources/Features/Editor/**"
+      ],
+      "specPrefix": "EDIT",
+      "testPlans": [
+        "UnitTests"
+      ]
+    },
+    {
+      "name": "Notifications",
+      "paths": [
+        "Acme/Sources/Features/Notifications/**"
+      ],
+      "specPrefix": "NOTIF",
+      "testPlans": [
+        "UnitTests"
+      ]
+    }
+  ]
+}

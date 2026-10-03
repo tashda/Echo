@@ -2,9 +2,11 @@ import SwiftUI
 import AppKit
 import HatchCore
 
-/// Work: who is working, the build steps, the workspaces and branches, and the files claimed (decisions I1, K3).
+/// Work: who is working, the build steps, the workspaces and branches, and the files claimed (decisions I1, I5, K3).
 struct TicketWorkTab: View {
     let ticket: Ticket
+    /// Switches to the Thread tab with Instruction selected (decision I5).
+    var onInstruction: () -> Void = {}
     @EnvironmentObject var state: AppState
 
     @State private var workspaces: [Workspace] = []
@@ -40,7 +42,13 @@ struct TicketWorkTab: View {
             if let who = ticket.takenBy {
                 Text("\(who) is working on this")
                 Spacer()
-                Button("Stop agent") { stopAgent() }
+                Button { onInstruction() } label: { Label("Send instruction", systemImage: "text.bubble") }
+                    .buttonStyle(.glass)
+                    .help("Opens the Thread with the Instruction kind selected.")
+                // A run that can be stopped: the button turns red while it runs (DESIGN, LK11).
+                Button { stopAgent() } label: { Label("Stop", systemImage: "stop.fill") }
+                    .buttonStyle(.glass)
+                    .tint(Theme.critical)
                     .help("Takes the ticket back from the agent. The agent finds out the next time it asks Hatch.")
             } else {
                 Text("No agent is working on this right now.")
@@ -120,7 +128,10 @@ struct TicketWorkTab: View {
                     .font(.callout.monospaced())
                 PlainChip(text: ws.state)
                 Spacer()
+                // Take over: each ticket has its own workspace, so no other agent is disturbed (decision I5).
                 Button("Open in Terminal") { openTerminal(ws.path) }
+                    .controlSize(.small)
+                Button("Open in Xcode") { openXcode(ws.path) }
                     .controlSize(.small)
                 Button("Show in Finder") {
                     NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: ws.path)
@@ -162,6 +173,15 @@ struct TicketWorkTab: View {
     private func openTerminal(_ path: String) {
         let terminal = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
         NSWorkspace.shared.open([URL(fileURLWithPath: path)], withApplicationAt: terminal, configuration: NSWorkspace.OpenConfiguration())
+    }
+
+    private func openXcode(_ path: String) {
+        let folder = URL(fileURLWithPath: path)
+        if let xcode = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.dt.Xcode") {
+            NSWorkspace.shared.open([folder], withApplicationAt: xcode, configuration: NSWorkspace.OpenConfiguration())
+        } else {
+            NSWorkspace.shared.open(folder)
+        }
     }
 
     // MARK: Claims

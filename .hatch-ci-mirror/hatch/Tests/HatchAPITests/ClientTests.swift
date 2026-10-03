@@ -44,6 +44,29 @@ final class ClientTests: APITestCase {
         XCTAssertEqual(c.pendingCount, 0)
     }
 
+    func testClientNoteWithScreenshotAndQueuedWhileHatchIsAway() throws {
+        let t = try makeProposal()
+        let c = client()
+        let picture = Data(repeating: 7, count: 500)
+        XCTAssertEqual(try c.note(ref: "151", kind: "note", body: "look", screenshot: picture), .delivered)
+        XCTAssertEqual(try store.attachments(ticketId: t.id).count, 1)
+        server.stop()
+        XCTAssertEqual(try c.note(ref: "151", kind: "note", body: "later", screenshot: picture), .queued)
+        XCTAssertEqual(c.pendingCount, 1)
+        try restartServer()
+        XCTAssertEqual(try c.flush(), 1)
+        XCTAssertEqual(try store.attachments(ticketId: t.id).count, 2)
+    }
+
+    func testClearingAVerdictFromTheClient() throws {
+        let t = try makeProposal()
+        let c = client()
+        _ = try c.verdict(ref: "151", topic: "which", option: "A", verdict: "maybe")
+        XCTAssertEqual(try store.verdicts(ticketId: t.id).count, 1)
+        _ = try c.verdict(ref: "151", topic: "which", option: "A", verdict: "none")
+        XCTAssertTrue(try store.verdicts(ticketId: t.id).isEmpty)
+    }
+
     func testClientSendBack() throws {
         let t = try makeProposal()
         _ = try client().sendBack(ref: "151", reason: "change-option", note: "Option B is too loud")

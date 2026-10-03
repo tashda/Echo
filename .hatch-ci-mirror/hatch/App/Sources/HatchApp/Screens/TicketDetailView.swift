@@ -35,6 +35,7 @@ struct TicketDetailView: View {
     @State private var threadCount = 0
     @State private var info = ProposalInfo()
     @State private var confirmDrop = false
+    @State private var threadKind: NoteKind = .note
 
     var body: some View {
         Group {
@@ -47,6 +48,9 @@ struct TicketDetailView: View {
         }
         .navigationTitle(ticket?.displayNumber ?? "Ticket")
         .autoReload(every: 3) { load() }
+        .onChange(of: tab) { _, newTab in
+            if newTab != .thread { threadKind = .note }
+        }
         .onChange(of: ticketId) { _, _ in
             tab = .overview
             load()
@@ -106,12 +110,13 @@ struct TicketDetailView: View {
 
     @ViewBuilder private func headerButtons(_ t: Ticket) -> some View {
         HStack(spacing: 8) {
-            if t.status == .parked || t.status == .blocked {
+            // Parked and Dropped already offer Resume and Reopen as the banner's main action (F2), so the header does not repeat them.
+            if t.status == .blocked {
                 Button { resume() } label: { Label("Resume", systemImage: "play") }.buttonStyle(.glass)
             } else if canMove(t, to: .parked) {
                 Button { move(to: .parked) } label: { Label("Park", systemImage: "pause") }.buttonStyle(.glass)
             }
-            if t.status == .done || t.status == .dropped {
+            if t.status == .done {
                 Button { move(to: .draft) } label: { Label("Reopen", systemImage: "arrow.uturn.backward") }.buttonStyle(.glass)
             }
             if canMove(t, to: .dropped) {
@@ -268,8 +273,12 @@ struct TicketDetailView: View {
         switch current {
         case .overview: TicketOverviewTab(ticket: t)
         case .options: TicketOptionsTab(ticket: t, info: info)
-        case .thread: TicketThreadTab(ticket: t)
-        case .work: TicketWorkTab(ticket: t)
+        case .thread: TicketThreadTab(ticket: t, startKind: threadKind)
+        case .work:
+            TicketWorkTab(ticket: t, onInstruction: {
+                threadKind = .instruction
+                tab = .thread
+            })
         case .history: TicketHistoryTab(ticket: t)
         }
     }

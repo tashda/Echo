@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import HatchCore
+import HatchSync
 
 // Project settings (decisions L1, L2, M): a form that writes .hatch/project.json into the app repo and keeps the database in step.
 
@@ -61,6 +62,9 @@ struct ProjectForm: View {
 
     @State private var name = ""
     @State private var ticketsRepo = ""
+    @State private var ticketsRepoPublic = false
+    @State private var showCreateTickets = false
+    @StateObject private var account = GitHubAccountModel()
     @State private var maxAgents = 3
     @State private var integrationBranch = "hatch"
     @State private var threshold = 8
@@ -97,6 +101,12 @@ struct ProjectForm: View {
         }
         .onAppear { if !loaded { load(); loaded = true } }
         .sheet(isPresented: $showAdd) { AddProjectSheet() }
+        .sheet(isPresented: $showCreateTickets) {
+            HXCreateTicketsRepoSheet(account: account, projectName: project.name) { full in
+                ticketsRepo = full
+                ticketsRepoPublic = false
+            }
+        }
     }
 
     // MARK: Sections
@@ -105,7 +115,7 @@ struct ProjectForm: View {
         HStack(alignment: .top) {
             HXHeader(title: "Project: \(project.name)", subtitle: configURL.map { "Config in repo: \($0.path)" } ?? "Config in repo: .hatch/project.json (set the app repo's local path to write it)")
             Spacer()
-            Button("Add project...") { showAdd = true }
+            Button { showAdd = true } label: { Label("Add project", systemImage: "plus") }.buttonStyle(.glass)
         }
     }
 
@@ -115,7 +125,25 @@ struct ProjectForm: View {
             HXCard {
                 VStack(alignment: .leading, spacing: 8) {
                     labeled("Name") { TextField("Name", text: $name).textFieldStyle(.roundedBorder) }
-                    labeled("Tickets repo") { TextField("owner/hatch-tickets", text: $ticketsRepo).textFieldStyle(.roundedBorder) }
+                    labeled("Tickets repo") {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                TextField("owner/name", text: $ticketsRepo).textFieldStyle(.roundedBorder)
+                                HXRepoPickerMenu(account: account) { pick in
+                                    ticketsRepo = pick.fullName
+                                    ticketsRepoPublic = !pick.isPrivate
+                                }
+                                Button { showCreateTickets = true } label: { Label("Create private", systemImage: "plus") }
+                                    .disabled(account.user == nil)
+                            }
+                            if ticketsRepoPublic {
+                                Text("This repository is public, so your tickets would be visible to everyone. Choose or create a private one.")
+                                    .font(.caption).foregroundStyle(Theme.critical)
+                            } else if account.user == nil {
+                                Text("Connect GitHub in Settings to choose or create the repository.").font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
                     labeled("Integration branch") { TextField("hatch", text: $integrationBranch).textFieldStyle(.roundedBorder) }
                     labeled("Max agents") { Stepper(value: $maxAgents, in: 1...12) { Text("\(maxAgents)") } }
                     labeled("Plan approval above") { Stepper(value: $threshold, in: 1...100) { Text("\(threshold) files") } }
@@ -139,7 +167,7 @@ struct ProjectForm: View {
             HStack {
                 Text("Repositories").font(.headline)
                 Spacer()
-                Button { addRepo() } label: { Label("Add repository", systemImage: "plus") }
+                Button { addRepo() } label: { Label("Add repository", systemImage: "plus") }.buttonStyle(.glass)
             }
             HXCard {
                 VStack(alignment: .leading, spacing: 12) {
@@ -159,6 +187,10 @@ struct ProjectForm: View {
                 .labelsHidden()
                 .frame(width: 140)
                 TextField("owner/repo", text: repo.remote).textFieldStyle(.roundedBorder)
+                HXRepoPickerMenu(account: account) { pick in
+                    repo.wrappedValue.remote = pick.fullName
+                    repo.wrappedValue.branch = pick.defaultBranch
+                }
                 TextField("Branch", text: repo.branch).textFieldStyle(.roundedBorder).frame(width: 90)
                 Button { removeRepo(repo.wrappedValue.id) } label: { Image(systemName: "minus.circle") }
                     .buttonStyle(.borderless)
@@ -228,7 +260,7 @@ struct ProjectForm: View {
 
     private var saveRow: some View {
         HStack {
-            Button("Save") { save() }.buttonStyle(.glassProminent)
+            Button { save() } label: { Label("Save", systemImage: "checkmark") }.buttonStyle(.glassProminent).disabled(ticketsRepoPublic)
             Button("Revert") { load() }
             if !message.isEmpty { Text(message).font(.callout).foregroundStyle(.secondary) }
         }
@@ -334,9 +366,11 @@ struct AddProjectSheet: View {
     @State private var appRemote = ""
     @State private var appPath = ""
     @State private var branch = "dev"
+    @State private var ticketsPublic = false
+    @StateObject private var account = GitHubAccountModel()
 
     private var canAdd: Bool {
-        !key.trimmingCharacters(in: .whitespaces).isEmpty && !name.trimmingCharacters(in: .whitespaces).isEmpty
+        !ticketsPublic && !key.trimmingCharacters(in: .whitespaces).isEmpty && !name.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     var body: some View {
@@ -344,8 +378,18 @@ struct AddProjectSheet: View {
             Text("Add project").font(.title3.weight(.semibold))
             TextField("Key (for labels, such as echo)", text: $key).textFieldStyle(.roundedBorder)
             TextField("Name", text: $name).textFieldStyle(.roundedBorder)
-            TextField("Tickets repo (owner/hatch-tickets)", text: $ticketsRepo).textFieldStyle(.roundedBorder)
-            TextField("App repo (owner/app)", text: $appRemote).textFieldStyle(.roundedBorder)
+            HStack {
+                TextField("Tickets repo (owner/name, private)", text: $ticketsRepo).textFieldStyle(.roundedBorder)
+                HXRepoPickerMenu(account: account) { ticketsRepo = $0.fullName; ticketsPublic = !$0.isPrivate }
+            }
+            if ticketsPublic {
+                Text("This repository is public, so tickets would be visible to everyone. Choose a private one.")
+                    .font(.caption).foregroundStyle(Theme.critical)
+            }
+            HStack {
+                TextField("App repo (owner/app)", text: $appRemote).textFieldStyle(.roundedBorder)
+                HXRepoPickerMenu(account: account) { appRemote = $0.fullName; branch = $0.defaultBranch }
+            }
             HStack {
                 TextField("App repo local path", text: $appPath).textFieldStyle(.roundedBorder)
                 Button("Choose...") { choose() }

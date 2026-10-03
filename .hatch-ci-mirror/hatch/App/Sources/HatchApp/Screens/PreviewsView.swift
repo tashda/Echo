@@ -16,6 +16,7 @@ struct PreviewsView: View {
     @State private var needsNote = ""
     @State private var screenshot: URL?
     @State private var checked: Set<String> = []
+    @State private var confirmDiscard = false
 
     // MARK: Data
 
@@ -90,25 +91,47 @@ struct PreviewsView: View {
     private var chooser: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Choose tickets").font(.headline)
-            HXCard {
-                VStack(alignment: .leading, spacing: 8) {
-                    if toVerify.isEmpty {
-                        Text("Nothing is waiting to be verified.").foregroundStyle(.secondary)
+            if appRepo == nil {
+                ContentUnavailableView {
+                    Label("No app repository", systemImage: "externaldrive.badge.questionmark")
+                } description: {
+                    Text("Add the app repository in Project settings, then choose finished tickets here.")
+                }
+            } else if toVerify.isEmpty {
+                ContentUnavailableView {
+                    Label("Nothing to verify", systemImage: "checkmark.circle")
+                } description: {
+                    Text("Tickets appear here when an agent finishes them. Then you pick the ones to look at together.")
+                }
+            } else {
+                HXCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(toVerify) { t in chooserRow(t) }
                     }
-                    ForEach(toVerify) { t in chooserRow(t) }
-                    HStack {
-                        Button { buildPreview() } label: { Text(building ? "Building..." : "Build Preview") }
-                            .buttonStyle(.glassProminent)
-                            .disabled(selected.isEmpty || building || appRepo == nil)
-                        if appRepo == nil {
-                            Text("Add the app repository in Project settings first.").font(.caption).foregroundStyle(.secondary)
-                        } else {
-                            Text("\(selected.count) selected").font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
+                }
+                HStack(spacing: 10) {
+                    buildButton
+                    Text(selected.isEmpty ? "Select the tickets to look at together." : "\(selected.count) selected").font(.caption).foregroundStyle(.secondary)
                 }
             }
         }
+    }
+
+    /// The one prominent action on the screen: Build while nothing is approved, Merge once something is.
+    private var buildButton: some View {
+        let label = Label(building ? "Building..." : "Build Preview", systemImage: "hammer")
+        let off = selected.isEmpty || building || appRepo == nil
+        return Group {
+            if approved.isEmpty {
+                Button { buildPreview() } label: { label }
+                    .buttonStyle(.glassProminent)
+                    .controlSize(.large)
+            } else {
+                Button { buildPreview() } label: { label }
+                    .buttonStyle(.glass)
+            }
+        }
+        .disabled(off)
     }
 
     private func chooserRow(_ t: Ticket) -> some View {
@@ -126,7 +149,7 @@ struct PreviewsView: View {
             Text(t.title).lineLimit(1)
             Spacer()
             if !ready {
-                Text("no workspace").font(.caption).foregroundStyle(.secondary)
+                Text("no workspace yet").font(.caption).foregroundStyle(.secondary)
             }
         }
     }
@@ -150,7 +173,7 @@ struct PreviewsView: View {
     private func errorCard(_ message: String) -> some View {
         HXCard {
             VStack(alignment: .leading, spacing: 4) {
-                HXChip(text: "Could not build", turn: .you)
+                HXProblemChip(text: "Could not build")
                 Text(message).font(.callout).textSelection(.enabled)
             }
         }
@@ -165,7 +188,7 @@ struct PreviewsView: View {
                     if o.buildOK {
                         HXChip(text: "Built", turn: .finished)
                     } else {
-                        HXChip(text: "Build failed", turn: .you)
+                        HXProblemChip(text: "Build failed")
                     }
                     Spacer()
                     openButton(name: o.name)
@@ -184,9 +207,12 @@ struct PreviewsView: View {
             if path == nil {
                 Text("Set the Preview app path in Settings.").font(.caption).foregroundStyle(.secondary)
             }
-            Button("Open \(appName) (\(name))") {
+            Button {
                 if let path { NSWorkspace.shared.open(URL(fileURLWithPath: path)) }
+            } label: {
+                Label("Open \(appName) (\(name))", systemImage: "play")
             }
+            .buttonStyle(.glass)
             .disabled(path == nil)
         }
     }
@@ -199,17 +225,21 @@ struct PreviewsView: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     Text(o.name).font(.headline)
-                    HXChip(text: "Conflict", turn: .you)
+                    HXProblemChip(text: "Conflict")
                 }
                 Text("\(pair) change the same code and cannot be merged together.").font(.callout)
                 if !o.conflictFiles.isEmpty {
                     Text(o.conflictFiles.joined(separator: "\n")).font(.caption.monospaced()).foregroundStyle(.secondary)
                 }
+                Text("Recommended: stack \(later?.displayNumber ?? "it") on \(earlier?.displayNumber ?? "the other"). Both tickets stay in, and the later one builds on the earlier one's finished work.")
+                    .font(.callout)
                 HStack {
-                    Button("Drop \(later?.displayNumber ?? "it")") { dropFromPreview(o) }
-                    Button("Stack on \(earlier?.displayNumber ?? "the other")") { stackConflict(o) }
-                    Button("Ask agent to resolve") { askAgent(o) }
+                    Button { stackConflict(o) } label: { Label("Stack on \(earlier?.displayNumber ?? "the other")", systemImage: "square.3.layers.3d.down.left") }
+                    Button { askAgent(o) } label: { Label("Ask agent to resolve", systemImage: "sparkles") }
+                    Button { dropFromPreview(o) } label: { Label("Drop \(later?.displayNumber ?? "it")", systemImage: "minus.circle") }
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
         }
     }
@@ -309,7 +339,7 @@ struct PreviewsView: View {
         if verdict == "looks-right" {
             HXChip(text: "Looks right", turn: .finished)
         } else if verdict == "needs-work" {
-            HXChip(text: "Needs work", turn: .you)
+            HXProblemChip(text: "Needs work")
         }
     }
 
@@ -328,13 +358,15 @@ struct PreviewsView: View {
 
     private func verdictButtons(_ t: Ticket, _ preview: HatchCore.Preview) -> some View {
         HStack {
-            Button("Looks right") { markRight(t, preview) }
-            Button("Needs work...") {
+            Button { markRight(t, preview) } label: { Label("Looks right", systemImage: "checkmark") }
+            Button {
                 needsWorkFor = t.id
                 needsNote = ""
                 screenshot = nil
-            }
+            } label: { Label("Needs work...", systemImage: "xmark") }
         }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
     }
 
     private func needsWorkForm(_ t: Ticket, _ preview: HatchCore.Preview) -> some View {
@@ -343,12 +375,14 @@ struct PreviewsView: View {
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(2...5)
             HStack {
-                Button("Add screenshot") { pickScreenshot() }
+                Button { pickScreenshot() } label: { Label("Add screenshot", systemImage: "photo") }
+                    .buttonStyle(.bordered)
                 if let url = screenshot { Text(url.lastPathComponent).font(.caption).foregroundStyle(.secondary) }
                 Spacer()
                 Button("Cancel") { needsWorkFor = nil }
-                Button("Send back to agent") { markNeedsWork(t, preview) }
-                    .buttonStyle(.glassProminent)
+                    .buttonStyle(.bordered)
+                Button { markNeedsWork(t, preview) } label: { Label("Send back to agent", systemImage: "arrow.uturn.backward") }
+                    .buttonStyle(.borderedProminent)
                     .disabled(needsNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
@@ -425,16 +459,31 @@ struct PreviewsView: View {
 
     private var mergeButtons: some View {
         HStack {
-            Button(merging ? "Merging..." : "Merge approved (\(approved.count))") { mergeApproved() }
-                .buttonStyle(.glassProminent)
-                .disabled(approved.isEmpty || merging)
-            Button("Check CI") { refreshCI() }
-            Button("Promote") { promote() }
+            Button { mergeApproved() } label: {
+                Label(merging ? "Merging..." : "Merge approved (\(approved.count))", systemImage: "arrow.triangle.merge")
+            }
+            .buttonStyle(.glassProminent)
+            .controlSize(.large)
+            .disabled(approved.isEmpty || merging)
+            Button { refreshCI() } label: { Label("Check CI", systemImage: "arrow.clockwise") }
+                .buttonStyle(.glass)
+            Button { promote() } label: { Label("Promote", systemImage: "arrow.up.right") }
+                .buttonStyle(.glass)
                 .disabled(ciText != "passing")
                 .help("Moves the integration branch into the base branch when CI is green.")
-            if let p = latestPreview {
-                Button("Discard \(p.name)") { discardPreview(p) }
+            if latestPreview != nil {
+                HXMenuButton(title: "More", symbol: "ellipsis") {
+                    Button("Discard this Preview...", role: .destructive) { confirmDiscard = true }
+                }
             }
+        }
+        .confirmationDialog("Discard \(latestPreview?.name ?? "this Preview")?", isPresented: $confirmDiscard, titleVisibility: .visible) {
+            Button("Discard", role: .destructive) {
+                if let p = latestPreview { discardPreview(p) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The Preview build is removed. The tickets stay To verify.")
         }
     }
 

@@ -59,12 +59,28 @@ struct CommandPalette: View {
         }
         let lower = q.lowercased()
         out += commands().filter { $0.title.lowercased().contains(lower) }
+        out.append(Hit(id: "cmd-capture", title: "Capture \u{201C}\(q)\u{201D} as a draft", subtitle: "Quick capture · only a title",
+                       symbol: "plus.circle", run: { captureDraft(title: q) }))
         return out
     }
 
     private func ticketHit(_ t: Ticket) -> Hit {
         Hit(id: "t\(t.id)", title: "\(t.displayNumber)  \(t.title)", subtitle: "\(t.type.displayName) · \(t.status.displayName)",
             symbol: Theme.symbol(for: t.type), run: { state.open(t) })
+    }
+
+    /// Quick capture (decision E1): a Draft with only a title, no check, in the current or first project.
+    /// The type is Question, the lightest one; it can be changed on the ticket.
+    private func captureDraft(title: String) {
+        guard let pid = state.projectFilterId ?? state.projects.first?.id else {
+            state.errorMessage = "Add a project before capturing a ticket."
+            return
+        }
+        let created: Ticket? = state.perform("Could not capture the draft") {
+            try state.store.createTicket(projectId: pid, type: .question, title: title, body: "",
+                                         area: nil, parentId: nil, status: .draft, actor: .owner)
+        }
+        if let created { state.open(created) }
     }
 
     // MARK: Body

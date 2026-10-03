@@ -25,7 +25,7 @@ enum CoreCommands {
             let p = try c.store.upsertProject(key: key, name: config.name, config: config)
             c.out.emit(["project": .string(p.key), "repos": .int(config.repos.count)], text: "Project \(p.key) registered with \(config.repos.count) repositories.")
         } else if let key = c.args.option("key"), let name = c.args.option("name") {
-            let tickets = c.args.option("tickets") ?? "tashda/hatch-tickets"
+            let tickets = c.args.option("tickets") ?? ""
             let p = try c.store.upsertProject(key: key, name: name, config: ProjectConfig(name: name, ticketsRepo: tickets))
             c.out.emit(["project": .string(p.key)], text: "Project \(p.key) registered.")
         } else {

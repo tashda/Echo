@@ -9,9 +9,9 @@ final class BootstrapTests: XCTestCase {
 
     func testLoadRegistersProjectAndRepos() throws {
         let root = try tempDir("proj")
-        try writeConfig(root, ProjectConfig(name: "Echo App", ticketsRepo: "tashda/hatch-tickets", repos: [
-            RepoConfig(role: .app, remote: "tashda/echo", branch: "dev", testPlans: ["UnitTests", "LabTests"]),
-            RepoConfig(role: .designSystem, remote: "tashda/echo-design-system", branch: "main", localPath: "/elsewhere"),
+        try writeConfig(root, ProjectConfig(name: "Echo App", ticketsRepo: "acme/tickets", repos: [
+            RepoConfig(role: .app, remote: "acme/app", branch: "dev", testPlans: ["UnitTests", "LabTests"]),
+            RepoConfig(role: .designSystem, remote: "acme/design-system", branch: "main", localPath: "/elsewhere"),
         ], areas: [AreaConfig(name: "Tabs", paths: ["Echo/Tabs/**"], specPrefix: "TABS")]))
         let store = try HatchStore.inMemory()
         let project = try ProjectBootstrap.load(projectRoot: root, store: store)
@@ -45,22 +45,22 @@ final class BootstrapTests: XCTestCase {
     }
 
     func testExampleProjectFileLoads() throws {
-        let example = Paths.hatchRoot.appendingPathComponent("examples/echo-project.json")
+        let example = Paths.hatchRoot.appendingPathComponent("examples/project.json")
         let config = try ProjectConfig.load(from: example)
-        XCTAssertEqual(config.ticketsRepo, "tashda/hatch-tickets")
-        XCTAssertEqual(config.repo(.app)?.remote, "tashda/echo")
+        XCTAssertEqual(config.ticketsRepo, "acme/tickets")
+        XCTAssertEqual(config.repo(.app)?.remote, "acme/app")
         XCTAssertEqual(config.repo(.app)?.branch, "dev")
-        XCTAssertEqual(config.repo(.app)?.testPlans, ["UnitTests", "LabTests"])
-        XCTAssertEqual(config.repo(.designSystem)?.remote, "tashda/echo-design-system")
-        XCTAssertEqual(config.repo(.specimens)?.remote, "tashda/echo-specimens")
-        XCTAssertGreaterThanOrEqual(config.areas.count, 20)
+        XCTAssertEqual(config.repo(.app)?.testPlans, ["UnitTests"])
+        XCTAssertEqual(config.repo(.designSystem)?.remote, "acme/design-system")
+        XCTAssertEqual(config.repo(.specimens)?.remote, "acme/specimens")
+        XCTAssertGreaterThanOrEqual(config.areas.count, 3)
         XCTAssertEqual(Set(config.areas.compactMap(\.specPrefix)).count, config.areas.count, "prefixes are unique")
-        XCTAssertEqual(config.area(containing: "Echo/Sources/Features/ActivityMonitor/Views/Graph.swift")?.name, "Activity Monitor")
+        XCTAssertEqual(config.area(containing: "Acme/Sources/Features/Editor/Views/Gutter.swift")?.name, "Editor")
         let store = try HatchStore.inMemory()
         let root = try tempDir("proj")
         try FileManager.default.createDirectory(at: root.appendingPathComponent(".hatch"), withIntermediateDirectories: true)
         try FileManager.default.copyItem(at: example, to: ProjectBootstrap.configURL(projectRoot: root))
-        XCTAssertEqual(try ProjectBootstrap.load(projectRoot: root, store: store).key, "echo")
+        XCTAssertEqual(try ProjectBootstrap.load(projectRoot: root, store: store).key, "acme")
     }
 
     // MARK: Area suggestions

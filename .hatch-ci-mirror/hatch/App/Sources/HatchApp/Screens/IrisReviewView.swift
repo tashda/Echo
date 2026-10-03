@@ -26,7 +26,7 @@ enum WordDiff {
         for (i, word) in words.enumerated() {
             let piece: String = i < words.count - 1 ? word + " " : word
             if m.removed.contains(i) {
-                out = out + Text(piece).foregroundStyle(Theme.critical).strikethrough()
+                out = out + Text(piece).foregroundStyle(.secondary).strikethrough()
             } else {
                 out = out + Text(piece)
             }
@@ -41,7 +41,7 @@ enum WordDiff {
         for (i, word) in words.enumerated() {
             let piece: String = i < words.count - 1 ? word + " " : word
             if m.inserted.contains(i) {
-                out = out + Text(piece).foregroundStyle(Theme.finished).underline()
+                out = out + Text(piece).fontWeight(.semibold).underline()
             } else {
                 out = out + Text(piece)
             }
@@ -119,7 +119,7 @@ struct IrisReviewView: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "sparkles").foregroundStyle(Theme.agent)
+            Image(systemName: "sparkles").foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Iris checked this ticket")
                     .font(.subheadline.weight(.semibold))
@@ -154,7 +154,8 @@ struct IrisReviewView: View {
             }
             Spacer()
             if failure != nil || slow {
-                Button("Check again") { VettingBridge.start(ticketId: ticket.id, state: state) }
+                Button { VettingBridge.start(ticketId: ticket.id, state: state) } label: { Label("Check again", systemImage: "arrow.clockwise") }
+                    .buttonStyle(.glass)
             }
         }
         .padding(12)
@@ -169,7 +170,7 @@ struct IrisReviewView: View {
 
     private func idle(_ ticket: Ticket) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: "checkmark.circle").foregroundStyle(Theme.finished)
+            Image(systemName: "checkmark.circle").foregroundStyle(.secondary)
             Text(ticket.status == .ready ? "Iris had nothing to ask. The ticket is Ready." : "Nothing to review.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -239,7 +240,7 @@ struct IrisReviewView: View {
                     }
                 }
             }
-            Text("Removed words are struck through in red; added words are underlined in green. Your original text is always kept in the history. Type and duplicate choices you have not made stay as they are.")
+            Text("Removed words are struck through; added words are underlined and bold. Your original text is always kept in the history. Type and duplicate choices you have not made stay as they are.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

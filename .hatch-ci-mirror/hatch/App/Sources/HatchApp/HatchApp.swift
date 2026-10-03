@@ -33,6 +33,7 @@ struct HatchCommands: Commands {
         }
         CommandGroup(after: .textEditing) {
             Button("Search") { state.showPalette = true }.keyboardShortcut("k")
+            Button("Sync with GitHub") { state.syncNow() }.keyboardShortcut("r", modifiers: [.shift, .command])
             Button("Ask Hatch") { state.showAskPanel.toggle() }.keyboardShortcut("a", modifiers: [.option, .command])
         }
         CommandMenu("Go") {

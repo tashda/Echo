@@ -7,10 +7,14 @@ import StageCore
 ///     HatchStageToast --demo                       runs on its own with the in-memory data source
 ///     HatchStageToast --ticket 151                 talks to Hatch's local API (HatchAPIStageDataSource)
 ///     HatchStageToast --manifest /path/m.json      uses that manifest instead of the one compiled into the round
+///     HatchStageToast --home /path/to/Hatch        Hatch's support directory (token and port), as the launching app passes it
+///     HatchStageToast --check                      headless: draws every specimen in every scenario, prints JSON, exits 0 or 1
 public struct StageLaunchOptions: Equatable {
     public var demo: Bool = false
     public var ticket: String? = nil
     public var manifestPath: String? = nil
+    public var home: String? = nil
+    public var check: Bool = false
 
     public init() {}
 
@@ -27,6 +31,11 @@ public struct StageLaunchOptions: Equatable {
             } else if a == "--manifest", i + 1 < arguments.count {
                 o.manifestPath = arguments[i + 1]
                 i += 1
+            } else if a == "--home", i + 1 < arguments.count {
+                o.home = arguments[i + 1]
+                i += 1
+            } else if a == "--check" {
+                o.check = true
             }
             i += 1
         }
@@ -58,15 +67,24 @@ public enum StageApp {
                 FileHandle.standardError.write(Data("Could not read the manifest at \(path): \(error)\n".utf8))
             }
         }
+        if options.check {
+            // Decision S6: Hatch runs the built Stage headless before the ticket becomes Your call.
+            exit(StageSelfCheck.run(provider: provider, manifest: effective))
+        }
         let source: StageDataSource
         if let given = dataSource {
             source = given
         } else if !options.demo, let ticket = options.ticket {
-            source = HatchAPIStageDataSource(ticket: ticket)
+            if let home = options.home, !home.isEmpty {
+                source = HatchAPIStageDataSource(ticket: ticket, home: URL(fileURLWithPath: home, isDirectory: true))
+            } else {
+                source = HatchAPIStageDataSource(ticket: ticket)
+            }
         } else {
             source = InMemoryStageDataSource(manifest: effective)
         }
         let model = StageModel(manifest: effective, provider: provider, dataSource: source)
+        model.captureView = { StageSnapshot.jpegOfFrontStageWindow() }
         let d = StageAppDelegate(model: model, title: windowTitle(effective, options))
         delegate = d
         let app = NSApplication.shared
@@ -79,6 +97,11 @@ public enum StageApp {
         let name = manifest.title.isEmpty ? "Proposal" : manifest.title
         return "Hatch Stage · \(name) · rev \(manifest.revision)"
     }
+}
+
+/// Set by the task that tells Hatch the Stage closed; the delegate waits for it for a moment.
+private final class DoneFlag: @unchecked Sendable {
+    var value = false
 }
 
 @MainActor
@@ -114,6 +137,20 @@ final class StageAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+
+    /// Tells Hatch this Stage was closed on purpose, so it can tell that from a crash (decision S7). Gives the call half a second.
+    func applicationWillTerminate(_ notification: Notification) {
+        let flag = DoneFlag()
+        let model = self.model
+        Task { @MainActor in
+            await model.announceClosed()
+            flag.value = true
+        }
+        let deadline = Date().addingTimeInterval(0.5)
+        while !flag.value && Date() < deadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.02))
+        }
     }
 
     /// A programmatic app has no menu bar unless it makes one. Quit and the Edit items (so Paste works in notes) are enough.

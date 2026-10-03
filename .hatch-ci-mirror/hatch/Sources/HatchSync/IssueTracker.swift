@@ -215,7 +215,7 @@ public final class InMemoryTracker: IssueTracker, @unchecked Sendable {
     }
 
     @discardableResult
-    public func humanComment(repo: String, number: Int, body: String, author: String = "tashda") -> Int {
+    public func humanComment(repo: String, number: Int, body: String, author: String = "owner") -> Int {
         lock.lock(); defer { lock.unlock() }
         let id = nextCommentId; nextCommentId += 1
         issues[repo]?[number]?.comments.append(RemoteComment(id: id, body: body, author: author, createdAt: clock()))

@@ -140,7 +140,9 @@ enum AgentCommands {
     // hatch sync [push|pull|all] [--repo owner/tickets] [--dry-run]
     static func sync(_ c: Context) throws {
         let p = try c.project()
-        let repo = c.args.option("repo") ?? p.config?.ticketsRepo ?? "tashda/hatch-tickets"
+        guard let repo = c.args.option("repo") ?? p.config?.ticketsRepo, !repo.isEmpty else {
+            throw CLIError("This project has no tickets repository. Set one in Project settings, or pass --repo owner/name.")
+        }
         let engine = SyncEngine(store: c.store, tracker: try tracker(c))
         let mode = c.args.pos(1) ?? "all"
         var parts: [String] = []

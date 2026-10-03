@@ -161,6 +161,40 @@ final class ServerTests: APITestCase {
         XCTAssertEqual(try store.ticket(id: t.id)?.status, .revising)
     }
 
+    func testAskWithScreenshotIsKeptAsAnAttachment() throws {
+        let t = try makeProposal()
+        let picture = Data((0..<2000).map { UInt8($0 % 251) })
+        let r = try call("POST", "/v1/tickets/151/note", body: ["kind": "ask", "body": "Why 8pt?", "screenshot": .string(picture.base64EncodedString()), "screenshotType": "png"])
+        XCTAssertEqual(r.status, 200)
+        let path = try XCTUnwrap(r.json["attachment"]?.stringValue)
+        XCTAssertTrue(path.hasPrefix("attachments/\(t.id)/stage-"))
+        XCTAssertTrue(path.hasSuffix(".png"))
+        XCTAssertEqual(try Data(contentsOf: home.appendingPathComponent(path)), picture)
+        let attachment = try XCTUnwrap(store.attachments(ticketId: t.id).first)
+        XCTAssertEqual(attachment.path, path)
+        XCTAssertEqual(attachment.kind, "screenshot")
+        let note = try XCTUnwrap(store.notes(ticketId: t.id).last)
+        XCTAssertEqual(note.context?["attachment"]?.stringValue, path)
+        XCTAssertEqual(try store.ticket(id: t.id)?.status, .revising)
+    }
+
+    func testScreenshotValidation() throws {
+        let t = try makeProposal()
+        let good = Data([1, 2, 3]).base64EncodedString()
+        XCTAssertEqual(try call("POST", "/v1/tickets/151/note", body: ["kind": "note", "body": "x", "screenshot": "not base64!!"]).status, 400)
+        XCTAssertEqual(try call("POST", "/v1/tickets/151/note", body: ["kind": "note", "body": "x", "screenshot": .string(good), "screenshotType": "gif"]).status, 400)
+        let big = Data(count: StageServer.maxScreenshotBytes + 1).base64EncodedString()
+        XCTAssertEqual(try call("POST", "/v1/tickets/151/note", body: ["kind": "note", "body": "x", "screenshot": .string(big)]).status, 413)
+        // Nothing was saved and no note was written by the refused calls.
+        XCTAssertTrue(try store.attachments(ticketId: t.id).isEmpty)
+        XCTAssertTrue(try store.notes(ticketId: t.id).isEmpty)
+        // A note without a picture is as before; the type defaults to jpg.
+        let ok = try call("POST", "/v1/tickets/151/note", body: ["kind": "note", "body": "x", "screenshot": .string(good)])
+        XCTAssertEqual(ok.status, 200)
+        XCTAssertTrue(try XCTUnwrap(ok.json["attachment"]?.stringValue).hasSuffix(".jpg"))
+        XCTAssertEqual(try call("POST", "/v1/tickets/151/note", body: ["kind": "note", "body": "plain"]).json["attachment"], nil)
+    }
+
     func testInstructionSendsBackAndBadKindRejected() throws {
         let t = try makeProposal()
         XCTAssertEqual(try call("POST", "/v1/tickets/151/note", body: ["kind": "shout", "body": "x"]).status, 400)

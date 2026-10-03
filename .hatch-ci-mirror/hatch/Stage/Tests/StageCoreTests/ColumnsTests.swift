@@ -11,9 +11,20 @@ final class ColumnsTests: XCTestCase {
         XCTAssertTrue(cols[1].takesVerdict)
     }
 
-    func testFilmstripBeyondThreeColumns() {
-        XCTAssertFalse(StageColumns.usesFilmstrip(columnCount: 3))
-        XCTAssertTrue(StageColumns.usesFilmstrip(columnCount: 4))
+    func testFilmstripFromFourOptions() {
+        XCTAssertFalse(StageColumns.usesFilmstrip(optionCount: 3))
+        XCTAssertTrue(StageColumns.usesFilmstrip(optionCount: 4))
+    }
+
+    func testEchoTodayDoesNotCountTowardTheFilmstrip() {
+        // Echo today plus three options is four columns but only three options: still side by side (decision H2).
+        var m = Fixtures.fiveOptions()
+        m.specimens = Array(m.specimens.prefix(4))
+        let cols = StageColumns.columns(manifest: m, state: Fixtures.state(for: m))
+        XCTAssertEqual(cols.count, 4)
+        XCTAssertFalse(StageColumns.usesFilmstrip(columns: cols))
+        let five = Fixtures.fiveOptions()
+        XCTAssertTrue(StageColumns.usesFilmstrip(columns: StageColumns.columns(manifest: five, state: Fixtures.state(for: five))))
     }
 
     func testStepWrapsAndSkipsEchoToday() throws {

@@ -5,6 +5,8 @@ import HatchCore
 /// Agents and claims (decisions K1 to K5): who works on what, which files are claimed, what waits, and what it costs.
 struct AgentsView: View {
     @EnvironmentObject var state: AppState
+    /// Agents write through the CLI, so the screen reloads on a timer (K1).
+    @State private var tick = 0
 
     struct RunRow: Identifiable {
         let id: Int
@@ -84,16 +86,17 @@ struct AgentsView: View {
                 runningSection
                 waitingSection
                 readySection
+                costSection
             }
             .padding(20)
             .frame(maxWidth: 820, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
+        .autoReload(every: 5) { tick += 1 }
     }
 
     private var summaryLine: String {
-        let s = slots
-        return "\(s.used) of \(s.max) slots in use. \(tokenText(ticketId: nil, since: startOfToday)) tokens today."
+        "\(tokenText(ticketId: nil, since: startOfToday)) tokens today."
     }
 
     // MARK: Running (K1)
@@ -105,10 +108,22 @@ struct AgentsView: View {
                 HXCard { Text("No agent is working right now.").foregroundStyle(.secondary) }
             }
             ForEach(working) { t in runningCard(t) }
-            if slots.used < slots.max {
-                Text("\(slots.max - slots.used) free slot(s)").font(.caption).foregroundStyle(.secondary)
-            }
+            slotRow
         }
+    }
+
+    /// The slots (K2): one dot per slot, filled while an agent uses it. The limit is set in Settings.
+    private var slotRow: some View {
+        let s = slots
+        return HStack(spacing: 6) {
+            ForEach(0..<max(s.max, 1), id: \.self) { index in
+                Image(systemName: index < s.used ? "circle.fill" : "circle")
+                    .imageScale(.small)
+                    .foregroundStyle(index < s.used ? Theme.agent : Color.secondary)
+            }
+            Text("\(s.used) of \(s.max) slots in use. Change the limit in Settings.").font(.caption).foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func runningCard(_ t: Ticket) -> some View {
@@ -117,8 +132,9 @@ struct AgentsView: View {
         return HXCard {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
+                    Text("Agent on \(t.displayNumber)").font(.headline)
                     Button { state.open(t) } label: {
-                        Text("\(t.displayNumber) \(t.title)").lineLimit(1)
+                        Text(t.title).lineLimit(1)
                     }
                     .buttonStyle(.link)
                     HXChip(text: current?.step ?? t.status.displayName, turn: .agent)
@@ -126,16 +142,18 @@ struct AgentsView: View {
                     runClock(current?.startedAt ?? t.updatedAt)
                 }
                 HStack(spacing: 14) {
-                    Text("Agent on \(t.displayNumber)").font(.caption).foregroundStyle(.secondary)
                     Text("This run: \(hxTokens((current?.tokensIn ?? 0) + (current?.tokensOut ?? 0)))").font(.caption).foregroundStyle(.secondary)
                     Text("Ticket: \(tokenText(ticketId: t.id, since: nil))").font(.caption).foregroundStyle(.secondary)
                 }
                 Text(files.isEmpty ? "No files claimed yet" : "Files: " + files.map(shortName).joined(separator: ", "))
                     .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                 HStack {
-                    Button("Stop") { stop(t) }
-                    Button("Take over in Terminal") { takeOver(t) }
+                    Button(role: .destructive) { stop(t) } label: { Label("Stop", systemImage: "stop.fill") }
+                        .tint(Theme.critical)
+                    Button { takeOver(t) } label: { Label("Take over in Terminal", systemImage: "terminal") }
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
         }
     }
@@ -177,14 +195,14 @@ struct AgentsView: View {
                 }
                 Text(names.isEmpty ? "Shares files with another ticket. Queued by default." : "Shares files with \(names). Queued after \(names) by default.")
                     .font(.callout).foregroundStyle(.secondary)
-                HStack {
-                    if let base = behind.first {
-                        Button("Stack on \(firstName)") {
-                            state.perform("Stack") { try state.store.stack(ticketId: t.id, onto: base) }
-                        }
-                    }
-                    Button("Keep queued") {}
-                        .help("Nothing to do: the ticket starts when the files are free.")
+                Text("Recommended: keep it queued. It then builds on the finished work of \(firstName). Stack only if you want both on one branch.")
+                    .font(.callout)
+                if let base = behind.first {
+                    Button {
+                        state.perform("Stack") { try state.store.stack(ticketId: t.id, onto: base) }
+                    } label: { Label("Stack on \(firstName)", systemImage: "square.3.layers.3d.down.left") }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                 }
             }
         }
@@ -206,6 +224,38 @@ struct AgentsView: View {
                                 Text(task.kind.rawValue).font(.caption).foregroundStyle(.secondary)
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: Cost (K5)
+
+    /// Tokens per day for the last week, from running totals (tokenTotals only takes a start date).
+    private var perDay: [(label: String, tokens: Int)] {
+        let cal = Calendar.current
+        var starts: [Date] = []
+        for back in 0...7 { starts.append(cal.date(byAdding: .day, value: -back, to: startOfToday) ?? startOfToday) }
+        let sums: [Int] = starts.map { start in
+            let t = (try? state.store.tokenTotals(ticketId: nil, since: start)) ?? (input: 0, output: 0)
+            return t.0 + t.1
+        }
+        var rows: [(label: String, tokens: Int)] = []
+        for i in 0..<7 {
+            let label = i == 0 ? "Today" : starts[i].formatted(.dateTime.weekday(.wide))
+            rows.append((label: label, tokens: max(0, sums[i] - sums[i + 1])))
+        }
+        return rows
+    }
+
+    private var costSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Tokens per day").font(.headline)
+            HXCard {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(perDay.enumerated()), id: \.offset) { _, row in
+                        LabeledContent(row.label) { Text(hxTokens(row.tokens)).monospacedDigit() }
                     }
                 }
             }

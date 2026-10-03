@@ -103,9 +103,17 @@ public final class StageClient: @unchecked Sendable {
     }
 
     /// `kind` is note, ask or instruction. An ask or instruction sends the Proposal back, so it is queued like any other write.
+    ///
+    /// `screenshot` is a JPEG (or PNG, with `screenshotType: "png"`) of what the owner was looking at (decision H14); Hatch keeps it
+    /// as an attachment of the ticket. It must stay under `StageServer.maxScreenshotBytes`, or Hatch refuses it with 413.
     @discardableResult
-    public func note(ref: String, kind: String, body: String) throws -> StageDelivery {
-        try send("POST", "/v1/tickets/\(Self.enc(ref))/note", ["kind": .string(kind), "body": .string(body)])
+    public func note(ref: String, kind: String, body: String, screenshot: Data? = nil, screenshotType: String = "jpg") throws -> StageDelivery {
+        var b: [String: JSONValue] = ["kind": .string(kind), "body": .string(body)]
+        if let screenshot {
+            b["screenshot"] = .string(screenshot.base64EncodedString())
+            b["screenshotType"] = .string(screenshotType)
+        }
+        return try send("POST", "/v1/tickets/\(Self.enc(ref))/note", .object(b))
     }
 
     // MARK: Decisions that need Hatch right now (not queued)

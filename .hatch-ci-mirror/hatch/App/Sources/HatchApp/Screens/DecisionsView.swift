@@ -26,7 +26,7 @@ struct DecisionsView: View {
             Divider()
             let list = rows
             if list.isEmpty {
-                HXEmpty(symbol: "flag", title: "No decisions yet", detail: "A decision is recorded when you accept a Proposal.")
+                ContentUnavailableView("No decisions yet", systemImage: "flag", description: Text("A decision is recorded when you accept a Proposal."))
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 10) {
@@ -50,11 +50,19 @@ struct DecisionsView: View {
                     Text(at.formatted(date: .abbreviated, time: .omitted)).font(.caption).foregroundStyle(.secondary)
                 }
                 Text(summary).textSelection(.enabled)
+                let picks = (try? state.store.picks(ticketId: ticket.id)) ?? []
+                if !picks.isEmpty {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(Array(picks.enumerated()), id: \.offset) { _, pick in
+                            LabeledContent(pick.topic) { Text(pick.choice) }.font(.callout)
+                        }
+                    }
+                }
                 if !codes.isEmpty {
                     HStack(spacing: 6) {
                         ForEach(codes, id: \.self) { code in
                             Text(code).font(.caption.monospaced()).padding(.horizontal, 6).padding(.vertical, 1)
-                                .background(Theme.hatchBackground, in: Capsule())
+                                .background(.quaternary, in: Capsule())
                         }
                     }
                 }

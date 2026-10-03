@@ -22,7 +22,9 @@ Updated whenever work lands. "Verified" means it was compiled and its tests were
 
 Total: 334 package tests plus the CLI smoke test, all green.
 
-## Compiled on macOS (Swift 6.4, Xcode 27, via the CI mirror, 2026-10-03)
+## Compiled and tested on macOS (Swift 6.4, Xcode 27, via the CI mirror, 2026-10-03)
+
+All core tests (a few Echo-checkout tests skip there) and the CLI smoke test pass on macOS; the macOS run takes about 4 minutes because the git and sync suites are slow there. One real macOS-only bug was found and fixed: the Stage API reset the connection on an oversized body, so the client never saw the 413.
 
 - `App/`: the SwiftUI app (shell, Desk, Tickets, Board, ticket view, composer with Iris review, Previews, Agents, Project, Specs, Decisions, Log, Ask panel, command palette, Sketch board, Stage launcher, settings) **builds**. It has not been run or looked at by a person yet; there are no UI tests.
 - `Stage/`: StageCore tests pass, StageKit and the toast round (`HatchStageToast`) **build**.

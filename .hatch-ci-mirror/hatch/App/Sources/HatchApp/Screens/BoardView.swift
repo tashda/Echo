@@ -68,6 +68,7 @@ struct BoardView: View {
             } label: {
                 Label("List", systemImage: "list.bullet")
             }
+            .buttonStyle(.glass)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)

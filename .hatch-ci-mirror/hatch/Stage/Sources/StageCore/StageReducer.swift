@@ -71,6 +71,9 @@ public enum StageAction: Equatable {
     case confirmSendBack
     case sendAsk
     case dismissOutcome
+    // Revisions (decision H15)
+    case setViewRevision(Int?)
+    case markRevisionSeen
     // Motion
     case togglePlay(duration: Double)
     case scrub(seconds: Double, duration: Double)
@@ -96,6 +99,24 @@ public enum StageEffect: Equatable {
 public enum StageReducer {
 
     // MARK: Entry point
+
+    /// The manifest the owner is looking at: the latest, or an earlier revision picked in the revision switcher.
+    public static func viewedManifest(full: StageManifest, state: StageState) -> StageManifest {
+        guard let n = state.viewRevision, n >= 1, n < full.revision else { return full }
+        return full.atRevision(n)
+    }
+
+    /// Like `reduce`, but works from the latest manifest and keeps the state valid when the viewed revision changes
+    /// (the selected option or scenario may not exist in an earlier revision). Returns the effects and the manifest to draw.
+    public static func apply(_ s: inout StageState, _ action: StageAction, full: StageManifest) -> (effects: [StageEffect], viewed: StageManifest) {
+        let before = viewedManifest(full: full, state: s)
+        let effects = reduce(&s, action, manifest: before)
+        // The latest revision is stored as nil, so a reload that brings a newer one is followed.
+        if let n = s.viewRevision, n < 1 || n >= full.revision { s.viewRevision = nil }
+        let after = viewedManifest(full: full, state: s)
+        if after.revision != before.revision { reconcile(&s, manifest: after) }
+        return (effects, after)
+    }
 
     @discardableResult
     public static func reduce(_ s: inout StageState, _ action: StageAction, manifest m: StageManifest) -> [StageEffect] {
@@ -172,7 +193,14 @@ public enum StageReducer {
 
         case .addPin(let text, let option, let x, let y): return addPin(&s, text: text, option: option, x: x, y: y)
         case .openPin(let id): openPin(&s, id, m)
-        case .removePin(let id): s.pins.removeAll(where: { $0.id == id })
+        case .removePin(let id):
+            if let pin = s.pins.first(where: { $0.id == id }) {
+                var hidden = s.hiddenPinKeys ?? []
+                let key = StageMerge.pinKey(text: pin.text, option: pin.option)
+                if !hidden.contains(key) { hidden.append(key) }
+                s.hiddenPinKeys = hidden
+            }
+            s.pins.removeAll(where: { $0.id == id })
 
         case .requestAccept: s.sheet = .accept; s.formError = nil
         case .requestSendBack: s.sheet = .sendBack; s.formError = nil
@@ -207,6 +235,8 @@ public enum StageReducer {
             s.askDraft = ""
             return [.note(kind: "ask", body: text + "\n\n" + describe(s, manifest: m))]
         case .dismissOutcome: s.outcome = nil
+        case .setViewRevision(let n): s.viewRevision = n
+        case .markRevisionSeen: s.seenRevision = m.revision
 
         case .togglePlay(let d): s.transport.togglePlay(duration: d)
         case .scrub(let t, let d): s.transport.playing = false; s.transport.scrub(to: t, duration: d)
@@ -393,6 +423,11 @@ public enum StageReducer {
         let pin = StagePin(id: "pin.\(number)", number: number, text: t, option: option, x: x, y: y, scenario: s.scenario,
                            appearance: s.appearance, corners: s.corners, zoom: s.zoom)
         s.pins.append(pin)
+        let key = StageMerge.pinKey(text: pin.text, option: pin.option)
+        if var hidden = s.hiddenPinKeys, hidden.contains(key) {
+            hidden.removeAll(where: { $0 == key })
+            s.hiddenPinKeys = hidden
+        }
         s.pinMode = false
         return [.pin(pin)]
     }
@@ -411,6 +446,10 @@ public enum StageReducer {
     /// After loading a saved state for a manifest: drop what no longer exists, fill what is new.
     public static func reconcile(_ s: inout StageState, manifest m: StageManifest) {
         for (k, v) in m.defaultControlValues where s.controlValues[k] == nil { s.controlValues[k] = v }
+        // A choice that does not exist in this revision (an earlier one) falls back to the default.
+        for c in m.controls {
+            if let v = s.controlValues[c.id], !c.choices.contains(where: { $0.id == v }) { s.controlValues[c.id] = c.defaultChoice }
+        }
         let scenarioOK = m.effectiveScenarios.contains(where: { $0.id == s.scenario && $0.applicable })
         if !scenarioOK { s.scenario = m.applicableScenarios.first?.id ?? "rest" }
         let proposals = m.proposalSpecimens.map { $0.id }

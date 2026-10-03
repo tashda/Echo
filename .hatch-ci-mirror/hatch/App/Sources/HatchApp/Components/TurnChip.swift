@@ -97,6 +97,8 @@ struct TurnBanner: View {
             Spacer(minLength: 12)
             if let secondaryTitle, let secondaryAction {
                 Button(secondaryTitle, action: secondaryAction)
+                    .buttonStyle(.glass)
+                    .controlSize(.large)
             }
             if let actionTitle, let action {
                 Button(actionTitle, action: action)
