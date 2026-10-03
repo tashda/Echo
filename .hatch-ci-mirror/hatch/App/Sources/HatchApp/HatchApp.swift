@@ -3,14 +3,16 @@ import HatchCore
 
 @main
 struct HatchApp: App {
-    @StateObject private var state = AppState.live()
+    @StateObject private var state = Snapshots.folder == nil ? AppState.live() : Snapshots.demoState()
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(state)
                 .frame(minWidth: 1000, minHeight: 640)
-                .task { state.startServices() }
+                .task {
+                    if let folder = Snapshots.folder { await Snapshots.run(state: state, into: folder) } else { state.startServices() }
+                }
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in state.stopServices() }
         }
         .commands { HatchCommands(state: state) }

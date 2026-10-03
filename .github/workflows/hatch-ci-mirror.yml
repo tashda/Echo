@@ -15,6 +15,7 @@ jobs:
   tests:
     name: "Core tests (macOS)"
     runs-on: xcode-27
+    timeout-minutes: 12
     steps:
     - uses: actions/checkout@v4
     - name: Core tests and CLI smoke test
@@ -24,6 +25,9 @@ jobs:
         set -o pipefail
         swift test 2>&1 | tee /tmp/test.log | grep -E "error:|: failed|Executed [0-9]+ tests" | tail -30
         swift build --product hatch && tools/smoke.sh .build/debug/hatch
+    - name: Last test lines (shows where a hang is)
+      if: always()
+      run: tail -40 /tmp/test.log || true
 
   app:
     name: "App (macOS)"
@@ -37,6 +41,22 @@ jobs:
       run: |
         set -o pipefail
         swift build 2>&1 | tee /tmp/app-build.log | grep -E "error:|Build complete" | sort -u | head -150
+    - name: Screenshots of every screen (made-up data)
+      working-directory: .hatch-ci-mirror/hatch/App
+      continue-on-error: true
+      run: |
+        mkdir -p /tmp/shots
+        .build/debug/HatchApp --snapshots /tmp/shots &
+        pid=$!
+        for i in $(seq 1 90); do kill -0 $pid 2>/dev/null || break; sleep 1; done
+        kill $pid 2>/dev/null || true
+        ls -la /tmp/shots
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: hatch-screens
+        path: /tmp/shots/*.png
+        if-no-files-found: warn
 
   stage:
     name: "Stage and spike timing (macOS)"
