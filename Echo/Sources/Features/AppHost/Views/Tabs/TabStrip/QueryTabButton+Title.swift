@@ -22,11 +22,9 @@ extension QueryTabButton {
                 .help(tabTooltip)
         } else {
             HStack(spacing: SpacingTokens.xxs2) {
-                // The icon's room; the icon is on the strip's layer above. A tab with no home
-                // shows its ☆ here while the pointer is on it (round IC).
+                // The icon's room; the icon is on the strip's layer above.
                 Color.clear.frame(width: SpacingTokens.sm2, height: SpacingTokens.sm2)
-                    .overlay { if showsSaveStar { saveStar } }
-                    .accessibilityHidden(!showsSaveStar)
+                    .accessibilityHidden(true)
 
                 titleText
 
@@ -50,20 +48,32 @@ extension QueryTabButton {
     @ViewBuilder
     private var titleText: some View {
         let text = Text(displayedTitle)
-            .font(isActive && hasToolPages ? TypographyTokens.detail.weight(.medium) : tabTitleFont)
+            .font(showsPagesInTab ? TypographyTokens.detail.weight(.medium) : tabTitleFont)
             .lineLimit(1)
             .foregroundStyle(tabTitleColor)
-        if hasToolPages || finalWidth <= 0 {
+        if showsPagesInTab || finalWidth <= 0 {
             text.fixedSize()
         } else {
             text
                 .frame(width: max(finalWidth - Self.fixedChrome - centringLead, 0), alignment: .leading)
-                .transaction { $0.animation = nil }
+                .placedAtOnceWhenResized(width: finalWidth, isActive: isActive)
         }
+    }
+
+    /// How far a tab moves its icon and title in from the fixed inset to centre them: every tab but
+    /// the front tool tab showing its pages, which starts at the fixed inset.
+    var centringLead: CGFloat {
+        guard !isIconOnly, !showsPagesInTab else { return 0 }
+        return TabLabelLayout.iconInset(title: displayedTitle, width: finalWidth, hasPages: false, isIconOnly: false)
+            - LayoutTokens.TabPages.iconInset
     }
 
     /// A tool tab shows its pages after its title while they fit the strip (ST2, FP4).
     var hasToolPages: Bool { !tab.isPinned && pagesInTab && !tab.toolPages.isEmpty }
+
+    /// The front tool tab shows its pages after a left-aligned title; a tool tab behind another
+    /// hides them and centres its title like any tab (owner, 2026-10-05).
+    var showsPagesInTab: Bool { hasToolPages && isActive }
 
     /// Title, database, and when a running query started.
     var tabTooltip: String {

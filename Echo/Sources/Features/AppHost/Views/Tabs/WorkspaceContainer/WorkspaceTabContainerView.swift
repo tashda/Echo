@@ -113,6 +113,10 @@ struct WorkspaceTabContainerView: View {
                     insertion: .opacity.combined(with: .scale(scale: 0.98)),
                     removal: .opacity.combined(with: .scale(scale: pageSession == nil ? 0.98 : WelcomeMarkMotion.revealScale))
                 ))
+                // Above the page while it leaves too: without an explicit order a ZStack may draw a
+                // view on its way out under its siblings, and the page then snapped in over the
+                // fading tab instead of being uncovered (CH1).
+                .zIndex(1)
             }
         }
         .frame(minWidth: SpacingTokens.none, maxWidth: .infinity, minHeight: SpacingTokens.none, maxHeight: .infinity)

@@ -1,92 +1,52 @@
 import SwiftUI
 
 extension QueryTabStrip {
-    func tabOffset(for tab: WorkspaceTab, index: Int, tabWidth: CGFloat) -> CGFloat {
-        guard dragState.isActive, let draggingId = dragState.id else { return 0 }
-        if draggingId == tab.id {
-            return dragState.translation
-        }
-        guard tabWidth > 0 else { return 0 }
-
-        if dragState.currentIndex > dragState.originalIndex {
-            if index > dragState.originalIndex && index <= dragState.currentIndex {
-                return -tabWidth
-            }
-        } else if dragState.currentIndex < dragState.originalIndex {
-            if index >= dragState.currentIndex && index < dragState.originalIndex {
-                return tabWidth
-            }
-        }
-
-        return 0
+    func tabOffset(for tab: WorkspaceTab, index: Int) -> CGFloat {
+        guard dragState.isActive else { return 0 }
+        return dragState.id == tab.id ? dragState.translation : dragState.offset(forTabAt: index)
     }
 
     func tabZIndex(for tab: WorkspaceTab) -> Double {
-        dragState.id == tab.id ? 1 : 0
+        liftedTabID == tab.id ? 1 : 0
     }
 
-    func dragGesture(for tab: WorkspaceTab, tabWidth: CGFloat, index: Int, totalCount: Int) -> some Gesture {
+    /// `widths` are every tab's width in strip order: a tool tab showing its pages is wider than
+    /// the rest, so the tabs make room by the dragged tab's own width (round 49).
+    func dragGesture(for tab: WorkspaceTab, index: Int, widths: [CGFloat]) -> some Gesture {
         DragGesture(minimumDistance: 4, coordinateSpace: .local)
             .onChanged { value in
                 if !dragState.isActive {
-                    if let bounds = boundsForDraggingTab(tab) {
-                        dragState.begin(
-                            id: tab.id,
-                            originalIndex: index,
-                            minIndex: bounds.min,
-                            maxIndex: bounds.max
-                        )
-                    } else {
-                        return
-                    }
+                    guard let bounds = boundsForDraggingTab(tab) else { return }
+                    dragState.begin(id: tab.id, originalIndex: index, minIndex: bounds.min, maxIndex: bounds.max, widths: widths)
+                    liftedTabID = tab.id
                 }
+                guard dragState.id == tab.id else { return }
 
-                let translation = value.translation.width
-                let clampedTranslation = clampTranslation(translation, for: dragState, tabWidth: tabWidth)
-                let moveThreshold = tabWidth * 0.4
-                var remainder = clampedTranslation
-                var proposedIndex = dragState.originalIndex
-
-                while remainder > moveThreshold && proposedIndex < dragState.maxIndex {
-                    remainder -= tabWidth
-                    proposedIndex += 1
-                }
-
-                while remainder < -moveThreshold && proposedIndex > dragState.minIndex {
-                    remainder += tabWidth
-                    proposedIndex -= 1
-                }
-
+                let translation = dragState.clamped(value.translation.width)
+                let proposedIndex = dragState.proposedIndex(for: translation)
                 if proposedIndex != dragState.currentIndex {
                     withAnimation(tabReorderAnimation) {
                         dragState.currentIndex = proposedIndex
                     }
                 }
-
-                dragState.translation = clampedTranslation
+                dragState.translation = translation
             }
             .onEnded { _ in
                 guard dragState.isActive, dragState.id == tab.id else { return }
                 let finalIndex = dragState.currentIndex
                 let shouldMove = finalIndex != dragState.originalIndex
 
-                if shouldMove {
-                    withAnimation(tabReorderAnimation) {
+                // The tab stays raised until it has settled, so it never slides under a neighbour.
+                withAnimation(tabReorderAnimation) {
+                    if shouldMove {
                         tabStore.moveTab(id: tab.id, to: finalIndex)
                     }
-                }
-
-                withAnimation(tabReorderAnimation) {
                     dragState.reset()
+                } completion: {
+                    if liftedTabID == tab.id { liftedTabID = nil }
                 }
                 hoveredTabID = nil
             }
-    }
-
-    func clampTranslation(_ translation: CGFloat, for state: TabDragState, tabWidth: CGFloat) -> CGFloat {
-        let maxRight = CGFloat(state.maxIndex - state.originalIndex) * tabWidth
-        let maxLeft = CGFloat(state.originalIndex - state.minIndex) * tabWidth
-        return min(max(translation, -maxLeft), maxRight)
     }
 
     func tabBounds(for tab: WorkspaceTab, totalCount: Int) -> (min: Int, max: Int) {

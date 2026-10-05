@@ -26,7 +26,6 @@ extension QueryTabStrip {
             isActive: isActive,
             onSelect: { tabStore.activeTabId = tab.id },
             onClose: { tabStore.closeTab(id: tab.id) },
-            onAddBookmark: tab.query == nil ? nil : { bookmark(tab: tab) },
             onPinToggle: { tabStore.togglePin(for: tab.id) },
             onDuplicate: { environmentState.duplicateTab(tab) },
             onCloseOthers: { tabStore.closeOtherTabs(keeping: tab.id) },
@@ -52,7 +51,8 @@ extension QueryTabStrip {
             },
             finalWidth: targetWidth,
             pagesInTab: pagesInTab,
-            isIconOnly: isIconOnly
+            isIconOnly: isIconOnly,
+            isLifted: liftedTabID == tab.id
         )
         .frame(width: targetWidth > 0 ? targetWidth : nil)
         // The Save card hangs from the tab it saves (round IC).
@@ -63,12 +63,6 @@ extension QueryTabStrip {
                 transaction.animation = nil
             }
         }
-    }
-
-    /// A tab's Add to Bookmarks: the Save card on Bookmarks (round IC). A tab without a home takes
-    /// the bookmark as its home.
-    func bookmark(tab: WorkspaceTab) {
-        environmentState.presentSaveCard(for: tab, destination: .bookmarks)
     }
 
     // MARK: - Database Switching

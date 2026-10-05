@@ -7,7 +7,18 @@ extension QueryTabButton {
     @ViewBuilder
     var tabBackground: some View {
 #if os(macOS)
-        if let gradient = macTabFillGradient {
+        if isLifted {
+            // A dragged tab hides the tabs it passes: the strip's own grey under it, then the
+            // front tab's plate (or the hover fill), as Safari's tabs do (TABS-2.13).
+            ZStack {
+                tabShape.fill(ColorTokens.TabStrip.Background.plate)
+                if isActive {
+                    TabRaisedPlate()
+                } else if let gradient = macTabFillGradient {
+                    tabShape.fill(gradient)
+                }
+            }
+        } else if let gradient = macTabFillGradient {
             tabShape.fill(gradient)
         } else {
             tabShape.fill(Color.clear)
@@ -42,6 +53,19 @@ extension QueryTabButton {
             .stroke(hoverHighlightColor, lineWidth: 1.1)
             .opacity(shouldShowHoverOutline ? 1 : 0)
 #endif
+    }
+
+    /// The icon a dragged tab carries over the others, where the strip's layer draws it.
+    @ViewBuilder
+    var liftedIcon: some View {
+        if !tab.isPinned {
+            TabIconGlyph(symbol: tab.iconName, mark: tab.homeMark, isActive: isActive, isRunning: tab.query?.isExecuting == true)
+                .padding(.leading, TabLabelLayout.iconInset(title: displayedTitle, width: finalWidth,
+                                                            hasPages: showsPagesInTab, isIconOnly: isIconOnly))
+                .opacity(isIconOnly && isHovering ? 0 : 1)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
     }
 
     var closeButtonArea: some View {

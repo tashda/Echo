@@ -15,8 +15,8 @@ enum TabsArea {
         summary: "Safari-style tabs on one line: a grey plate with a white plate that glides to the active tab, a glass + at the end, and a tool's every page inside its own tab (a row under the strip only when they cannot fit).",
         asBuilt: AsBuiltPage(
             verification: .init(
-                level: .code, commit: "8e2be784", date: "2026-10-02",
-                note: "Read from QueryTabStrip (+Plate, +Unfold), QueryTabButton (+Title, +CloseButton, +Appearance), TabActivePlate, TabIconLayer, TabPageChips, TabPageLayout and the tab tokens. The specimen is drawn with the same tokens and metrics; its icons stand still, as in Echo, but it does not draw the glide of a drag."),
+                level: .code, commit: "5007de14", date: "2026-10-05",
+                note: "Read from QueryTabStrip (+Plate, +Unfold, +DragReorder), TabDragState, QueryTabButton (+Title, +Home, +ContextMenu, +CloseButton, +Appearance), TabActivePlate, TabIconLayer, TabPageChips, TabPageLayout and the tab tokens. The specimen is drawn with the same tokens and metrics; its icons stand still, as in Echo, but it does not draw the glide of a drag."),
             stageHeight: 150,
             behaviours: [
                 .init(trigger: "Click a tab", result: "Selects on press, so the click counts at once; dragging still reorders. Pressing the close button doesn't select the tab. The white plate glides to the tab and the widths follow on one smooth curve; the icons do not travel (round 49, MO9)."),
@@ -27,14 +27,14 @@ enum TabsArea {
                 .init(trigger: "Many tabs", result: "Tabs share the width equally and simply get narrower. While a tool tab with pages is in front, the others shrink as far as their icons alone (40pt; round 49, FP1)."),
                 .init(trigger: "Click +", result: "Opens a new query tab."),
                 .init(trigger: "Open a tool with pages", result: "The active tool tab shows a short hairline after its title, then every page on the tab itself (shortened names, 6pt padding), the shown one semibold on a soft pill; it is exactly as wide as that, and the other tabs share what is left, down to their icons. Alone, it keeps that width at the leading edge (rounds 36.1, 49). When even that cannot fit the strip, the pages take a row under the strip; nothing goes into a menu (FP4)."),
-                .init(trigger: "Drag a tab", result: "It follows the pointer; the others make room; separators next to it hide."),
+                .init(trigger: "Drag a tab", result: "It lifts above the other tabs, carrying its own plate and icon, so nothing shows through it; the others make room by its own width (a tool tab with pages is wider), and a neighbour gives way once 60% of it is covered. Separators next to it hide. It stays raised until it has settled (owner, 2026-10-05)."),
                 .init(trigger: "Close a query tab you changed", result: "A standard alert: Save (to a bookmark), Save As (a .sql file), Don't Save, Cancel. Several at once ask once (TABS-8)."),
                 .init(trigger: "⇧⌘O, the overview button, a pinch in, or \"Tab Overview\" in ⌘K", result: "The ⌘K palette turns to this window's tabs, grouped by server, each with its live state (round 35.1). ↩ goes to the tab; ⌫ closes it, ⌘D duplicates it, ⌥⌫ closes the others, and the palette stays open."),
             ],
             motions: [
-                .init(name: "Switching tabs", curve: "smooth, no bounce (EchoMotion.glide)", duration: "0.3s", note: "QueryTabStrip.switchAnimation (round 49, MO9): the plate, every tab's width and the page row move together; icons and titles are placed for the width the tab is moving to, at once; the icons are on a still layer (TabIconLayer) and do not travel"),
+                .init(name: "Switching tabs", curve: "smooth, no bounce (EchoMotion.glide)", duration: "0.3s", note: "QueryTabStrip.switchAnimation (round 49, MO9): the plate, every tab's width and the page row move together; a tab whose width changes gets its icon and title at their final place at once (they never slide inside it); a tab that only moves carries them with it (placedAtOnceWhenResized, owner 2026-10-05)"),
                 .init(name: "Pages with their tab", curve: "ease out (EchoMotion.pageFade)", duration: "0.18s", note: "a tool tab's pages fade with it, clipped by the tab as it narrows; an icon-only tab's title fades the same way"),
-                .init(name: "Reorder while dragging", curve: "interactive spring, response 0.2, damping 0.9", duration: "interactive", note: "tabReorderAnimation"),
+                .init(name: "Reorder while dragging", curve: "interactive spring, response 0.2, damping 0.9", duration: "interactive", note: "tabReorderAnimation; every tab's icon and title move with it, and the dropped tab settles with its own"),
                 .init(name: "Page chip selection", curve: "snappy", duration: "0.22s"),
             ],
             measurements: [
@@ -111,17 +111,17 @@ enum TabsArea {
                 .layout(.row("Height", "24pt minimum", token: "WorkspaceChromeMetrics.tabHeight"),
                         .row("Corner", "15pt continuous", token: "QueryTabButton.tabCornerRadius"),
                         .row("Padding", "8 leading · 12 trailing · 2 vertical", token: "SpacingTokens.xs / sm / xxxs"),
-                        .row("Content", "× · icon room · title from a fixed inset (left to right) · 12pt spacer")),
+                        .row("Content", "× at the leading edge · icon room and title (centred in a tab without pages) · 12pt spacer; laid over the tab, so a tab narrower than what it holds keeps it at the leading edge and clips the rest")),
             ], files: [files + "QueryTabButton.swift"]),
-            SpecElement(number: "2.2", name: "Icon", summary: "The tab's kind icon, one per tool and none repeated (round 49, IC1), drawn on a still layer above the tabs (MO9).", groups: [
+            SpecElement(number: "2.2", name: "Icon", summary: "The tab's kind icon, one per tool and none repeated (round 49, IC1), drawn on a still layer above the tabs (MO9). A query tab's home replaces it: a filled bookmark in the accent colour, a document for a .sql file, a dot while there are unsaved changes (round IC). No ☆ on hover (owner, 2026-10-05).", groups: [
                 .type(.row("Symbol size", "11pt", token: "TypographyTokens.detail"), .row("Frame", "14pt wide", token: "SpacingTokens.sm2"), .row("Gap to the title", "6pt", token: "SpacingTokens.xxs2")),
-                .layout(.row("Inset", "centred with the title in a tab without pages (never closer than 22pt to the left edge); 22pt in a tool tab with pages; centred alone in an icon-only tab", token: "TabLabelLayout.iconInset / LayoutTokens.TabPages.iconInset"),
-                        .row("Layer", "TabIconLayer: already at its final place, it does not move when the front tab changes")),
+                .layout(.row("Inset", "centred with the title (never closer than 22pt to the left edge); 22pt in the front tool tab showing its pages; centred alone in an icon-only tab", token: "TabLabelLayout.iconInset / LayoutTokens.TabPages.iconInset"),
+                        .row("Layer", "TabIconLayer: at its final place at once when its tab's width changes, carried with its tab when the tab only moves; under the tabs while one is dragged, which draws its own (TabIconGlyph)")),
                 .states(.row("Active", "title colour at 80%"), .row("Inactive", "title colour at 70%")),
             ], files: [files + "QueryTabButton+Title.swift"]),
             SpecElement(number: "2.3", name: "Title", summary: "One line, centred with its icon (owner, 2026-10-02) and never sliding inside its tab (round 49, MO9).", groups: [
                 .type(.row("Font", "11pt regular", token: "TypographyTokens.detail"),
-                      .row("Alignment", "icon and title centred in a tab without pages, from the width the tab is moving to (they land there at once and never slide); left from a fixed inset in a tool tab with pages; pinned tabs centre their letter", token: "TabLabelLayout.iconInset"),
+                      .row("Alignment", "icon and title centred, from the width the tab is moving to (they land there at once and never slide), in every tab but the front tool tab showing its pages, which is left from a fixed inset; a tool tab behind another is centred too (owner, 2026-10-05); pinned tabs centre their letter", token: "TabLabelLayout.iconInset"),
                       .row("Lines", "1, truncated at the end"),
                       .row("Active colour", "label", token: "NSColor.labelColor"),
                       .row("Inactive colour", "secondary label", token: "NSColor.secondaryLabelColor")),
@@ -165,12 +165,14 @@ enum TabsArea {
                 .behaviour(.row("Format", "Title · database · Running since 10:42:03; the database is the tab's subtitle or its active database")),
             ], rounds: ["decided.round12-two-line-tabs"], files: [files + "QueryTabButton+Title.swift"]),
             SpecElement(number: "2.12", name: "Context menu", summary: "Right-click a tab.", groups: [
-                .behaviour(.row("Items", "Pin Tab or Unpin Tab; Duplicate Tab; Switch Database (a submenu with a check on the current one, when the connection has databases); Close Tab; Close Other Tabs; Close Tabs to the Left; Close Tabs to the Right; Add to Bookmarks (when offered)"),
+                .behaviour(.row("Items", "Pin Tab or Unpin Tab; Duplicate Tab; Switch Database (a submenu with a check on the current one, when the connection has databases); Close Tab; Close Other Tabs; Close Tabs to the Left; Close Tabs to the Right; for a query tab Save, Save to Bookmarks…, Save to File…, then Show in Bookmarks or Show in Finder and Detach from Bookmark or File when it has that home"),
                            .row("Disabled", "Duplicate, Close Others and the left and right closes when they would do nothing")),
-            ], files: [files + "QueryTabButton.swift"]),
-            SpecElement(number: "2.13", name: "Drag to reorder", summary: "Tabs follow the pointer and the others slide aside.", groups: [
+            ], files: [files + "QueryTabButton+ContextMenu.swift", files + "QueryTabButton+Home.swift"]),
+            SpecElement(number: "2.13", name: "Drag to reorder", summary: "The dragged tab lifts above the others with its own plate and icon; the others slide aside by its width.", groups: [
                 .motion(.row("Spring", "interactive, response 0.2, damping 0.9", token: "tabReorderAnimation")),
-            ], files: [files + "QueryTabStrip+DragReorder.swift"]),
+                .behaviour(.row("Swap", "a neighbour gives way once 60% of it is covered, measured with each tab's own width", token: "TabDragState.swapThreshold"),
+                           .row("Lift", "the strip's grey, then the white plate (or the hover fill) under the dragged tab; raised until it settles")),
+            ], files: [files + "QueryTabStrip+DragReorder.swift", files + "TabDragState.swift"]),
         ]),
         SpecPart(number: "3", name: "Separator", summary: "The hairline between tabs.", elements: [
             SpecElement(number: "3.1", name: "Separator", summary: "A thin capsule that fades near the active or hovered tab.", groups: [

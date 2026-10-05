@@ -35,36 +35,14 @@ struct QueryTabStrip: View {
 
     @State var hoveredTabID: UUID?
     @State var dragState = TabDragState()
+    /// The dragged tab, raised over the others until it has settled in its place (TABS-2.13).
+    @State var liftedTabID: UUID?
     @State private var measuredTabGroupWidth: CGFloat = 0
     @State private var pageRowTabID: UUID?
     @State private var databaseNamesBySessionID: [UUID: [String]] = [:]
 
     private var tabStripStyle: TabStripBackground.Style {
         .standard(colorScheme)
-    }
-
-    struct TabDragState: Equatable {
-        var id: UUID?
-        var originalIndex: Int = 0
-        var currentIndex: Int = 0
-        var translation: CGFloat = 0
-        var minIndex: Int = 0
-        var maxIndex: Int = 0
-
-        var isActive: Bool { id != nil }
-
-        mutating func begin(id: UUID, originalIndex: Int, minIndex: Int, maxIndex: Int) {
-            self.id = id
-            self.originalIndex = originalIndex
-            self.currentIndex = originalIndex
-            self.translation = 0
-            self.minIndex = minIndex
-            self.maxIndex = maxIndex
-        }
-
-        mutating func reset() {
-            self = TabDragState()
-        }
     }
 
     @State private var isNewTabHovered = false
@@ -227,7 +205,11 @@ struct QueryTabStrip: View {
             activePlate(orderedTabs: orderedTabs, tabWidth: tabWidth, widths: widths)
             tabRow(orderedTabs: orderedTabs, tabWidth: tabWidth, widths: widths, pagesInTab: pagesInTab,
                    databaseNamesBySessionID: databaseNamesBySessionID)
+                .zIndex(1)
+            // Above the tabs, except while one is dragged: then the icons go under the tabs, so
+            // the dragged tab, which carries its own plate and icon, covers the ones it passes.
             iconLayer(orderedTabs: orderedTabs, tabWidth: tabWidth, widths: widths, pagesInTab: pagesInTab)
+                .zIndex(liftedTabID == nil ? 2 : 0.5)
         }
         .fixedSize()
         // Switching tabs: the plate, the widths and the pages move on one smooth curve (round 49,
@@ -243,7 +225,8 @@ struct QueryTabStrip: View {
         pagesInTab: Bool,
         databaseNamesBySessionID: [UUID: [String]]
     ) -> some View {
-        HStack(spacing: 0) {
+        let orderedWidths = orderedTabs.map { widths[$0.0.id] ?? tabWidth }
+        return HStack(spacing: 0) {
             ForEach(Array(orderedTabs.enumerated()), id: \.element.0.id) { index, element in
                 let tab = element.0
 
@@ -258,7 +241,7 @@ struct QueryTabStrip: View {
                         && TabUnfoldLayout.isIconOnly(width: widths[tab.id] ?? tabWidth, isFront: tab.id == tabStore.activeTabId),
                     databaseNames: databaseNamesBySessionID[tab.connectionSessionID, default: []]
                 )
-                    .offset(x: tabOffset(for: tab, index: index, tabWidth: tabWidth))
+                    .offset(x: tabOffset(for: tab, index: index))
                     .zIndex(tabZIndex(for: tab))
                     .overlay(alignment: .trailing) {
                         if index < orderedTabs.count - 1 {
@@ -269,12 +252,7 @@ struct QueryTabStrip: View {
                         }
                     }
                     .simultaneousGesture(
-                        dragGesture(
-                            for: tab,
-                            tabWidth: tabWidth,
-                            index: index,
-                            totalCount: orderedTabs.count
-                        )
+                        dragGesture(for: tab, index: index, widths: orderedWidths)
                     )
             }
         }

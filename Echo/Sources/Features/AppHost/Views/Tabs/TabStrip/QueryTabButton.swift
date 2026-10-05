@@ -8,7 +8,6 @@ struct QueryTabButton: View {
     let isActive: Bool
     let onSelect: () -> Void
     let onClose: () -> Void
-    let onAddBookmark: (() -> Void)?
     let onPinToggle: () -> Void
     let onDuplicate: () -> Void
     let onCloseOthers: () -> Void
@@ -30,6 +29,8 @@ struct QueryTabButton: View {
     var pagesInTab = true
     /// Squeezed by the tool tab in front: only its icon shows (FP1).
     var isIconOnly = false
+    /// Dragged: drawn above the other tabs with its own plate and icon (TABS-2.13).
+    var isLifted = false
 
     @State var isHovering = false
     @State var isHoveringClose = false
@@ -60,13 +61,20 @@ struct QueryTabButton: View {
     var hairlineWidth: CGFloat { tabHairlineWidth() }
 
     var body: some View {
-        contentRow
-        .padding(.leading, tab.isPinned ? 13 : SpacingTokens.xs)
-        .padding(.trailing, tab.isPinned ? 13 : SpacingTokens.sm)
-        .padding(.vertical, SpacingTokens.xxxs)
-        .frame(maxWidth: .infinity, minHeight: WorkspaceChromeMetrics.tabHeight, alignment: tab.isPinned ? .center : .leading)
-        .opacity(isIconOnly ? 0 : 1)
-        .animation(motion.pageFade, value: isIconOnly)
+        // Laid over the tab rather than sizing it: a tab narrower than what it holds (a tool tab
+        // behind another, or one still growing) keeps it at its leading edge and clips the rest,
+        // instead of centring it under its icon.
+        Color.clear
+        .frame(maxWidth: .infinity, minHeight: WorkspaceChromeMetrics.tabHeight)
+        .overlay(alignment: tab.isPinned ? .center : .leading) {
+            contentRow
+                .padding(.leading, tab.isPinned ? 13 : SpacingTokens.xs)
+                .padding(.trailing, tab.isPinned ? 13 : SpacingTokens.sm)
+                .padding(.vertical, SpacingTokens.xxxs)
+                .opacity(isIconOnly ? 0 : 1)
+                .animation(motion.pageFade, value: isIconOnly)
+        }
+        .overlay(alignment: .leading) { if isLifted { liftedIcon } }
         // An icon-only tab shows its close button in the icon's place while the pointer is on it.
         .overlay { if isIconOnly && shouldShowClose { closeButtonArea } }
         // Nothing the tab holds is wider than the tab while it moves (round 49, MO9).
@@ -105,64 +113,6 @@ struct QueryTabButton: View {
         }
     }
 
-    private var tabContextMenuContent: some View {
-        Group {
-            Button(action: onPinToggle) {
-                Label(tab.isPinned ? "Unpin Tab" : "Pin Tab", systemImage: tab.isPinned ? "pin.slash" : "pin")
-            }
-
-            Button(action: onDuplicate) {
-                Label("Duplicate Tab", systemImage: "plus.square.on.square")
-            }
-            .disabled(!canDuplicate)
-
-            if !availableDatabases.isEmpty, let onSwitchDatabase {
-                Divider()
-                Menu {
-                    ForEach(availableDatabases, id: \.self) { dbName in
-                        Button {
-                            onSwitchDatabase(dbName)
-                        } label: {
-                            if dbName == tab.activeDatabaseName {
-                                Label(dbName, systemImage: "checkmark")
-                            } else {
-                                Text(dbName)
-                            }
-                        }
-                    }
-                } label: {
-                    Label("Switch Database", systemImage: "cylinder")
-                }
-            }
-
-            Divider()
-
-            Button(action: onClose) {
-                Label("Close Tab", systemImage: "xmark")
-            }
-
-            Button(action: onCloseOthers) {
-                Label("Close Other Tabs", systemImage: "xmark.square")
-            }
-            .disabled(closeOthersDisabled)
-
-            Button(action: onCloseLeft) {
-                Label("Close Tabs to the Left", systemImage: "arrow.left.to.line")
-            }
-            .disabled(closeTabsLeftDisabled)
-
-            Button(action: onCloseRight) {
-                Label("Close Tabs to the Right", systemImage: "arrow.right.to.line")
-            }
-            .disabled(closeTabsRightDisabled)
-
-            if tab.query != nil {
-                Divider()
-                homeMenuContent
-            }
-        }
-    }
-
     /// Pinned tabs centre their letter; every other tab is left to right from a fixed inset, so
     /// what it says never slides inside it (MO9, anchored).
     @ViewBuilder
@@ -175,22 +125,16 @@ struct QueryTabButton: View {
             }
         } else {
             HStack(spacing: SpacingTokens.xxxs) {
+                // The × stays at the tab's leading edge (TABS-2.7); the icon and title are centred
+                // from the width the tab is moving to, at once, so the words never slide (MO9).
                 leadingControl
                 tabTitleContent
+                    .padding(.leading, centringLead)
                 closeButtonPlaceholder
             }
             .fixedSize()
-            // Centred from the width the tab is moving to, at once, so the words never slide (MO9).
-            .padding(.leading, centringLead)
-            .transaction { $0.animation = nil }
+            .placedAtOnceWhenResized(width: finalWidth, isActive: isActive)
         }
-    }
-
-    /// How far a tab without pages moves its icon and title in from the fixed inset to centre them.
-    var centringLead: CGFloat {
-        guard !isIconOnly, !hasToolPages else { return 0 }
-        return TabLabelLayout.iconInset(title: displayedTitle, width: finalWidth, hasPages: false, isIconOnly: false)
-            - LayoutTokens.TabPages.iconInset
     }
 
     private var leadingControl: some View {

@@ -5,14 +5,11 @@ import Foundation
 extension WorkspaceTab {
     var hasHome: Bool { bookmarkContext != nil || fileURL != nil }
 
-    /// A query tab with no home yet shows a ☆ in the icon's place while the pointer is on it.
-    var offersSaveStar: Bool { query != nil && !isPinned && !hasHome }
-
     /// What the strip's icon layer draws for this tab. A dot replaces the glyph while there are
-    /// changes not saved yet; a tab under the pointer with no home leaves the room to its ☆.
-    func homeMark(isHovered: Bool) -> TabIconLayer.Mark {
+    /// changes not saved yet. A tab with no home shows its kind's icon; there is no ☆ on the strip
+    /// (owner, 2026-10-05): saving is in the tab's menu and ⌘S.
+    var homeMark: TabIconLayer.Mark {
         guard let query else { return .kind }
-        if isHovered && offersSaveStar { return .hidden }
         if query.isEdited { return .edited }
         if bookmarkContext != nil { return .bookmark }
         if fileURL != nil { return .file }

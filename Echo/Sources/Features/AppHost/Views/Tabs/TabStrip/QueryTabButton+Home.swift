@@ -4,30 +4,9 @@ import AppKit
 #endif
 
 /// The tab's home (round IC, H1). The mark itself is on the strip's icon layer (`TabIconLayer`),
-/// so the tab's measured width never changes with it (round 49); the tab adds the ☆ for a tab with
-/// no home and the home's commands in its menu.
+/// so the tab's measured width never changes with it (round 49); the tab adds the home's commands
+/// to its menu.
 extension QueryTabButton {
-    /// While the pointer is on a query tab with no home and the tab shows its icon.
-    var showsSaveStar: Bool {
-        isHovering && !isIconOnly && tab.offersSaveStar && onAddBookmark != nil
-    }
-
-    /// Opens the Save card on Bookmarks.
-    var saveStar: some View {
-        Button {
-            onAddBookmark?()
-        } label: {
-            Image(systemName: "star")
-                .font(TypographyTokens.detail)
-                .foregroundStyle(Color(nsColor: isActive ? .labelColor : .secondaryLabelColor).opacity(isActive ? 0.8 : 0.7))
-                .frame(width: SpacingTokens.sm2, height: SpacingTokens.sm2)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help("Save to Bookmarks…")
-        .accessibilityLabel("Save to Bookmarks")
-    }
-
     /// Save, Save to Bookmarks…, Save to File…; then Show and Detach for a tab with that home.
     @ViewBuilder
     var homeMenuContent: some View {

@@ -12,11 +12,13 @@ extension QueryTabStrip {
         if let index = orderedTabs.firstIndex(where: { $0.0.id == tabStore.activeTabId }) {
             let before = orderedTabs[..<index].reduce(CGFloat.zero) { $0 + width(of: $1.0, tabWidth: tabWidth, widths: widths) }
             TabActivePlate(width: width(of: orderedTabs[index].0, tabWidth: tabWidth, widths: widths),
-                           offset: before + tabOffset(for: orderedTabs[index].0, index: index, tabWidth: tabWidth))
+                           offset: before + tabOffset(for: orderedTabs[index].0, index: index))
+                // A dragged front tab carries its own plate above the others (TABS-2.13).
+                .opacity(liftedTabID == tabStore.activeTabId ? 0 : 1)
         }
     }
 
-    /// Every icon at its final place; the layer does not animate when the front tab changes (MO9).
+    /// Every tab's icon, placed as its title is (`placedAtOnceWhenResized`).
     func iconLayer(orderedTabs: [(WorkspaceTab, Bool)], tabWidth: CGFloat, widths: [UUID: CGFloat], pagesInTab: Bool) -> some View {
         TabIconLayer(
             items: orderedTabs.enumerated().map { index, element in
@@ -26,18 +28,19 @@ extension QueryTabStrip {
                 return TabIconLayer.Item(
                     id: tab.id,
                     symbol: element.1 ? nil : tab.iconName,
-                    mark: tab.homeMark(isHovered: hoveredTabID == tab.id && !iconOnly),
+                    mark: tab.homeMark,
                     isActive: tab.id == tabStore.activeTabId,
                     isRunning: tab.query?.isExecuting == true,
                     width: width,
                     isIconOnly: iconOnly,
                     inset: TabLabelLayout.iconInset(title: TabLabelLayout.displayed(tab.title), width: width,
-                                                    hasPages: pagesInTab && !tab.toolPages.isEmpty, isIconOnly: iconOnly),
+                                                    hasPages: pagesInTab && !tab.toolPages.isEmpty && tab.id == tabStore.activeTabId,
+                                                    isIconOnly: iconOnly),
                     isHovered: hoveredTabID == tab.id,
-                    dragOffset: tabOffset(for: tab, index: index, tabWidth: tabWidth)
+                    dragOffset: tabOffset(for: tab, index: index),
+                    isLifted: liftedTabID == tab.id
                 )
-            },
-            frontTabID: tabStore.activeTabId
+            }
         )
     }
 }
