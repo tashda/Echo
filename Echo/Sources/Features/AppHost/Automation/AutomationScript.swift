@@ -34,6 +34,14 @@ nonisolated struct AutomationScript: Codable, Sendable {
         /// `scroll`: points to scroll (negative scrolls up) and over how long.
         var distance: Double?
         var seconds: Double?
+        /// `press`: the nth match (default the first) and a role to match (button, row, ...); `window` limits where steps look.
+        var index: Int?
+        var role: String?
+        var window: String?
+        /// `click`: where, in points from the top-left of the window (or sheet) as `Scripts/perf/axdump` prints it; `role` `right` for a
+        /// right click, `index` for the click count.
+        var x: Double?
+        var y: Double?
     }
 
     var connect: [String]?

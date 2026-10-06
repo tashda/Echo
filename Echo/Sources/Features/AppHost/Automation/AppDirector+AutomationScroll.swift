@@ -17,9 +17,13 @@ extension AppDirector {
         case "manage": AppWindowIdentifier.manageConnections
         default: AppWindowIdentifier.workspace
         }
-        let target = windowID == AppWindowIdentifier.workspace ? target : "content"
-        guard let root = NSApp.windows.first(where: { $0.identifier == windowID })?.contentView,
-              let scrollView = automationScrollView(target, in: root) else { return }
+        // `sheet` and `front` scroll the biggest scroll view of the open sheet or the front window.
+        let frontRoot = (target == "sheet" || target == "front") ? automationWindow(nil)?.contentView : nil
+        let target = (windowID == AppWindowIdentifier.workspace && frontRoot == nil) ? target : "content"
+        guard let root = frontRoot ?? NSApp.windows.first(where: { $0.identifier == windowID })?.contentView,
+              let scrollView = automationScrollView(target, in: root) else {
+            print("automation-scroll no scroll view for '\(target)'"); fflush(stdout); return
+        }
         let frames = max(Int(seconds * 60), 1)
         for _ in 0..<frames {
             let clip = scrollView.contentView
