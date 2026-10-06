@@ -128,6 +128,14 @@ struct WorkspaceTabContainerView: View {
         .onChange(of: showsCanvasPage) { _, _ in
             WindowDragPause.pauseWorkspace(for: motion.settleDuration + 0.15)
         }
+        // A tab opening, closing or coming forward moves hit-testable content for a few frames:
+        // AppKit would recheck the window's drag regions on each of them (a tenth of the switch).
+        .onChange(of: tabStore.activeTabId) { _, _ in
+            WindowDragPause.pauseWorkspace(for: motion.settleDuration + 0.15)
+        }
+        .onChange(of: tabStore.tabs.count) { _, _ in
+            WindowDragPause.pauseWorkspace(for: motion.settleDuration + 0.15)
+        }
     }
 
     /// Keeps the few most recent tabs mounted so switching back is instant (round 9, TFIX); a
@@ -152,6 +160,10 @@ struct WorkspaceTabContainerView: View {
             runQuery: { sql in await runQuery(tabId: tab.id, sql: sql) },
             gridStateProvider: { tab.resultsGridState }
         )
+        // The closures above are new on every evaluation, so without this every mounted tab (up to
+        // six) rebuilt its whole content each time this view's body ran, a tab switch included.
+        // Only the tab itself says whether the content is the same (`WorkspaceContentView.==`).
+        .equatable()
         .id(tab.id)
         // Round 37.5: what the tab's content sets for the window toolbar is kept on the tab, so
         // the toolbar draws the front tab's buttons.

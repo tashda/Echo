@@ -4,7 +4,7 @@ import EchoSense
 import AppKit
 #endif
 
-struct WorkspaceContentView: View {
+struct WorkspaceContentView: View, Equatable {
     @Bindable var tab: WorkspaceTab
     let runQuery: (String) async -> Void
     let gridStateProvider: () -> QueryResultsGridState
@@ -13,6 +13,12 @@ struct WorkspaceContentView: View {
     @Environment(AppState.self) private var appState
     @Environment(AppearanceStore.self) private var appearanceStore
     
+    /// Same tab, same content: the closures `runQuery` and `gridStateProvider` are made anew by
+    /// every parent evaluation but always do the same for this tab, so they are left out.
+    nonisolated static func == (lhs: WorkspaceContentView, rhs: WorkspaceContentView) -> Bool {
+        MainActor.assumeIsolated { lhs.tab === rhs.tab }
+    }
+
     @State private var selectedSQLContext: SQLPopoutContext?
     @Environment(\.keptAliveTabsActivity) private var tabsActivity
     @Environment(\.keptAliveTabID) private var tabID

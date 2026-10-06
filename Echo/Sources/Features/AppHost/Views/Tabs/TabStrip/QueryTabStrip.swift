@@ -160,11 +160,9 @@ struct QueryTabStrip: View {
                 hoveredTabID = nil
             }
         }
-        .onAppear {
-            refreshDatabaseNameCache()
-        }
-        .onChange(of: databaseNameCacheSignature()) { _, _ in
-            refreshDatabaseNameCache()
+        // Read by a view of its own, so the strip is not rebuilt every time a server's schemas load.
+        .background {
+            TabStripDatabaseNames(names: $databaseNamesBySessionID)
         }
     }
 
@@ -258,26 +256,46 @@ struct QueryTabStrip: View {
         }
         .fixedSize()
     }
+}
 
-    private func databaseNameCacheSignature() -> String {
-        environmentState.sessionGroup.activeSessions.map { session in
-            let databaseSignature = (session.databaseStructure?.databases ?? [])
-                .map { "\($0.name):\($0.isOnline)" }
-                .joined(separator: ",")
-            return "\(session.id.uuidString)|\(databaseSignature)"
-        }
-        .joined(separator: ";")
+/// Keeps each connected server's online database names for the tabs (the database in a tab's
+/// title menu). It reads the servers' structures itself: while their schemas load in the
+/// background the structures change many times, and only this small view follows them.
+private struct TabStripDatabaseNames: View {
+    @Binding var names: [UUID: [String]]
+    @Environment(EnvironmentState.self) private var environmentState
+
+    var body: some View {
+        let sessions = environmentState.sessionGroup.activeSessions
+        Color.clear
+            .frame(width: 0, height: 0)
+            .onChange(of: Self.fingerprint(of: sessions), initial: true) { _, _ in
+                let next = Self.names(of: sessions)
+                if names != next { names = next }
+            }
     }
 
-    private func refreshDatabaseNameCache() {
+    /// A cheap fingerprint of the names; the sorted lists are made only when it changes.
+    private static func fingerprint(of sessions: [ConnectionSession]) -> Int {
+        var hasher = Hasher()
+        for session in sessions {
+            hasher.combine(session.id)
+            for database in session.databaseStructure?.databases ?? [] {
+                hasher.combine(database.name)
+                hasher.combine(database.isOnline)
+            }
+        }
+        return hasher.finalize()
+    }
+
+    private static func names(of sessions: [ConnectionSession]) -> [UUID: [String]] {
         var next: [UUID: [String]] = [:]
-        for session in environmentState.sessionGroup.activeSessions {
-            let names = (session.databaseStructure?.databases ?? [])
+        for session in sessions {
+            next[session.id] = (session.databaseStructure?.databases ?? [])
                 .filter(\.isOnline)
                 .map(\.name)
                 .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-            next[session.id] = names
         }
-        databaseNamesBySessionID = next
+        return next
     }
 }

@@ -69,6 +69,13 @@ struct MacSQLEditorRepresentable: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: SQLScrollView, context: Context) {
+        // A tab kept mounted but not shown changes nothing until it is shown again (this runs
+        // again when `isActiveTab` flips). Every schema load used to rebuild the completion
+        // catalog once per kept tab, for tabs nobody could see.
+        if !isActiveTab && !context.coordinator.wasActiveTab {
+            context.coordinator.parent = self
+            return
+        }
         nsView.setFooterOverlay(height: context.environment.cardFooterOverlayHeight)
         if nsView.sqlTextView.runNotes != runNotes { nsView.sqlTextView.runNotes = runNotes }
         if nsView.sqlTextView.runningRange != runningRange { nsView.sqlTextView.runningRange = runningRange }
