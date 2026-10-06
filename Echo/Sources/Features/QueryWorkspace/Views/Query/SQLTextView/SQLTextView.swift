@@ -23,6 +23,10 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     weak var lineNumberRuler: LineNumberRulerView?
     var paragraphStyle = NSMutableParagraphStyle()
     var highlightWorkItem: DispatchWorkItem?
+    /// The part of the text `applySyntaxHighlighting` last coloured (all of it, unless the script is long).
+    var highlightedRange: NSRange?
+    /// Where each line starts, until the text changes (SQLTextView+LineIndex).
+    var lineIndexStorage: LineIndex?
     var symbolHighlightWorkItem: DispatchWorkItem?
     var selectionMatchRanges: [NSRange] = []
     var caretMatchRanges: [NSRange] = []
@@ -54,7 +58,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     var lastEditedLine: Int?
     /// Round 28.10: whether the empty prompt is drawn.
     var showsEmptyPrompt = true
-    override var string: String { didSet { refreshEmptyPrompt() } }
+    override var string: String { didSet { invalidateLineIndex(); refreshEmptyPrompt() } }
     /// Round 28.8: a pinch asks for the next zoom step; the magnification gathered so far.
     var onZoomStep: ((Int) -> Void)?
     var pinchAmount: CGFloat = 0
@@ -267,11 +271,12 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     func reapplyHighlighting() { scheduleHighlighting(after: 0) }
 
     override func didChangeText() {
+        invalidateLineIndex()
         super.didChangeText(); sqlDelegate?.sqlTextView(self, didUpdateText: string); lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
         refreshEmptyPrompt()
         refreshFind()
         let caret = selectedRange().location
-        if caret != NSNotFound { lastEditedLine = (string as NSString).lineNumber(at: caret) }
+        if caret != NSNotFound { lastEditedLine = lineNumber(at: caret) }
         notifySelectionChanged(); scheduleHighlighting()
         if !isApplyingCompletion { deactivateManualCompletionSuppression() }
         updateCompletionIndicator(); scheduleValidation()

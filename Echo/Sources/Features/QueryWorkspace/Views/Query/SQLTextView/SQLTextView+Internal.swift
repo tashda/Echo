@@ -11,17 +11,15 @@ extension SQLTextView {
     func selectedLineRange() -> NSRange {
         let selection = selectedRange()
         guard selection.location != NSNotFound else { return NSRange(location: NSNotFound, length: 0) }
-        let nsString = string as NSString
-        let startLine = nsString.lineNumber(at: selection.location)
-        let endLine = nsString.lineNumber(at: NSMaxRange(selection))
+        let startLine = lineNumber(at: selection.location)
+        let endLine = lineNumber(at: NSMaxRange(selection))
         return NSRange(location: startLine, length: endLine - startLine + 1)
     }
 
     func selectedLines(for range: NSRange) -> ClosedRange<Int>? {
         guard range.location != NSNotFound else { return nil }
-        let nsString = string as NSString
-        let startLine = nsString.lineNumber(at: range.location)
-        let endLine = nsString.lineNumber(at: NSMaxRange(range))
+        let startLine = lineNumber(at: range.location)
+        let endLine = lineNumber(at: NSMaxRange(range))
         return startLine...endLine
     }
 

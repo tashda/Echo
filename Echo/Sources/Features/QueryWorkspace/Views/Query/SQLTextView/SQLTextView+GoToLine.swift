@@ -9,7 +9,7 @@ extension SQLTextView {
         goToLineField?.removeFromSuperview()
         let text = string as NSString
         let field = NSHostingView(rootView: GoToLineField(
-            lineCount: max(text.lineNumber(at: text.length), 1),
+            lineCount: max(lineNumber(at: text.length), 1),
             onGo: { [weak self] line in
                 self?.goToLine(line)
                 self?.closeGoToLine()

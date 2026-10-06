@@ -22,6 +22,9 @@ extension AppDirector {
             if step.action == "type" {
                 announce(index: index, label: step.label ?? "type")
                 await performAutomationTyping(step.target ?? "", interval: step.seconds ?? 0.12)
+            } else if step.action == "fill" {
+                announce(index: index, label: step.label ?? "fill \(step.target ?? "")")
+                performAutomationFill(lines: Int(step.target ?? "") ?? 1000)
             } else if step.action == "resize" {
                 announce(index: index, label: step.label ?? "resize \(step.distance ?? 0)")
                 await performAutomationResize(distance: step.distance ?? -300, seconds: step.seconds ?? 1)

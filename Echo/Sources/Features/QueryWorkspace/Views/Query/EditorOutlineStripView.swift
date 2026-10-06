@@ -56,9 +56,9 @@ final class EditorOutlineStripView: NSView {
     func refresh() {
         guard let textView else { return }
         let text = textView.string as NSString
-        let totalLines = max(text.lineNumber(at: text.length), 1)
+        let totalLines = max(textView.lineNumber(at: text.length), 1)
         func position(ofLine line: Int) -> CGFloat { CGFloat(line - 1) / CGFloat(max(totalLines - 1, 1)) }
-        statementMarks = textView.cachedStatements.map { position(ofLine: text.lineNumber(at: $0.range.location)) }
+        statementMarks = textView.cachedStatements.map { position(ofLine: textView.lineNumber(at: $0.range.location)) }
         errorMarks = (textView.lineNumberRuler?.errorLines ?? []).map { position(ofLine: $0) }
         let documentHeight = max(textView.bounds.height, 1)
         let visible = textView.visibleRect

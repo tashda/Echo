@@ -21,7 +21,7 @@ extension SQLTextView {
             : nil
         guard focused != focusedStatementRange else { return }
         focusedStatementRange = focused
-        lineNumberRuler?.runArrowLine = focused.map { (string as NSString).lineNumber(at: $0.location) }
+        lineNumberRuler?.runArrowLine = focused.map { lineNumber(at: $0.location) }
         lineNumberRuler?.statementLines = focused.flatMap(lines(of:))
         lineNumberRuler?.onRunStatement = { [weak self] in
             guard let self else { return }
@@ -43,8 +43,8 @@ extension SQLTextView {
     func lines(of range: NSRange) -> ClosedRange<Int>? {
         let text = string as NSString
         guard range.location != NSNotFound, NSMaxRange(range) <= text.length else { return nil }
-        let first = text.lineNumber(at: range.location)
-        let last = text.lineNumber(at: max(NSMaxRange(range) - 1, range.location))
+        let first = lineNumber(at: range.location)
+        let last = lineNumber(at: max(NSMaxRange(range) - 1, range.location))
         return first...max(first, last)
     }
 }

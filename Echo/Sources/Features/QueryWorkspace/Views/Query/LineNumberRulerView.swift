@@ -98,7 +98,7 @@ final class LineNumberRulerView: NSRulerView {
 
     /// Widens or narrows the gutter to fit the last line's number.
     func updateThickness() {
-        let lineCount = (sqlTextView?.string as NSString?)?.lineNumber(at: Int.max) ?? 1
+        let lineCount = sqlTextView?.lineNumber(at: Int.max) ?? 1
         let digits = max(String(lineCount).count, LayoutTokens.EditorGutter.minimumDigits)
         guard digits != sizedDigitCount else { return }
         sizedDigitCount = digits
@@ -176,7 +176,9 @@ final class LineNumberRulerView: NSRulerView {
             return
         }
 
-        layoutManager.ensureLayout(for: textContainer)
+        // Only what is on screen: the whole container made every draw of a long script lay out every line
+        // of it (the layout manager lays out lazily, `allowsNonContiguousLayout`).
+        layoutManager.ensureLayout(forBoundingRect: textView.visibleRect, in: textContainer)
         var visibleGlyphRange = layoutManager.glyphRange(forBoundingRect: textView.visibleRect, in: textContainer)
         if visibleGlyphRange.location == NSNotFound {
             visibleGlyphRange = NSRange(location: 0, length: glyphCount)
@@ -197,7 +199,7 @@ final class LineNumberRulerView: NSRulerView {
 
         // Count lines once for the first visible fragment, then step: counting from the top of
         // the script for every fragment made long scripts slow to scroll.
-        var lineNumber = nsString.lineNumber(at: layoutManager.characterIndexForGlyph(at: firstGlyph))
+        var lineNumber = textView.lineNumber(at: layoutManager.characterIndexForGlyph(at: firstGlyph))
         var glyphIndex = firstGlyph
         var isFirstFragment = true
         while glyphIndex < endGlyph {
@@ -223,8 +225,9 @@ final class LineNumberRulerView: NSRulerView {
         if layoutManager.extraLineFragmentTextContainer != nil {
             let extraRect = layoutManager.extraLineFragmentRect
             if extraRect.height > 0 {
-                brackets.include(line: nsString.lineNumber(at: nsString.length), fragment: extraRect)
-                drawLabel(nsString.lineNumber(at: nsString.length), atFragmentMinY: extraRect.minY, context: context)
+                let lastLine = textView.lineNumber(at: nsString.length)
+                brackets.include(line: lastLine, fragment: extraRect)
+                drawLabel(lastLine, atFragmentMinY: extraRect.minY, context: context)
             }
         }
     }
@@ -331,7 +334,7 @@ final class LineNumberRulerView: NSRulerView {
         var glyphIndex = layoutManager.glyphIndex(for: pointInTextView, in: textContainer, fractionOfDistanceThroughGlyph: &fraction)
         glyphIndex = min(max(glyphIndex, 0), glyphCount - 1)
         let charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
-        return (textView.string as NSString).lineNumber(at: charIndex)
+        return textView.lineNumber(at: charIndex)
     }
 }
 

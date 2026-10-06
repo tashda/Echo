@@ -127,9 +127,10 @@ final class PocketSeparatorHidingHostingController<Content: View>: NSHostingCont
 
     private func hidePocketSeparators(in root: NSView) {
         for subview in root.subviews {
-            let typeName = String(describing: type(of: subview))
-            if typeName.contains("NSLayerBasedFillColorView"),
-               subview.frame.height <= 1 {
+            // The height first: building a class name for every view of the window, on every layout,
+            // was the dearer test and only a hairline can match.
+            if subview.frame.height <= 1,
+               String(describing: type(of: subview)).contains("NSLayerBasedFillColorView") {
                 subview.isHidden = true
             }
             hidePocketSeparators(in: subview)

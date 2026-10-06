@@ -19,6 +19,19 @@ extension AppDirector {
         }
     }
 
+    /// Puts `lines` statements into the active editor in one edit, so typing can be traced in a large script.
+    ///
+    ///     { "action": "fill", "target": "3000" }
+    func performAutomationFill(lines: Int) {
+        guard let root = NSApp.windows.first(where: { $0.identifier == AppWindowIdentifier.workspace })?.contentView,
+              let textView = visibleSQLTextView(in: root) else { return }
+        textView.window?.makeFirstResponder(textView)
+        let script = (1...max(lines, 1)).map { "SELECT \($0) AS id, 'row \($0)' AS label FROM dbo.example WHERE flag = \($0 % 2);" }
+            .joined(separator: "\n")
+        textView.insertText(script, replacementRange: NSRange(location: 0, length: (textView.string as NSString).length))
+        textView.setSelectedRange(NSRange(location: (textView.string as NSString).length, length: 0))
+    }
+
     private func visibleSQLTextView(in view: NSView) -> SQLTextView? {
         if let textView = view as? SQLTextView, !textView.isHiddenOrHasHiddenAncestor, textView.visibleRect.width > 0 {
             return textView

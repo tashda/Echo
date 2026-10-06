@@ -135,11 +135,14 @@ final class SQLScrollView: NSScrollView {
 
     @objc private func clipViewDidScroll(_ notification: Notification) {
         if displayOptions.outlineEdgeEnabled { outlineStrip.refresh() }
+        sqlTextView.highlightAfterScroll()
     }
 
     /// QE5: the outline strip sits on the trailing edge, above the footer's room.
     override func tile() {
         super.tile()
+        // The first layout of a long script gives the view its real size: colour what it shows.
+        sqlTextView.highlightAfterScroll()
         guard outlineStrip.superview === self else { return }
         let inset = LayoutTokens.EditorOutline.inset
         let width = LayoutTokens.EditorOutline.width
