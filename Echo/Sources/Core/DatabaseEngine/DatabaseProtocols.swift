@@ -54,6 +54,7 @@ public protocol DatabaseSession: Sendable {
     func revertToSnapshot(snapshotName: String) async throws
 
     func sessionForDatabase(_ database: String) async throws -> DatabaseSession
+    func releaseDatabaseSession(_ database: String) async
     func currentDatabaseName() async throws -> String?
     func makeActivityMonitor() throws -> any DatabaseActivityMonitoring
 
@@ -329,6 +330,10 @@ public extension DatabaseSession {
     func sessionForDatabase(_ database: String) async throws -> DatabaseSession {
         self
     }
+
+    /// Closes the connection kept for `database`, if the engine keeps one per database (PostgreSQL). The default
+    /// has nothing to release.
+    func releaseDatabaseSession(_ database: String) async {}
 
     func currentDatabaseName() async throws -> String? {
         nil

@@ -143,6 +143,10 @@ final class PostgresSession: DatabaseSession {
         )
     }
 
+    func releaseDatabaseSession(_ database: String) async {
+        await serverConnection?.releaseClient(for: database)
+    }
+
     func makeActivityMonitor() throws -> any DatabaseActivityMonitoring {
         PostgresActivityMonitorWrapper(client.activity)
     }

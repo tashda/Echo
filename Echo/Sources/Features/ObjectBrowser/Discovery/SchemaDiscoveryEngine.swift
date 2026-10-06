@@ -69,6 +69,9 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
     /// fetched (listOnly state). Runs serially in the background so the server is not
     /// overwhelmed. Each result is merged into the structure and written to cache
     /// incrementally, so the UI updates live as each database is loaded.
+    /// How many per-database connections the background prefetch leaves open per server.
+    static let prefetchKeepsOpen = 4
+
     private func prefetchPendingSchemas(for session: ConnectionSession) async {
         guard let structure = session.databaseStructure else { return }
 
@@ -81,6 +84,10 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
         guard !pending.isEmpty else { return }
 
         ConnectionDebug.log("[SchemaPrefetch] Starting background prefetch for \(pending.count) databases on \(session.connection.connectionName)")
+
+        // Postgres keeps one connection per database it has read, and a server allows only so many clients
+        // (100 by default): the prefetch holds the last few open and closes the rest as it goes.
+        var recentlyRead: [String] = []
 
         for database in pending {
             guard !Task.isCancelled else { break }
@@ -99,6 +106,11 @@ final class MetadataDiscoveryEngine: MetadataDiscoveryEngineProtocol, @unchecked
             await loadDatabaseSchemaOnly(database.name, for: session)
 
             session.finishSchemaLoad(forDatabase: database.name)
+
+            recentlyRead.append(database.name)
+            if recentlyRead.count > Self.prefetchKeepsOpen {
+                await session.session.releaseDatabaseSession(recentlyRead.removeFirst())
+            }
         }
 
         ConnectionDebug.log("[SchemaPrefetch] Background prefetch complete for \(session.connection.connectionName)")
