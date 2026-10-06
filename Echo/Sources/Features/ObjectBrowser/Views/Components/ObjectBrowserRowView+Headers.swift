@@ -102,7 +102,7 @@ extension ObjectBrowserRowView {
             .frame(width: SidebarRowConstants.chevronWidth)
             .opacity(isHeaderHovering || !isExpanded ? 1 : 0)
             .animation(motion.standard, value: isExpanded)
-            .animation(.easeInOut(duration: 0.15), value: isHeaderHovering)
+            .animation(motion.hover, value: isHeaderHovering)
     }
 
     private func chevronColor(_ paint: ServerHeaderPaint) -> Color {
@@ -119,6 +119,6 @@ extension ObjectBrowserRowView {
             .frame(width: SidebarRowConstants.chevronWidth)
             .opacity(isHeaderHovering || !isExpanded ? 1 : 0)
             .animation(motion.expand, value: isExpanded)
-            .animation(.easeInOut(duration: 0.15), value: isHeaderHovering)
+            .animation(motion.hover, value: isHeaderHovering)
     }
 }

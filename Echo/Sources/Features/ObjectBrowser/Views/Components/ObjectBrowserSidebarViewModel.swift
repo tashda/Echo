@@ -28,9 +28,10 @@ final class ObjectBrowserSidebarViewModel {
     /// Servers whose cards are folding or opening (round 30.2): set just before the change, so
     /// the rows that leave already carry the fold's transition, and cleared when it ends.
     var foldingConnectionIDs: Set<UUID> = []
-    /// A card is leaving the tree (minimized) or coming back (restored): the cards, the rows below and
-    /// the trail's item all move on the house spring together (round 55), not on the folder curve.
-    var cardsLeaveOrArrive = false
+    /// Servers whose card is leaving the tree (minimized) or coming back (restored): the card and all
+    /// its rows move as one piece, and the cards below and the trail's item move with it on the house
+    /// spring (round 55), not on the folder curve.
+    var travellingConnectionIDs: Set<UUID> = []
     /// Counts folds, so one that ends while a newer one runs leaves the newer one's cards alone.
     @ObservationIgnored var foldGeneration = 0
     /// The card about to close, so the tree first brings its header to its own place.

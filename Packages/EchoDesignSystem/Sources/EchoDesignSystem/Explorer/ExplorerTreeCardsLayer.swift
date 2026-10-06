@@ -51,7 +51,7 @@ public struct ExplorerTreeCardsLayer<CardBackground: View>: View {
                         .animation(animation(for: card), value: card.height)
                         // A minimized card leaves and a restored one arrives (round 51, SH5), fading and
                         // settling to 97% from its top edge (round 55).
-                        .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+                        .transition(.opacity.combined(with: .scale(scale: ExplorerTreeCardUnitTransition.settledScale, anchor: .top)))
                 }
             }
         }

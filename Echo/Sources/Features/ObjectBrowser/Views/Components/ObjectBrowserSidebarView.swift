@@ -109,7 +109,7 @@ struct ObjectBrowserSidebarView: View {
                     switchingConnectionIDs: viewModel.dockSwitchingConnectionIDs,
                     hiddenRowsConnectionIDs: viewModel.dockHiddenRowsConnectionIDs,
                     foldingConnectionIDs: viewModel.foldingConnectionIDs,
-                    cardsLeaveOrArrive: viewModel.cardsLeaveOrArrive,
+                    travellingConnectionIDs: viewModel.travellingConnectionIDs,
                     foldAnchor: viewModel.foldAnchor,
                     contextMenu: { contextMenu(for: $0) },
                     doubleClick: { doubleClickAction(for: $0) },
@@ -230,14 +230,11 @@ struct ObjectBrowserSidebarView: View {
         selectedConnectionID = connectionID
         viewModel.selectedNodeID = visibleNodeID
         // A minimized card comes back into the list, the cards below making room (round 51, SH5).
-        // The card, the cards below and the trail's item move on one curve (round 55).
-        let isRestoring = !viewModel.isExpanded(visibleNodeID)
-        withAnimation(isRestoring ? motion.standard : nil) {
-            viewModel.cardsLeaveOrArrive = isRestoring
+        // The card arrives as one piece, the cards below and the trail's item moving with it (round 55).
+        if viewModel.isExpanded(visibleNodeID) {
             viewModel.setServerExpanded(true, connectionID: connectionID)
-            if isRestoring { moveRailItems() }
-        } completion: {
-            viewModel.cardsLeaveOrArrive = false
+        } else {
+            travelServerCard(connectionID, arriving: true)
         }
         viewModel.revealAndPulse(nodeID: visibleNodeID)
         navigationStore.pendingExplorerRevealConnectionID = nil

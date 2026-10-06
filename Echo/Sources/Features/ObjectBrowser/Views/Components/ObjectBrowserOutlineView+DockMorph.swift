@@ -16,18 +16,29 @@ extension ObjectBrowserOutlineView {
     /// The name block in its place, scrolling with the card, and the dock row above the rows.
     @ViewBuilder
     func morphingHeader(_ group: ObjectBrowserTreeLayout.Group, morph: ExplorerDockMorph, fold: ExplorerTreeFold?,
-                        shift: CGFloat) -> some View {
+                        shift: CGFloat, cardTop: CGFloat? = nil) -> some View {
         let server = group.header[0]
         let dock = group.header[1]
-        let transition: AnyTransition = abs(shift) > SpacingTokens.micro ? .offset(y: shift) : .opacity
-        rowSlot(server, fold: fold)
-            .transition(transition)
+        // A travelling card's banner and dock settle with the whole card, each about the card's top.
+        let serverTransition = headerTransition(shift: shift, cardTop: cardTop, rowTop: server.minY, height: server.height)
+        let dockTransition = headerTransition(shift: shift, cardTop: cardTop, rowTop: dock.minY, height: dock.height)
+        rowSlot(server, isSwitching: cardTop != nil, fold: fold)
+            .transition(serverTransition)
             .explorerTreePlace(minY: server.minY, height: server.height)
-        rowSlot(dock, fold: fold)
-            .transition(transition)
+        rowSlot(dock, isSwitching: cardTop != nil, fold: fold)
+            .transition(dockTransition)
             .explorerDockMorph(morph, scroll: scroll)
             .zIndex(1)
             .explorerTreePlace(minY: dock.minY, height: dock.height)
+    }
+
+    /// How a server's header (or its banner and dock) arrives and leaves: with its card as one piece, shifted
+    /// with a card that moved, or fading.
+    func headerTransition(shift: CGFloat, cardTop: CGFloat?, rowTop: CGFloat, height: CGFloat) -> AnyTransition {
+        if let cardTop {
+            return AnyTransition(ExplorerTreeCardUnitTransition(cardTop: cardTop, rowTop: rowTop, rowHeight: height))
+        }
+        return abs(shift) > SpacingTokens.micro ? .offset(y: shift) : .opacity
     }
 
     /// The veils start under the pill instead of under a pinned header.

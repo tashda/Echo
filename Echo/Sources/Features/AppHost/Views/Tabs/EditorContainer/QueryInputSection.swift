@@ -39,7 +39,6 @@ struct QueryInputSection: View {
         range: NSRange(location: 0, length: 0),
         lineRange: nil
     )
-    @State private var isSelectionActive = false
 
     /// Round 28.14: the gutter starts at the card's edge, as Echo Labs draws it, so a lane can
     /// centre its numbers without meeting the error dot.
@@ -135,10 +134,6 @@ struct QueryInputSection: View {
             // Always sync to QueryEditorState so toolbar stays correct
             query.hasActiveSelection = hasSelection
             syncSQLHelpInspector(using: trimmed)
-            guard hasSelection != isSelectionActive else { return }
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                isSelectionActive = hasSelection
-            }
         }
     }
 

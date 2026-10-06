@@ -26,19 +26,20 @@ extension ObjectBrowserOutlineView {
                 let morph = dockMorph(of: group, in: layout)
                 let headerHeight = morph == nil ? group.header.reduce(SpacingTokens.none) { $0 + $1.height } : SpacingTokens.none
                 let shift = cardShift(of: group, tops: tops)
+                let cardTop = travellingCardTop(of: group, in: layout)
                 ForEach(group.rows.filter { window.intersects(minY: $0.minY, maxY: $0.minY + $0.height) }) { row in
-                    rowSlot(row, underHeaderOf: headerHeight, isSwitching: isSwitching(group), fold: fold, arrivingFrom: shift)
+                    rowSlot(row, underHeaderOf: headerHeight, isSwitching: isSwitching(group), fold: fold, arrivingFrom: shift, cardTop: cardTop)
                         .opacity(hidesRows(group) ? 0 : 1)
                         .explorerTreePlace(minY: row.minY, height: row.height)
                 }
                 if let morph, group.header.count == 2 {
-                    morphingHeader(group, morph: morph, fold: fold, shift: shift)
+                    morphingHeader(group, morph: morph, fold: fold, shift: shift, cardTop: cardTop)
                 } else if let server = group.header.first {
                     let sectionEnd = group.rows.last.map { $0.minY + $0.height } ?? server.minY + headerHeight
                     VStack(spacing: SpacingTokens.none) {
-                        ForEach(group.header) { row in rowSlot(row, fold: fold) }
+                        ForEach(group.header) { row in rowSlot(row, isSwitching: cardTop != nil, fold: fold) }
                     }
-                    .transition(abs(shift) > SpacingTokens.micro ? .offset(y: shift) : .opacity)
+                    .transition(headerTransition(shift: shift, cardTop: cardTop, rowTop: server.minY, height: headerHeight))
                     .background { ExplorerPinnedHeaderWash() }
                     .modifier(ExplorerTreePinnedHeader(travel: sectionEnd - server.minY - headerHeight))
                     .zIndex(1)

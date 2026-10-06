@@ -46,7 +46,10 @@ struct WorkspaceColumnResizeHandle: View {
                 let start = widthAtDragStart ?? width
                 if widthAtDragStart == nil { widthAtDragStart = start }
                 let delta = Double(value.translation.width)
-                width = clamp(edge == .trailing ? start + delta : start - delta)
+                // The column follows the pointer: its width spring (a click on the handle's keys) must not run on every drag event.
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) { width = clamp(edge == .trailing ? start + delta : start - delta) }
             }
             .onEnded { _ in
                 widthAtDragStart = nil

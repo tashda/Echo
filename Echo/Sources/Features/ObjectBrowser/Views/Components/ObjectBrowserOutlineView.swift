@@ -41,8 +41,9 @@ struct ObjectBrowserOutlineView: View {
     /// Servers whose cards are folding or opening (round 30.2): the edge glides and the rows fade
     /// and are cut by it (ObjectBrowserOutlineView+Fold).
     var foldingConnectionIDs: Set<UUID> = []
-    /// A card is leaving the tree or coming back: everything that moves with it uses `standard` (round 55).
-    var cardsLeaveOrArrive = false
+    /// Cards leaving the tree or coming back: each moves as one piece, and everything that moves with
+    /// it uses `standard` (round 55).
+    var travellingConnectionIDs: Set<UUID> = []
     /// A card about to close: the view is brought to its header first (ObjectBrowserOutlineView+Fold).
     var foldAnchor: ExplorerFoldAnchor?
     /// A row's context menu; the tree has one menu host for all rows (ExplorerTreeContextMenuHost).
@@ -86,7 +87,7 @@ struct ObjectBrowserOutlineView: View {
 
     /// How rows and cards move when the set of rows changes: the folder curve, or the house spring
     /// while a card leaves or comes back (the trail's item glides on it too).
-    var rowsCurve: Animation { cardsLeaveOrArrive ? motion.standard : motion.expand }
+    var rowsCurve: Animation { travellingConnectionIDs.isEmpty ? motion.expand : motion.standard }
 
     var body: some View {
         let baseRowHeight = Self.baseRowHeight(for: density)
@@ -197,7 +198,7 @@ struct ObjectBrowserOutlineView: View {
     /// neighbours move; leaving rows fade out quickly, so they never sit under rows moving over
     /// them. A card mid-switch swaps its rows with no transitions at all: the whole card fades.
     func rowSlot(_ row: ObjectBrowserTreeLayout.Row, underHeaderOf headerHeight: CGFloat = 0, isSwitching: Bool = false,
-                 fold: ExplorerTreeFold? = nil, arrivingFrom shift: CGFloat = 0) -> some View {
+                 fold: ExplorerTreeFold? = nil, arrivingFrom shift: CGFloat = 0, cardTop: CGFloat? = nil) -> some View {
         let node = row.node
         let isExpanded = expandedNodeIDs.contains(node.id)
         let hasContextMenu = contextMenuNodeID == node.id
@@ -213,7 +214,7 @@ struct ObjectBrowserOutlineView: View {
             }
             .equatable()
         }
-        .transition(isSwitching ? .identity : rowTransition(for: row, fold: fold, arrivingFrom: shift))
+        .transition(isSwitching ? .identity : rowTransition(for: row, fold: fold, arrivingFrom: shift, cardTop: cardTop))
     }
 
     /// What decides whether a row is drawn again (`ExplorerTreeRowHost`).

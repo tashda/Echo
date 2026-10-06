@@ -28,13 +28,28 @@ extension ObjectBrowserOutlineView {
     /// A folding card's rows fade and are cut by its edge, and its dock grows out of the header
     /// without fading (round 46, DA2). A row that arrives because its card moved (it was too far
     /// away to be drawn) starts where its card was and travels with it; every other row fades.
-    func rowTransition(for row: ObjectBrowserTreeLayout.Row, fold: ExplorerTreeFold?, arrivingFrom shift: CGFloat = 0) -> AnyTransition {
+    func rowTransition(for row: ObjectBrowserTreeLayout.Row, fold: ExplorerTreeFold?, arrivingFrom shift: CGFloat = 0,
+                       cardTop: CGFloat? = nil) -> AnyTransition {
+        if let cardTop { return cardUnitTransition(row, cardTop: cardTop) }
         guard let fold else {
             guard abs(shift) > SpacingTokens.micro else { return Self.rowTransition(motion) }
             return .asymmetric(insertion: .offset(y: shift), removal: .opacity.animation(motion.rowRemoval))
         }
         let style: ExplorerTreeFoldTransition.Style = if case .dock = row.node.row { .grow } else { .fade }
         return AnyTransition(ExplorerTreeFoldTransition(fold: fold, rowTop: row.minY, style: style))
+    }
+
+    /// The card's top when it is leaving the tree or coming back, so its rows move as one piece with it.
+    func travellingCardTop(of group: ObjectBrowserTreeLayout.Group, in layout: ObjectBrowserTreeLayout) -> CGFloat? {
+        guard !travellingConnectionIDs.isEmpty, let server = group.header.first,
+              let connectionID = server.node.row.connectionID, travellingConnectionIDs.contains(connectionID)
+        else { return nil }
+        return layout.cards.first(where: { $0.id == server.id })?.minY ?? server.minY
+    }
+
+    /// A row of a travelling card fades and settles about the card's top centre, like the card's background.
+    func cardUnitTransition(_ row: ObjectBrowserTreeLayout.Row, cardTop: CGFloat) -> AnyTransition {
+        AnyTransition(ExplorerTreeCardUnitTransition(cardTop: cardTop, rowTop: row.minY, rowHeight: row.height))
     }
 
     /// Closing a card you have scrolled into: its header is pinned at the top while its own place

@@ -42,12 +42,16 @@ extension ObjectBrowserSidebarView {
             }
             if viewModel.foldGeneration == generation {
                 viewModel.foldingConnectionIDs = []
-                viewModel.cardsLeaveOrArrive = false
+                viewModel.travellingConnectionIDs = []
             }
         }
-        // A closing card of a set-up server is minimized: it leaves the tree while its trail item moves
-        // below the hairline, both on the house spring in one transaction (round 55).
-        let leavesTree = !isExpanded && viewModel.initializedConnectionIDs.contains(connectionID)
+        // A closing card of a set-up server is minimized: it leaves the tree as one piece while its trail
+        // item moves below the hairline, on the house spring in one transaction (round 55). No veil: the
+        // rows go with the card.
+        if !isExpanded, viewModel.initializedConnectionIDs.contains(connectionID) {
+            travelServerCard(connectionID, arriving: false, finish: finish)
+            return
+        }
 
         if isExpanded {
             withAnimation(.linear(duration: 0)) {
@@ -64,7 +68,6 @@ extension ObjectBrowserSidebarView {
         } else {
             withAnimation(timing.fadeOut) {
                 viewModel.foldingConnectionIDs = changing
-                viewModel.cardsLeaveOrArrive = leavesTree
                 _ = viewModel.dockSwitchingConnectionIDs.insert(connectionID)
                 _ = viewModel.dockFadingConnectionIDs.insert(connectionID)
             } completion: {
@@ -73,12 +76,35 @@ extension ObjectBrowserSidebarView {
                 withAnimation(.linear(duration: 0)) {
                     viewModel.foldAnchor = ExplorerFoldAnchor(connectionID: connectionID, request: generation)
                 } completion: {
-                    withAnimation(leavesTree ? motion.standard : motion.expand) {
-                        toggle()
-                        if leavesTree { moveRailItems() }
-                    } completion: { finish() }
+                    withAnimation(motion.expand) { toggle() } completion: { finish() }
                 }
             }
+        }
+    }
+
+    /// A card leaves the tree (minimized) or comes back (restored), as one piece with its rows, and the
+    /// trail's item moves in the same transaction (round 55). The fold is marked first, in an update of its
+    /// own, so rows and cards already carry the right transitions and the tree's dock-switch rule
+    /// (no animation for a section change) doesn't swallow the change.
+    func travelServerCard(_ connectionID: UUID, arriving: Bool, finish: (() -> Void)? = nil) {
+        viewModel.foldGeneration += 1
+        let generation = viewModel.foldGeneration
+        WindowDragPause.pauseWorkspace(for: motion.settleDuration + 0.15)
+        let settle = {
+            if viewModel.foldGeneration == generation {
+                viewModel.foldingConnectionIDs = []
+                viewModel.travellingConnectionIDs = []
+            }
+            finish?()
+        }
+        withAnimation(.linear(duration: 0)) {
+            viewModel.foldingConnectionIDs = [connectionID]
+            viewModel.travellingConnectionIDs = [connectionID]
+        } completion: {
+            withAnimation(motion.standard) {
+                viewModel.setServerExpanded(arriving, connectionID: connectionID)
+                moveRailItems()
+            } completion: { settle() }
         }
     }
 
