@@ -11,6 +11,7 @@ import AppKit
 ///     { "action": "manage", "target": "new" }                   // Manage Connections: connections, identities, projects, new, or a connection's name
 ///     { "action": "structure", "server": "Test MSSQL", "target": "AdventureWorks2022/Sales.SalesOrderHeader#indexes" }  // a section to focus
 ///     { "action": "structureEdit", "target": "addColumn" }     // or addIndex, addUnique, addForeignKey, addCheck, section:indexes
+///     { "action": "viewStats" }                                  // how many NSViews the window holds, by class
 ///     { "action": "close", "target": "settings" }               // closes the front window of that kind
 extension AppDirector {
     static let settingsAutomationNotification = Notification.Name("dev.echodb.echo.automation.settings")
@@ -44,6 +45,8 @@ extension AppDirector {
                     editor.focusSection(section)
                 }
             }
+        case "viewStats":
+            printAutomationViewStats()
         case "manage":
             let target = step.target ?? "connections"
             let controller = ManageConnectionsWindowController.shared
@@ -82,6 +85,23 @@ extension AppDirector {
         default:
             break
         }
+    }
+
+    /// Prints how many NSViews the workspace window holds and which classes make most of them.
+    private func printAutomationViewStats() {
+        guard let root = NSApp.windows.first(where: { $0.identifier == AppWindowIdentifier.workspace })?.contentView?.superview else { return }
+        var counts: [String: Int] = [:]
+        var total = 0, hidden = 0
+        func walk(_ view: NSView) {
+            total += 1
+            if view.isHiddenOrHasHiddenAncestor { hidden += 1 }
+            counts[String(describing: type(of: view)), default: 0] += 1
+            view.subviews.forEach(walk)
+        }
+        walk(root)
+        print("automation-views total \(total) hidden \(hidden)")
+        for (name, count) in counts.sorted(by: { $0.value > $1.value }).prefix(14) { print("automation-views \(count) \(name)") }
+        fflush(stdout)
     }
 
     /// Chooses the menu item the way a click does. Titles are matched without a trailing ellipsis.
