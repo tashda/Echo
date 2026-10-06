@@ -155,6 +155,11 @@ struct SettingsView: View {
         .searchable(text: $searchText, placement: .sidebar, prompt: "Search")
         .preferredColorScheme(appearanceStore.effectiveColorScheme)
         .accentColor(appearanceStore.accentColor)
+        #if DEBUG
+        .onReceive(NotificationCenter.default.publisher(for: AppDirector.settingsAutomationNotification)) { note in
+            if let raw = note.userInfo?["section"] as? String, let section = SettingsSection(rawValue: raw) { selection = section }
+        }
+        #endif
         .onChange(of: selection) { oldValue, _ in
             guard !isRestoringNavigation, let oldValue else { return }
             navHistory.push(Destination(section: oldValue, databaseTab: databaseTab))

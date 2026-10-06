@@ -11,7 +11,8 @@ import Foundation
 ///     { "action": "window", "target": "sidebar" }  // or "inspector", "overview"
 ///     { "action": "page", "target": "next" }       // a tool tab's next page, or a page's title
 extension AppDirector {
-    static let appAutomationActions: Set<String> = ["query", "tool", "tab", "closeTab", "window", "page", "connect"]
+    static let appAutomationActions: Set<String> = ["query", "tool", "tab", "closeTab", "window", "page", "connect",
+                                                    "menu", "dumpMenu", "settings", "structure", "diagram", "manage", "structureEdit", "close"]
 
     /// Performs an app step; the server is looked up by its automation name.
     func performAppAutomationStep(_ step: AutomationScript.Step, connections: [String: SavedConnection]) {
@@ -49,7 +50,7 @@ extension AppDirector {
             default: break
             }
         default:
-            break
+            performWindowAutomationStep(step, connections: connections)
         }
     }
 

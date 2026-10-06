@@ -11,7 +11,14 @@ import AppKit
 /// scroll view of any kind).
 extension AppDirector {
     func performAutomationScroll(target: String, distance: CGFloat, seconds: Double) async {
-        guard let root = NSApp.windows.first(where: { $0.identifier == AppWindowIdentifier.workspace })?.contentView,
+        // `settings` and `manage` scroll the biggest scroll view of that window.
+        let windowID: NSUserInterfaceItemIdentifier = switch target {
+        case "settings": AppWindowIdentifier.settings
+        case "manage": AppWindowIdentifier.manageConnections
+        default: AppWindowIdentifier.workspace
+        }
+        let target = windowID == AppWindowIdentifier.workspace ? target : "content"
+        guard let root = NSApp.windows.first(where: { $0.identifier == windowID })?.contentView,
               let scrollView = automationScrollView(target, in: root) else { return }
         let frames = max(Int(seconds * 60), 1)
         for _ in 0..<frames {

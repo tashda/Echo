@@ -72,6 +72,7 @@ actor AuthTokenStore {
     // MARK: - Keychain Helpers
 
     private func addKeychainItem(account: String, data: Data) throws {
+        if AutomationIsolation.isActive { return }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
@@ -85,6 +86,7 @@ actor AuthTokenStore {
     }
 
     private func loadKeychainItem(account: String) throws -> Data? {
+        if AutomationIsolation.isActive { return nil }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
@@ -102,6 +104,7 @@ actor AuthTokenStore {
     }
 
     private func deleteKeychainItem(account: String) throws {
+        if AutomationIsolation.isActive { return }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,

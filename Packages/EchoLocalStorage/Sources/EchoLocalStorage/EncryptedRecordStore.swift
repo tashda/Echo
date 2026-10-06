@@ -17,6 +17,10 @@ public actor EncryptedRecordStore {
         encryption: isTestHost ? LocalEncryption(key: SymmetricKey(size: .bits256)) : nil))
     public static var isTestHost: Bool {
         let environment = ProcessInfo.processInfo.environment
+        #if DEBUG
+        // An unattended Echo run keeps its data in a throwaway folder and its key in memory.
+        if environment["ECHO_AUTOMATION_ISOLATED"] == "1" { return true }
+        #endif
         return environment["XCTestConfigurationFilePath"] != nil || environment["XCTestBundlePath"] != nil
             || NSClassFromString("XCTestCase") != nil
     }

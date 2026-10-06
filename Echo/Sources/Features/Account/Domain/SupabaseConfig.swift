@@ -21,14 +21,17 @@ enum SupabaseConfig {
         )
     }()
     static let baseURL: URL? = {
-        guard let string = Bundle.main.infoDictionary?["SUPABASE_URL"] as? String,
+        // An isolated unattended run has no cloud account (AutomationIsolation).
+        guard !AutomationIsolation.isActive,
+              let string = Bundle.main.infoDictionary?["SUPABASE_URL"] as? String,
               !string.isEmpty,
               !string.contains("your-supabase") else { return nil }
         return URL(string: string)
     }()
 
     static let anonKey: String? = {
-        guard let key = Bundle.main.infoDictionary?["SUPABASE_ANON_KEY"] as? String,
+        guard !AutomationIsolation.isActive,
+              let key = Bundle.main.infoDictionary?["SUPABASE_ANON_KEY"] as? String,
               !key.isEmpty,
               !key.contains("your-supabase") else { return nil }
         return key

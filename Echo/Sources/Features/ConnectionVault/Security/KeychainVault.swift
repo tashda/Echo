@@ -17,6 +17,10 @@ struct KeychainVault: Sendable {
 
     func setPassword(_ password: String, account: String) throws {
         let encoded = Data(password.utf8)
+        if AutomationIsolation.isActive {
+            Self.readPasswords.withLock { $0[account] = password }
+            return
+        }
 
         // Delete existing item if present
         try? deletePassword(account: account)
@@ -35,6 +39,7 @@ struct KeychainVault: Sendable {
 
     func getPassword(account: String) throws -> String {
         if let cached = Self.readPasswords.withLock({ $0[account] }) { return cached }
+        if AutomationIsolation.isActive { throw KeychainError.unexpectedStatus(errSecItemNotFound) }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
@@ -55,6 +60,7 @@ struct KeychainVault: Sendable {
 
     func deletePassword(account: String) throws {
         Self.readPasswords.withLock { _ = $0.removeValue(forKey: account) }
+        if AutomationIsolation.isActive { return }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: serviceName,
