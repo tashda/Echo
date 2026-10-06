@@ -54,4 +54,35 @@ struct LineIndexTests {
         #expect(LineIndex(split).line(at: split.length) == 2)
         #expect(LineIndex(split).line(at: split.length) == reference(split, at: split.length))
     }
+
+    @Test func aPatchedIndexIsTheIndexOfTheNewText() {
+        let pieces = ["a", "bc", "\n", "\n\n", "select 1;", " "]
+        var generator = SystemRandomNumberGenerator()
+        var patched = 0
+        for _ in 0..<400 {
+            let old = (0..<Int.random(in: 0...60, using: &generator)).map { _ in pieces.randomElement(using: &generator)! }.joined()
+            let oldText = old as NSString
+            let location = Int.random(in: 0...oldText.length, using: &generator)
+            let length = Int.random(in: 0...(oldText.length - location), using: &generator)
+            let replacement = (0..<Int.random(in: 0...6, using: &generator)).map { _ in pieces.randomElement(using: &generator)! }.joined()
+            let range = NSRange(location: location, length: length)
+            let newText = oldText.replacingCharacters(in: range, with: replacement) as NSString
+
+            var index = LineIndex(oldText)
+            guard index.applyEdit(replacing: range, replacementLength: (replacement as NSString).length, in: newText) else { continue }
+            patched += 1
+            let fresh = LineIndex(newText)
+            #expect(index.starts == fresh.starts, "\(old.debugDescription) [\(location),\(length)] -> \(replacement.debugDescription)")
+            #expect(index.length == fresh.length)
+        }
+        #expect(patched > 300)
+    }
+
+    @Test func aReturnMakesTheIndexBeCountedAgain() {
+        var index = LineIndex("a\r\nb" as NSString)
+        let after = "a\r\nbc" as NSString
+        #expect(index.applyEdit(replacing: NSRange(location: 4, length: 0), replacementLength: 1, in: after) == false)
+        var plain = LineIndex("a\nb" as NSString)
+        #expect(plain.applyEdit(replacing: NSRange(location: 3, length: 0), replacementLength: 1, in: "a\nb\r" as NSString) == false)
+    }
 }

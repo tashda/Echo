@@ -3,7 +3,7 @@
 Time Profiler on scripted scenarios (`Scripts/perf/README.md`): ~35 scenarios against the lab's SQL Server
 (251 databases, many left from lab runs) and PostgreSQL. Main-thread numbers are for Debug builds.
 
-## Fixed (branch `perf/overnight-2026-10-06`, echo-sense `dev` 65e1612)
+## Fixed (branch `perf/overnight-2026-10-06`, echo-sense `dev` 8bee329)
 
 | What | Before | After |
 |---|---|---|
@@ -13,6 +13,9 @@ Time Profiler on scripted scenarios (`Scripts/perf/README.md`): ~35 scenarios ag
 | Tab strip joined a string of every database name on each evaluation | O(databases) on every strip update | a hash in a small child view; lists only when names change |
 | AppKit rechecked the window's drag regions on every frame of a tab opening, closing or switching | ~190 ms on a tab open, 3–6% overall | the window holds still for those frames, as for the sidebar |
 | Every mounted tab rebuilt its content when the tab container's body ran (closures are new each time) | all six tabs | only the tab that changed |
+| A completion wrote a line to `/tmp/echo_crossdb_debug.log` (open, seek, write, close) on the main thread, in every build | a file write per completion and per new context | off unless `ECHO_CROSSDB_DEBUG` is set |
+| Resizing the window: AppKit rechecked drag regions on every frame | per-frame cost for the whole resize | the window holds still during a live resize (`windowWillStartLiveResize` / `windowDidEndLiveResize`) |
+| A long script (2000 to 10000 lines) in the editor: highlighting the whole text, laying out the ruler's lines, counting lines from the top a dozen times per key, EchoSense parsing the whole text per completion | one key press froze the main thread for 6 s (2000 lines) | highlighting only near the visible part (re-done on scroll), ruler lays out only what is visible, a kept line index patched on each edit, EchoSense parses a window around the caret. 2000 lines: longest stretch 5976 ms to ~1 s, 10000 lines: still ~1.3 s on the first key after a paste (Debug) |
 
 ## Measured, not fixed (needs a decision or a bigger change)
 
@@ -33,3 +36,5 @@ Time Profiler on scripted scenarios (`Scripts/perf/README.md`): ~35 scenarios ag
 - Typing: ~24 ms per character in Debug; a third is the completion popup (a SwiftUI list laid out per keystroke).
 - The Release build could not be measured: the automation is `#if DEBUG`, and macOS asks the owner for Local Network
   access for every new binary path.
+- Large script, what is left (Debug, 10000 lines): `applySyntaxHighlighting` for the window, `QueryEditorState.sql`'s Equatable
+  check against the 300 KB bridged string (`_stringCompareSlow`), `refreshStatements`, and the string scans in EchoSense's `performCompletions`.

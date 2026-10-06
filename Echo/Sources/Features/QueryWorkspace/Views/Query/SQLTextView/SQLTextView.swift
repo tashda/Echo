@@ -27,6 +27,10 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
     var highlightedRange: NSRange?
     /// Where each line starts, until the text changes (SQLTextView+LineIndex).
     var lineIndexStorage: LineIndex?
+    /// The edit about to happen, for patching the index (`shouldChangeText`, then `didChangeText`).
+    var pendingLineEdit: NSRange?
+    var lineIndexIsPatched = false
+    var isChangingSeveralRanges = false
     var symbolHighlightWorkItem: DispatchWorkItem?
     var selectionMatchRanges: [NSRange] = []
     var caretMatchRanges: [NSRange] = []
@@ -270,8 +274,28 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
 
     func reapplyHighlighting() { scheduleHighlighting(after: 0) }
 
+    override func shouldChangeText(in affectedCharRange: NSRange, replacementString: String?) -> Bool {
+        let allowed = super.shouldChangeText(in: affectedCharRange, replacementString: replacementString)
+        if allowed, !isChangingSeveralRanges { noteEditForLineIndex(range: affectedCharRange) }
+        return allowed
+    }
+
+    /// Typing and pasting arrive here with one range; several ranges at once (Replace All) leave no single
+    /// edit to patch the index with.
+    override func shouldChangeText(inRanges affectedRanges: [NSValue], replacementStrings: [String]?) -> Bool {
+        isChangingSeveralRanges = true
+        defer { isChangingSeveralRanges = false }
+        let allowed = super.shouldChangeText(inRanges: affectedRanges, replacementStrings: replacementStrings)
+        if allowed, affectedRanges.count == 1, let range = affectedRanges.first?.rangeValue {
+            noteEditForLineIndex(range: range)
+        } else {
+            pendingLineEdit = nil
+        }
+        return allowed
+    }
+
     override func didChangeText() {
-        invalidateLineIndex()
+        updateLineIndexAfterEdit()
         super.didChangeText(); sqlDelegate?.sqlTextView(self, didUpdateText: string); lineNumberRuler?.setNeedsDisplay(lineNumberRuler?.bounds ?? .zero)
         refreshEmptyPrompt()
         refreshFind()
