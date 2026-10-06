@@ -46,7 +46,7 @@ extension AppDirector {
         } else if step.action == "scroll" {
             announce(index: index, label: step.label ?? "scroll \(step.target ?? "")")
             await performAutomationScroll(target: step.target ?? "sidebar", distance: step.distance ?? 800, seconds: step.seconds ?? 1)
-        } else if let action = step.action, ["axOn", "dumpUI", "press", "key", "fieldType", "click"].contains(action) {
+        } else if let action = step.action, ["axOn", "dumpUI", "press", "key", "fieldType", "click", "frames"].contains(action) {
             announce(index: index, label: step.label ?? "\(action) \(step.target ?? "")")
             await performUIAutomationStep(step)
         } else if let action = step.action, Self.appAutomationActions.contains(action) {
@@ -90,6 +90,7 @@ extension AppDirector {
     }
 
     private func announce(index: Int, label: String) {
+        AutomationFrameMeter.shared.begin(step: "\(index) \(label)")
         Self.scriptSignposter.emitEvent("step", "\(index) \(label, privacy: .public)")
         print("automation-step \(String(format: "%.3f", Date().timeIntervalSince1970)) \(index) \(label)")
         fflush(stdout)

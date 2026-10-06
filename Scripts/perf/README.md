@@ -27,3 +27,16 @@ Caveats found on the way:
 - Don't change the bundle id and don't run a build from a new path while measuring: macOS asks for Local
   Network access per binary, and only the owner can answer.
 - Release builds have no automation (it is `#if DEBUG`).
+
+## A run only counts when it connected (2026-10-06)
+
+Hours of numbers were once taken from runs where every server showed "Failed". `verify.py <name>...` reads what the test
+servers saw during the run (`out/<name>.server.txt`): a connected run opens at least 5 SQL Server sessions and sends Postgres
+thousands of transactions. `scoreboard.py` and `ab.sh` call it first and say NOT CONNECTED; never read a number from such a run.
+`prewait.py` waits until the test Postgres is nearly empty before a run (a killed Echo leaves its sessions behind), and
+`pgwatch.py` prints the Postgres session count over time (that is how the 46-sessions-per-server prefetch was found).
+
+* `scoreboard.py <name>...`: frame-meter lines grouped by kind of interaction, worst first.
+* `ab.sh <scenario> <step regex> <rounds> <ENV>...`: interleaved runs of variants (`ECHO_PERF_OFF=strip`), main-thread CPU (`cpuMs`) next to fps, because fps moves with load from other programs and CPU time does not.
+* `stepincl.py`, `under.py`, `diffwin.py`: inclusive time per frame name in one step of a trace, time under a pattern, and two traces side by side.
+* A new build at a new path needs Local Network access granted again: run the Release build from the app path that already has it.

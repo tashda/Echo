@@ -53,11 +53,12 @@ struct QueryEditorContainer: View {
                     },
                     onRunStatement: runStatementAtCaret
                 )
+                .perfSwitch("editor")
             }
         } panel: {
-            resultsSection(isResizingResults: false)
+            resultsSection(isResizingResults: false).perfSwitch("results")
         } footer: {
-            queryStatusBar
+            queryStatusBar.perfSwitch("footer")
         }
         .onAppear {
             updateClipboardContext()

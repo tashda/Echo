@@ -20,6 +20,11 @@ epochs = []
 for line in open(os.path.join(PERF, "out", f"{name}.stdout"), errors="replace"):
     m = re.match(r"automation-step (\d+\.\d+) (\d+) (.*)", line)
     if m: epochs.append((float(m.group(1)), m.group(3)))
+# the frame meter's lines: how smoothly the window drew in each step
+frames = {}
+for line in open(os.path.join(PERF, "out", f"{name}.stdout"), errors="replace"):
+    m = re.match(r"automation-frames (.+?) frames=(\d+)(?: fps=(\d+) p50=([\d.]+) p95=([\d.]+) max=([\d.]+) hitches=(\d+) lostMs=(\d+))?", line)
+    if m and m.group(3): frames[m.group(1)] = dict(fps=int(m.group(3)), p95=float(m.group(5)), max=float(m.group(6)), hitches=int(m.group(7)), lost=int(m.group(8)))
 sampler = []
 path = os.path.join(PERF, "out", f"{name}.sampler.csv")
 if os.path.exists(path):
@@ -55,7 +60,7 @@ def runs_of(ts):
 running = [s for s in samples if s[3] == "Running"]
 print(f"== {name}: {len(steps)} steps, {(max(s[0] for s in samples) - base) / 1e9:.0f}s traced, {len(hangs)} hangs")
 for s, d, ty in hangs: print(f"   HANG {ty} {d / 1e6:.0f} ms at {(s - base) / 1e9:.1f}s")
-print(f"{'step':34s} {'sec':>5s} {'main':>6s} {'long':>5s} {'>50':>3s} {'allCPU':>7s} {'thr':>7s} {'cpu%':>9s} {'tcp':>3s} {'KBin':>6s} {'KBout':>6s}  busiest other threads (ms)")
+print(f"{'step':34s} {'sec':>5s} {'main':>6s} {'long':>5s} {'>50':>3s} {'allCPU':>7s} {'thr':>7s} {'cpu%':>9s} {'tcp':>3s} {'KBin':>6s} {'KBout':>6s} {'fps':>4s} {'p95':>5s} {'max':>5s} {'hit':>3s} {'lost':>5s}  busiest other threads (ms)")
 tot_threads = collections.Counter(); tot_where = collections.defaultdict(collections.Counter)
 for a, b, label, epoch in windows:
     inwin = [s for s in running if a <= s[0] < b]
@@ -81,7 +86,9 @@ for a, b, label, epoch in windows:
     kin = (smp[-1]["bytes_in"] - smp[0]["bytes_in"]) / 1024 if len(smp) > 1 else 0
     kout = (smp[-1]["bytes_out"] - smp[0]["bytes_out"]) / 1024 if len(smp) > 1 else 0
     top = ", ".join(f"{k.split(' (')[0]}={v:.0f}" for k, v in others.most_common(3))
-    print(f"{label[:34]:34s} {sec:5.1f} {busy:6.0f} {max(rs, default=0):5.0f} {sum(1 for r in rs if r > 50):3d} {allcpu:7.0f} {thr:>7s} {cpu:>9s} {tcp:>3s} {kin:6.0f} {kout:6.0f}  {top}")
+    fr = frames.get(label)
+    fcols = f"{fr['fps']:4d} {fr['p95']:5.0f} {fr['max']:5.0f} {fr['hitches']:3d} {fr['lost']:5d}" if fr else f"{'-':>4s} {'-':>5s} {'-':>5s} {'-':>3s} {'-':>5s}"
+    print(f"{label[:34]:34s} {sec:5.1f} {busy:6.0f} {max(rs, default=0):5.0f} {sum(1 for r in rs if r > 50):3d} {allcpu:7.0f} {thr:>7s} {cpu:>9s} {tcp:>3s} {kin:6.0f} {kout:6.0f} {fcols}  {top}")
 print("\n-- CPU by thread over the whole run (ms) and where it went")
 for k, v in tot_threads.most_common(10):
     print(f"  {v:7.0f}  {k}")

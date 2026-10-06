@@ -1,0 +1,6 @@
+{"connect": [], "steps": [
+ {"action":"connect","server":"PG A","wait":25,"label":"connect PG A"},
+ {"action":"connect","server":"PG B","wait":25,"label":"connect PG B"},
+ {"action":"connect","server":"PG C","wait":25,"label":"connect PG C"},
+ {"wait":20,"label":"idle"}
+]}

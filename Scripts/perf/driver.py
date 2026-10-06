@@ -54,7 +54,8 @@ def launch():
         if n.isdigit() and int(n) >= 1: break
         time.sleep(0.5)
     time.sleep(1.5)
-    if front and front != "Echo": subprocess.run(["osascript", "-e", f'tell application "{front}" to activate'], capture_output=True)
+    # DRIVER_FRONT=1: leave Echo in front (smoothness runs: a window behind others is drawn less)
+    if front and front != "Echo" and not os.environ.get("DRIVER_FRONT"): subprocess.run(["osascript", "-e", f'tell application "{front}" to activate'], capture_output=True)
     for _ in range(240):
         if "commands listening" in open(stdout_path, errors="replace").read(): return True
         time.sleep(0.5)
@@ -87,8 +88,18 @@ if quiet_on:
     print(f"[{session}] servers quiet after {time.time() - started:.0f}s (calm={calm})", flush=True)
 
 fed = 0
+def shot(name):
+    """A picture of Echo's window (screencapture of that window only), out/shots/<name>.png."""
+    os.makedirs(os.path.join(PERF, "out", "shots"), exist_ok=True)
+    listing = subprocess.run([os.path.join(PERF, "winlist"), "Echo"], capture_output=True, text=True).stdout.splitlines()
+    if not listing: print(f"[{session}] no window to shoot"); return
+    window = max((l.split() for l in listing), key=lambda p: int(p[3]) * int(p[4]))[0]
+    subprocess.run(["screencapture", "-x", "-o", "-l", window, os.path.join(PERF, "out", "shots", f"{name}.png")])
+
 def feed(step):
     global fed
+    if step.get("action") == "shot":
+        time.sleep(step.get("wait", 0.3)); shot(step.get("target") or step.get("label") or "shot"); return True
     with open(cmds, "a") as f: f.write(json.dumps(step) + "\n")
     fed += 1
     deadline = time.time() + 600

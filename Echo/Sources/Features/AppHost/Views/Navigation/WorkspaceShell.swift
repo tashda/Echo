@@ -33,6 +33,7 @@ struct WorkspaceShell: View {
 
         HStack(spacing: SpacingTokens.none) {
             WorkspaceRailColumn(bridge: railBridge)
+                .perfSwitch("rail")
                 .padding(.leading, gutter)
                 .padding(.top, stripInset)
                 // Above the tree, so the tree slides away under the rail's glass.
@@ -43,6 +44,7 @@ struct WorkspaceShell: View {
                     .padding(.top, stripInset)
 
                 WorkspaceMainContent()
+                .perfSwitch("main")
                 .accessibilityIdentifier("workspace-content")
                 .frame(minWidth: SpacingTokens.none, maxWidth: .infinity, minHeight: SpacingTokens.none, maxHeight: .infinity)
                 .padding(.leading, isTreeVisible ? SpacingTokens.none : gutter)
@@ -93,6 +95,7 @@ struct WorkspaceShell: View {
 
         return HStack(spacing: SpacingTokens.none) {
             SidebarColumn(railBridge: railBridge)
+                .perfSwitch("sidebar")
                 .accessibilityIdentifier("workspace-sidebar")
                 .frame(width: width)
                 .padding(.leading, gutter)

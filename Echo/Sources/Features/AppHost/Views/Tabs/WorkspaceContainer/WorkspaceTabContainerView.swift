@@ -94,11 +94,13 @@ struct WorkspaceTabContainerView: View {
                             leadingPadding: tabBarLeadingPadding,
                             trailingPadding: tabBarTrailingPadding
                         )
+                        .perfSwitch("strip")
                     }
 
                     // Tab content sits on an opaque card below the strip (Design/02-layout.md › Cards);
                     // query tabs draw two, editor over results.
                     activeTabContainer
+                        .perfSwitch("content")
                         .simultaneousGesture(overviewPinch)
                         // A zero minimum keeps tall content (a long list, a big dashboard) from pushing
                         // the window past its own edges; the card clips it instead.
