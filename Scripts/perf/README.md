@@ -18,6 +18,9 @@ small scripts. Written for the overnight performance pass of 2026-10-06.
    - `agg.py <trace> <pattern>...` (`STEP=<regex>` to limit to steps): inclusive share of frames.
 
 Caveats found on the way:
+- `prefetch` and `prefetch-editor` (connect, then leave the 251-database server alone for 150 s) measure what each schema merge
+  costs; compare `score.py`/`agg.py` totals before and after. Only one `xctrace` can run on the Mac at a time (kperf is
+  shared): a run that logs `could not lock kperf` recorded nothing and has to be repeated, and its `.trace.pkl` must be deleted.
 - `ECHO_AUTOMATION_ISOLATED=1` keeps a run away from the Keychain, the account and the stored data.
 - Launch through `open` and attach by pid. `xctrace --launch` is ambiguous when other Echo.app copies share
   the bundle id, and the SwiftUI template crashes xctrace when it saves.

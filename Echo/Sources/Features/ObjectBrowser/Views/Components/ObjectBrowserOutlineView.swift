@@ -19,6 +19,16 @@ struct ObjectBrowserOutlineView: View {
     let topScrollerInset: CGFloat
     /// Corner radius of the server cards, from the Card Corners setting.
     var cornerRadius: CGFloat = LayoutTokens.Workspace.cardCornerRadius
+    /// Changes when something the row content closure captures changes (the sidebar's density and
+    /// icon colours), so rows that keep their content are still drawn again.
+    var rowEpoch = 0
+
+    func rowEpoch(_ epoch: Int) -> Self {
+        var copy = self
+        copy.rowEpoch = epoch
+        return copy
+    }
+
     /// What the server headers need beyond an ordinary row's slot (the title banner, round 53).
     var serverHeaderExtraHeight: CGFloat = 0
     let rowContent: (ObjectBrowserNode, Bool, Int, CGFloat, @escaping () -> Void) -> AnyView
@@ -202,9 +212,10 @@ struct ObjectBrowserOutlineView: View {
         let node = row.node
         let isExpanded = expandedNodeIDs.contains(node.id)
         let hasContextMenu = contextMenuNodeID == node.id
-        // Nodes are rebuilt whenever anything they show changes, so the node itself, with what this
-        // view adds, says whether the row has to be drawn again.
-        let key = RowKey(node: ObjectIdentifier(node), isExpanded: isExpanded, depth: row.depth, height: row.height,
+        // Nodes are rebuilt whenever anything the tree reads changes, so a new node says nothing: the
+        // node's render key (what it draws), with what this view adds, says whether the row has to
+        // be drawn again.
+        let key = RowKey(node: node.renderKey, epoch: rowEpoch, isExpanded: isExpanded, depth: row.depth, height: row.height,
                          headerHeight: headerHeight, hasContextMenu: hasContextMenu)
         return ExplorerTreeRowSlot(height: row.height) {
             ExplorerTreeRowHost(key: key) {
@@ -219,7 +230,8 @@ struct ObjectBrowserOutlineView: View {
 
     /// What decides whether a row is drawn again (`ExplorerTreeRowHost`).
     struct RowKey: Equatable, Sendable {
-        let node: ObjectIdentifier
+        let node: ObjectBrowserNode.RenderKey
+        let epoch: Int
         let isExpanded: Bool
         let depth: Int
         let height: CGFloat

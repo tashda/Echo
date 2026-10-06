@@ -27,7 +27,7 @@ extension ObjectBrowserRowView {
     }
 
     func serverVersionLabel(_ session: ConnectionSession) -> String? {
-        let raw = session.databaseStructure?.serverVersion ?? session.connection.serverVersion
+        let raw = session.reportedServerVersion ?? session.connection.serverVersion
         guard let raw, !raw.isEmpty else { return nil }
         let prefixes = ["SQL Server ", "PostgreSQL ", "Microsoft SQL Server "]
         for prefix in prefixes where raw.hasPrefix(prefix) {

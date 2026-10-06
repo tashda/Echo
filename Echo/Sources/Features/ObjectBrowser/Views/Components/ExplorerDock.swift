@@ -114,7 +114,7 @@ enum ExplorerDock {
                              color: folder.kind.role.color, count: folder.count)
         case .action(_, let kind, _):
             ExplorerDockItem(id: node.id, key: kind.rawValue, title: kind.title, symbol: kind.symbol, color: kind.role.color, count: nil)
-        case .database(_, let database, _):
+        case .database(_, let database):
             ExplorerDockItem(id: node.id, key: "database:\(database.name)", title: database.name, symbol: "cylinder",
                              color: ExplorerIconRole.database.color, count: nil)
         default:

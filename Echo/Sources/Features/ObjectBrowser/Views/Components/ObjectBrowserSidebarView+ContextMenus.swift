@@ -16,7 +16,7 @@ extension ObjectBrowserSidebarView {
             connectionMenu(for: session)
         case .section(let folder), .folder(let folder):
             folderMenu(folder)
-        case .database(let session, let database, _):
+        case .database(let session, let database):
             databaseMenu(for: database, session: session)
         case .object(let session, let databaseName, let object):
             objectMenu(for: object, databaseName: databaseName, session: session)

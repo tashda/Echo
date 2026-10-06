@@ -63,8 +63,8 @@ struct ObjectBrowserRowView: View {
             serverRow(session: session)
         case .section(let folder):
             sectionHeading(title: folder.kind.title, count: folder.count)
-        case .database(let session, let database, let isLoading):
-            databaseRow(database, session: session, isLoading: isLoading)
+        case .database(let session, let database):
+            databaseRow(database, session: session)
         case .folder(let folder):
             folderRow(folder)
         case .object(let session, _, let object):

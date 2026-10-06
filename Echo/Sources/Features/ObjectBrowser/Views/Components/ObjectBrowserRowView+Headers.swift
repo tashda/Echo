@@ -48,7 +48,7 @@ extension ObjectBrowserRowView {
     /// The product and release, then the dock's current section (round 19).
     func productLine(_ session: ConnectionSession, includesSection: Bool = true) -> String {
         let product = ServerProductLabel.label(
-            rawVersion: session.databaseStructure?.serverVersion ?? session.connection.serverVersion,
+            rawVersion: session.reportedServerVersion ?? session.connection.serverVersion,
             databaseType: session.connection.databaseType
         )
         guard includesSection, let section = dockSectionTitles[session.connection.id] else { return product }

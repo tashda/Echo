@@ -40,6 +40,7 @@ struct ObjectBrowserSidebarView: View {
             savedKeys: savedDockKeys(for:)
         )
         let dockSectionTitles = ExplorerDock.currentTitles(in: roots)
+        let epoch = rowEpoch()
 
         let mainContent = Group {
             if sessions.isEmpty && pendingConnections.isEmpty {
@@ -118,6 +119,7 @@ struct ObjectBrowserSidebarView: View {
                     dockMorphs: projectStore.globalSettings.serverHeaderStyle == .titleBanner,
                     revealAnimated: viewModel.revealAnimated
                 )
+                .rowEpoch(epoch)
                 .background(Color.clear)
                 // Not clipped: the server cards' shadows reach past the tree's edges. The scroll
                 // view clips the rows to the cards' rounded corners itself.
@@ -162,6 +164,14 @@ struct ObjectBrowserSidebarView: View {
         let withSheets = applyServerToolSheets(to: applySheets(to: mainContent))
         let withAlerts = applyAlerts(to: withSheets)
         receivesAutomation(withAlerts, builtRoots: builtRoots, roots: roots)
+    }
+
+    /// What the row content closure captures from the settings: a row is drawn again when it changes.
+    private func rowEpoch() -> Int {
+        var hasher = Hasher()
+        hasher.combine(projectStore.globalSettings.sidebarDensity)
+        hasher.combine(projectStore.globalSettings.sidebarIconColorMode)
+        return hasher.finalize()
     }
 
     private func synchronizeDefaults() {
@@ -269,7 +279,7 @@ struct ObjectBrowserSidebarView: View {
 
     private func handleActivation(of node: ObjectBrowserNode) {
         viewModel.selectedNodeID = node.id
-        if case .database(_, let database, _) = node.row, !database.isAccessible { return }
+        if case .database(_, let database) = node.row, !database.isAccessible { return }
         guard let session = node.row.session else { return }
 
         selectedConnectionID = session.connection.id
@@ -309,7 +319,7 @@ struct ObjectBrowserSidebarView: View {
 
         guard isExpanded else { return }
         switch node.row {
-        case .database(let session, let database, _):
+        case .database(let session, let database):
             loadSchemaIfNeeded(databaseName: database.name, session: session)
         case .section(let folder), .folder(let folder):
             loadIfNeeded(folder)

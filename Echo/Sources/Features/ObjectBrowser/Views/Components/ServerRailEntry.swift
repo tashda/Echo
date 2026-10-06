@@ -57,7 +57,7 @@ enum ServerRailEntry: Identifiable {
         switch self {
         case .session(let session):
             return ServerProductLabel.label(
-                rawVersion: session.databaseStructure?.serverVersion ?? session.connection.serverVersion,
+                rawVersion: session.reportedServerVersion ?? session.connection.serverVersion,
                 databaseType: session.connection.databaseType
             )
         case .pending(let pending):

@@ -121,7 +121,7 @@ extension QueryEditorContainer {
 
     var connectionServerVersion: String? {
         let candidates: [String?] = [
-            connectionSession?.databaseStructure?.serverVersion,
+            connectionSession?.reportedServerVersion,
             connectionSession?.connection.serverVersion,
             tab.connection.serverVersion
         ]

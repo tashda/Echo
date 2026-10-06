@@ -47,7 +47,7 @@ extension ObjectBrowserSidebarView {
         for node in nodes {
             switch node.row {
             case .folder(let folder) where folder.kind.title == title: return node
-            case .database(_, let database, _) where database.name == title: return node
+            case .database(_, let database) where database.name == title: return node
             default: break
             }
             if viewModel.expandedNodeIDs.contains(node.id), let match = findNode(titled: title, in: node.children) { return match }

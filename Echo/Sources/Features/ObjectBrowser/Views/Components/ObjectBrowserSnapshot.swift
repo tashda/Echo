@@ -72,7 +72,7 @@ enum ObjectBrowserSnapshotBuilder {
             // already there and Databases says it is loading.
             let isLoadingServer: Bool = switch session.structureLoadingState {
             case .idle: true
-            case .loading: session.databaseStructure == nil
+            case .loading: !session.hasDatabaseStructure
             default: false
             }
             let builder = ExplorerBlueprintWalker(session: session, settings: settings, viewModel: viewModel, isLoadingServer: isLoadingServer)

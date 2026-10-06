@@ -67,7 +67,9 @@ final class ObjectBrowserNode: NSObject {
         case server(ConnectionSession)
         /// A server-level folder drawn as a heading (Databases, Security…).
         case section(ExplorerFolder)
-        case database(ConnectionSession, DatabaseInfo, isLoading: Bool)
+        /// A database in the Databases folder. The info carries the name and state only: schemas
+        /// load in the background and reach the tree through the database's children.
+        case database(ConnectionSession, DatabaseInfo)
         case folder(ExplorerFolder)
         case object(ConnectionSession, String, SchemaObjectInfo)
         case column(ColumnInfo, ExplorerColumnOwner)

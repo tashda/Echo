@@ -26,9 +26,9 @@ Time Profiler on scripted scenarios (`Scripts/perf/README.md`): ~35 scenarios ag
   to the same level, each alone saves under 10%. Echo's own view bodies are under 6% of it: the rest is SwiftUI layout
   and CPU redraw of layers (`display_if_needed` 28%) as the width changes every frame. The honest options are to hold
   the content at its final width during the slide (a design change) or to cut the number of views in the main content.
-- **A server with hundreds of databases** keeps the main thread ~15% busy for minutes after connecting (serial schema
+- **A server with hundreds of databases** kept the main thread ~15% busy for minutes after connecting (serial schema
   prefetch, one structure update each, reaching the sidebar, the Connect menu (a button per database), the editors, the
-  dashboard and the toolbar). Only the catalog part is fixed. PostgreSQL with 4 databases idles at 0%.
+  dashboard and the toolbar). Fixed afterwards, see "Schema prefetch merges" below. PostgreSQL with 4 databases idles at 0%.
 - **Opening a tab or a tool tab** costs 400–700 ms of layout and display in one go; the toolbar relayouts
   (`NSToolbarView layout`) on each tab change.
 - `TabBoundsPreferenceKey` (the Save card's anchors) shows up high in call trees because it is evaluated over the whole window, but
@@ -38,3 +38,24 @@ Time Profiler on scripted scenarios (`Scripts/perf/README.md`): ~35 scenarios ag
   access for every new binary path.
 - Large script, what is left (Debug, 10000 lines): `applySyntaxHighlighting` for the window, `QueryEditorState.sql`'s Equatable
   check against the 300 KB bridged string (`_stringCompareSlow`), `refreshStatements`, and the string scans in EchoSense's `performCompletions`.
+
+## Schema prefetch merges (251 databases)
+
+`prefetch` and `prefetch-editor` scenarios: connect to the lab SQL Server and leave it for 150 s while the
+prefetch merges about 245 databases, one structure update each. Main-thread busy time over the 170 s trace (Debug):
+
+| | No query tab | With a query tab |
+|---|---|---|
+| Before | 13.9 s | 3.5 s of it in `EchoSenseBridge.makeStructure` (1.2 s) |
+| Rows keep their content key (`ObjectBrowserNode.renderKey`) | 5.8 s | |
+| Readers of the list, a version or one database no longer read the whole structure | 3.2 s | |
+| The editor converts only the database that changed (`EchoSenseBridge`) | | `makeStructure` 0.17 s, editor container 1.3 s to 0.35 s |
+
+- A row is redrawn when what it draws changes, not when its node is a new object (`SidebarRow` bodies 1016 ms to 27 ms).
+- `ConnectionSession` keeps slices that change only when they do: `databaseSummaries` (name, state, access),
+  `hasDatabaseStructure`, `reportedServerVersion`, and a `DatabaseSlot` per database (`databaseInfo(named:)`) for the
+  readers that open one database. The sidebar, the Connect menu, the dashboard, the tab strip and the version lines use them.
+- The loading spinner on a database row reads a per-database flag (`schemaLoadFlag(forDatabase:)`), so it follows the
+  database that is loading; it used to show on the one loaded before, because the in-flight set is not observed.
+- What is left is the fetch itself, the merge (`mergeSingleDatabase` about 0.8 ms), the debounced cache write and the editor
+  container's body, which still runs per merge.

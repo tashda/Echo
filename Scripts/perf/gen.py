@@ -55,6 +55,10 @@ S["procs"] = ([M,P], [w(2), q(M,"EXEC sp_help 'Sales.SalesOrderHeader'",4), q(M,
 S["toolpages"] = ([M,P], [w(2), tool(M,"activity",3)] + [page("next",1.5) for _ in range(6)] + [tool(M,"maintenance",3)] + [page("next",1.5) for _ in range(5)] +
    [tool(M,"serverProperties",3)] + [page("next",1.5) for _ in range(5)] + [tool(P,"activity",3)] + [page("next",1.5) for _ in range(5)] + [tool(M,"jobs",3), tool(M,"extendedEvents",3), tool(M,"profiler",3), tool(M,"serverSecurity",3), tool(M,"tuningAdvisor",3)] + [page("next",1.5) for _ in range(3)])
 S["connect"] = ([], [w(1), {"action":"connect","server":M,"wait":8,"label":"connect mssql"},{"action":"connect","server":P,"wait":8,"label":"connect pg"}, sec(M,"Security",2), sec(P,"Security",2)])
+# Connect to the 251-database server and leave it alone while the schema prefetch merges one database after another.
+S["prefetch"] = ([], [w(1), {"action":"connect","server":M,"wait":150,"label":"prefetch mssql"}])
+# The same with a query tab open: its editor reads the structure too.
+S["prefetch-editor"] = ([M], [w(2), q(M,"SELECT 1",3), w(150)])
 S["menus-all"] = ([M,P], [w(2), q(M,"SELECT 1",2), menu("File/New Query Tab",2), menu("File/Next Tab",1), menu("File/Previous Tab",1), menu("View/Toggle Sidebar",2), menu("View/Toggle Sidebar",2),
    menu("View/Show Tab Overview",2), menu("View/Show Tab Overview",2), menu("View/Show Bottom Panel",2), menu("View/Show Bottom Panel",2), menu("View/Show Inspector",2), menu("View/Show Inspector",2),
    menu("View/Command Palette",2), menu("View/Search",2), menu("Query/Format Query",2), menu("View/Reload Tab",2), menu("File/Reopen Closed Tab",2), menu("File/Close Query Tab",2), menu("Window/Performance Monitor",3), menu("Window/Autocomplete Management",3)])
