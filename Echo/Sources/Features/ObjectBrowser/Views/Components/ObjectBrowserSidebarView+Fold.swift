@@ -40,8 +40,14 @@ extension ObjectBrowserSidebarView {
                 _ = viewModel.dockFadingConnectionIDs.remove(connectionID)
                 _ = viewModel.dockSwitchingConnectionIDs.remove(connectionID)
             }
-            if viewModel.foldGeneration == generation { viewModel.foldingConnectionIDs = [] }
+            if viewModel.foldGeneration == generation {
+                viewModel.foldingConnectionIDs = []
+                viewModel.cardsLeaveOrArrive = false
+            }
         }
+        // A closing card of a set-up server is minimized: it leaves the tree while its trail item moves
+        // below the hairline, both on the house spring in one transaction (round 55).
+        let leavesTree = !isExpanded && viewModel.initializedConnectionIDs.contains(connectionID)
 
         if isExpanded {
             withAnimation(.linear(duration: 0)) {
@@ -58,6 +64,7 @@ extension ObjectBrowserSidebarView {
         } else {
             withAnimation(timing.fadeOut) {
                 viewModel.foldingConnectionIDs = changing
+                viewModel.cardsLeaveOrArrive = leavesTree
                 _ = viewModel.dockSwitchingConnectionIDs.insert(connectionID)
                 _ = viewModel.dockFadingConnectionIDs.insert(connectionID)
             } completion: {
@@ -66,7 +73,10 @@ extension ObjectBrowserSidebarView {
                 withAnimation(.linear(duration: 0)) {
                     viewModel.foldAnchor = ExplorerFoldAnchor(connectionID: connectionID, request: generation)
                 } completion: {
-                    withAnimation(motion.expand) { toggle() } completion: { finish() }
+                    withAnimation(leavesTree ? motion.standard : motion.expand) {
+                        toggle()
+                        if leavesTree { moveRailItems() }
+                    } completion: { finish() }
                 }
             }
         }

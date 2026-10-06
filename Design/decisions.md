@@ -63,6 +63,10 @@ Design pages: *Connections, rebuilt* (https://claude.ai/artifact/E5QCLt83ghuFHr2
 
 Rule: Design/05-components.md › Connections. Plan: Round MC.
 
+## 2026-10-06 · Minimizing and restoring a card moves as one: the house spring, one transaction
+
+The owner kept round 55's motion (not round 54's flight) and asked for it smooth. A minimized card leaves the tree, and a restored one arrives, on `motion.standard`: the card (opacity and the 97% settle), the cards below rising, the rows' cut and the trail's item moving below or above the hairline all use it, and the item is told in the same transaction as the card (before, the card used the folder curve, `expand` 0.22 s, and the item moved a frame later on its own spring). Reduce Motion keeps the short fade. Closing a server that is not yet set up still folds on `expand`. Round 54 stays Accepted in Echo Labs but is not built (see 2026-10-02). Rule: ExplorerTree As built, TREE-2.5. In Echo; owner confirmation pending.
+
 ## 2026-10-02 · Round 55 feedback built: recents get the bubble and a menu, the trail closes on an outside click, the glide is smooth
 
 Owner feedback on the built rail. **Recents** show the glass name bubble (name, product, "Not connected, click to connect") and have a context menu: Connect, Customize Appearance, Edit Connection, Remove from Recents (persisted; the server returns when connected again). The **Connect to a Server** glyph is drawn in the primary text colour, not the dim secondary. The opened trail **closes on a click anywhere outside it** as well as with × and Escape (same no-overshoot settle). The **glide** matches the lab again: the rail's glass shapes share one `GlassEffectContainer`, items no longer carry a scale transition (it fought the matched geometry), and the connected pill is drawn without a scroll view (which clipped a server flying in from the recents and re-laid out every frame) until it outgrows the window. Rule: Window As built, 2.8, 2.10, 2.11.

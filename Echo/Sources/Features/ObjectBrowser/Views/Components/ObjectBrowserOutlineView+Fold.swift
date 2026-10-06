@@ -59,7 +59,7 @@ extension ObjectBrowserOutlineView {
         let maxOffset = max(0, layout.contentHeight - scroll.viewportHeight)
         guard scroll.offset > maxOffset + SpacingTokens.micro else { return }
         prepareWindow(for: maxOffset)
-        withAnimation(motion.expand) { position.scrollTo(y: maxOffset) }
+        withAnimation(rowsCurve) { position.scrollTo(y: maxOffset) }
     }
 }
 

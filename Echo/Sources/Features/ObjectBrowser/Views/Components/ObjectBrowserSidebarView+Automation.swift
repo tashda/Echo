@@ -33,6 +33,8 @@ extension ObjectBrowserSidebarView {
             handleExpansionChange(of: node, isExpanded: !viewModel.expandedNodeIDs.contains(node.id))
         case "collapse", "expand":
             handleExpansionChange(of: server, isExpanded: command.action == "expand")
+        case "restore":
+            revealConnection(connectionID)
         case "reveal":
             reveal(nodeID: server.id)
         default:

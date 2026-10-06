@@ -41,6 +41,8 @@ struct ObjectBrowserOutlineView: View {
     /// Servers whose cards are folding or opening (round 30.2): the edge glides and the rows fade
     /// and are cut by it (ObjectBrowserOutlineView+Fold).
     var foldingConnectionIDs: Set<UUID> = []
+    /// A card is leaving the tree or coming back: everything that moves with it uses `standard` (round 55).
+    var cardsLeaveOrArrive = false
     /// A card about to close: the view is brought to its header first (ObjectBrowserOutlineView+Fold).
     var foldAnchor: ExplorerFoldAnchor?
     /// A row's context menu; the tree has one menu host for all rows (ExplorerTreeContextMenuHost).
@@ -82,6 +84,10 @@ struct ObjectBrowserOutlineView: View {
     /// where the card was (ObjectBrowserOutlineView+Rows).
     @State var previousCardTops: [String: CGFloat] = [:]
 
+    /// How rows and cards move when the set of rows changes: the folder curve, or the house spring
+    /// while a card leaves or comes back (the trail's item glides on it too).
+    var rowsCurve: Animation { cardsLeaveOrArrive ? motion.standard : motion.expand }
+
     var body: some View {
         let baseRowHeight = Self.baseRowHeight(for: density)
         let layout = ObjectBrowserTreeLayout(roots: roots, expandedNodeIDs: expandedNodeIDs, baseRowHeight: baseRowHeight,
@@ -101,7 +107,7 @@ struct ObjectBrowserOutlineView: View {
                 // regions every frame). Only the card's background and veil move its edge. This is
                 // the inner modifier, so it wins over `expand` when both change.
                 .animation(nil, value: dockSwitchKey)
-                .animation(motion.expand, value: rowIDs)
+                .animation(rowsCurve, value: rowIDs)
                 ExplorerTreeHoldSpacer(scroll: scroll, contentHeight: layout.contentHeight)
             }
         }
@@ -115,7 +121,7 @@ struct ObjectBrowserOutlineView: View {
             ExplorerTreeVeilLayer(veils: morphAwareVeils(layout.veils(switching: switchingConnectionIDs, opaque: fadingConnectionIDs)),
                                   scroll: scroll, cornerRadius: cornerRadius)
                 // In a fold the veil grows and shrinks with the card's edge (round 46).
-                .animation(foldingConnectionIDs.isEmpty ? motion.dockEdge : motion.expand, value: dockSelections)
+                .animation(foldingConnectionIDs.isEmpty ? motion.dockEdge : rowsCurve, value: dockSelections)
         }
         .overlay {
             ExplorerTreeContextMenuHost(target: { contextTarget(at: $0, in: layout) }, onMenu: { contextMenuNodeID = $0 })
@@ -148,12 +154,12 @@ struct ObjectBrowserOutlineView: View {
         .background(alignment: .top) {
             ExplorerTreeCardsLayer(cards: layout.cards, scroll: scroll,
                                    switchingCardIDs: switchingCardIDs(in: layout), edgeAnimation: motion.dockEdge,
-                                   foldingCardIDs: foldingCardIDs(in: layout), foldAnimation: motion.expand) {
+                                   foldingCardIDs: foldingCardIDs(in: layout), foldAnimation: rowsCurve) {
                 // The editor card's modifier, so the tree's cards match it exactly.
                 Color.clear.workspaceCard()
             }
                 .animation(nil, value: dockSwitchKey)
-                .animation(motion.expand, value: rowIDs)
+                .animation(rowsCurve, value: rowIDs)
         }
         .frame(minHeight: SpacingTokens.none)
         // The rows changed height: hold the room below before AppKit can move the view (N2).
