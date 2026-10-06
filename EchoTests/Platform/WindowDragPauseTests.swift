@@ -34,4 +34,30 @@ struct WindowDragPauseTests {
         try await Task.sleep(for: .milliseconds(300))
         #expect(!window.isMovable)
     }
+
+    @Test func aLiveResizeHoldsTheWindowStillUntilItEnds() {
+        let window = makeWindow()
+        WindowDragPause.holdStill(window)
+        #expect(!window.isMovable)
+        WindowDragPause.release(window)
+        #expect(window.isMovable)
+    }
+
+    @Test func releasingAWindowThatWasNotHeldChangesNothing() {
+        let window = makeWindow()
+        window.isMovable = false
+        WindowDragPause.holdStill(window)
+        WindowDragPause.release(window)
+        #expect(!window.isMovable)
+    }
+
+    @Test func aPauseInProgressIsLeftToItsOwnTimer() async throws {
+        let window = makeWindow()
+        WindowDragPause.pause(window, for: 0.1)
+        WindowDragPause.holdStill(window)
+        WindowDragPause.release(window)
+        #expect(!window.isMovable)
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(window.isMovable)
+    }
 }

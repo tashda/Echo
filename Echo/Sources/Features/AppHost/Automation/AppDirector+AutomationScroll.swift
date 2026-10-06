@@ -45,6 +45,25 @@ extension AppDirector {
         }
     }
 
+    /// Resizes the workspace window frame by frame, as dragging its edge does: the right edge moves
+    /// `distance` points over `seconds` (negative shrinks it).
+    ///
+    ///     { "action": "resize", "distance": -400, "seconds": 1.5 }
+    func performAutomationResize(distance: CGFloat, seconds: Double) async {
+        guard let window = NSApp.windows.first(where: { $0.identifier == AppWindowIdentifier.workspace }) else { return }
+        let start = window.frame
+        let frames = max(Int(seconds * 60), 1)
+        // As a person's drag does (WorkspaceWindowConfigurator): the window is held still while it resizes.
+        if ProcessInfo.processInfo.environment["ECHO_RESIZE_UNHELD"] == nil { WindowDragPause.holdStill(window) }
+        defer { WindowDragPause.release(window) }
+        for step in 1...frames {
+            var frame = start
+            frame.size.width = max(start.width + distance * CGFloat(step) / CGFloat(frames), window.minSize.width)
+            window.setFrame(frame, display: true)
+            try? await Task.sleep(for: .milliseconds(16))
+        }
+    }
+
     private func automationScrollView(_ target: String, in root: NSView) -> NSScrollView? {
         var found: [NSScrollView] = []
         func collect(_ view: NSView) {

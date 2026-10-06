@@ -19,6 +19,24 @@ enum WindowDragPause {
         pause(window, for: seconds)
     }
 
+    /// Windows held still for as long as the person resizes them.
+    private static var heldWindows: Set<ObjectIdentifier> = []
+
+    /// Holds the window unmovable until `release`: for a live resize, which asks AppKit to
+    /// recompute the drag regions on every frame (8% of a resize, traced 2026-10-06).
+    static func holdStill(_ window: NSWindow) {
+        let id = ObjectIdentifier(window)
+        guard !heldWindows.contains(id), !window.styleMask.contains(.fullScreen),
+              resumeTasks[id] == nil, window.isMovable else { return }
+        window.isMovable = false
+        heldWindows.insert(id)
+    }
+
+    static func release(_ window: NSWindow) {
+        guard heldWindows.remove(ObjectIdentifier(window)) != nil else { return }
+        window.isMovable = true
+    }
+
     static func pause(_ window: NSWindow, for seconds: Double) {
         guard !window.styleMask.contains(.fullScreen) else { return }
         let id = ObjectIdentifier(window)

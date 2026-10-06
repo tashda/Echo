@@ -52,6 +52,18 @@ struct WorkspaceWindowConfigurator: NSViewRepresentable {
             }
         }
 
+        // MARK: - Live resize
+
+        func windowWillStartLiveResize(_ notification: Notification) {
+            guard let window = notification.object as? NSWindow else { return }
+            WindowDragPause.holdStill(window)
+        }
+
+        func windowDidEndLiveResize(_ notification: Notification) {
+            guard let window = notification.object as? NSWindow else { return }
+            WindowDragPause.release(window)
+        }
+
         // MARK: - Window Styling
 
         private func applyWindowStyling(_ window: NSWindow) {
