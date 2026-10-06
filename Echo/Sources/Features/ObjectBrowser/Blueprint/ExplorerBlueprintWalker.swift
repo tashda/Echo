@@ -143,7 +143,7 @@ struct ExplorerBlueprintWalker {
     private func databasesSection(extras: [ExplorerBlueprintNode]) -> ObjectBrowserNode {
         let databases = ObjectBrowserSnapshotBuilder.visibleDatabases(
             for: session,
-            structure: session.databaseStructure,
+            databases: session.databaseSummaries,
             settings: settings,
             hideOffline: viewModel.hideOfflineDatabasesBySession[connectionID] ?? false
         )
@@ -164,10 +164,9 @@ struct ExplorerBlueprintWalker {
         return ObjectBrowserNode(id: folderID, row: .folder(folder), children: children)
     }
 
-    private func databaseNode(_ database: DatabaseInfo) -> ObjectBrowserNode {
-        let databaseID = ObjectBrowserSidebarViewModel.databaseNodeID(connectionID: connectionID, databaseName: database.name)
-        let isLoading = session.schemaLoadsInFlight.contains(session.schemaLoadKey(database.name))
-        let row = ObjectBrowserNode.Row.database(session, database, isLoading: isLoading)
+    private func databaseNode(_ summary: DatabaseSummary) -> ObjectBrowserNode {
+        let databaseID = ObjectBrowserSidebarViewModel.databaseNodeID(connectionID: connectionID, databaseName: summary.name)
+        let row = ObjectBrowserNode.Row.database(session, summary.info)
 
         // A collapsed database's objects are never shown, so they aren't built: with many
         // databases whose schemas load in the background, building them made every render (a
@@ -178,6 +177,10 @@ struct ExplorerBlueprintWalker {
                 ObjectBrowserNode(id: ObjectBrowserSidebarViewModel.loadingNodeID(parentID: databaseID), row: .loading("Loading objects", style: .skeleton))
             ])
         }
+        // Only an open database reads its schemas, and its loading state: the tree is not rebuilt
+        // for the schemas of the databases that are closed.
+        let isLoading = session.schemaLoadFlag(forDatabase: summary.name).isLoading
+        let database = session.databaseInfo(named: summary.name) ?? summary.info
         return ObjectBrowserNode(id: databaseID, row: row, children: databaseChildren(database, databaseID: databaseID, isLoading: isLoading))
     }
 

@@ -6,7 +6,7 @@ extension EnvironmentState {
     func switchableDatabaseNames(for tab: WorkspaceTab) -> [String] {
         guard tab.connection.databaseType != .sqlite,
               let session = sessionGroup.activeSessions.first(where: { $0.id == tab.connectionSessionID }) else { return [] }
-        let databases = session.databaseStructure?.databases ?? []
+        let databases = session.databaseSummaries
         return databases.filter(\.isOnline).map(\.name)
             .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }

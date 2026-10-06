@@ -81,7 +81,7 @@ struct ConnectionDashboardHeader: View {
             }
             .modifier(DashboardPiece(index: 0, revealed: revealed))
 
-            if let version = session.databaseStructure?.serverVersion ?? session.connection.serverVersion {
+            if let version = session.reportedServerVersion ?? session.connection.serverVersion {
                 Text(version)
                     .font(TypographyTokens.standard)
                     .foregroundStyle(ColorTokens.Text.secondary)

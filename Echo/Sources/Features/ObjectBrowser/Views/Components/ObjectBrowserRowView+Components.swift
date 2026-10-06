@@ -2,8 +2,10 @@ import SwiftUI
 
 /// The row kinds, each drawn with `SidebarRow` in the tree's style.
 extension ObjectBrowserRowView {
-    func databaseRow(_ database: DatabaseInfo, session: ConnectionSession, isLoading: Bool) -> some View {
-        buttonRow {
+    func databaseRow(_ database: DatabaseInfo, session: ConnectionSession) -> some View {
+        // Read here, not by the tree: only this row is told when its schema starts or stops loading.
+        let isLoading = session.schemaLoadFlag(forDatabase: database.name).isLoading
+        return buttonRow {
             SidebarRow(
                 depth: depth,
                 icon: .system("cylinder"),

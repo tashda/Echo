@@ -4,8 +4,8 @@ struct ConnectionDashboardTools: View {
     @Bindable var session: ConnectionSession
     @Environment(EnvironmentState.self) private var environmentState
 
-    private var databases: [DatabaseInfo] {
-        session.databaseStructure?.databases ?? []
+    private var databases: [DatabaseSummary] {
+        session.databaseSummaries
     }
 
     private var defaultDatabase: String {

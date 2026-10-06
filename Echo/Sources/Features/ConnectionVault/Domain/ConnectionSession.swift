@@ -12,6 +12,27 @@ enum StructureLoadingState: Equatable {
     case failed(message: String?)
 }
 
+/// One database's info as its own object: a view reads it and is told when that database
+/// changed, not for every other database's schemas (`ConnectionSession.databaseInfo(named:)`).
+@Observable @MainActor
+final class DatabaseSlot {
+    var info: DatabaseInfo?
+
+    init(info: DatabaseInfo?) {
+        self.info = info
+    }
+}
+
+/// Whether one database's schema is loading (`ConnectionSession.schemaLoadFlag(forDatabase:)`).
+@Observable @MainActor
+final class SchemaLoadFlag {
+    var isLoading: Bool
+
+    init(isLoading: Bool = false) {
+        self.isLoading = isLoading
+    }
+}
+
 /// Represents an active connection session to a database server
 @Observable @MainActor
 final class ConnectionSession: Identifiable {
@@ -25,7 +46,21 @@ final class ConnectionSession: Identifiable {
     /// This is NOT the active tab's database — tabs carry their own `activeDatabaseName`.
     /// Only set by sidebar interactions (expanding a database, explicit selection).
     var sidebarFocusedDatabase: String?
-    var databaseStructure: DatabaseStructure?
+    var databaseStructure: DatabaseStructure? {
+        didSet { refreshDatabaseSlices() }
+    }
+    /// The same structure, read without telling the view that reads it (`databaseInfo(named:)`).
+    @ObservationIgnored private(set) var structureSnapshot: DatabaseStructure?
+    @ObservationIgnored var databaseSlots: [String: DatabaseSlot] = [:]
+    /// The server's databases without their schemas. Every schema that loads in the background
+    /// replaces `databaseStructure`; readers that only list or pick databases read this, which
+    /// changes only when the list, a state or an access flag does.
+    private(set) var databaseSummaries: [DatabaseSummary] = []
+    /// Whether any structure has arrived, for readers that do not need its contents.
+    private(set) var hasDatabaseStructure = false
+    /// The server version its structure reports (a structure update with the same version is no
+    /// change to a reader of this).
+    private(set) var reportedServerVersion: String?
     var connectionState: ConnectionState = .connected
     var lastActivity: Date = Date()
     var structureLoadingState: StructureLoadingState = .idle
@@ -49,6 +84,7 @@ final class ConnectionSession: Identifiable {
     @ObservationIgnored var defaultBackgroundStreamingThreshold: Int
     @ObservationIgnored var defaultBackgroundFetchSize: Int
     @ObservationIgnored var schemaLoadsInFlight: Set<String> = []
+    @ObservationIgnored var schemaLoadFlags: [String: SchemaLoadFlag] = [:]
     @ObservationIgnored var metadataFreshnessByDatabase: [String: DatabaseMetadataFreshness] = [:]
 
     // Query tabs specific to this connection
@@ -74,6 +110,24 @@ final class ConnectionSession: Identifiable {
         self.spoolManager = spoolManager
 
         self.sidebarFocusedDatabase = nil
+    }
+
+    /// Brings the slices up to date after `databaseStructure` changed; a slice that came out the same
+    /// is not assigned, so its readers are not told.
+    private func refreshDatabaseSlices() {
+        let structure = databaseStructure
+        structureSnapshot = structure
+        // A database that has a reader is told only when its own info changed.
+        if !databaseSlots.isEmpty {
+            let current = Dictionary((structure?.databases ?? []).map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
+            for (name, slot) in databaseSlots where slot.info != current[name] { slot.info = current[name] }
+        }
+        let summaries = structure?.databases.map(DatabaseSummary.init) ?? []
+        if summaries != databaseSummaries { databaseSummaries = summaries }
+        let has = structure != nil
+        if has != hasDatabaseStructure { hasDatabaseStructure = has }
+        let version = structure?.serverVersion
+        if version != reportedServerVersion { reportedServerVersion = version }
     }
 
     var activeQueryTab: WorkspaceTab? {

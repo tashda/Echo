@@ -3,12 +3,12 @@ import Foundation
 extension ObjectBrowserSnapshotBuilder {
     static func visibleDatabases(
         for session: ConnectionSession,
-        structure: DatabaseStructure?,
+        databases: [DatabaseSummary],
         settings: GlobalSettings,
         hideOffline: Bool
-    ) -> [DatabaseInfo] {
+    ) -> [DatabaseSummary] {
         let hideInaccessible = settings.hideInaccessibleDatabases
-        return (structure?.databases ?? [])
+        return databases
             .filter { !hideInaccessible || $0.isAccessible }
             .filter { !hideOffline || $0.isOnline }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }

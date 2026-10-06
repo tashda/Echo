@@ -183,7 +183,7 @@ struct GenericMaintenanceView: View {
 
     private func loadDatabases() async {
         guard let session = environmentState.sessionGroup.sessionForConnection(viewModel.connectionID) else { return }
-        let databases = session.databaseStructure?.databases.map(\.name).sorted() ?? []
+        let databases = session.databaseSummaries.map(\.name).sorted()
         viewModel.databaseList = databases
         if viewModel.selectedDatabase == nil, let first = databases.first {
             viewModel.selectedDatabase = first

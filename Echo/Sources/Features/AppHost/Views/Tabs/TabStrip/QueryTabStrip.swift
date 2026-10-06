@@ -280,7 +280,7 @@ private struct TabStripDatabaseNames: View {
         var hasher = Hasher()
         for session in sessions {
             hasher.combine(session.id)
-            for database in session.databaseStructure?.databases ?? [] {
+            for database in session.databaseSummaries {
                 hasher.combine(database.name)
                 hasher.combine(database.isOnline)
             }
@@ -291,7 +291,7 @@ private struct TabStripDatabaseNames: View {
     private static func names(of sessions: [ConnectionSession]) -> [UUID: [String]] {
         var next: [UUID: [String]] = [:]
         for session in sessions {
-            next[session.id] = (session.databaseStructure?.databases ?? [])
+            next[session.id] = session.databaseSummaries
                 .filter(\.isOnline)
                 .map(\.name)
                 .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }

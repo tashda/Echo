@@ -85,6 +85,45 @@ public struct DatabaseInfo: Sendable, Identifiable, Codable, Hashable {
     }
 }
 
+/// A database as the server lists it: its name and whether it can be used, without its schemas.
+/// Readers that show or pick databases take this instead of `DatabaseInfo`, so they do not
+/// depend on every schema that loads in the background (`ConnectionSession.databaseSummaries`).
+///
+/// It holds only what a reader can tell apart: a database that is online, or whose state is not
+/// reported, has no state, and one the login can use has no access flag, so a merge that drops
+/// `ONLINE` or a `true` leaves the summary as it was.
+public struct DatabaseSummary: Sendable, Identifiable, Hashable {
+    public nonisolated var id: String { name }
+    public let name: String
+    public let stateDescription: String?
+    public let hasAccess: Bool?
+
+    public nonisolated init(name: String, stateDescription: String? = nil, hasAccess: Bool? = nil) {
+        self.name = name
+        let isOnline = stateDescription.map { $0.uppercased() == "ONLINE" } ?? true
+        self.stateDescription = isOnline ? nil : stateDescription
+        self.hasAccess = hasAccess == false ? false : nil
+    }
+
+    public nonisolated init(_ database: DatabaseInfo) {
+        self.init(name: database.name, stateDescription: database.stateDescription, hasAccess: database.hasAccess)
+    }
+
+    public nonisolated var isOnline: Bool {
+        guard let state = stateDescription else { return true }
+        return state.uppercased() == "ONLINE"
+    }
+
+    public nonisolated var isAccessible: Bool {
+        hasAccess ?? true
+    }
+
+    /// The database without schemas, for rows that only list it.
+    public nonisolated var info: DatabaseInfo {
+        DatabaseInfo(name: name, stateDescription: stateDescription, hasAccess: hasAccess)
+    }
+}
+
 public struct AvailableExtensionInfo: Sendable, Identifiable, Codable, Hashable {
     public var id: String { name }
     public let name: String

@@ -8,8 +8,8 @@ struct ConnectionDashboardDatabases: View {
     @State private var showAll = false
     @State private var filter = ""
 
-    private var databases: [DatabaseInfo] {
-        session.databaseStructure?.databases ?? []
+    private var databases: [DatabaseSummary] {
+        session.databaseSummaries
     }
 
     var body: some View {
@@ -31,7 +31,7 @@ struct ConnectionDashboardDatabases: View {
 
     // MARK: - Grid
 
-    private var visibleDatabases: [DatabaseInfo] {
+    private var visibleDatabases: [DatabaseSummary] {
         let query = filter.trimmingCharacters(in: .whitespaces)
         if !query.isEmpty {
             return databases.filter { $0.name.localizedCaseInsensitiveContains(query) }

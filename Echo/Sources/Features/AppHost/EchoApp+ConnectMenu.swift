@@ -149,9 +149,9 @@ struct ConnectMenuCommands: Commands {
         .help(name)
     }
 
-    private func availableDatabases(for session: ConnectionSession) -> [DatabaseInfo] {
-        let source = session.databaseStructure?.databases ?? []
-        var deduplicated: [DatabaseInfo] = []
+    private func availableDatabases(for session: ConnectionSession) -> [DatabaseSummary] {
+        let source = session.databaseSummaries
+        var deduplicated: [DatabaseSummary] = []
         var seen: Set<String> = []
 
         for database in source {

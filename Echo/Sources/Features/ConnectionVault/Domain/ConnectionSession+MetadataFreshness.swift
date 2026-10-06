@@ -69,6 +69,7 @@ extension ConnectionSession {
         structureLoadingState = .idle
         structureLoadingMessage = nil
         schemaLoadsInFlight.removeAll()
+        clearSchemaLoadFlags()
     }
 
     private static func makeMetadataFreshnessMap(

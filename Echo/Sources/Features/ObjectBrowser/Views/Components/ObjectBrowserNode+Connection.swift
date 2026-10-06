@@ -7,7 +7,7 @@ extension ObjectBrowserNode.Row {
     var session: ConnectionSession? {
         switch self {
         case .server(let session),
-             .database(let session, _, _),
+             .database(let session, _),
              .object(let session, _, _),
              .action(let session, _, _),
              .dock(let session, _, _):
@@ -33,7 +33,7 @@ extension ObjectBrowserNode.Row {
     @MainActor
     var databaseName: String? {
         switch self {
-        case .database(_, let database, _):
+        case .database(_, let database):
             return database.name
         case .object(_, let databaseName, _):
             return databaseName

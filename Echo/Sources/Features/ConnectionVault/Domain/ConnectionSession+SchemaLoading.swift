@@ -20,8 +20,19 @@ extension ConnectionSession {
         if metadataFreshnessByDatabase[key] == .listOnly {
             return false
         }
-        return databaseStructure?.databases
+        // The list slice, not the structure: this is asked while the tree is built, which must not
+        // depend on every schema that loads in the background.
+        return databaseSummaries
             .first(where: { normalizedDatabaseName($0.name).caseInsensitiveCompare(normalizedName) == .orderedSame }) != nil
+    }
+
+    /// One database with its schemas. A view that reads it is told when this database changed,
+    /// and not when another database's schemas arrive.
+    func databaseInfo(named name: String) -> DatabaseInfo? {
+        if let slot = databaseSlots[name] { return slot.info }
+        let slot = DatabaseSlot(info: structureSnapshot?.databases.first(where: { $0.name == name }))
+        databaseSlots[name] = slot
+        return slot.info
     }
 
     func beginSchemaLoad(forDatabase databaseName: String) -> Bool {
@@ -31,6 +42,7 @@ extension ConnectionSession {
             return false
         }
         schemaLoadsInFlight.insert(loadKey)
+        schemaLoadFlag(forDatabase: loadKey).isLoading = true
         return true
     }
 
@@ -38,6 +50,21 @@ extension ConnectionSession {
         let loadKey = schemaLoadKey(databaseName)
         guard !loadKey.isEmpty else { return }
         schemaLoadsInFlight.remove(loadKey)
+        schemaLoadFlag(forDatabase: loadKey).isLoading = false
+    }
+
+    /// Whether the database's schema is loading, as an object of its own: a row reads it and is told
+    /// when that one database starts or stops, not for every other database's load.
+    func schemaLoadFlag(forDatabase databaseName: String) -> SchemaLoadFlag {
+        let key = schemaLoadKey(databaseName)
+        if let flag = schemaLoadFlags[key] { return flag }
+        let flag = SchemaLoadFlag(isLoading: schemaLoadsInFlight.contains(key))
+        schemaLoadFlags[key] = flag
+        return flag
+    }
+
+    func clearSchemaLoadFlags() {
+        for flag in schemaLoadFlags.values where flag.isLoading { flag.isLoading = false }
     }
 
     var activeDatabaseName: String? {
