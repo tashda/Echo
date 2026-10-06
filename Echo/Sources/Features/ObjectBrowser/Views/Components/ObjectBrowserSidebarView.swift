@@ -7,6 +7,7 @@ struct ObjectBrowserSidebarView: View {
     @Environment(ProjectStore.self) var projectStore
     @Environment(EnvironmentState.self) var environmentState
     @Environment(NavigationStore.self) var navigationStore
+    @Environment(AppState.self) var appState
     @Environment(\.openWindow) var openWindow
     @Environment(\.workspaceCardCornerRadius) private var cardCornerRadius
     @Environment(\.echoMotion) var motion
@@ -25,7 +26,7 @@ struct ObjectBrowserSidebarView: View {
 
     var body: some View {
         let sessionIDs = sessions.map(\.connection.id)
-        let minimized = viewModel.minimizedServers(sessions: sessions)
+        let minimized = minimizedServers
         let builtRoots = ObjectBrowserSnapshotBuilder.buildRoots(
             pendingConnections: pendingConnections,
             sessions: sessions,

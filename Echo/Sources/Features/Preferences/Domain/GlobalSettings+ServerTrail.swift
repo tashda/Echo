@@ -8,3 +8,18 @@ enum RecentServerCount: Int, Codable, CaseIterable, Sendable {
 
     var displayName: String { String(rawValue) }
 }
+
+/// Where a card goes when it is closed with its header's chevron.
+enum ClosedCardDestination: String, Codable, CaseIterable, Sendable {
+    /// The card leaves the tree and its server stays in the server trail, below the hairline (round 51, 55).
+    case serverTrail
+    /// The card stays in the tree as its header alone.
+    case headerCard
+
+    var displayName: String {
+        switch self {
+        case .serverTrail: "Server Trail"
+        case .headerCard: "Header Card"
+        }
+    }
+}

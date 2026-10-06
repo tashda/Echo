@@ -48,7 +48,8 @@ extension ObjectBrowserSidebarView {
         // A closing card of a set-up server is minimized: it leaves the tree as one piece while its trail
         // item moves below the hairline, on the house spring in one transaction (round 55). No veil: the
         // rows go with the card.
-        if !isExpanded, viewModel.initializedConnectionIDs.contains(connectionID) {
+        if !isExpanded, projectStore.globalSettings.closedCardDestination == .serverTrail,
+           viewModel.initializedConnectionIDs.contains(connectionID) {
             travelServerCard(connectionID, arriving: false, finish: finish)
             return
         }
@@ -96,6 +97,7 @@ extension ObjectBrowserSidebarView {
                 viewModel.travellingConnectionIDs = []
             }
             finish?()
+            if !arriving { hideSidebarWhenNoCardIsLeft() }
         }
         withAnimation(.linear(duration: 0)) {
             viewModel.foldingConnectionIDs = [connectionID]

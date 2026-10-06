@@ -111,11 +111,12 @@ final class ObjectBrowserSidebarViewModel {
     }
 
     /// Which servers' cards are minimized, so they leave the tree and the trail lists them below the hairline.
-    func minimizedServers(sessions: [ConnectionSession]) -> ExplorerMinimizedServers {
+    func minimizedServers(sessions: [ConnectionSession], movesToTrail: Bool) -> ExplorerMinimizedServers {
         ExplorerMinimizedServers(
             sessionConnectionIDs: sessions.map(\.connection.id),
             initializedConnectionIDs: initializedConnectionIDs,
-            expandedNodeIDs: expandedNodeIDs
+            expandedNodeIDs: expandedNodeIDs,
+            movesToTrail: movesToTrail
         )
     }
 

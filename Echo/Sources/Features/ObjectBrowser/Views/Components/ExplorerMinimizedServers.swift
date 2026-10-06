@@ -3,6 +3,8 @@ import Foundation
 /// Which servers' cards are minimized (round 51, SH5). A minimized card leaves the tree entirely
 /// and its item moves below the hairline in the trail's connected pill (round 55); opening it from the trail restores it.
 ///
+/// With the setting "When a Card Is Closed" on Header Card, nothing is minimized: a closed card stays in the tree as its header.
+///
 /// The state is the one a card's header chevron already writes: a server whose node is not in the
 /// expanded set. A server not yet set up (`initializedConnectionIDs`) is never minimized, so a
 /// card that has just connected does not drop below the hairline before it opens.
@@ -12,9 +14,11 @@ nonisolated struct ExplorerMinimizedServers: Equatable, Sendable {
     init(
         sessionConnectionIDs: [UUID],
         initializedConnectionIDs: Set<UUID>,
-        expandedNodeIDs: Set<String>
+        expandedNodeIDs: Set<String>,
+        movesToTrail: Bool = true
     ) {
-        connectionIDs = Set(sessionConnectionIDs.filter { id in
+        // A card closed to its header alone stays in the tree: nothing is minimized.
+        connectionIDs = !movesToTrail ? [] : Set(sessionConnectionIDs.filter { id in
             initializedConnectionIDs.contains(id)
                 && !expandedNodeIDs.contains(ObjectBrowserSidebarViewModel.serverNodeID(connectionID: id))
         })

@@ -152,6 +152,18 @@ struct AppearanceSettingsView: View {
 
             Section("Server Trail") {
                 PropertyRow(
+                    title: "When a Card Is Closed",
+                    subtitle: "Move it into the server trail, or keep it in the tree as its header alone."
+                ) {
+                    Picker("", selection: projectStore.globalSettingBinding(\.closedCardDestination)) {
+                        ForEach(ClosedCardDestination.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .fixedSize()
+                }
+
+                PropertyRow(
                     title: "Show Recent Servers",
                     subtitle: "Servers you used lately but are not connected to, dimmed in the rail. Click one to connect."
                 ) {

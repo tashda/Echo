@@ -4,10 +4,25 @@ import SwiftUI
 /// its server stays in the trail, below the open ones under a short hairline (round 55). Clicking it, or anything that reveals
 /// the server (a tab, a new connection, a focus request), restores the card and selects it.
 extension ObjectBrowserSidebarView {
+    /// Which servers are minimized, by the "When a Card Is Closed" setting.
+    var minimizedServers: ExplorerMinimizedServers {
+        viewModel.minimizedServers(sessions: sessions, movesToTrail: projectStore.globalSettings.closedCardDestination == .serverTrail)
+    }
+
+    /// The last card in the tree was minimized: the sidebar has nothing to show, so it slides away (the
+    /// trail still lists every server, and a click on one brings its card and the sidebar back).
+    func hideSidebarWhenNoCardIsLeft() {
+        let ids = sessions.map(\.connection.id)
+        guard minimizedServers.leavesTreeEmpty(sessionConnectionIDs: ids, pendingCount: environmentState.pendingConnections.count),
+              appState.isWorkspaceTreeVisible
+        else { return }
+        appState.isWorkspaceTreeVisible = false
+    }
+
     /// Tells the rail which servers are minimized now, inside the transaction that moves the card, so the
     /// item and the card start on the same frame and the same curve (round 55).
     func moveRailItems() {
-        let now = viewModel.minimizedServers(sessions: sessions).connectionIDs
+        let now = minimizedServers.connectionIDs
         if railBridge?.minimizedConnectionIDs != now { railBridge?.minimizedConnectionIDs = now }
     }
 

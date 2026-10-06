@@ -182,6 +182,8 @@ struct GlobalSettings: Codable, Hashable {
     /// Round 55, SE0: recent servers in their own pill under the connected ones, and how many.
     var showsRecentServers: Bool = true
     var recentServerCount: RecentServerCount = .five
+    /// Where a closed card goes: into the server trail (the default) or to its header alone in the tree.
+    var closedCardDestination: ClosedCardDestination = .serverTrail
     var sidebarMonochromeVariant: SidebarMonochromeVariant = .accentOnOpen
     /// The section dock's icons, apart from the tree's (round 16): mono by default.
     var sidebarDockIconStyle: SidebarDockIconStyle = .mono
@@ -293,6 +295,7 @@ struct GlobalSettings: Codable, Hashable {
         case railItemSize
         case showsRecentServers
         case recentServerCount
+        case closedCardDestination
         case sidebarMonochromeVariant
         case sidebarDockIconStyle
         case serverHeaderStyle
@@ -414,6 +417,7 @@ struct GlobalSettings: Codable, Hashable {
         railItemSize = (try? container.decodeIfPresent(RailItemSize.self, forKey: .railItemSize)) ?? .medium
         showsRecentServers = (try? container.decodeIfPresent(Bool.self, forKey: .showsRecentServers)) ?? true
         recentServerCount = (try? container.decodeIfPresent(RecentServerCount.self, forKey: .recentServerCount)) ?? .five
+        closedCardDestination = (try? container.decodeIfPresent(ClosedCardDestination.self, forKey: .closedCardDestination)) ?? .serverTrail
         sidebarMonochromeVariant = (try? container.decodeIfPresent(SidebarMonochromeVariant.self, forKey: .sidebarMonochromeVariant)) ?? .accentOnOpen
         sidebarDockIconStyle = (try? container.decodeIfPresent(SidebarDockIconStyle.self, forKey: .sidebarDockIconStyle)) ?? .mono
         serverHeaderLook = (try? container.decodeIfPresent(ServerHeaderLook.self, forKey: .serverHeaderLook)) ?? ServerHeaderLook()
@@ -523,6 +527,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(railItemSize, forKey: .railItemSize)
         try container.encode(showsRecentServers, forKey: .showsRecentServers)
         try container.encode(recentServerCount, forKey: .recentServerCount)
+        try container.encode(closedCardDestination, forKey: .closedCardDestination)
         try container.encode(sidebarMonochromeVariant, forKey: .sidebarMonochromeVariant)
         try container.encode(sidebarDockIconStyle, forKey: .sidebarDockIconStyle)
         try container.encode(serverHeaderStyle, forKey: .serverHeaderStyle)

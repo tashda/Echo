@@ -50,6 +50,20 @@ struct ObjectBrowserExpansionPolicyTests {
         #expect(!state.isMinimized(notSetUpYet))
     }
 
+    @Test func a_closed_card_stays_in_the_tree_when_the_setting_keeps_header_cards() {
+        let a = UUID(), b = UUID()
+        let state = ExplorerMinimizedServers(
+            sessionConnectionIDs: [a, b],
+            initializedConnectionIDs: [a, b],
+            expandedNodeIDs: [serverID(a)],
+            movesToTrail: false
+        )
+
+        #expect(state.connectionIDs.isEmpty)
+        #expect(state.shown(from: [a, b]) == [a, b])
+        #expect(!state.leavesTreeEmpty(sessionConnectionIDs: [a, b], pendingCount: 0))
+    }
+
     @Test func minimized_servers_leave_the_list_and_the_rest_keep_their_order() {
         let a = UUID(), b = UUID(), c = UUID()
         let state = ExplorerMinimizedServers(

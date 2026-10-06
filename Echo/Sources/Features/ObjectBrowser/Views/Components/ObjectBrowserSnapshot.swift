@@ -14,7 +14,7 @@ enum ObjectBrowserSnapshotBuilder {
             row: .topSpacer(SpacingTokens.micro)
         )
         // Round 51, SH5: a minimized card is not in the list at all; its server stays in the rail.
-        let minimized = viewModel.minimizedServers(sessions: sessions)
+        let minimized = viewModel.minimizedServers(sessions: sessions, movesToTrail: settings.closedCardDestination == .serverTrail)
 
         var rows: [ObjectBrowserNode] = [topSpacer]
         // Each server sits on its own card; cards are one gutter apart (the Spacing Between
