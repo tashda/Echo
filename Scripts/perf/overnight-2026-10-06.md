@@ -28,8 +28,8 @@ Time Profiler on scripted scenarios (`Scripts/perf/README.md`): ~35 scenarios ag
   dashboard and the toolbar). Only the catalog part is fixed. PostgreSQL with 4 databases idles at 0%.
 - **Opening a tab or a tool tab** costs 400–700 ms of layout and display in one go; the toolbar relayouts
   (`NSToolbarView layout`) on each tab change.
+- `TabBoundsPreferenceKey` (the Save card's anchors) shows up high in call trees because it is evaluated over the whole window, but
+  switching the Save card off changed nothing (sidebar and slide runs): the time is the update it waits for, not the preference.
 - Typing: ~24 ms per character in Debug; a third is the completion popup (a SwiftUI list laid out per keystroke).
-- `TabBoundsPreferenceKey` (the Save card's anchors) is evaluated over the whole window: 2–5% of main-thread time; the
-  card could read tab frames from a registry instead.
 - The Release build could not be measured: the automation is `#if DEBUG`, and macOS asks the owner for Local Network
   access for every new binary path.
