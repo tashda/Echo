@@ -2,8 +2,14 @@
 import AppKit
 import EchoSense
 
-func crossDBDebug(_ msg: String) {
-    let line = "[\(Date())] \(msg)\n"
+/// Cross-database completion tracing, off unless `ECHO_CROSSDB_DEBUG` is set. It used to write a line to
+/// /tmp/echo_crossdb_debug.log (open, seek, write, close) on the main thread for every completion
+/// and every new completion context, in every build.
+let crossDBDebugEnabled = ProcessInfo.processInfo.environment["ECHO_CROSSDB_DEBUG"] != nil
+
+func crossDBDebug(_ message: @autoclosure () -> String) {
+    guard crossDBDebugEnabled else { return }
+    let line = "[\(Date())] \(message())\n"
     if let data = line.data(using: .utf8) {
         let url = URL(fileURLWithPath: "/tmp/echo_crossdb_debug.log")
         if let handle = try? FileHandle(forWritingTo: url) {
@@ -74,32 +80,32 @@ extension SQLTextView {
             return
         }
 
+        // Re-trigger only if the autocomplete popover is showing (the user sees stale results) or the
+        // caret is after a dot (waiting for post-dot suggestions). Checked first: counting every
+        // object of every database costs milliseconds, and a context arrives for each schema loaded.
+        let isPresenting = completionController?.isPresenting == true
+        let isAfterDot = !isPresenting && caretIsAfterDot()
+        guard isPresenting || isAfterDot else { return }
+
         let oldTableCount = oldContext?.structure?.databases.reduce(0) { sum, db in
             sum + db.schemas.reduce(0) { $0 + $1.objects.count }
         } ?? 0
         let newTableCount = newStructure.databases.reduce(0) { sum, db in
             sum + db.schemas.reduce(0) { $0 + $1.objects.count }
         }
-        crossDBDebug("[CROSSDB-RETRIGGER] oldTables=\(oldTableCount), newTables=\(newTableCount), isPresenting=\(completionController?.isPresenting == true)")
+        crossDBDebug("[CROSSDB-RETRIGGER] oldTables=\(oldTableCount), newTables=\(newTableCount), isPresenting=\(isPresenting)")
 
         // Only re-trigger if tables/schemas were actually added (structure grew)
         guard newTableCount > oldTableCount else { return }
+        refreshCompletions(immediate: true)
+    }
 
-        // Re-trigger if the autocomplete popover is showing (user sees stale results)
-        // or if the caret is after a dot (waiting for post-dot suggestions)
-        if completionController?.isPresenting == true {
-            refreshCompletions(immediate: true)
-            return
-        }
-
+    private func caretIsAfterDot() -> Bool {
         let caretLocation = selectedRange().location
-        guard caretLocation != NSNotFound, caretLocation > 0 else { return }
+        guard caretLocation != NSNotFound, caretLocation > 0 else { return false }
         let nsString = string as NSString
-        guard caretLocation <= nsString.length else { return }
-        let charBefore = nsString.character(at: caretLocation - 1)
-        if charBefore == UInt16(UnicodeScalar(".").value) {
-            refreshCompletions(immediate: true)
-        }
+        guard caretLocation <= nsString.length else { return false }
+        return nsString.character(at: caretLocation - 1) == UInt16(UnicodeScalar(".").value)
     }
 
     /// Legacy overload for callers that still use SQLAutoCompletionQuery.

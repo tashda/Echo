@@ -14,9 +14,7 @@ final class SQLTextView: NSTextView, NSTextViewDelegate {
         didSet {
             // SwiftUI sets it on every update; rebuilding the catalog costs tens of milliseconds.
             guard completionContext != oldValue else { return }
-            let dbCount = completionContext?.structure?.databases.count ?? 0
-            let nonEmptyDBs = completionContext?.structure?.databases.filter({ !$0.schemas.isEmpty }).count ?? 0
-            crossDBDebug("[CROSSDB-CONTEXT-SET] databases=\(dbCount), withSchemas=\(nonEmptyDBs), selectedDB=\(completionContext?.selectedDatabase ?? "nil")")
+            crossDBDebug("[CROSSDB-CONTEXT-SET] databases=\(completionContext?.structure?.databases.count ?? 0), withSchemas=\(completionContext?.structure?.databases.filter({ !$0.schemas.isEmpty }).count ?? 0), selectedDB=\(completionContext?.selectedDatabase ?? "nil")")
             completionEngine.updateContext(completionContext)
             retriggerCompletionsIfNeeded(oldContext: oldValue)
         }
