@@ -14,6 +14,10 @@ extension DatabasesSettingsView {
         binding(for: \.activityMonitorRefreshInterval)
     }
 
+    var activityMonitorSlowsWhenHiddenBinding: Binding<Bool> {
+        binding(for: \.activityMonitorSlowsWhenHidden)
+    }
+
     var hideInaccessibleDatabasesBinding: Binding<Bool> {
         binding(for: \.hideInaccessibleDatabases)
     }

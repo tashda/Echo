@@ -19,8 +19,11 @@ extension ActivityMonitorViewModel {
     /// The tab was shown or hidden (`KeptAliveTabsView`).
     func setShown(_ shown: Bool) {
         guard shown != isShown else { return }
+        let before = streamInterval
         isShown = shown
         if shown { showHeldSnapshots() }
+        // The stream asks at one rate: start it again when hiding or showing changes that rate (a paused monitor stays paused).
+        if isRunning, streamInterval != before { startStreaming() }
     }
 
     func showHeldSnapshots() {

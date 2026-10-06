@@ -59,6 +59,18 @@ enum ToolTabsSpec {
                 .material(.row("Line", "the metric colour at 85%, 1.5pt"), .row("Fill", "the metric colour at 14%")),
                 .behaviour(.row("No data", "an em dash in quaternary")),
             ], files: [tiles]),
+            SpecElement(number: "3.3", name: "Polling", summary: "How often a monitor asks its server (2026-10-06: a hidden monitor slows down).", groups: [
+                .behaviour(.row("Shown", "at the chosen rate: 1, 2, 5, 10 or 30 s (the pill on the header line)"),
+                           .row("Not shown", "a kept-alive tab polls once a minute (never faster than the chosen rate), and applies its history when shown again"),
+                           .row("Setting", "Settings › Databases › Activity Monitor › Slow down when not shown (on by default); off keeps the chosen rate while hidden"),
+                           .row("What is read", "text of the 20 costliest queries, never their plans (megabytes every refresh, shown nowhere)")),
+            ], files: ["Echo/Sources/Features/ActivityMonitor/Domain/ActivityMonitorPolling.swift", "Echo/Sources/Features/ActivityMonitor/Domain/ActivityMonitorViewModel+Visibility.swift"]),
+            SpecElement(number: "3.4", name: "Event picker", summary: "Choosing an Extended Events event in the New and Edit Session sheets (2026-10-06).", groups: [
+                .behaviour(.row("Control", "a bordered button with the chosen event, or Select event…, and an up-down chevron"),
+                           .row("Popover", "a search field over a list grouped by package; typing narrows it (words match package or event, ignoring case); Return takes the first match; a click chooses and closes"),
+                           .row("Why", "a dropdown with all ~2,500 events took 1.8 s to open and held 300 MB")),
+                .layout(.row("List", "280pt high in a medium floating surface", token: "FloatingSurfaceSize.medium")),
+            ], files: ["Echo/Sources/Features/ExtendedEvents/Views/ExtendedEventPicker.swift", "Echo/Sources/Features/ExtendedEvents/Domain/ExtendedEventSearch.swift"]),
         ]),
         SpecPart(number: "4", name: "Panes", summary: "Every pane is a card (TT1).", elements: [
             SpecElement(number: "4.1", name: "Pane card", summary: "The same card as the editor and results.", groups: [

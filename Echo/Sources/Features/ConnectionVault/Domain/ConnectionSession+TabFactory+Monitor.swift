@@ -22,6 +22,7 @@ extension ConnectionSession {
 
         let monitor = try session.makeActivityMonitor()
         let interval = AppDirector.shared.projectStore.globalSettings.activityMonitorRefreshInterval
+        let slowsWhenHidden = AppDirector.shared.projectStore.globalSettings.activityMonitorSlowsWhenHidden
         let viewModel = ActivityMonitorViewModel(
             monitor: monitor,
             mysqlSession: session as? MySQLSession,
@@ -31,6 +32,7 @@ extension ConnectionSession {
             refreshInterval: interval
         )
         viewModel.activityEngine = AppDirector.shared.activityEngine
+        viewModel.slowsWhenHidden = slowsWhenHidden
 
         if let mssql = session as? MSSQLSession {
             let xeVM = ExtendedEventsViewModel(

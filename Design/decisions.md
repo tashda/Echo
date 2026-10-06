@@ -63,6 +63,10 @@ Design pages: *Connections, rebuilt* (https://claude.ai/artifact/E5QCLt83ghuFHr2
 
 Rule: Design/05-components.md › Connections. Plan: Round MC.
 
+## 2026-10-06 · Tool tabs: the Activity Monitor reads no plans, a hidden monitor slows down, the XEvents event picker is a searchable list
+
+Owner decisions after a full trace of the tool tabs. **1.** A hidden Activity Monitor polls once a minute instead of at the chosen rate; **Settings › Databases › Activity Monitor › Slow down when not shown** (on by default) turns that off. **2.** The New and Edit Session sheets of Extended Events choose an event in a popover with a search field over a list grouped by package (a dropdown of ~2,500 events took 1.8 s and held 300 MB). **3.** (Not a design change) The monitor no longer reads the query plans of the 20 costliest queries on every refresh (90 MB to 5.5 MB in four minutes). Rule: ToolTabs As built, TOOL 3.3 and 3.4. In Echo; owner confirmation pending.
+
 ## 2026-10-06 · Where a closed card goes, and the sidebar when no card is left
 
 Owner decisions (2026-10-06, after the minimize motion). **1. A setting, Appearance › Server Trail › When a Card Is Closed:** *Server Trail* (the default: round 51 and 55, the card leaves the tree and its server stays in the trail below the hairline) or *Header Card* (the card stays in the tree as its header alone, folding as before round 51 with the veil; nothing is minimized, so the trail shows every server above the hairline). It is saved with the other settings (`GlobalSettings.closedCardDestination`; files saved before it use the trail). **2. When the last card in the tree is minimized, the sidebar slides away** once the card has reached the trail (no empty state to look at); the trail still lists every server, and clicking one brings its card and the sidebar back. Opening the sidebar by hand with every card minimized still shows the calm empty state. Rule: ExplorerTree As built, TREE-2.5; Window As built (the trail). In Echo; owner confirmation pending.

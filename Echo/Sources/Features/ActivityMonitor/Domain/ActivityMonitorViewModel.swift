@@ -15,10 +15,13 @@ final class ActivityMonitorViewModel {
     @ObservationIgnored private let monitor: any DatabaseActivityMonitoring
     @ObservationIgnored private let mysqlSession: MySQLSession?
     @ObservationIgnored private var streamTask: Task<Void, Never>?
+    @ObservationIgnored private var streamGeneration = 0
     @ObservationIgnored var activityEngine: ActivityEngine?
     /// False while the tab is kept mounted but not shown; snapshots wait in `heldSnapshots`.
     @ObservationIgnored var isShown = true
     @ObservationIgnored var heldSnapshots: [DatabaseActivitySnapshot] = []
+    /// Settings › Databases › Activity Monitor: poll a minute apart while the tab is not shown.
+    @ObservationIgnored var slowsWhenHidden = true
     let connectionSessionID: UUID
     let connectionID: UUID
     let databaseType: DatabaseType
@@ -82,16 +85,25 @@ final class ActivityMonitorViewModel {
         startStreaming()
     }
 
+    /// The gap between snapshots now: the chosen one, or slower while the tab is hidden.
+    var streamInterval: TimeInterval {
+        ActivityMonitorPolling.interval(selected: refreshInterval, isShown: isShown, slowsWhenHidden: slowsWhenHidden)
+    }
+
     func startStreaming() {
         isRunning = true
         permissionDenied = false
         streamTask?.cancel()
+        // A stream that ends because a newer one replaced it must not mark the monitor paused or denied.
+        streamGeneration += 1
+        let generation = streamGeneration
         streamTask = Task {
             do {
-                let stream = monitor.streamSnapshots(every: refreshInterval)
+                let stream = monitor.streamSnapshots(every: streamInterval)
                 for try await snapshot in stream {
                     receive(snapshot)
                 }
+                guard generation == streamGeneration else { return }
                 showHeldSnapshots()
                 // Stream ended naturally (not cancelled) — check if it's because of permission denial
                 if latestSnapshot == nil || isEmptySnapshot(latestSnapshot) {
@@ -100,7 +112,7 @@ final class ActivityMonitorViewModel {
             } catch {
                 // Check if error is permission related
             }
-            isRunning = false
+            if generation == streamGeneration { isRunning = false }
         }
     }
 
@@ -118,6 +130,7 @@ final class ActivityMonitorViewModel {
 
     func stopStreaming() {
         isRunning = false
+        streamGeneration += 1
         streamTask?.cancel()
         streamTask = nil
     }

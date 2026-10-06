@@ -83,6 +83,7 @@ enum SettingsSearchIndex {
         .init(title: "Enable Postgres Console", section: .databases, group: "Managed Console"),
         .init(title: "Tool Path", section: .databases, group: "Backup & Restore Tools"),
         .init(title: "Refresh Interval", section: .databases, group: "Activity Monitor"),
+        .init(title: "Slow down when not shown", section: .databases, group: "Activity Monitor"),
         .init(title: "Hide inaccessible databases", section: .databases, group: "Databases"),
     ]
 

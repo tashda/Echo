@@ -37,19 +37,7 @@ struct ExtendedEventsEventControls: View {
                     }
                 }
             } else {
-                let grouped = Dictionary(grouping: viewModel.availableEvents, by: \.packageName)
-                let packages = grouped.keys.sorted()
-
-                Picker("Event", selection: $viewModel.newEventName) {
-                    Text("Select event\u{2026}").tag("")
-                    ForEach(packages, id: \.self) { pkg in
-                        Section(pkg) {
-                            ForEach(grouped[pkg] ?? [], id: \.id) { event in
-                                Text(event.eventName).tag(event.id)
-                            }
-                        }
-                    }
-                }
+                ExtendedEventPicker(events: viewModel.availableEvents, selection: $viewModel.newEventName)
             }
         }
     }

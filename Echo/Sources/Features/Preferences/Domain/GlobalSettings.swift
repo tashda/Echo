@@ -208,6 +208,8 @@ struct GlobalSettings: Codable, Hashable {
     var resultsMonospacedCells: Bool = false
     var toolbarProjectButtonStyle: ToolbarProjectButtonStyle = .account
     var activityMonitorRefreshInterval: Double = 5.0
+    /// A monitor that is not shown polls once a minute instead of at the chosen rate (Settings › Databases › Activity Monitor).
+    var activityMonitorSlowsWhenHidden: Bool = true
     var hideInaccessibleDatabases: Bool = false
     var sidebarHideOfflineDatabasesByDefault: Bool = false
     var searchIncludeOfflineDatabases: Bool = false
@@ -310,6 +312,7 @@ struct GlobalSettings: Codable, Hashable {
         case resultsMonospacedCells
         case sidebarColoredIcons
         case activityMonitorRefreshInterval
+        case activityMonitorSlowsWhenHidden
         case hideInaccessibleDatabases
         case sidebarHideOfflineDatabasesByDefault
         case searchIncludeOfflineDatabases
@@ -449,6 +452,7 @@ struct GlobalSettings: Codable, Hashable {
         resultsMonospacedCells = try container.decodeIfPresent(Bool.self, forKey: .resultsMonospacedCells) ?? false
 
         activityMonitorRefreshInterval = try container.decodeIfPresent(Double.self, forKey: .activityMonitorRefreshInterval) ?? 5.0
+        activityMonitorSlowsWhenHidden = try container.decodeIfPresent(Bool.self, forKey: .activityMonitorSlowsWhenHidden) ?? true
 
         hideInaccessibleDatabases = try container.decodeIfPresent(Bool.self, forKey: .hideInaccessibleDatabases) ?? false
         sidebarHideOfflineDatabasesByDefault = try container.decodeIfPresent(Bool.self, forKey: .sidebarHideOfflineDatabasesByDefault) ?? false
@@ -542,6 +546,7 @@ struct GlobalSettings: Codable, Hashable {
         try container.encode(editorTypographyRevision, forKey: .editorTypographyRevision)
         try container.encode(resultsMonospacedCells, forKey: .resultsMonospacedCells)
         try container.encode(activityMonitorRefreshInterval, forKey: .activityMonitorRefreshInterval)
+        try container.encode(activityMonitorSlowsWhenHidden, forKey: .activityMonitorSlowsWhenHidden)
         try container.encode(hideInaccessibleDatabases, forKey: .hideInaccessibleDatabases)
         try container.encode(sidebarHideOfflineDatabasesByDefault, forKey: .sidebarHideOfflineDatabasesByDefault)
         try container.encode(searchIncludeOfflineDatabases, forKey: .searchIncludeOfflineDatabases)

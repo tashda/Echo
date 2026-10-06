@@ -76,13 +76,18 @@ struct DatabasesSettingsView: View {
 
     @ViewBuilder
     var sqlServerSettings: some View {
-        Section("Activity Monitor") {
+        Section {
             Picker("Refresh Interval", selection: activityMonitorIntervalBinding) {
                 Text("1 second").tag(1.0)
                 Text("2 seconds").tag(2.0)
                 Text("5 seconds").tag(5.0)
                 Text("10 seconds").tag(10.0)
             }
+            Toggle("Slow down when not shown", isOn: activityMonitorSlowsWhenHiddenBinding)
+        } header: {
+            Text("Activity Monitor")
+        } footer: {
+            Text("A monitor in a tab you are not looking at asks the server once a minute instead of at this rate, which spares the server and the network. Turn it off to keep the chosen rate.")
         }
 
         Section {
