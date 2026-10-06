@@ -60,6 +60,13 @@ for _ in 0..<10 where windows.isEmpty {
     Thread.sleep(forTimeInterval: 0.5)
     windows = (attribute(application, "AXWindows") as? [AXUIElement]) ?? []
 }
-let index = arguments.count > 3 ? Int(arguments[3]) ?? 0 : 0
+// The window: its number, or part of its identifier or title (settings-window, workspace-window, Manage).
+var index = 0
+if arguments.count > 3 {
+    if let number = Int(arguments[3]) { index = number }
+    else if let found = windows.firstIndex(where: { w in
+        ["AXIdentifier", "AXTitle"].contains { (attribute(w, $0) as? String)?.contains(arguments[3]) == true }
+    }) { index = found }
+}
 guard windows.indices.contains(index) else { print("no window \(index) of \(windows.count)"); exit(1) }
 dump(windows[index], depth: 0, maxDepth: arguments.count > 2 ? Int(arguments[2]) ?? 30 : 30, origin: .zero)

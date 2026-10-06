@@ -10,8 +10,17 @@ struct WelcomeMark: View {
     @Environment(\.echoMotion) private var motion
 
     var body: some View {
-        TimelineView(WelcomeMarkClock(phase: phase, scale: motion.durationScale)) { context in
-            pills(at: context.date)
+        Group {
+            // Only a moving mark needs a clock. One that has settled is drawn once: its clock used to be asked for
+            // "one more entry" for ever, which kept the whole window redrawing 60 times a second (13% of the main
+            // thread while the welcome sat there, traced 2026-10-06).
+            if WelcomeMarkClock(phase: phase, scale: motion.durationScale).isMoving(at: Date()) {
+                TimelineView(WelcomeMarkClock(phase: phase, scale: motion.durationScale)) { context in
+                    pills(at: context.date)
+                }
+            } else {
+                pills(at: Date())
+            }
         }
         .frame(width: width, height: width * WelcomeMarkMotion.viewHeight / WelcomeMarkMotion.viewWidth)
         .accessibilityHidden(true)
@@ -33,19 +42,30 @@ struct WelcomeMark: View {
     }
 }
 
-/// Ticks every frame while the mark moves, then once at rest.
+/// Ticks every frame while the mark moves, then not at all.
 struct WelcomeMarkClock: TimelineSchedule {
     let phase: WelcomeMarkPhase
     let scale: Double
 
-    func entries(from startDate: Date, mode: TimelineScheduleMode) -> [Date] {
+    /// When the mark's motion started and ends; nil for a mark at rest or not yet shown.
+    private var motion: (start: Date, end: Date)? {
         let start: Date
         switch phase {
         case .playing(let date), .leaving(let date): start = date
-        case .hidden, .resting: return [startDate]
+        case .hidden, .resting: return nil
         }
-        guard let length = WelcomeMarkMotion.length(of: phase, scale: scale) else { return [startDate] }
-        let frames = (0...Int(length * 60)).map { start.addingTimeInterval(Double($0) / 60) }
+        guard let length = WelcomeMarkMotion.length(of: phase, scale: scale) else { return nil }
+        return (start, start.addingTimeInterval(length))
+    }
+
+    func isMoving(at date: Date) -> Bool {
+        guard let motion else { return false }
+        return date < motion.end
+    }
+
+    func entries(from startDate: Date, mode: TimelineScheduleMode) -> [Date] {
+        guard let motion, startDate < motion.end else { return [] }
+        let frames = (0...Int(motion.end.timeIntervalSince(motion.start) * 60)).map { motion.start.addingTimeInterval(Double($0) / 60) }
         return [startDate] + frames.filter { $0 > startDate }
     }
 }

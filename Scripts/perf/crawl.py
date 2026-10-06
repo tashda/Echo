@@ -15,7 +15,8 @@ SESS, AXDUMP = os.path.join(P, "sess.sh"), os.path.join(P, "axdump")
 UNSAFE = re.compile(r"delete|drop|remove|kill|stop|shutdown|restart|disable|truncate|detach|apply|execute|failover|run now|start|clear|reset|purge|shrink|"
                     r"rebuild|reorganize|repair|restore|vacuum|disconnect|close|quit|sidebar width|new tab|connect to|hide sidebar|show inspector|"
                     r"notifications|search|tab overview|quick connect|recent|default project|backup now|import|sign out|log out|cancel|revert|discard|undo|"
-                    r"rollback|enter full screen|minimize|zoom|test mssql|test postgres|export|save|ok$|^yes$|confirm|commit|submit|send|create$", re.I)
+                    r"rollback|enter full screen|minimize|zoom|test mssql|test postgres|export|save|ok$|^yes$|confirm|commit|submit|send|create$|"
+                    r"apple|google|logo|mail|sign|account|update|license|purchase|subscribe|upgrade|erase|reveal|finder|keychain|passkey", re.I)
 CHROME = {"Hide Sidebar", "Quick Connect", "Search", "Show Tab Overview", "Notifications", "Show Inspector", "Default Project", "Recent Connections", "New Tab"}
 LINE = re.compile(r"^( *)(\w+) (.*?)\[(-?\d+),(-?\d+) (\d+)x(\d+) @(-?\d+),(-?\d+)\]$")
 args = sys.argv[1:]
@@ -24,6 +25,8 @@ name, server, window = args[0], opt("--server", "Test MSSQL"), opt("--window", "
 openers = [args[i + 1] for i, a in enumerate(args) if a == "--open"]
 # --win settings|manage|workspace: which window the steps address (the default: the sheet or front window)
 win = opt("--win")
+# --fast: one look at each page, then no looks between clicks (Escape closes whatever a click opened): for big pages where each look takes minutes
+fast = "--fast" in args
 MAX_BUTTONS = int(opt("--max-buttons", "10"))
 
 def sh(*a): return subprocess.run(a, capture_output=True, text=True).stdout
@@ -31,7 +34,7 @@ def pid(): return sh("pgrep", "-f", os.environ.get("ECHO_APP", "DD/Build/Product
 
 def ax():
     env = dict(os.environ, AXSKIP="workspace-sidebar", AXROWS="2")
-    text = subprocess.run([AXDUMP, pid(), "40", window if window.isdigit() else "0"], capture_output=True, text=True, env=env).stdout
+    text = subprocess.run([AXDUMP, pid(), "40", window], capture_output=True, text=True, env=env).stdout
     items = []
     for line in text.splitlines():
         m = LINE.match(line)
@@ -88,7 +91,9 @@ def settle_sheet(why):
 
 def click(it, note, **extra):
     do({"action": "click", "x": it["cx"], "y": it["cy"], "wait": 1.2, "label": note[:40], **extra}, "   " + note)
-    if not settle_sheet(note):
+    if fast:
+        do({"action": "key", "target": "escape", "wait": 0.6, "label": "escape"})
+    elif not settle_sheet(note):
         pass
 
 def page_pass(chip_names, first):
@@ -156,7 +161,7 @@ def explore(opener):
 
 def main():
     for opener in openers: explore(opener)
-    json.dump({"connect": [server] if "," not in server else server.split(","), "steps": steps}, open(os.path.join(P, "scenarios", f"crawl-{name}.json"), "w"), indent=1)
+    json.dump({"connect": [s for s in server.split(",") if s], "steps": steps}, open(os.path.join(P, "scenarios", f"crawl-{name}.json"), "w"), indent=1)
     print("\n".join(log)); print(f"{len(steps)} steps")
 
 os.makedirs(os.path.join(P, "scenarios"), exist_ok=True)

@@ -44,7 +44,9 @@ def launch():
     front = subprocess.run(["osascript", "-e", 'tell application "System Events" to get name of first process whose frontmost is true'], capture_output=True, text=True).stdout.strip()
     subprocess.run(["open", "-n", "-a", APP, "--env", "ECHO_AUTOMATION=1", "--env", "ECHO_AUTOMATION_ISOLATED=1", "--env", f"ECHO_AUTOMATION_SCRIPT={boot}",
                     "--env", f"ECHO_AUTOMATION_COMMANDS={cmds}", "--env", f"ECHO_AUTOMATION_CONFIG={CONFIG}", "--env", "ECHO_KEPT_TABS=6",
-                    "--env", f"ECHO_HANG_SAMPLES={os.path.join(PERF, 'out', session + '.hangs')}",
+                    *([] if os.environ.get("DRIVER_NO_HANGWATCH") else ["--env", f"ECHO_HANG_SAMPLES={os.path.join(PERF, 'out', session + '.hangs')}"]),
+                    # DRIVER_ENV_EXTRA="A=1,B=2": more environment for Echo (an experiment's switches)
+                    *[a for kv in filter(None, os.environ.get("DRIVER_ENV_EXTRA", "").split(",")) for a in ("--env", kv)],
                     "--stdout", stdout_path, "--stderr", out(session, "stderr")])
     # (wait for its window first: leaving earlier leaves it without one)
     for _ in range(120):

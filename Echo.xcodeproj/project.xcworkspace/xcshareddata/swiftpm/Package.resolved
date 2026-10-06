@@ -52,7 +52,7 @@
       "location" : "https://github.com/tashda/echo-sqlserver",
       "state" : {
         "branch" : "dev",
-        "revision" : "99d896defb36bcfb973d470a477c25470bed3c12"
+        "revision" : "1fa4cf3153e6bb6144e05cfd676397457e1dc946"
       }
     },
     {

@@ -63,6 +63,10 @@ Design pages: *Connections, rebuilt* (https://claude.ai/artifact/E5QCLt83ghuFHr2
 
 Rule: Design/05-components.md › Connections. Plan: Round MC.
 
+## 2026-10-06 · The welcome no longer redraws the window while it sits there; clients share event loops
+
+Not design changes. **The welcome mark's clock** (`WelcomeMarkClock`) was asked for one more entry for ever after the pills had settled, so the welcome kept the whole window redrawing at the display's rate: 13% of the main thread while Echo showed the welcome (and under the Settings and Manage Connections windows opened over it). The mark is now drawn once when it has settled (`markPhase = .resting`), the clock stops at the end of the motion, and idle is 0%. **SQL Server connections** share one set of event loops (echo-sqlserver 1fa4cf3) instead of starting four threads each: four servers took Echo from 8 to 42 threads, now 8 to 31 (the NIO threads 16 to 4). Rule: Window As built, 4.1.
+
 ## 2026-10-06 · Tool tabs: the Activity Monitor reads no plans, a hidden monitor slows down, the XEvents event picker is a searchable list
 
 Owner decisions after a full trace of the tool tabs. **1.** A hidden Activity Monitor polls once a minute instead of at the chosen rate; **Settings › Databases › Activity Monitor › Slow down when not shown** (on by default) turns that off. **2.** The New and Edit Session sheets of Extended Events choose an event in a popover with a search field over a list grouped by package (a dropdown of ~2,500 events took 1.8 s and held 300 MB). **3.** (Not a design change) The monitor no longer reads the query plans of the 20 costliest queries on every refresh (90 MB to 5.5 MB in four minutes). Rule: ToolTabs As built, TOOL 3.3 and 3.4. In Echo; owner confirmation pending.

@@ -19,8 +19,12 @@ def mssql(entry):
                          database="master", autocommit=True, login_timeout=15, timeout=60, validate_host=False)
 
 def snapshot():
-    out = {}
+    out, seen = {}, set()
     for name, entry in config().items():
+        # several connections to one server are one server to count
+        key = (entry["type"], entry["host"], entry["port"])
+        if key in seen: continue
+        seen.add(key)
         try:
             if entry["type"] == "mssql":
                 con = mssql(entry); cur = con.cursor()

@@ -176,7 +176,8 @@ enum WindowSpec {
                            .row("Recent", "the latest five connections on one small card: monogram in its colour, name, host, how long ago; a click connects", token: "WorkspaceWelcomeView.maximumRecentCount"),
                            .row("Why no card", "cards are only for content")),
                 .motion(.row("Arrives", "each time the welcome appears: the pills echo in (0.9s, 0.12s apart, overshoot), then the buttons and the recents rise 10pt, 0.15s apart", token: "WelcomeMarkMotion"),
-                        .row("Leaves", "when a server connects the pills echo out to the left (0.46s) and the rest fades; the rail, the tree and the page wait", token: "AppState.welcomeDeparture")),
+                        .row("Leaves", "when a server connects the pills echo out to the left (0.46s) and the rest fades; the rail, the tree and the page wait", token: "AppState.welcomeDeparture"),
+                        .row("At rest", "once the pills have settled the mark is drawn once, with no clock: its clock used to run on after the motion and kept the window redrawing 60 times a second (13% of the main thread while the welcome sat there; fixed 2026-10-06, no change to how it looks)", token: "WelcomeMarkClock")),
             ], rounds: [canvasRound, "ongoing.opening-and-closing-r48"], files: [welcome]),
             SpecElement(number: "4.2", name: "Server page", summary: "A server is active but no tab is open. Sits on the canvas, with no card.", groups: [
                 .layout(.row("Width", "600pt", token: "LayoutTokens.ServerPage.width"), .row("Name", "26pt bold", token: "LayoutTokens.ServerPage.nameSize"),

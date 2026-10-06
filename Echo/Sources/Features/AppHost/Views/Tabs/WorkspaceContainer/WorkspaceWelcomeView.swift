@@ -82,6 +82,11 @@ struct WorkspaceWelcomeView: View {
         try? await Task.sleep(for: .seconds(WelcomeMarkMotion.restGap * scale))
         guard !Task.isCancelled else { return }
         withAnimation(.smooth(duration: WelcomeMarkMotion.riseDuration * scale)) { recentsShown = true }
+        // The mark has settled: from here it is drawn once, with no clock (a clock that never stops redraws the window every frame).
+        let remaining = WelcomeMarkMotion.length(of: .playing(Date()), scale: scale).map { $0 - (WelcomeMarkMotion.restDelay + WelcomeMarkMotion.restGap) * scale } ?? 0
+        try? await Task.sleep(for: .seconds(max(remaining, 0)))
+        guard !Task.isCancelled else { return }
+        markPhase = .resting
     }
 
     /// The pills echo out to the left, last first, and the rest fades (round 48, LV2); the rail
@@ -102,6 +107,7 @@ struct WorkspaceWelcomeView: View {
         try? await Task.sleep(for: .seconds((WelcomeMarkMotion.leaveTotal - 0.1) * scale))
         guard !Task.isCancelled else { return }
         isGone = true
+        markPhase = .hidden
     }
 
     private var actions: some View {
