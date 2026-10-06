@@ -12,11 +12,17 @@ pid() { pgrep -f "$APPDIR/Contents/MacOS/Echo" | head -1; }
 case $1 in
  start)
   shift; pkill -f "$APPDIR/Contents/MacOS/Echo" 2>/dev/null; sleep 1; : > $CMDS; : > $OUT
+  FRONT=$(osascript -e 'tell application "System Events" to get name of first process whose frontmost is true' 2>/dev/null)
   CONN=$(python3 -c "import json,sys; print(json.dumps(sys.argv[1:]))" "$@")
   echo "{\"connect\":$CONN,\"steps\":[]}" > $P/scripts/session.json
-  open -g -n -a "$APPDIR" --env ECHO_AUTOMATION=1 --env ECHO_AUTOMATION_ISOLATED=1 --env ECHO_AUTOMATION_SCRIPT=$P/scripts/session.json \
+  open -n -a "$APPDIR" --env ECHO_AUTOMATION=1 --env ECHO_AUTOMATION_ISOLATED=1 --env ECHO_AUTOMATION_SCRIPT=$P/scripts/session.json \
     --env ECHO_AUTOMATION_COMMANDS=$CMDS --env ECHO_AUTOMATION_CONFIG=/Users/k/Development/Echo/.echo-automation/config.json --stdout $OUT --stderr $P/out/session.stderr
-  for i in $(seq 1 120); do grep -q "commands listening" $OUT 2>/dev/null && break; sleep 0.5; done; echo "ready pid $(pid)";;
+  # Echo only creates its windows when it is activated: give the focus straight back to what the person was using.
+  # (wait for its window first: leaving early leaves it without one)
+  for i in $(seq 1 120); do [ -n "$(pid)" ] && break; sleep 0.25; done
+  for i in $(seq 1 120); do [ "$(osascript -e 'tell application "System Events" to tell process "Echo" to get count of windows' 2>/dev/null)" -ge 1 ] 2>/dev/null && break; sleep 0.5; done; sleep 1.5
+  [ -n "$FRONT" ] && osascript -e "tell application \"$FRONT\" to activate" 2>/dev/null
+  for i in $(seq 1 120); do grep -q "commands listening" $OUT 2>/dev/null && break; sleep 0.5; done; echo "ready pid $(pid) (focus returned to $FRONT)";;
  stop) pkill -f "$APPDIR/Contents/MacOS/Echo";;
  cmd)
   shift

@@ -44,7 +44,10 @@ func dump(_ element: AXUIElement, depth: Int, maxDepth: Int, origin: CGPoint) {
     if let identifier = attribute(element, "AXIdentifier") as? String, skipped.contains(identifier) { return }
     // A long table or list is shown by its first rows (AXROWS, default 4): every cell is a round trip to the app.
     var children = (attribute(element, "AXChildren") as? [AXUIElement]) ?? []
-    if ["Outline", "Table", "List"].contains(String(role)) { children = Array(children.prefix(Int(ProcessInfo.processInfo.environment["AXROWS"] ?? "") ?? 4)) }
+    if ["Outline", "Table", "List"].contains(String(role)) {
+        print("\(String(repeating: " ", count: depth + 1))(\(children.count) children in all)")
+        children = Array(children.prefix(Int(ProcessInfo.processInfo.environment["AXROWS"] ?? "") ?? 4))
+    }
     for child in children { dump(child, depth: depth + 1, maxDepth: maxDepth, origin: here) }
 }
 

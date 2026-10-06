@@ -27,6 +27,13 @@ if os.path.exists(path):
         try: sampler.append({k: float(v) if v not in ("", None) else 0.0 for k, v in r.items()})
         except ValueError: pass
 
+# nettop reports bytes since the process started: count from the first reading
+first = next((x for x in sampler if x["bytes_in"] > 0), None)
+if first:
+    b_in, b_out = first["bytes_in"], first["bytes_out"]
+    for x in sampler:
+        x["bytes_in"] = max(x["bytes_in"] - b_in, 0); x["bytes_out"] = max(x["bytes_out"] - b_out, 0)
+
 def thread_label(t):
     t = re.sub(r"\s*\(Echo, pid: \d+\)", "", t)
     return t[:34]

@@ -11,7 +11,7 @@ import Foundation
 ///     { "action": "window", "target": "sidebar" }  // or "inspector", "overview"
 ///     { "action": "page", "target": "next" }       // a tool tab's next page, or a page's title
 extension AppDirector {
-    static let appAutomationActions: Set<String> = ["query", "tool", "tab", "closeTab", "window", "page", "connect",
+    static let appAutomationActions: Set<String> = ["query", "tool", "tab", "closeTab", "closeAllTabs", "window", "page", "connect",
                                                     "menu", "dumpMenu", "settings", "structure", "diagram", "manage", "structureEdit", "viewStats", "close",
                                                     "axOn", "dumpUI", "press", "key", "fieldType", "click"]
 
@@ -43,6 +43,8 @@ extension AppDirector {
             }
         case "closeTab":
             if let id = tabStore.activeTabId { tabStore.closeTab(id: id) }
+        case "closeAllTabs":
+            for tab in tabStore.tabs { tabStore.closeTab(id: tab.id) }
         case "window":
             switch step.target {
             case "sidebar": appState.isWorkspaceTreeVisible.toggle()

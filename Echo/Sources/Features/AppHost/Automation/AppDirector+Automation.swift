@@ -9,6 +9,8 @@ extension AppDirector {
     /// Does nothing unless the app was launched with `--automation` (or `ECHO_AUTOMATION=1`).
     func runAutomationIfRequested() async {
         guard AutomationConfigurationLoader.isRequested else { return }
+        AutomationHangWatch.startIfRequested()
+        AutomationFocusGuard.startIfRequested()
         let logger = Self.automationLogger
 
         let configuration: AutomationConfiguration

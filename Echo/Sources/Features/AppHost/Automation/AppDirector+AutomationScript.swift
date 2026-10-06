@@ -33,6 +33,7 @@ extension AppDirector {
 
     /// One step, as the script runs it.
     func performAutomationStep(_ step: AutomationScript.Step, index: Int, connections: [String: SavedConnection]) async {
+        AutomationFocusGuard.stepStarted()
         if step.action == "type" {
             announce(index: index, label: step.label ?? "type")
             await performAutomationTyping(step.target ?? "", interval: step.seconds ?? 0.12)
